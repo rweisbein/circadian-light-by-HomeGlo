@@ -621,6 +621,106 @@ SENSOR_NAMES: Dict[str, Dict[str, str]] = {
 }
 
 
+# =============================================================================
+# Allowlist: Curated model dicts for opt-in controls discovery
+# =============================================================================
+
+MOTION_SENSOR_MODELS: Dict[str, Dict[str, Dict[str, Any]]] = {
+    "signify": {
+        "SML001": {"name": "Hue Indoor Motion"},
+        "SML002": {"name": "Hue Outdoor Motion"},
+        "SML003": {"name": "Hue Indoor Motion (new)"},
+        "SML004": {"name": "Hue Outdoor Motion (new)"},
+    },
+    "philips": {
+        "SML001": {"name": "Hue Indoor Motion"},
+        "SML002": {"name": "Hue Outdoor Motion"},
+    },
+    "switchbot": {
+        "Hub 3": {"name": "SwitchBot Hub 3"},
+    },
+    "gl technologies": {
+        "40961": {"name": "Lafaer Presence"},
+    },
+}
+
+CONTACT_SENSOR_MODELS: Dict[str, Dict[str, Dict[str, Any]]] = {
+    "signify": {
+        "SOC001": {"name": "Hue Secure Contact"},
+    },
+    "philips": {
+        "SOC001": {"name": "Hue Secure Contact"},
+    },
+}
+
+CAMERA_MODELS: Dict[str, Dict[str, Dict[str, Any]]] = {
+    "eufy security": {
+        "T8162": {
+            "name": "Eufy Outdoor Camera",
+            "trigger_patterns": [
+                "_motion_detected", "_person_detected", "_pet_detected",
+                "_vehicle_detected",
+            ],
+        },
+        "T8214": {
+            "name": "Eufy Video Doorbell",
+            "trigger_patterns": [
+                "_motion_detected", "_person_detected", "_pet_detected",
+                "_vehicle_detected", "_ringing",
+                "_package_delivered", "_package_stranded", "_package_taken",
+            ],
+        },
+    },
+}
+
+
+def detect_control_type(
+    manufacturer: Optional[str], model: Optional[str]
+) -> Optional[Dict[str, Any]]:
+    """Check all allowlist dicts and return control info or None.
+
+    Searches: SWITCH_TYPES, MOTION_SENSOR_MODELS, CONTACT_SENSOR_MODELS, CAMERA_MODELS.
+    Cameras return category "motion_sensor" since they use the same data model.
+    """
+    if not manufacturer or not model:
+        return None
+
+    # Check switches first (delegates to existing detect_switch_type)
+    switch_type = detect_switch_type(manufacturer, model)
+    if switch_type:
+        type_info = SWITCH_TYPES.get(switch_type, {})
+        return {"category": "switch", "type": switch_type, "name": type_info.get("name")}
+
+    manufacturer_lower = manufacturer.lower()
+
+    # Check motion sensors
+    for mfr_key, models_dict in MOTION_SENSOR_MODELS.items():
+        if mfr_key in manufacturer_lower:
+            for model_key, meta in models_dict.items():
+                if model.upper() == model_key.upper():
+                    return {"category": "motion_sensor", "name": meta["name"]}
+
+    # Check contact sensors
+    for mfr_key, models_dict in CONTACT_SENSOR_MODELS.items():
+        if mfr_key in manufacturer_lower:
+            for model_key, meta in models_dict.items():
+                if model.upper() == model_key.upper():
+                    return {"category": "contact_sensor", "name": meta["name"]}
+
+    # Check cameras (map to motion_sensor category)
+    for mfr_key, models_dict in CAMERA_MODELS.items():
+        if mfr_key in manufacturer_lower:
+            for model_key, meta in models_dict.items():
+                if model.upper() == model_key.upper():
+                    return {
+                        "category": "motion_sensor",
+                        "name": meta["name"],
+                        "trigger_patterns": meta.get("trigger_patterns", []),
+                    }
+
+    return None
+
+
 def get_sensor_name(manufacturer: Optional[str], model: Optional[str]) -> Optional[str]:
     """Get friendly display name for a sensor (motion or contact).
 
@@ -1063,9 +1163,6 @@ _motion_sensors: Dict[str, MotionSensorConfig] = {}
 # Configured contact sensors (persisted)
 _contact_sensors: Dict[str, ContactSensorConfig] = {}
 
-# Dismissed control IDs — hidden from controls list (persisted)
-_dismissed_controls: set = set()
-
 # Runtime state per switch (not persisted)
 _runtime_state: Dict[str, SwitchRuntimeState] = {}
 
@@ -1074,24 +1171,6 @@ _config_file_path: Optional[str] = None
 
 # Scope auto-reset timeout (seconds)
 SCOPE_RESET_TIMEOUT = 45.0
-
-
-def dismiss_control(control_id: str) -> None:
-    """Add a control ID to the dismissed set (hidden from controls list)."""
-    _dismissed_controls.add(control_id)
-    _save()
-    logger.info(f"Dismissed control: {control_id}")
-
-
-def is_dismissed(control_id: str) -> bool:
-    """Check if a control ID has been dismissed."""
-    return control_id in _dismissed_controls
-
-
-def undismiss_control(control_id: str) -> None:
-    """Remove a control ID from the dismissed set."""
-    _dismissed_controls.discard(control_id)
-    _save()
 
 
 # =============================================================================
@@ -1115,7 +1194,7 @@ def _get_data_directory() -> str:
 
 def init(config_file: Optional[str] = None) -> None:
     """Initialize the switches module and load config from disk."""
-    global _config_file_path, _switches, _motion_sensors, _contact_sensors, _dismissed_controls, _runtime_state, _last_actions_cache
+    global _config_file_path, _switches, _motion_sensors, _contact_sensors, _runtime_state, _last_actions_cache
 
     data_dir = _get_data_directory()
 
@@ -1148,8 +1227,6 @@ def init(config_file: Optional[str] = None) -> None:
                 contact = ContactSensorConfig.from_dict(contact_data)
                 _contact_sensors[contact.id] = contact
 
-            _dismissed_controls = set(data.get("dismissed_controls", []))
-
             logger.info(
                 f"Loaded {len(_switches)} switch(es), {len(_motion_sensors)} motion sensor(s), {len(_contact_sensors)} contact sensor(s) from {_config_file_path}"
             )
@@ -1175,7 +1252,6 @@ def _save() -> None:
             "switches": [s.to_dict() for s in _switches.values()],
             "motion_sensors": [m.to_dict() for m in _motion_sensors.values()],
             "contact_sensors": [c.to_dict() for c in _contact_sensors.values()],
-            "dismissed_controls": sorted(_dismissed_controls) if _dismissed_controls else [],
         }
         tmp_path = _config_file_path + ".tmp"
         with open(tmp_path, "w", encoding="utf-8") as f:

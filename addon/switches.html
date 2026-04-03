@@ -1002,7 +1002,7 @@
     function formatCategory(category) {
       const labels = {
         'switch': 'Switch',
-        'motion_sensor': 'Motion',
+        'motion_sensor': 'Motion/camera',
         'contact_sensor': 'Contact',
         'unknown': 'Unknown'
       };
@@ -1194,7 +1194,7 @@
     async function removeStaleControl(controlId, category) {
       if (!confirm('Remove this control?')) return;
       try {
-        const res = await fetch(`./api/controls/${encodeURIComponent(controlId)}/configure?dismiss=true`, {
+        const res = await fetch(`./api/controls/${encodeURIComponent(controlId)}/configure`, {
           method: 'DELETE'
         });
         if (res.ok) {

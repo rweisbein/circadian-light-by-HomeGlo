@@ -616,10 +616,6 @@ class LightDesignerServer:
         self.app.router.add_route(
             "POST", "/{path:.*}/api/controls/add", self.add_control_source
         )
-        self.app.router.add_get("/api/debug/devices", self.debug_device_dump)
-        self.app.router.add_route(
-            "GET", "/{path:.*}/api/debug/devices", self.debug_device_dump
-        )
         self.app.router.add_post(
             "/api/controls/{control_id}/configure", self.configure_control
         )
@@ -5932,10 +5928,6 @@ class LightDesignerServer:
                 device_id = ctrl.get("device_id")
                 category = ctrl.get("category")
 
-                # Skip dismissed controls
-                if switches.is_dismissed(ieee) or switches.is_dismissed(device_id):
-                    continue
-
                 # Get config based on category
                 if category == "motion_sensor":
                     # Look up by device_id for motion sensors
@@ -6174,7 +6166,7 @@ class LightDesignerServer:
                         "area_name": self.client.area_id_to_name.get(area_id),
                     }
 
-            # Track entity types per device using entity_registry cache
+            # Track entity metadata per device using entity_registry cache
             device_entities: Dict[str, Dict[str, Any]] = {}
             for entity_id, entity in self.client.entity_registry.items():
                 device_id = entity.get("device_id")
@@ -6184,13 +6176,6 @@ class LightDesignerServer:
                 if device_id not in device_entities:
                     device_entities[device_id] = {
                         "has_light": False,
-                        "has_motion": False,
-                        "has_occupancy": False,
-                        "has_presence": False,
-                        "has_contact": False,
-                        "has_trigger": False,
-                        "has_button": False,
-                        "has_battery": False,
                         "illuminance_entity": None,
                         "sensitivity_entity": None,
                         "binary_sensors": [],
@@ -6198,11 +6183,6 @@ class LightDesignerServer:
 
                 if entity_id.startswith("light."):
                     device_entities[device_id]["has_light"] = True
-                elif entity_id.startswith("button."):
-                    if "_identify" not in entity_id and not entity_id.endswith(
-                        "_identify"
-                    ):
-                        device_entities[device_id]["has_button"] = True
                 elif entity_id.startswith("binary_sensor."):
                     dc = (
                         entity.get("device_class")
@@ -6210,38 +6190,13 @@ class LightDesignerServer:
                         or ""
                     )
                     if not dc:
-                        # Fallback to cached_states for device_class
                         s = self.client.cached_states.get(entity_id, {})
                         dc = s.get("attributes", {}).get("device_class", "")
-                    if "_motion" in entity_id or dc == "motion":
-                        device_entities[device_id]["has_motion"] = True
-                    elif "_occupancy" in entity_id or dc == "occupancy":
-                        device_entities[device_id]["has_occupancy"] = True
-                    elif "_presence" in entity_id or dc == "presence":
-                        device_entities[device_id]["has_presence"] = True
-                    elif any(
-                        kw in entity_id
-                        for kw in (
-                            "_person", "_human", "_pet", "_animal",
-                            "_vehicle", "_ringing", "_package",
-                            "_crying", "_sound",
-                        )
-                    ):
-                        device_entities[device_id]["has_trigger"] = True
-                    elif (
-                        "_contact" in entity_id
-                        or "_opening" in entity_id
-                        or dc in ("door", "window", "opening", "garage_door")
-                    ):
-                        device_entities[device_id]["has_contact"] = True
-                    # Track all binary_sensors for device search API
                     device_entities[device_id]["binary_sensors"].append({
                         "entity_id": entity_id,
                         "device_class": dc,
                         "name": entity.get("name") or entity.get("original_name") or entity_id.split(".")[-1].replace("_", " ").title(),
                     })
-                elif entity_id.startswith("sensor.") and "_battery" in entity_id:
-                    device_entities[device_id]["has_battery"] = True
                 elif entity_id.startswith("sensor.") and (
                     "illuminance" in entity_id or "_lux" in entity_id
                 ):
@@ -6251,100 +6206,33 @@ class LightDesignerServer:
                 ) and "sensitivity" in entity_id.lower():
                     device_entities[device_id]["sensitivity_entity"] = entity_id
 
-            # Filter to potential controls
+            # Filter to allowlisted controls
             controls = []
             for device_id, device in devices.items():
                 entities = device_entities.get(device_id, {})
 
-                # Skip if it's primarily a light
-                if entities.get("has_light") and not any(
-                    [
-                        entities.get("has_motion"),
-                        entities.get("has_occupancy"),
-                        entities.get("has_contact"),
-                        entities.get("has_trigger"),
-                        entities.get("has_button"),
-                    ]
-                ):
+                # Allowlist check: manufacturer+model must be in our curated lists
+                control_info = switches.detect_control_type(
+                    device.get("manufacturer"), device.get("model")
+                )
+                if not control_info:
                     continue
 
-                # Include if it has control-like entities
-                # Note: has_presence excluded (catches phones/iPads — real
-                # presence sensors are re-included via integration check below)
-                integration = device.get("integration", "")
-                is_lighting_integration = integration in ("zha", "hue", "matter")
-                is_control = any(
-                    [
-                        entities.get("has_motion"),
-                        entities.get("has_occupancy"),
-                        entities.get("has_contact"),
-                        entities.get("has_trigger"),
-                        entities.get("has_button"),
-                        # Battery-only devices from lighting integrations (ZHA remotes)
-                        (
-                            is_lighting_integration
-                            and entities.get("has_battery")
-                            and not entities.get("has_light")
-                        ),
-                        # Presence sensors from non-mobile integrations
-                        (
-                            entities.get("has_presence")
-                            and integration != "mobile_app"
-                        ),
-                    ]
-                )
+                category = control_info["category"]
 
-                if not is_control:
+                # Skip light-only devices that happen to match a manufacturer
+                if entities.get("has_light") and category != "switch":
+                    if not entities.get("binary_sensors"):
+                        continue
+
+                # Skip motion/camera devices with no binary_sensors
+                # (e.g. SwitchBot Hub 3 HumiSensor/TempSensor sub-devices)
+                if category == "motion_sensor" and not entities.get("binary_sensors"):
                     continue
 
-                model = device.get("model", "")
-                if model and model.lower() == "room":
-                    continue
-
-                # Determine category
-                if (
-                    entities.get("has_motion")
-                    or entities.get("has_occupancy")
-                    or entities.get("has_trigger")
-                    or (entities.get("has_presence") and integration != "mobile_app")
-                ):
-                    category = "motion_sensor"
-                elif entities.get("has_contact"):
-                    category = "contact_sensor"
-                elif entities.get("has_button") or (
-                    is_lighting_integration
-                    and entities.get("has_battery")
-                    and not entities.get("has_light")
-                ):
-                    category = "switch"
-                else:
-                    category = "unknown"
-
-                detected_type = None
-                if category == "switch":
-                    detected_type = switches.detect_switch_type(
-                        device.get("manufacturer"), device.get("model")
-                    )
-
-                type_info = (
-                    switches.SWITCH_TYPES.get(detected_type, {})
-                    if detected_type
-                    else {}
-                )
-
-                if detected_type:
-                    type_name = type_info.get("name")
-                elif category in ("motion_sensor", "contact_sensor"):
-                    type_name = switches.get_sensor_name(
-                        device.get("manufacturer"), device.get("model")
-                    )
-                else:
-                    type_name = None
-
-                is_supported = (
-                    category in ("motion_sensor", "contact_sensor")
-                    or detected_type is not None
-                )
+                detected_type = control_info.get("type")
+                type_name = control_info.get("name")
+                is_supported = True
 
                 # Illuminance from cached_states
                 illum_entity = entities.get("illuminance_entity")
@@ -6391,69 +6279,6 @@ class LightDesignerServer:
         except Exception as e:
             logger.error(f"Error fetching HA controls: {e}", exc_info=True)
             return []
-
-    async def debug_device_dump(self, request: Request) -> Response:
-        """Temporary debug endpoint: dump all HA devices with their entities.
-
-        Returns manufacturer, model, integration, area, and all entities per device.
-        For building the curated allowlist of known control devices.
-        """
-        if not self.client:
-            return web.Response(text="No client", content_type="text/plain")
-        try:
-            logger.info("[Debug] Device dump starting...")
-            results = []
-            # Build entity list per device
-            device_entities = {}
-            for entity_id, entity in self.client.entity_registry.items():
-                did = entity.get("device_id")
-                if not did:
-                    continue
-                if did not in device_entities:
-                    device_entities[did] = []
-                dc = entity.get("device_class") or entity.get("original_device_class") or ""
-                device_entities[did].append({
-                    "entity_id": entity_id,
-                    "device_class": dc,
-                    "platform": entity.get("platform", ""),
-                })
-
-            for device_id, device in self.client.device_registry.items():
-                identifiers = device.get("identifiers", [])
-                integration = ""
-                for ident in identifiers:
-                    if isinstance(ident, list) and len(ident) >= 2:
-                        integration = ident[0]
-                        break
-                results.append({
-                    "device_id": device_id,
-                    "name": device.get("name_by_user") or device.get("name"),
-                    "manufacturer": device.get("manufacturer"),
-                    "model": device.get("model_id") or device.get("model"),
-                    "integration": integration,
-                    "area_id": device.get("area_id"),
-                    "entities": device_entities.get(device_id, []),
-                })
-
-            # Sort by integration then name for easy reading
-            results.sort(key=lambda d: (d["integration"] or "", d["name"] or ""))
-
-            # Write to file FIRST, then return small confirmation
-            dump_path = "/config/circadian-light/device_dump.json"
-            try:
-                import os as _os
-                _os.makedirs("/config/circadian-light", exist_ok=True)
-                with open(dump_path, "w") as f:
-                    import json as _json
-                    _json.dump(results, f, indent=2)
-                logger.info(f"Device dump written to {dump_path} ({len(results)} devices)")
-                return web.Response(text=f"Done. {len(results)} devices written to {dump_path}", content_type="text/plain")
-            except Exception as fe:
-                logger.warning(f"Could not write device dump file: {fe}")
-                return web.Response(text=f"Error writing file: {fe}", content_type="text/plain")
-        except Exception as e:
-            logger.error(f"Error in debug device dump: {e}", exc_info=True)
-            return web.json_response({"error": str(e)}, status=500)
 
     async def search_devices(self, request: Request) -> Response:
         """Search HA devices that have binary_sensor entities.
@@ -6790,11 +6615,6 @@ class LightDesignerServer:
                 removed = switches.remove_motion_sensor(control_id)
             if not removed:
                 switches.remove_contact_sensor(control_id)
-
-            # Also dismiss so HA discovery doesn't re-surface it
-            dismiss = request.query.get("dismiss", "false") == "true"
-            if dismiss:
-                switches.dismiss_control(control_id)
 
             return web.json_response({"status": "ok"})
         except Exception as e:

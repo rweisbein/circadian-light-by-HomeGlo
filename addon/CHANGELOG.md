@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.215
+- **Opt-in allowlist for controls discovery**: Replaced heuristic entity scanning (has_motion, has_battery, has_trigger, etc.) with curated manufacturer/model allowlists. Only verified devices auto-appear on the controls page — everything else via "Add control source". Eliminates false positives (phones, shades, Sonos, etc.).
+- **New allowlist dicts**: MOTION_SENSOR_MODELS (Hue SML001-004, SwitchBot Hub 3, Lafaer), CONTACT_SENSOR_MODELS (Hue SOC001), CAMERA_MODELS (Eufy T8162, T8214 with trigger patterns).
+- **Removed dismissed controls**: No longer needed with allowlist gating discovery. Stale/unsupported items get a delete option instead.
+- **"Motion/camera" category label**: Filter dropdown now reads "Motion/camera" to reflect camera support.
+- **Removed debug device dump**: Startup device dump and /api/debug/devices endpoint removed (allowlist is built).
+
 ## 1.0.210
 - **Dismiss controls permanently**: Clicking X on unsupported/stale devices now adds them to a persisted dismissed list. HA discovery won't re-surface them. Dismissed IDs saved in switches_config.json.
 
