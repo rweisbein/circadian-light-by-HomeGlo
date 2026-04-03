@@ -6436,7 +6436,20 @@ class LightDesignerServer:
 
             # Sort by integration then name for easy reading
             results.sort(key=lambda d: (d["integration"] or "", d["name"] or ""))
-            return web.json_response(results)
+
+            # Write to file for easy retrieval via Finder
+            dump_path = "/config/circadian-light/device_dump.json"
+            try:
+                import os as _os
+                _os.makedirs("/config/circadian-light", exist_ok=True)
+                with open(dump_path, "w") as f:
+                    import json as _json
+                    _json.dump(results, f, indent=2)
+                logger.info(f"Device dump written to {dump_path} ({len(results)} devices)")
+            except Exception as fe:
+                logger.warning(f"Could not write device dump file: {fe}")
+
+            return web.json_response({"status": "ok", "devices": len(results), "file": dump_path})
         except Exception as e:
             logger.error(f"Error in debug device dump: {e}", exc_info=True)
             return web.json_response({"error": str(e)}, status=500)
