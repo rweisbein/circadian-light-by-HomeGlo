@@ -6261,8 +6261,10 @@ class LightDesignerServer:
                     continue
 
                 # Include if it has control-like entities
-                # Note: has_presence excluded (catches phones/iPads)
-                # Note: has_battery excluded (catches Sonos, shades, temp meters)
+                # Note: has_presence excluded (catches phones/iPads — real
+                # presence sensors are re-included via integration check below)
+                integration = device.get("integration", "")
+                is_lighting_integration = integration in ("zha", "hue", "matter")
                 is_control = any(
                     [
                         entities.get("has_motion"),
@@ -6270,6 +6272,17 @@ class LightDesignerServer:
                         entities.get("has_contact"),
                         entities.get("has_trigger"),
                         entities.get("has_button"),
+                        # Battery-only devices from lighting integrations (ZHA remotes)
+                        (
+                            is_lighting_integration
+                            and entities.get("has_battery")
+                            and not entities.get("has_light")
+                        ),
+                        # Presence sensors from non-mobile integrations
+                        (
+                            entities.get("has_presence")
+                            and integration != "mobile_app"
+                        ),
                     ]
                 )
 
@@ -6285,11 +6298,16 @@ class LightDesignerServer:
                     entities.get("has_motion")
                     or entities.get("has_occupancy")
                     or entities.get("has_trigger")
+                    or (entities.get("has_presence") and integration != "mobile_app")
                 ):
                     category = "motion_sensor"
                 elif entities.get("has_contact"):
                     category = "contact_sensor"
-                elif entities.get("has_button"):
+                elif entities.get("has_button") or (
+                    is_lighting_integration
+                    and entities.get("has_battery")
+                    and not entities.get("has_light")
+                ):
                     category = "switch"
                 else:
                     category = "unknown"
