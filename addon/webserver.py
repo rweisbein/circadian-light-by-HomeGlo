@@ -616,6 +616,10 @@ class LightDesignerServer:
         self.app.router.add_route(
             "POST", "/{path:.*}/api/controls/add", self.add_control_source
         )
+        self.app.router.add_get("/api/debug/devices", self.debug_device_dump)
+        self.app.router.add_route(
+            "GET", "/{path:.*}/api/debug/devices", self.debug_device_dump
+        )
         self.app.router.add_post(
             "/api/controls/{control_id}/configure", self.configure_control
         )
@@ -6387,6 +6391,55 @@ class LightDesignerServer:
         except Exception as e:
             logger.error(f"Error fetching HA controls: {e}", exc_info=True)
             return []
+
+    async def debug_device_dump(self, request: Request) -> Response:
+        """Temporary debug endpoint: dump all HA devices with their entities.
+
+        Returns manufacturer, model, integration, area, and all entities per device.
+        For building the curated allowlist of known control devices.
+        """
+        if not self.client:
+            return web.json_response([])
+        try:
+            results = []
+            # Build entity list per device
+            device_entities = {}
+            for entity_id, entity in self.client.entity_registry.items():
+                did = entity.get("device_id")
+                if not did:
+                    continue
+                if did not in device_entities:
+                    device_entities[did] = []
+                dc = entity.get("device_class") or entity.get("original_device_class") or ""
+                device_entities[did].append({
+                    "entity_id": entity_id,
+                    "device_class": dc,
+                    "platform": entity.get("platform", ""),
+                })
+
+            for device_id, device in self.client.device_registry.items():
+                identifiers = device.get("identifiers", [])
+                integration = ""
+                for ident in identifiers:
+                    if isinstance(ident, list) and len(ident) >= 2:
+                        integration = ident[0]
+                        break
+                results.append({
+                    "device_id": device_id,
+                    "name": device.get("name_by_user") or device.get("name"),
+                    "manufacturer": device.get("manufacturer"),
+                    "model": device.get("model_id") or device.get("model"),
+                    "integration": integration,
+                    "area_id": device.get("area_id"),
+                    "entities": device_entities.get(device_id, []),
+                })
+
+            # Sort by integration then name for easy reading
+            results.sort(key=lambda d: (d["integration"] or "", d["name"] or ""))
+            return web.json_response(results)
+        except Exception as e:
+            logger.error(f"Error in debug device dump: {e}", exc_info=True)
+            return web.json_response({"error": str(e)}, status=500)
 
     async def search_devices(self, request: Request) -> Response:
         """Search HA devices that have binary_sensor entities.
