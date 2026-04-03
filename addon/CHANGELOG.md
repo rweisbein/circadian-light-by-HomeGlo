@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.210
+- **Dismiss controls permanently**: Clicking X on unsupported/stale devices now adds them to a persisted dismissed list. HA discovery won't re-surface them. Dismissed IDs saved in switches_config.json.
+
 ## 1.0.209
 - **Fix trigger selection: "Any motion" no longer auto-selects when picking Person/Pet/Vehicle**. Selection checking now uses category's own keywords, not the expanded "all" set. Toggling "Any motion" on still correctly adds all presence entities and greys out specific types.
 - **Fix "show all" collapsing on selection**: Expanded state is now preserved across re-renders. Toggle text changes to "hide others" when expanded. Auto-expands if any uncategorized entity is selected.

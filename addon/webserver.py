@@ -5928,6 +5928,10 @@ class LightDesignerServer:
                 device_id = ctrl.get("device_id")
                 category = ctrl.get("category")
 
+                # Skip dismissed controls
+                if switches.is_dismissed(ieee) or switches.is_dismissed(device_id):
+                    continue
+
                 # Get config based on category
                 if category == "motion_sensor":
                     # Look up by device_id for motion sensors
@@ -6719,6 +6723,11 @@ class LightDesignerServer:
                 removed = switches.remove_motion_sensor(control_id)
             if not removed:
                 switches.remove_contact_sensor(control_id)
+
+            # Also dismiss so HA discovery doesn't re-surface it
+            dismiss = request.query.get("dismiss", "false") == "true"
+            if dismiss:
+                switches.dismiss_control(control_id)
 
             return web.json_response({"status": "ok"})
         except Exception as e:

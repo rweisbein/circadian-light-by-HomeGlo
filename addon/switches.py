@@ -1063,6 +1063,9 @@ _motion_sensors: Dict[str, MotionSensorConfig] = {}
 # Configured contact sensors (persisted)
 _contact_sensors: Dict[str, ContactSensorConfig] = {}
 
+# Dismissed control IDs — hidden from controls list (persisted)
+_dismissed_controls: set = set()
+
 # Runtime state per switch (not persisted)
 _runtime_state: Dict[str, SwitchRuntimeState] = {}
 
@@ -1071,6 +1074,24 @@ _config_file_path: Optional[str] = None
 
 # Scope auto-reset timeout (seconds)
 SCOPE_RESET_TIMEOUT = 45.0
+
+
+def dismiss_control(control_id: str) -> None:
+    """Add a control ID to the dismissed set (hidden from controls list)."""
+    _dismissed_controls.add(control_id)
+    _save()
+    logger.info(f"Dismissed control: {control_id}")
+
+
+def is_dismissed(control_id: str) -> bool:
+    """Check if a control ID has been dismissed."""
+    return control_id in _dismissed_controls
+
+
+def undismiss_control(control_id: str) -> None:
+    """Remove a control ID from the dismissed set."""
+    _dismissed_controls.discard(control_id)
+    _save()
 
 
 # =============================================================================
@@ -1094,7 +1115,7 @@ def _get_data_directory() -> str:
 
 def init(config_file: Optional[str] = None) -> None:
     """Initialize the switches module and load config from disk."""
-    global _config_file_path, _switches, _motion_sensors, _contact_sensors, _runtime_state, _last_actions_cache
+    global _config_file_path, _switches, _motion_sensors, _contact_sensors, _dismissed_controls, _runtime_state, _last_actions_cache
 
     data_dir = _get_data_directory()
 
@@ -1127,6 +1148,8 @@ def init(config_file: Optional[str] = None) -> None:
                 contact = ContactSensorConfig.from_dict(contact_data)
                 _contact_sensors[contact.id] = contact
 
+            _dismissed_controls = set(data.get("dismissed_controls", []))
+
             logger.info(
                 f"Loaded {len(_switches)} switch(es), {len(_motion_sensors)} motion sensor(s), {len(_contact_sensors)} contact sensor(s) from {_config_file_path}"
             )
@@ -1152,6 +1175,7 @@ def _save() -> None:
             "switches": [s.to_dict() for s in _switches.values()],
             "motion_sensors": [m.to_dict() for m in _motion_sensors.values()],
             "contact_sensors": [c.to_dict() for c in _contact_sensors.values()],
+            "dismissed_controls": sorted(_dismissed_controls) if _dismissed_controls else [],
         }
         tmp_path = _config_file_path + ".tmp"
         with open(tmp_path, "w", encoding="utf-8") as f:
