@@ -6399,8 +6399,9 @@ class LightDesignerServer:
         For building the curated allowlist of known control devices.
         """
         if not self.client:
-            return web.json_response([])
+            return web.Response(text="No client", content_type="text/plain")
         try:
+            logger.info("[Debug] Device dump starting...")
             results = []
             # Build entity list per device
             device_entities = {}
@@ -6437,7 +6438,7 @@ class LightDesignerServer:
             # Sort by integration then name for easy reading
             results.sort(key=lambda d: (d["integration"] or "", d["name"] or ""))
 
-            # Write to file for easy retrieval via Finder
+            # Write to file FIRST, then return small confirmation
             dump_path = "/config/circadian-light/device_dump.json"
             try:
                 import os as _os
@@ -6446,10 +6447,10 @@ class LightDesignerServer:
                     import json as _json
                     _json.dump(results, f, indent=2)
                 logger.info(f"Device dump written to {dump_path} ({len(results)} devices)")
+                return web.Response(text=f"Done. {len(results)} devices written to {dump_path}", content_type="text/plain")
             except Exception as fe:
                 logger.warning(f"Could not write device dump file: {fe}")
-
-            return web.json_response({"status": "ok", "devices": len(results), "file": dump_path})
+                return web.Response(text=f"Error writing file: {fe}", content_type="text/plain")
         except Exception as e:
             logger.error(f"Error in debug device dump: {e}", exc_info=True)
             return web.json_response({"error": str(e)}, status=500)
