@@ -4673,6 +4673,37 @@ class HomeAssistantWebSocketClient:
         logger.info(
             f"✓ Light capability cache built: {len(self.light_color_modes)} lights across {len(self.area_lights)} areas"
         )
+
+        # Write device dump for allowlist building (temporary)
+        try:
+            dump = []
+            device_ents = {}
+            for eid, ent in self.entity_registry.items():
+                did = ent.get("device_id")
+                if did:
+                    device_ents.setdefault(did, []).append({
+                        "entity_id": eid,
+                        "device_class": ent.get("device_class") or ent.get("original_device_class") or "",
+                    })
+            for did, dev in self.device_registry.items():
+                ids = dev.get("identifiers", [])
+                integ = ids[0][0] if ids and isinstance(ids[0], list) and len(ids[0]) >= 2 else ""
+                dump.append({
+                    "name": dev.get("name_by_user") or dev.get("name"),
+                    "manufacturer": dev.get("manufacturer"),
+                    "model": dev.get("model_id") or dev.get("model"),
+                    "integration": integ,
+                    "area_id": dev.get("area_id"),
+                    "entities": device_ents.get(did, []),
+                })
+            dump.sort(key=lambda d: (d["integration"] or "", d["name"] or ""))
+            dump_path = "/config/circadian-light/device_dump.json"
+            os.makedirs(os.path.dirname(dump_path), exist_ok=True)
+            with open(dump_path, "w") as f:
+                json.dump(dump, f, indent=2)
+            logger.info(f"✓ Device dump written: {len(dump)} devices -> {dump_path}")
+        except Exception as e:
+            logger.warning(f"Could not write device dump: {e}")
         if self.area_switch_entities:
             total_switches = sum(len(v) for v in self.area_switch_entities.values())
             logger.info(
