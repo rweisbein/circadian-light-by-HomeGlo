@@ -608,6 +608,14 @@ class LightDesignerServer:
             "GET", "/{path:.*}/api/area-lights", self.get_area_lights
         )
         self.app.router.add_get("/api/controls", self.get_controls)
+        self.app.router.add_get("/api/devices/search", self.search_devices)
+        self.app.router.add_route(
+            "GET", "/{path:.*}/api/devices/search", self.search_devices
+        )
+        self.app.router.add_post("/api/controls/add", self.add_control_source)
+        self.app.router.add_route(
+            "POST", "/{path:.*}/api/controls/add", self.add_control_source
+        )
         self.app.router.add_post(
             "/api/controls/{control_id}/configure", self.configure_control
         )
@@ -6130,17 +6138,16 @@ class LightDesignerServer:
                 integration = None
                 for identifier in device.get("identifiers", []):
                     if isinstance(identifier, list) and len(identifier) >= 2:
-                        if identifier[0] == "zha":
+                        if identifier[0] in ("zha", "hue", "matter"):
                             unique_id = identifier[1]
-                            integration = "zha"
+                            integration = identifier[0]
                             break
-                        elif identifier[0] == "hue":
+                if not unique_id:
+                    # Fall back to any device with identifiers (cameras, ESPHome, etc.)
+                    for identifier in device.get("identifiers", []):
+                        if isinstance(identifier, list) and len(identifier) >= 2:
+                            integration = identifier[0]
                             unique_id = identifier[1]
-                            integration = "hue"
-                            break
-                        elif identifier[0] == "matter":
-                            unique_id = identifier[1]
-                            integration = "matter"
                             break
                 if unique_id:
                     model = device.get("model_id") or device.get("model")
@@ -6170,10 +6177,12 @@ class LightDesignerServer:
                         "has_occupancy": False,
                         "has_presence": False,
                         "has_contact": False,
+                        "has_trigger": False,
                         "has_button": False,
                         "has_battery": False,
                         "illuminance_entity": None,
                         "sensitivity_entity": None,
+                        "binary_sensors": [],
                     }
 
                 if entity_id.startswith("light."):
@@ -6199,12 +6208,27 @@ class LightDesignerServer:
                         device_entities[device_id]["has_occupancy"] = True
                     elif "_presence" in entity_id or dc == "presence":
                         device_entities[device_id]["has_presence"] = True
+                    elif any(
+                        kw in entity_id
+                        for kw in (
+                            "_person", "_human", "_pet", "_animal",
+                            "_vehicle", "_ringing", "_package",
+                            "_crying", "_sound",
+                        )
+                    ):
+                        device_entities[device_id]["has_trigger"] = True
                     elif (
                         "_contact" in entity_id
                         or "_opening" in entity_id
                         or dc in ("door", "window", "opening", "garage_door")
                     ):
                         device_entities[device_id]["has_contact"] = True
+                    # Track all binary_sensors for device search API
+                    device_entities[device_id]["binary_sensors"].append({
+                        "entity_id": entity_id,
+                        "device_class": dc,
+                        "name": entity.get("name") or entity.get("original_name") or entity_id.split(".")[-1].replace("_", " ").title(),
+                    })
                 elif entity_id.startswith("sensor.") and "_battery" in entity_id:
                     device_entities[device_id]["has_battery"] = True
                 elif entity_id.startswith("sensor.") and (
@@ -6228,6 +6252,7 @@ class LightDesignerServer:
                         entities.get("has_occupancy"),
                         entities.get("has_presence"),
                         entities.get("has_contact"),
+                        entities.get("has_trigger"),
                         entities.get("has_button"),
                     ]
                 ):
@@ -6240,6 +6265,7 @@ class LightDesignerServer:
                         entities.get("has_occupancy"),
                         entities.get("has_presence"),
                         entities.get("has_contact"),
+                        entities.get("has_trigger"),
                         entities.get("has_button"),
                         (entities.get("has_battery") and not entities.get("has_light")),
                     ]
@@ -6257,6 +6283,7 @@ class LightDesignerServer:
                     entities.get("has_motion")
                     or entities.get("has_occupancy")
                     or entities.get("has_presence")
+                    or entities.get("has_trigger")
                 ):
                     category = "motion_sensor"
                 elif entities.get("has_contact"):
@@ -6330,6 +6357,7 @@ class LightDesignerServer:
                         "supported": is_supported,
                         "illuminance": illum_info,
                         "sensitivity_entity": sensitivity_entity,
+                        "binary_sensors": entities.get("binary_sensors", []),
                     }
                 )
 
@@ -6338,6 +6366,127 @@ class LightDesignerServer:
         except Exception as e:
             logger.error(f"Error fetching HA controls: {e}", exc_info=True)
             return []
+
+    async def search_devices(self, request: Request) -> Response:
+        """Search HA devices that have binary_sensor entities.
+
+        For the 'Add control source' picker. Returns devices not already
+        in the controls list, with their binary_sensor entities listed.
+        Query: ?q=search_term (optional, filters by device name)
+        """
+        if not self.client:
+            return web.json_response([])
+
+        query = (request.query.get("q") or "").lower()
+
+        try:
+            # Get already-configured motion sensor device_ids
+            configured_device_ids = set()
+            for sensor in switches.get_all_motion_sensors().values():
+                if sensor.device_id:
+                    configured_device_ids.add(sensor.device_id)
+
+            results = []
+            # Scan all devices for binary_sensor entities
+            device_sensors = {}  # device_id -> list of binary_sensor info
+            for entity_id, entity in self.client.entity_registry.items():
+                if not entity_id.startswith("binary_sensor."):
+                    continue
+                device_id = entity.get("device_id")
+                if not device_id:
+                    continue
+                if device_id not in device_sensors:
+                    device_sensors[device_id] = []
+                dc = (
+                    entity.get("device_class")
+                    or entity.get("original_device_class")
+                    or ""
+                )
+                name = (
+                    entity.get("name")
+                    or entity.get("original_name")
+                    or entity_id.split(".")[-1].replace("_", " ").title()
+                )
+                device_sensors[device_id].append({
+                    "entity_id": entity_id,
+                    "device_class": dc,
+                    "name": name,
+                })
+
+            for device_id, sensors in device_sensors.items():
+                if device_id in configured_device_ids:
+                    continue
+                device = self.client.device_registry.get(device_id)
+                if not device:
+                    continue
+                dev_name = device.get("name_by_user") or device.get("name") or ""
+                if query and query not in dev_name.lower():
+                    continue
+                area_id = device.get("area_id")
+                results.append({
+                    "device_id": device_id,
+                    "name": dev_name,
+                    "manufacturer": device.get("manufacturer"),
+                    "model": device.get("model_id") or device.get("model"),
+                    "area_id": area_id,
+                    "area_name": self.client.area_id_to_name.get(area_id),
+                    "binary_sensors": sensors,
+                })
+
+            return web.json_response(results)
+        except Exception as e:
+            logger.error(f"Error searching devices: {e}", exc_info=True)
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def add_control_source(self, request: Request) -> Response:
+        """Manually add a device as a control source (motion trigger).
+
+        Expects JSON: {"device_id": "...", "name": "...", "trigger_entities": ["binary_sensor.xxx", ...]}
+        Creates an unconfigured MotionSensorConfig with trigger_entities.
+        """
+        try:
+            data = await request.json()
+            device_id = data.get("device_id")
+            name = data.get("name", "Unknown")
+            trigger_entities = data.get("trigger_entities", [])
+
+            if not device_id:
+                return web.json_response(
+                    {"error": "device_id required"}, status=400
+                )
+
+            # Check if already exists
+            existing = switches.get_motion_sensor_by_device_id(device_id)
+            if existing:
+                return web.json_response(
+                    {"error": "Device already configured", "id": existing.id},
+                    status=409,
+                )
+
+            # Create motion sensor config
+            sensor_config = switches.MotionSensorConfig(
+                id=device_id,
+                name=name,
+                areas=[],
+                device_id=device_id,
+                trigger_entities=trigger_entities,
+            )
+            switches.add_motion_sensor(sensor_config)
+
+            # Register trigger entities in the motion sensor cache
+            if self.client and trigger_entities:
+                for entity_id in trigger_entities:
+                    self.client.motion_sensor_ids[entity_id] = device_id
+                logger.info(
+                    f"[Controls] Registered {len(trigger_entities)} trigger entities "
+                    f"for {name} ({device_id})"
+                )
+
+            logger.info(f"[Controls] Added control source: {name} ({device_id})")
+            return web.json_response({"status": "ok", "id": device_id})
+        except Exception as e:
+            logger.error(f"Error adding control source: {e}", exc_info=True)
+            return web.json_response({"error": str(e)}, status=500)
 
     async def get_controls_refresh(self, request: Request) -> Response:
         """Lightweight refresh endpoint for controls page polling.
@@ -6388,6 +6537,7 @@ class LightDesignerServer:
                         active_when = scope.get("active_when", "always")
                         active_offset = scope.get("active_offset", 0)
                         cooldown = scope.get("cooldown", 0)
+                        trigger_entities = scope.get("trigger_entities", [])
 
                         for area_id in scope_areas:
                             areas.append(
@@ -6400,6 +6550,7 @@ class LightDesignerServer:
                                     active_when=active_when,
                                     active_offset=active_offset,
                                     cooldown=cooldown,
+                                    trigger_entities=trigger_entities,
                                 )
                             )
                 else:
@@ -6425,6 +6576,13 @@ class LightDesignerServer:
                         )
                         switches.remove_contact_sensor(old_contact.id)
 
+                # Compute device-level trigger_entities as union of all scope lists
+                all_triggers = set()
+                for a in areas:
+                    all_triggers.update(a.trigger_entities)
+                # Also include any device-level triggers from the payload
+                all_triggers.update(data.get("trigger_entities", []))
+
                 motion_config = switches.MotionSensorConfig(
                     id=sensor_id,
                     name=name,
@@ -6432,6 +6590,7 @@ class LightDesignerServer:
                     device_id=device_id,
                     inactive=data.get("inactive", False),
                     inactive_until=data.get("inactive_until"),
+                    trigger_entities=sorted(all_triggers) if all_triggers else [],
                 )
 
                 switches.add_motion_sensor(motion_config)

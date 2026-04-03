@@ -786,6 +786,7 @@ class MotionAreaConfig:
     active_when: str = "always"  # always, sunset_to_sunrise, wake_to_bed
     active_offset: int = 0  # minutes: positive = widen window, negative = shrink
     cooldown: int = 0  # per-scope cooldown in seconds (0 = use sensor default)
+    trigger_entities: List[str] = field(default_factory=list)  # specific entity_ids that trigger this scope (empty = any)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -801,6 +802,8 @@ class MotionAreaConfig:
             d["active_offset"] = self.active_offset
         if self.cooldown > 0:
             d["cooldown"] = self.cooldown
+        if self.trigger_entities:
+            d["trigger_entities"] = self.trigger_entities
         return d
 
     @classmethod
@@ -842,6 +845,7 @@ class MotionAreaConfig:
             active_when=data.get("active_when", "always"),
             active_offset=data.get("active_offset", 0),
             cooldown=data.get("cooldown", 0),
+            trigger_entities=data.get("trigger_entities", []),
         )
 
 
@@ -855,6 +859,7 @@ class MotionSensorConfig:
     device_id: Optional[str] = None  # HA device_id
     inactive: bool = False  # If True, sensor won't trigger actions
     inactive_until: Optional[str] = None  # ISO timestamp or "forever"; None = no timer
+    trigger_entities: List[str] = field(default_factory=list)  # all binary_sensor entity_ids to listen for (union of scope-level lists)
 
     def get_area_config(self, area_id: str) -> Optional[MotionAreaConfig]:
         """Get config for a specific area."""
@@ -879,6 +884,8 @@ class MotionSensorConfig:
             result["device_id"] = self.device_id
         if self.inactive_until:
             result["inactive_until"] = self.inactive_until
+        if self.trigger_entities:
+            result["trigger_entities"] = self.trigger_entities
         return result
 
     @classmethod
@@ -892,6 +899,7 @@ class MotionSensorConfig:
             device_id=data.get("device_id"),
             inactive=data.get("inactive", False),
             inactive_until=data.get("inactive_until"),
+            trigger_entities=data.get("trigger_entities", []),
         )
 
 

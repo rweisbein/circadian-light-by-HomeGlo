@@ -627,6 +627,9 @@ class HomeAssistantWebSocketClient:
         now = time.time()
         active_configs = []
         for i, area_config in enumerate(sensor_config.areas):
+            # Scope-level trigger filter: skip if this entity isn't in the scope's trigger list
+            if area_config.trigger_entities and entity_id not in area_config.trigger_entities:
+                continue
             cd = area_config.cooldown
             if cd > 0 and new_state == "on":
                 cd_key = f"{sensor_config.id}_scope{i}"
@@ -4736,6 +4739,15 @@ class HomeAssistantWebSocketClient:
             device_id = entity.get("device_id")
             if device_id:
                 self.motion_sensor_ids[entity_id] = device_id
+
+        # Register trigger_entities from manually added motion sensor configs
+        for sensor in switches.get_all_motion_sensors().values():
+            if sensor.trigger_entities:
+                for te in sensor.trigger_entities:
+                    if te not in self.motion_sensor_ids:
+                        dev_id = sensor.device_id or sensor.id
+                        self.motion_sensor_ids[te] = dev_id
+                        logger.debug(f"  Registered trigger entity {te} -> device:{dev_id}")
 
         # Log binary_sensor count for debugging
         binary_sensors = [

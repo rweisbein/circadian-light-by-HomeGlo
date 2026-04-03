@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.204
+- **Camera/rich trigger backend**: Full backend for non-ZHA control sources (cameras, ESPHome, etc.):
+  - Data model: `trigger_entities` field on both `MotionAreaConfig` (per-scope) and `MotionSensorConfig` (device-level). Empty = backward compatible.
+  - Widened device discovery: `_fetch_ha_controls` now accepts any integration, not just zha/hue/matter. Cameras and other devices with binary_sensors now appear.
+  - Entity classification: recognizes `_person`, `_human`, `_pet`, `_vehicle`, `_ringing`, `_package` etc. as trigger entities.
+  - New API: `GET /api/devices/search?q=` for device picker, `POST /api/controls/add` for manual device addition.
+  - Event wiring: manually added trigger entities registered in `motion_sensor_ids` cache. Scope-level `trigger_entities` filter in `_handle_motion_event`.
+  - Save path: `configure_control` reads `trigger_entities` per scope and computes device-level union.
+
 ## 1.0.203
 - **New solar exposure steps**: 0, 0.25, 0.40, 0.60, 0.75, 0.90, 1.00, 1.25, 1.60, 2.00 (10 stops). Existing saved values auto-migrate to closest step. Updated on both area detail and tune pages.
 - **Fix exposure display rounding**: Was `.toFixed(1)` which showed 0.25 as "0.3". Now `.toFixed(2)`.
