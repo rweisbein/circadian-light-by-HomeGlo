@@ -715,7 +715,7 @@
           </div>
         </div>
 
-        <div class="form-row" id="reach-daytime-threshold-row">
+        <div class="form-row" id="reach-daytime-threshold-row" style="padding-left: 20px;">
           <label class="form-label">
             Reach daytime threshold
             <span class="info-icon">i<span class="info-tooltip">Below this brightness during daytime (when natural light is active), reach feedback flashes UP to 100% instead of dimming OFF, ensuring visibility in bright rooms.</span></span>
@@ -728,6 +728,18 @@
 
         <div class="form-row" style="margin-top: 20px;">
           <label class="form-label">
+            Freeze feedback
+            <span class="info-icon">i<span class="info-tooltip">When enabled, freezing/unfreezing lights shows a visual dip-and-restore cue. When disabled, freeze toggles are silent.</span></span>
+          </label>
+          <div class="form-control">
+            <label class="checkbox-label">
+              <input type="checkbox" id="freeze-feedback-enabled" checked>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-row" id="freeze-off-rise-row" style="padding-left: 20px;">
+          <label class="form-label">
             Freeze off rise speed
             <span class="info-icon">i<span class="info-tooltip">When unfreezing, lights rise back to circadian values over this amount of time. A slower rise gives a gentle visual confirmation that the area has been unfrozen.</span></span>
           </label>
@@ -737,7 +749,7 @@
           </div>
         </div>
 
-        <div class="form-row">
+        <div class="form-row" style="margin-top: 20px;">
           <label class="form-label">
             Limit bounce
             <span class="info-icon">i<span class="info-tooltip">When stepping up/down hits the brightness or color limit, lights briefly dip/flash to indicate the limit has been reached.</span></span>
@@ -754,7 +766,7 @@
           </div>
         </div>
 
-        <div class="form-row">
+        <div class="form-row" id="limit-bounce-max-row" style="padding-left: 20px;">
           <label class="form-label">
             Limit bounce (max)
             <span class="info-icon">i<span class="info-tooltip">How much to dip when hitting the upper limit. Expressed as a percentage of the brightness or color range.</span></span>
@@ -765,7 +777,7 @@
           </div>
         </div>
 
-        <div class="form-row">
+        <div class="form-row" id="limit-bounce-min-row" style="padding-left: 20px;">
           <label class="form-label">
             Limit bounce (min)
             <span class="info-icon">i<span class="info-tooltip">How much to flash when hitting the lower limit. Expressed as a percentage of the brightness or color range.</span></span>
@@ -1119,7 +1131,9 @@
           document.getElementById('reach-feedback-enabled').checked = config.reach_feedback_enabled ?? true;
           document.getElementById('reach-daytime-threshold').value = config.reach_daytime_threshold ?? 50;
           updateReachFeedbackState();
+          document.getElementById('freeze-feedback-enabled').checked = config.freeze_feedback_enabled ?? true;
           document.getElementById('freeze-off-rise').value = config.freeze_off_rise ?? 10;
+          updateFreezeFeedbackState();
           document.getElementById('limit-bounce-enabled').checked = config.limit_bounce_enabled ?? true;
           document.getElementById('limit-warning-speed').value = config.limit_warning_speed ?? 3;
           updateLimitBounceState();
@@ -1199,6 +1213,7 @@
         motion_blink_threshold: parseInt(document.getElementById('motion-blink-threshold').value) || 15,
         reach_feedback_enabled: document.getElementById('reach-feedback-enabled').checked,
         reach_daytime_threshold: parseInt(document.getElementById('reach-daytime-threshold').value) || 50,
+        freeze_feedback_enabled: document.getElementById('freeze-feedback-enabled').checked,
         freeze_off_rise: parseFloat(document.getElementById('freeze-off-rise').value) || 10,
         limit_bounce_enabled: document.getElementById('limit-bounce-enabled').checked,
         limit_warning_speed: parseFloat(document.getElementById('limit-warning-speed').value) || 3,
@@ -1263,13 +1278,38 @@
       const enabled = document.getElementById('limit-bounce-enabled').checked;
       const settings = document.getElementById('limit-bounce-settings');
       const speedInput = document.getElementById('limit-warning-speed');
+      const maxRow = document.getElementById('limit-bounce-max-row');
+      const minRow = document.getElementById('limit-bounce-min-row');
+      const maxInput = document.getElementById('limit-bounce-max-percent');
+      const minInput = document.getElementById('limit-bounce-min-percent');
 
       if (enabled) {
         settings.style.opacity = '1';
         speedInput.disabled = false;
+        maxRow.style.opacity = '1';
+        minRow.style.opacity = '1';
+        maxInput.disabled = false;
+        minInput.disabled = false;
       } else {
         settings.style.opacity = '0.4';
         speedInput.disabled = true;
+        maxRow.style.opacity = '0.4';
+        minRow.style.opacity = '0.4';
+        maxInput.disabled = true;
+        minInput.disabled = true;
+      }
+    }
+
+    function updateFreezeFeedbackState() {
+      const enabled = document.getElementById('freeze-feedback-enabled').checked;
+      const row = document.getElementById('freeze-off-rise-row');
+      const input = document.getElementById('freeze-off-rise');
+      if (enabled) {
+        row.style.opacity = '1';
+        input.disabled = false;
+      } else {
+        row.style.opacity = '0.4';
+        input.disabled = true;
       }
     }
 
@@ -1507,6 +1547,7 @@
     document.getElementById('motion-blink-threshold').addEventListener('blur', saveSettings);
     document.getElementById('reach-feedback-enabled').addEventListener('change', () => { updateReachFeedbackState(); saveSettings(); });
     document.getElementById('reach-daytime-threshold').addEventListener('blur', saveSettings);
+    document.getElementById('freeze-feedback-enabled').addEventListener('change', () => { updateFreezeFeedbackState(); saveSettings(); });
     document.getElementById('freeze-off-rise').addEventListener('blur', saveSettings);
     document.getElementById('limit-bounce-enabled').addEventListener('change', () => {
       updateLimitBounceState();

@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.218
+- **Feedback cues settings hierarchy**: Reach daytime threshold indented under reach feedback and greyed out when disabled. Limit bounce max/min indented under limit bounce and greyed out when disabled. New "Freeze feedback" checkbox controls whether freeze/unfreeze shows visual dip cue; freeze off rise speed indented underneath and greyed out when disabled.
+
 ## 1.0.217
 - **Remove dead "Reach adjustment learn mode" setting**: Was never wired up — `_is_reach_learn_mode()` defined but never called. Removed from settings UI, backend defaults, and config keys.
 

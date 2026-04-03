@@ -2318,6 +2318,14 @@ class HomeAssistantWebSocketClient:
         except Exception:
             return True
 
+    def _is_freeze_feedback_enabled(self) -> bool:
+        """Check if freeze feedback is enabled globally."""
+        try:
+            raw_config = glozone.load_config_from_files()
+            return raw_config.get("freeze_feedback_enabled", True)
+        except Exception:
+            return True
+
     def _apply_ct_brightness_compensation(
         self, brightness: int, color_temp: int
     ) -> int:
@@ -2624,6 +2632,11 @@ class HomeAssistantWebSocketClient:
                 )
 
             elif cue_type == "freeze":
+                # Check global freeze feedback setting
+                if not self._is_freeze_feedback_enabled():
+                    logger.debug("Freeze feedback disabled, skipping")
+                    return
+
                 # Phase 1: dim to off
                 await self.call_service(
                     "light",

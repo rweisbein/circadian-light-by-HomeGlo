@@ -1871,6 +1871,7 @@ class LightDesignerServer:
         "home_refresh_interval",  # How often to refresh home page cards (seconds, default 10)
         "motion_warning_time",  # Seconds before motion timer expires to trigger warning dim
         "motion_blink_threshold",  # Brightness % below which motion warning blinks instead of dims
+        "freeze_feedback_enabled",  # Whether freeze/unfreeze shows visual dip-and-restore cue (default true)
         "freeze_off_rise",  # Transition time in tenths of seconds for unfreeze rise (default 10 = 1.0s)
         "limit_bounce_enabled",  # Whether to show visual bounce when hitting step limits (default true)
         "limit_warning_speed",  # Transition time in tenths of seconds for limit bounce animation (default 3 = 0.3s)
@@ -2086,6 +2087,7 @@ class LightDesignerServer:
             "motion_warning_time": 20,  # seconds (0 = disabled)
             "motion_blink_threshold": 15,  # percent brightness
             # Visual feedback settings
+            "freeze_feedback_enabled": True,  # Show visual dip on freeze/unfreeze
             "freeze_off_rise": 10,  # tenths of seconds (1.0s)
             "limit_bounce_enabled": True,  # Show visual bounce at step limits
             "limit_warning_speed": 3,  # tenths of seconds (0.3s)
@@ -2187,6 +2189,7 @@ class LightDesignerServer:
             "motion_warning_time": 20,  # seconds (0 = disabled)
             "motion_blink_threshold": 15,  # percent brightness
             # Visual feedback settings
+            "freeze_feedback_enabled": True,
             "freeze_off_rise": 10,  # tenths of seconds (1.0s)
             "limit_bounce_enabled": True,  # Show visual bounce at step limits
             "limit_warning_speed": 3,  # tenths of seconds (0.3s)
