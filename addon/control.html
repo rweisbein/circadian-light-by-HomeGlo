@@ -583,6 +583,15 @@
       transition: all 0.15s;
     }
 
+    .trigger-chip {
+      display: inline-flex; align-items: center; padding: 3px 10px;
+      border-radius: 12px; border: 1px solid var(--line); font-size: 0.75rem;
+      color: var(--muted); cursor: pointer; transition: all 0.15s;
+    }
+    .trigger-chip.selected {
+      border-color: var(--accent); color: var(--accent); background: rgba(254,172,96,0.1);
+    }
+
     .area-chip-remove:hover {
       background: rgba(239, 68, 68, 0.2);
       color: var(--danger);
@@ -1793,6 +1802,49 @@
     // ============================================================
     // Motion/Contact Sensor Scopes Editor
     // ============================================================
+
+    function _getDeviceBinarySensors() {
+      // Get binary_sensors from the current control's data
+      const ctrl = controls.find(c => c.id === editingControlId);
+      return (ctrl && ctrl.binary_sensors) || [];
+    }
+
+    function _hasDeviceTriggerEntities() {
+      const ctrl = controls.find(c => c.id === editingControlId);
+      return ctrl && ctrl.trigger_entities && ctrl.trigger_entities.length > 0;
+    }
+
+    function _renderTriggerSelector(scope, idx) {
+      // Only show for devices that have device-level trigger_entities (manually added)
+      if (!_hasDeviceTriggerEntities()) return '';
+      const sensors = _getDeviceBinarySensors();
+      if (sensors.length === 0) return '';
+      const selected = scope.trigger_entities || [];
+      const chips = sensors.map(s => {
+        const label = s.name || s.entity_id.split('.')[1].replace(/_/g, ' ');
+        const sel = selected.includes(s.entity_id) ? ' selected' : '';
+        return `<span class="trigger-chip${sel}" onclick="toggleTriggerEntity(${idx}, '${s.entity_id}', this)">${label}</span>`;
+      }).join('');
+      return `<div style="margin-top:8px;">
+        <span style="font-size:0.78rem;color:var(--muted);">Triggers:</span>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">${chips}</div>
+      </div>`;
+    }
+
+    function toggleTriggerEntity(scopeIdx, entityId, el) {
+      const scope = editingMotionScopes[scopeIdx];
+      if (!scope.trigger_entities) scope.trigger_entities = [];
+      const idx = scope.trigger_entities.indexOf(entityId);
+      if (idx >= 0) {
+        scope.trigger_entities.splice(idx, 1);
+        el.classList.remove('selected');
+      } else {
+        scope.trigger_entities.push(entityId);
+        el.classList.add('selected');
+      }
+      autoSave();
+    }
+
     function renderMotionScopesEditor() {
       const container = document.getElementById('motion-scopes-editor');
 
@@ -1845,6 +1897,7 @@
               ${areaChips}
               <button class="add-areas-chip" onclick="addAreasToMotionScope(${idx})">+</button>
             </div>
+            ${_renderTriggerSelector(scope, idx)}
 
             <div style="margin-top: 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
               <select onchange="updateMotionScope(${idx}, 'mode', this.value)">
@@ -1929,7 +1982,8 @@
         boost_brightness: 50,
         active_when: 'always',
         active_offset: 0,
-        cooldown: 0
+        cooldown: 0,
+        trigger_entities: [],
       });
       renderMotionScopesEditor();
       autoSave();
@@ -2074,7 +2128,8 @@
             boost_enabled: s.boost_enabled || false,
             boost_brightness: s.boost_brightness || 50,
             active_when: s.active_when || 'always',
-            active_offset: s.active_offset || 0
+            active_offset: s.active_offset || 0,
+            trigger_entities: [...(s.trigger_entities || [])],
           }));
         } else if (ctrl.areas && ctrl.areas.length > 0) {
           const scopeMap = new Map();

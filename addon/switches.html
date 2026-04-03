@@ -522,6 +522,26 @@
     .toolbar-menu-item:hover {
       background: rgba(255, 255, 255, 0.05);
     }
+
+    /* Add control picker modal */
+    .acp-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 300; display: flex; align-items: center; justify-content: center; }
+    .acp-modal { background: var(--card); border: 1px solid var(--line); border-radius: 12px; width: 90%; max-width: 400px; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; }
+    .acp-header { padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
+    .acp-title { font-size: 1rem; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+    .acp-search { width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 0.85rem; }
+    .acp-list { overflow-y: auto; flex: 1; padding: 8px 0; }
+    .acp-device { padding: 10px 16px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .acp-device:hover { background: rgba(255,255,255,0.04); }
+    .acp-device-name { font-size: 0.9rem; color: var(--text); font-weight: 500; }
+    .acp-device-meta { font-size: 0.72rem; color: var(--muted2); margin-top: 2px; }
+    .acp-sensors { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
+    .acp-sensor-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--line); font-size: 0.7rem; color: var(--muted); cursor: pointer; }
+    .acp-sensor-chip.selected { border-color: var(--accent); color: var(--accent); background: rgba(254,172,96,0.1); }
+    .acp-footer { padding: 10px 16px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 8px; }
+    .acp-btn { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 0.82rem; cursor: pointer; }
+    .acp-btn-add { border-color: var(--accent); background: var(--accent); color: #000; font-weight: 600; }
+    .acp-btn-add:disabled { opacity: 0.4; cursor: default; }
+    .acp-empty { padding: 20px 16px; text-align: center; color: var(--muted2); font-size: 0.85rem; }
   </style>
 </head>
 <body>
@@ -552,7 +572,8 @@
           <input type="checkbox" id="active-filter"> Active
         </label>
         <a href="#" id="clear-filters-link" style="display: none; margin-left: 8px; font-size: 0.75rem; color: var(--accent); text-decoration: none;" onclick="clearFilters(); return false;">Clear filters</a>
-        <a href="./switchmap" style="margin-left: auto; font-size: 0.8rem; color: var(--muted); text-decoration: none;">Switch Map</a>
+        <button id="add-control-btn" onclick="openAddControlPicker()" style="margin-left:auto;padding:4px 10px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:0.78rem;cursor:pointer;">+ Add control</button>
+        <a href="./switchmap" style="margin-left: 8px; font-size: 0.8rem; color: var(--muted); text-decoration: none;">Switch Map</a>
       </div>
     </div>
 
@@ -1310,6 +1331,185 @@
         if (needsRender) renderControls();
       } catch (e) { /* ignore poll errors */ }
     }, refreshIntervalMs);
+
+    // ---- Add Control Source Picker ----
+    let acpSelectedDevice = null;
+    let acpSelectedEntities = new Set();
+
+    async function openAddControlPicker() {
+      // Create overlay
+      const overlay = document.createElement('div');
+      overlay.className = 'acp-overlay';
+      overlay.id = 'acp-overlay';
+      overlay.onclick = (e) => { if (e.target === overlay) closeAddControlPicker(); };
+
+      overlay.innerHTML = `
+        <div class="acp-modal">
+          <div class="acp-header">
+            <div class="acp-title">Add control source</div>
+            <input type="text" class="acp-search" id="acp-search" placeholder="Search devices..." oninput="searchDevices(this.value)">
+          </div>
+          <div class="acp-list" id="acp-list">
+            <div class="acp-empty">Searching...</div>
+          </div>
+          <div class="acp-footer" id="acp-footer" style="display:none;">
+            <button class="acp-btn" onclick="closeAddControlPicker()">Cancel</button>
+            <button class="acp-btn acp-btn-add" id="acp-add-btn" disabled onclick="addSelectedControl()">Add</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      acpSelectedDevice = null;
+      acpSelectedEntities.clear();
+      document.getElementById('acp-search').focus();
+      searchDevices('');
+    }
+
+    function closeAddControlPicker() {
+      const el = document.getElementById('acp-overlay');
+      if (el) el.remove();
+    }
+
+    let _acpSearchTimer = null;
+    function searchDevices(query) {
+      clearTimeout(_acpSearchTimer);
+      _acpSearchTimer = setTimeout(async () => {
+        try {
+          const res = await fetch(basePath + '/api/devices/search?q=' + encodeURIComponent(query));
+          if (!res.ok) return;
+          const devices = await res.json();
+          renderDeviceList(devices);
+        } catch (e) {}
+      }, 200);
+    }
+
+    function renderDeviceList(devices) {
+      const list = document.getElementById('acp-list');
+      const footer = document.getElementById('acp-footer');
+      if (!list) return;
+
+      if (devices.length === 0) {
+        list.innerHTML = '<div class="acp-empty">No devices found</div>';
+        if (footer) footer.style.display = 'none';
+        return;
+      }
+
+      // If a device is already selected, show its entity picker
+      if (acpSelectedDevice) {
+        const dev = devices.find(d => d.device_id === acpSelectedDevice.device_id);
+        if (dev) {
+          renderEntityPicker(dev);
+          return;
+        }
+      }
+
+      // Show device list
+      if (footer) footer.style.display = 'none';
+      let html = '';
+      for (const dev of devices) {
+        const sensorCount = (dev.binary_sensors || []).length;
+        const area = dev.area_name ? ' · ' + dev.area_name : '';
+        const mfr = dev.manufacturer || '';
+        html += `<div class="acp-device" onclick="selectDevice('${dev.device_id}')">
+          <div class="acp-device-name">${dev.name || 'Unknown'}</div>
+          <div class="acp-device-meta">${mfr}${area} · ${sensorCount} sensor${sensorCount !== 1 ? 's' : ''}</div>
+        </div>`;
+      }
+      list.innerHTML = html;
+    }
+
+    let _acpDevices = [];
+    async function selectDevice(deviceId) {
+      try {
+        const res = await fetch(basePath + '/api/devices/search');
+        if (!res.ok) return;
+        _acpDevices = await res.json();
+        const dev = _acpDevices.find(d => d.device_id === deviceId);
+        if (!dev) return;
+        acpSelectedDevice = dev;
+        acpSelectedEntities.clear();
+        renderEntityPicker(dev);
+      } catch (e) {}
+    }
+
+    function renderEntityPicker(dev) {
+      const list = document.getElementById('acp-list');
+      const footer = document.getElementById('acp-footer');
+      if (!list) return;
+      if (footer) footer.style.display = 'flex';
+
+      // Suggest relevant entities first
+      const relevant = ['motion', 'person', 'human', 'pet', 'animal', 'vehicle', 'ringing', 'package', 'presence', 'occupancy'];
+      const sensors = [...(dev.binary_sensors || [])].sort((a, b) => {
+        const aRel = relevant.some(kw => a.entity_id.includes(kw)) ? 0 : 1;
+        const bRel = relevant.some(kw => b.entity_id.includes(kw)) ? 0 : 1;
+        return aRel - bRel || a.name.localeCompare(b.name);
+      });
+
+      let html = `<div style="padding:8px 16px 4px;">
+        <div class="acp-device-name">${dev.name}</div>
+        <div class="acp-device-meta" style="margin-bottom:8px;">Select triggers for this device</div>
+        <div class="acp-sensors">`;
+      for (const s of sensors) {
+        const sel = acpSelectedEntities.has(s.entity_id) ? ' selected' : '';
+        const label = s.name || s.entity_id.split('.')[1].replace(/_/g, ' ');
+        html += `<span class="acp-sensor-chip${sel}" onclick="toggleSensorChip(this, '${s.entity_id}')">${label}</span>`;
+      }
+      html += '</div></div>';
+      list.innerHTML = html;
+      updateAddBtn();
+    }
+
+    function toggleSensorChip(el, entityId) {
+      if (acpSelectedEntities.has(entityId)) {
+        acpSelectedEntities.delete(entityId);
+        el.classList.remove('selected');
+      } else {
+        acpSelectedEntities.add(entityId);
+        el.classList.add('selected');
+      }
+      updateAddBtn();
+    }
+
+    function updateAddBtn() {
+      const btn = document.getElementById('acp-add-btn');
+      if (btn) btn.disabled = acpSelectedEntities.size === 0;
+    }
+
+    async function addSelectedControl() {
+      if (!acpSelectedDevice || acpSelectedEntities.size === 0) return;
+      const btn = document.getElementById('acp-add-btn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Adding...'; }
+
+      try {
+        const res = await fetch(basePath + '/api/controls/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            device_id: acpSelectedDevice.device_id,
+            name: acpSelectedDevice.name || 'Unknown',
+            trigger_entities: [...acpSelectedEntities],
+          })
+        });
+        if (res.ok) {
+          closeAddControlPicker();
+          const data = await res.json();
+          // Navigate to the new control's detail page
+          window.location.href = basePath + '/control/' + encodeURIComponent(data.id);
+        } else {
+          const err = await res.json();
+          if (err.error === 'Device already configured') {
+            closeAddControlPicker();
+            window.location.href = basePath + '/control/' + encodeURIComponent(err.id);
+          } else {
+            alert('Error: ' + (err.error || 'Unknown'));
+          }
+        }
+      } catch (e) {
+        alert('Error adding control');
+      }
+      if (btn) { btn.disabled = false; btn.textContent = 'Add'; }
+    }
   </script>
 </body>
 </html>

@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.205
+- **Camera trigger UI**: Controls list page: "Add control" button with device search modal — browse HA devices, pick trigger entities, add as control source. Control detail page: per-reach trigger entity selector (chip-style) for devices with trigger_entities. Only shown for manually added devices; existing motion sensors unchanged.
+
 ## 1.0.204
 - **Camera/rich trigger backend**: Full backend for non-ZHA control sources (cameras, ESPHome, etc.):
   - Data model: `trigger_entities` field on both `MotionAreaConfig` (per-scope) and `MotionSensorConfig` (device-level). Empty = backward compatible.

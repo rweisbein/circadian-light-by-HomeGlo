@@ -6013,6 +6013,9 @@ class LightDesignerServer:
                 if category in ("motion_sensor", "contact_sensor"):
                     control_data["areas"] = config.get("areas", [])
                     control_data["cooldown"] = config.get("cooldown", 0)
+                    control_data["trigger_entities"] = config.get("trigger_entities", [])
+                    if "binary_sensors" not in control_data:
+                        control_data["binary_sensors"] = ctrl.get("binary_sensors", [])
                 else:
                     control_data["scopes"] = config.get("scopes", [])
                     control_data["magic_buttons"] = config.get("magic_buttons", {})
