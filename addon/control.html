@@ -591,6 +591,9 @@
     .trigger-chip.selected {
       border-color: var(--accent); color: var(--accent); background: rgba(254,172,96,0.1);
     }
+    .trigger-chip.greyed {
+      opacity: 0.35; pointer-events: none;
+    }
 
     .area-chip-remove:hover {
       background: rgba(239, 68, 68, 0.2);
@@ -1813,35 +1816,149 @@
       return _getDeviceBinarySensors().length > 0;
     }
 
+    // Trigger categories: presence (mutually exclusive with "any motion") and events (independent)
+    const TRIGGER_CATEGORIES = {
+      presence: [
+        { id: 'any_motion', label: 'Any motion', keywords: ['_motion_detected', '_motion', '_presence', '_occupancy'], isAll: true },
+        { id: 'person', label: 'Person', keywords: ['_person_detected', '_human_detected', '_human'] },
+        { id: 'pet', label: 'Pet', keywords: ['_pet_detected', '_animal_detected', '_animal'] },
+        { id: 'vehicle', label: 'Vehicle', keywords: ['_vehicle_detected', '_vehicle'] },
+      ],
+      events: [
+        { id: 'package', label: 'Package', keywords: ['_package_delivered', '_package_stranded', '_package_taken', '_package'] },
+        { id: 'doorbell', label: 'Doorbell', keywords: ['_ringing', '_ding', '_doorbell'] },
+      ],
+    };
+
+    function _matchCategory(cat, sensors) {
+      // If isAll (any_motion), also match all other presence category keywords
+      let kws = [...cat.keywords];
+      if (cat.isAll) {
+        for (const pc of TRIGGER_CATEGORIES.presence) {
+          if (!pc.isAll) kws.push(...pc.keywords);
+        }
+      }
+      return sensors.filter(s => kws.some(kw => s.entity_id.includes(kw)));
+    }
+
+    function _getCategoryEntities(sensors) {
+      // Returns { categoryId: [entity_ids], ... } and uncategorized list
+      const result = {};
+      const categorized = new Set();
+      for (const group of ['presence', 'events']) {
+        for (const cat of TRIGGER_CATEGORIES[group]) {
+          const matched = _matchCategory(cat, sensors);
+          if (matched.length > 0) {
+            result[cat.id] = matched.map(s => s.entity_id);
+            matched.forEach(s => categorized.add(s.entity_id));
+          }
+        }
+      }
+      const uncategorized = sensors.filter(s => !categorized.has(s.entity_id));
+      return { categories: result, uncategorized };
+    }
+
+    function _isCategorySelected(scopeEntities, catEntities) {
+      return catEntities.some(e => scopeEntities.includes(e));
+    }
+
     function _renderTriggerSelector(scope, idx) {
-      // Show for any device with binary_sensors (cameras, manually added, etc.)
       if (!_hasDeviceBinarySensors()) return '';
       const sensors = _getDeviceBinarySensors();
       if (sensors.length === 0) return '';
+      const { categories, uncategorized } = _getCategoryEntities(sensors);
+      if (Object.keys(categories).length === 0 && uncategorized.length === 0) return '';
+
       const selected = scope.trigger_entities || [];
-      const chips = sensors.map(s => {
-        const label = s.name || s.entity_id.split('.')[1].replace(/_/g, ' ');
-        const sel = selected.includes(s.entity_id) ? ' selected' : '';
-        return `<span class="trigger-chip${sel}" onclick="toggleTriggerEntity(${idx}, '${s.entity_id}', this)">${label}</span>`;
-      }).join('');
-      return `<div style="margin-top:8px;">
-        <span style="font-size:0.78rem;color:var(--muted);">Triggers:</span>
-        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">${chips}</div>
-      </div>`;
+      const anyMotionSelected = categories.any_motion && _isCategorySelected(selected, categories.any_motion);
+
+      let html = '<div style="margin-top:8px;">';
+
+      // Presence group
+      const presenceCats = TRIGGER_CATEGORIES.presence.filter(c => categories[c.id]);
+      if (presenceCats.length > 0) {
+        html += '<div style="font-size:0.72rem;color:var(--muted2);margin-bottom:3px;">Presence</div>';
+        html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">';
+        for (const cat of presenceCats) {
+          const isSelected = _isCategorySelected(selected, categories[cat.id]);
+          const greyed = !cat.isAll && anyMotionSelected && !isSelected ? ' greyed' : '';
+          const sel = isSelected ? ' selected' : '';
+          html += `<span class="trigger-chip${sel}${greyed}" onclick="toggleTriggerCategory(${idx}, '${cat.id}')">${cat.label}</span>`;
+        }
+        html += '</div>';
+      }
+
+      // Events group
+      const eventCats = TRIGGER_CATEGORIES.events.filter(c => categories[c.id]);
+      if (eventCats.length > 0) {
+        html += '<div style="font-size:0.72rem;color:var(--muted2);margin-bottom:3px;">Events</div>';
+        html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">';
+        for (const cat of eventCats) {
+          const isSelected = _isCategorySelected(selected, categories[cat.id]);
+          html += `<span class="trigger-chip${isSelected ? ' selected' : ''}" onclick="toggleTriggerCategory(${idx}, '${cat.id}')">${cat.label}</span>`;
+        }
+        html += '</div>';
+      }
+
+      // Show all toggle for uncategorized
+      if (uncategorized.length > 0) {
+        const showAllId = 'trigger-showall-' + idx;
+        html += `<a href="#" style="font-size:0.7rem;color:var(--muted2);text-decoration:underline;" onclick="event.preventDefault();document.getElementById('${showAllId}').style.display=document.getElementById('${showAllId}').style.display==='none'?'flex':'none'">show all</a>`;
+        html += `<div id="${showAllId}" style="display:none;flex-wrap:wrap;gap:4px;margin-top:4px;">`;
+        for (const s of uncategorized) {
+          const label = s.name || s.entity_id.split('.')[1].replace(/_/g, ' ');
+          const sel = selected.includes(s.entity_id) ? ' selected' : '';
+          html += `<span class="trigger-chip${sel}" onclick="toggleTriggerEntity(${idx}, '${s.entity_id}')">${label}</span>`;
+        }
+        html += '</div>';
+      }
+
+      html += '</div>';
+      return html;
     }
 
-    function toggleTriggerEntity(scopeIdx, entityId, el) {
+    function toggleTriggerCategory(scopeIdx, catId) {
+      const scope = editingMotionScopes[scopeIdx];
+      if (!scope.trigger_entities) scope.trigger_entities = [];
+      const sensors = _getDeviceBinarySensors();
+      const { categories } = _getCategoryEntities(sensors);
+      const catEntities = categories[catId] || [];
+      if (catEntities.length === 0) return;
+
+      const isSelected = _isCategorySelected(scope.trigger_entities, catEntities);
+
+      if (isSelected) {
+        // Remove all entities for this category
+        scope.trigger_entities = scope.trigger_entities.filter(e => !catEntities.includes(e));
+      } else {
+        // Add all entities for this category
+        for (const e of catEntities) {
+          if (!scope.trigger_entities.includes(e)) scope.trigger_entities.push(e);
+        }
+        // If selecting "any_motion", remove specific presence entities (redundant)
+        const cat = [...TRIGGER_CATEGORIES.presence, ...TRIGGER_CATEGORIES.events].find(c => c.id === catId);
+        if (cat && cat.isAll) {
+          const specificPresence = TRIGGER_CATEGORIES.presence.filter(c => !c.isAll && categories[c.id]);
+          for (const sp of specificPresence) {
+            scope.trigger_entities = scope.trigger_entities.filter(e => !categories[sp.id].includes(e));
+          }
+        }
+      }
+      autoSave();
+      renderMotionScopesEditor();
+    }
+
+    function toggleTriggerEntity(scopeIdx, entityId) {
       const scope = editingMotionScopes[scopeIdx];
       if (!scope.trigger_entities) scope.trigger_entities = [];
       const idx = scope.trigger_entities.indexOf(entityId);
       if (idx >= 0) {
         scope.trigger_entities.splice(idx, 1);
-        el.classList.remove('selected');
       } else {
         scope.trigger_entities.push(entityId);
-        el.classList.add('selected');
       }
       autoSave();
+      renderMotionScopesEditor();
     }
 
     function renderMotionScopesEditor() {

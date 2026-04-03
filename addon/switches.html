@@ -921,7 +921,7 @@
               const glozoneLabel = glozoneName ? `<div style="font-size: 0.7rem; color: var(--muted); opacity: 0.7; margin-bottom: 1px;">${glozoneName}</div>` : '';
               let fourthCell;
               if (fourthField === 'status') {
-                const staleX = ctrl.stale ? ` <span class="stale-remove-btn" onclick="event.stopPropagation(); removeStaleControl('${ctrl.id}', '${ctrl.category}')" title="Remove from config">&times;</span>` : '';
+                const staleX = (ctrl.stale || ctrl.status === 'unsupported') ? ` <span class="stale-remove-btn" onclick="event.stopPropagation(); removeStaleControl('${ctrl.id}', '${ctrl.category}')" title="Remove from config">&times;</span>` : '';
                 const statusLabels = {
                   'active': '<span style="color: var(--success);">Active</span>',
                   'inactive': '<span style="color: var(--warning);">Paused</span>',

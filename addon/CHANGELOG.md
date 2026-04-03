@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.208
+- **Categorized trigger selector**: Per-reach trigger chips organized into Presence (Any motion, Person, Pet, Vehicle) and Events (Package, Doorbell). "Any motion" greys out specific presence types when selected. Uncategorized entities available via "show all" toggle.
+- **Dismiss X for unsupported devices**: Same remove button that stale devices have, now also shown on unsupported devices in the controls list.
+
 ## 1.0.207
 - **Fix switches showing as stale**: Restored `has_battery and not has_light` for zha/hue/matter integrations only (ZHA remotes need this). WiFi battery devices (Sonos, shades) still filtered out.
 - **Presence sensor support**: Re-added `has_presence` for non-mobile_app integrations. Real presence sensors (Aqara FP2, ESPHome) auto-appear; phones/iPads (mobile_app integration) stay filtered.
