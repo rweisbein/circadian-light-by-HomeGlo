@@ -1809,14 +1809,13 @@
       return (ctrl && ctrl.binary_sensors) || [];
     }
 
-    function _hasDeviceTriggerEntities() {
-      const ctrl = controls.find(c => c.id === editingControlId);
-      return ctrl && ctrl.trigger_entities && ctrl.trigger_entities.length > 0;
+    function _hasDeviceBinarySensors() {
+      return _getDeviceBinarySensors().length > 0;
     }
 
     function _renderTriggerSelector(scope, idx) {
-      // Only show for devices that have device-level trigger_entities (manually added)
-      if (!_hasDeviceTriggerEntities()) return '';
+      // Show for any device with binary_sensors (cameras, manually added, etc.)
+      if (!_hasDeviceBinarySensors()) return '';
       const sensors = _getDeviceBinarySensors();
       if (sensors.length === 0) return '';
       const selected = scope.trigger_entities || [];

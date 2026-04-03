@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.206
+- **Tighter controls list filter**: Removed `has_presence` (was catching phones/iPads) and `has_battery and not has_light` (was catching Sonos, shades, temp meters). Cameras with person/pet detection still auto-appear via `has_trigger`.
+- **Trigger selector on auto-discovered devices**: Control detail page now shows the per-reach trigger entity selector for any device with binary_sensors, not just manually added ones. Cameras that auto-appear on the controls list now show their triggers when you click in.
+
 ## 1.0.205
 - **Camera trigger UI**: Controls list page: "Add control" button with device search modal — browse HA devices, pick trigger entities, add as control source. Control detail page: per-reach trigger entity selector (chip-style) for devices with trigger_entities. Only shown for manually added devices; existing motion sensors unchanged.
 

@@ -6253,7 +6253,6 @@ class LightDesignerServer:
                     [
                         entities.get("has_motion"),
                         entities.get("has_occupancy"),
-                        entities.get("has_presence"),
                         entities.get("has_contact"),
                         entities.get("has_trigger"),
                         entities.get("has_button"),
@@ -6262,15 +6261,15 @@ class LightDesignerServer:
                     continue
 
                 # Include if it has control-like entities
+                # Note: has_presence excluded (catches phones/iPads)
+                # Note: has_battery excluded (catches Sonos, shades, temp meters)
                 is_control = any(
                     [
                         entities.get("has_motion"),
                         entities.get("has_occupancy"),
-                        entities.get("has_presence"),
                         entities.get("has_contact"),
                         entities.get("has_trigger"),
                         entities.get("has_button"),
-                        (entities.get("has_battery") and not entities.get("has_light")),
                     ]
                 )
 
@@ -6285,15 +6284,12 @@ class LightDesignerServer:
                 if (
                     entities.get("has_motion")
                     or entities.get("has_occupancy")
-                    or entities.get("has_presence")
                     or entities.get("has_trigger")
                 ):
                     category = "motion_sensor"
                 elif entities.get("has_contact"):
                     category = "contact_sensor"
-                elif entities.get("has_button") or (
-                    entities.get("has_battery") and not entities.get("has_light")
-                ):
+                elif entities.get("has_button"):
                     category = "switch"
                 else:
                     category = "unknown"
