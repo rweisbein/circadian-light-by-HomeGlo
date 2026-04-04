@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.226
+- **Home page area row: 3 buttons in same space**: Reset button (glo_down) + stacked step up/down chevrons. Container padding tightened from 4px to 2px. Stacked buttons are 13px tall each with compact SVGs.
+
 ## 1.0.225
 - **Fix auto schedule pill showing wrong next event**: When both auto_on and auto_off had the same day offset (e.g. both tomorrow), auto_on always won the tie. Now compares chronologically using `offset * 24 + decimal_hour`, so tomorrow 6am auto_off correctly beats tomorrow 7pm auto_on.
 - **Cheatsheet "Reset to defaults" toned down**: Changed from red-bordered button to small muted text link, left-aligned away from Save/Cancel.

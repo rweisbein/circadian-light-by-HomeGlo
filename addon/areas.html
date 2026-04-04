@@ -493,10 +493,28 @@
     /* Row control buttons - dark container like modal header */
     .row-controls {
       display: inline-flex;
-      gap: 4px;
+      gap: 2px;
       background: rgba(0,0,0,0.5);
-      padding: 4px;
+      padding: 2px;
       border-radius: 8px;
+      align-items: center;
+    }
+
+    .row-step-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .row-step-stack .row-btn {
+      width: 28px;
+      height: 13px;
+      border-radius: 3px;
+    }
+
+    .row-step-stack .row-btn svg {
+      width: 14px;
+      height: 10px;
     }
 
     .row-controls-left {
@@ -2482,20 +2500,29 @@
         </div>
       `;
 
-      // Step up icon (chevron up)
-      const stepUpSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      // Reset icon (rewind arrow) — performs glo_down
+      const resetSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="1 4 1 10 7 10"/>
+        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+      </svg>`;
+
+      // Step up icon (compact chevron)
+      const stepUpSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="5 15 12 8 19 15"/>
       </svg>`;
 
-      // Step down icon (chevron down)
-      const stepDownSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      // Step down icon (compact chevron)
+      const stepDownSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="5 9 12 16 19 9"/>
       </svg>`;
 
       const rightControls = `
         <div class="row-controls">
-          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'step_up')" title="Step up (brighter + cooler)">${stepUpSvg}</button>
-          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'step_down')" title="Step down (dimmer + warmer)">${stepDownSvg}</button>
+          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_down')" title="Reset to rhythm zone">${resetSvg}</button>
+          <div class="row-step-stack">
+            <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'step_up')" title="Step up">${stepUpSvg}</button>
+            <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'step_down')" title="Step down">${stepDownSvg}</button>
+          </div>
         </div>
       `;
 
