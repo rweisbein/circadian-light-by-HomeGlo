@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.221
+- **Cheatsheet edit flow**: Edit and Copy are now simple text links. Edit link hidden in edit mode — exit via Cancel (returns to cheatsheet, discards changes) or Save (returns to cheatsheet). Removed toggle button styling.
+
 ## 1.0.220
 - **"Any motion" shows selected by default**: Empty `trigger_entities` (= no filter, triggers on anything) now renders with the "Any motion" chip visually selected, matching actual behavior. Selecting "Any motion" stores as empty list. Picking a specific type (Person, Pet, etc.) transitions from "any" to that specific filter. Deselecting all specifics reverts to "any".
 
