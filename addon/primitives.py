@@ -5130,28 +5130,36 @@ class CircadianLightPrimitives:
             bounce_pct = min(min_pct * multiplier, 0.95)
             target_bri = max(1, int(255 * bounce_pct))
 
+        target_desc = target_entity or feedback_target.get("area_id", "?")
+        logger.info(
+            f"Alert bounce starting for {area_id}: {count}x, intensity={intensity} ({multiplier}x), "
+            f"target={target_desc}, was_on={was_on}, cached_bri={cached_bri}, "
+            f"target_bri={target_bri}, speed={speed}s"
+        )
+
         self.client._defer_periodic_tick = True
         try:
             for i in range(count):
                 # Phase 1: bounce to target
+                sdata = {"brightness": target_bri, "transition": speed}
                 for target in targets:
+                    logger.info(f"Alert bounce [{i+1}/{count}] phase1: turn_on {target} {sdata}")
                     await self.client.call_service(
-                        "light", "turn_on",
-                        {"brightness": target_bri, "transition": speed},
-                        target=target,
+                        "light", "turn_on", sdata, target=target,
                     )
                 await asyncio.sleep(speed + two_step_delay)
 
                 # Phase 2: restore
                 if was_on:
+                    rdata = {"brightness": cached_bri, "transition": speed}
                     for target in targets:
+                        logger.info(f"Alert bounce [{i+1}/{count}] phase2: turn_on {target} {rdata}")
                         await self.client.call_service(
-                            "light", "turn_on",
-                            {"brightness": cached_bri, "transition": speed},
-                            target=target,
+                            "light", "turn_on", rdata, target=target,
                         )
                 else:
                     for target in targets:
+                        logger.info(f"Alert bounce [{i+1}/{count}] phase2: turn_off {target}")
                         await self.client.call_service(
                             "light", "turn_off",
                             {"transition": speed},
@@ -5162,10 +5170,7 @@ class CircadianLightPrimitives:
             self.client._defer_periodic_tick = False
             self.client.record_light_action()
 
-        logger.info(
-            f"Alert bounce for {area_id}: {count}x, intensity={intensity} ({multiplier}x), "
-            f"was_on={was_on}, cached_bri={cached_bri}, target_bri={target_bri}, speed={speed}s"
-        )
+        logger.info(f"Alert bounce complete for {area_id}")
 
     async def _standard_brightness_step(
         self, area_id: str, direction: int, source: str
