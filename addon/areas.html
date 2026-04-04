@@ -1550,6 +1550,10 @@
       zoneAction(zoneName, 'glozone_reset');
     }
 
+    function glozoneResetFull(zoneName) {
+      zoneAction(zoneName, 'glozone_reset_full');
+    }
+
     async function confirmZonePowerOff(zoneName) {
       const onAreas = areas.filter(a => {
         const s = areaStatus[a.area_id] || {};
@@ -2237,8 +2241,7 @@
               ${zoneFrozenIndicator}
               ${zoneMismatchDot}
               <div class="row-controls">
-                <button class="row-btn" onclick="event.stopPropagation(); glozoneDown('${escapedZoneName}')" title="Rhythm Zone Down: send to all areas">${glozoneDownIcon}</button>
-                <button class="row-btn" onclick="event.stopPropagation(); glozoneReset('${escapedZoneName}')" title="Reset Rhythm Zone">${glozoneResetIcon}</button>
+                <button class="row-btn" onclick="event.stopPropagation(); glozoneResetFull('${escapedZoneName}')" title="Reset all areas in rhythm zone">${glozoneResetIcon}</button>
               </div>
             </div>
             <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
@@ -2476,28 +2479,20 @@
         </div>
       `;
 
-      // GloUp icon (chevron up + line on bottom)
-      const gloUpSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="5 13 12 6 19 13"/>
-        <line x1="4" y1="19" x2="20" y2="19"/>
+      // Step up icon (chevron up)
+      const stepUpSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="5 15 12 8 19 15"/>
       </svg>`;
 
-      // GloDown icon (line on top + chevron down)
-      const gloDownSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="4" y1="5" x2="20" y2="5"/>
-        <polyline points="5 11 12 18 19 11"/>
-      </svg>`;
-
-      // Reset icon (rewind arrow)
-      const resetSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="1 4 1 10 7 10"/>
-        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+      // Step down icon (chevron down)
+      const stepDownSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="5 9 12 16 19 9"/>
       </svg>`;
 
       const rightControls = `
         <div class="row-controls">
-          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_up')" title="GloUp: send to '${area.zone_name || 'Rhythm Zone'}'">${gloUpSvg}</button>
-          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_down')" title="GloDown: pull from '${area.zone_name || 'Rhythm Zone'}'">${gloDownSvg}</button>
+          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'step_up')" title="Step up (brighter + cooler)">${stepUpSvg}</button>
+          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'step_down')" title="Step down (dimmer + warmer)">${stepDownSvg}</button>
         </div>
       `;
 
@@ -2625,10 +2620,7 @@
           const pct = getSliderPctFromPointer(track, e);
           const areaId = track.dataset.areaId;
           if (areaId) {
-            const bMin = parseFloat(track.dataset.bmin) || 1;
-            const bMax = parseFloat(track.dataset.bmax) || 100;
-            const targetActual = Math.round(bMin + (bMax - bMin) * pct / 100);
-            rowAction(areaId, 'set_circadian', targetActual);
+            rowAction(areaId, 'set_position', Math.round(pct), 'brightness');
           } else {
             sliderDragging = false;
           }

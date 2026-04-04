@@ -5554,6 +5554,9 @@ class HomeAssistantWebSocketClient:
             await self.primitives.zone_set_position(zone_name, value, mode, "webserver")
         elif service == "glozone_reset":
             await self.primitives.glozone_reset(zone_name, "webserver")
+        elif service == "glozone_reset_full":
+            await self.primitives.glozone_reset(zone_name, "webserver")
+            await self.primitives.glozone_down(zone_name, "webserver")
         elif service == "glozone_down":
             await self.primitives.glozone_down(zone_name, "webserver")
         else:

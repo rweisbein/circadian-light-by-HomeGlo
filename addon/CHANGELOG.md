@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.224
+- **Home page slider = brightness only**: Thumb drag now calls `set_position` with `mode: 'brightness'` (adjusts brightness override without moving along color curve). Previously used `set_circadian` which changed both brightness and color.
+- **Home page area buttons = step up/down**: Right-side buttons changed from GloUp/GloDown to Step Up/Step Down (move along circadian curve — brighter+cooler / dimmer+warmer).
+- **Zone header reset = full reset**: Reset button now does `glozone_reset_full` (reset zone + push to all areas). Removed GlozoneDown button from zone header.
+- **Cheatsheet Cancel always enabled**: Cancel button no longer greyed out when no changes — always available to exit edit mode.
+
 ## 1.0.223
 - **Fix power button staying lit on mobile (take 2)**: Added `-webkit-tap-highlight-color: transparent` and `outline: none` to toggle buttons. Blur button after optimistic toggle to release focus state. Fixes iOS sticky focus making the button appear lit after tapping off.
 

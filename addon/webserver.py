@@ -4985,6 +4985,7 @@ class LightDesignerServer:
             "color_up",
             "color_down",
             "glozone_reset",
+            "glozone_reset_full",
             "glozone_down",
             "set_position",
         }

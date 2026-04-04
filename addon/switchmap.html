@@ -1080,7 +1080,7 @@
 
       document.getElementById('unsaved-indicator').classList.toggle('visible', hasUnsavedChanges);
       document.getElementById('save-btn').disabled = !hasUnsavedChanges;
-      document.getElementById('cancel-btn').disabled = !hasUnsavedChanges;
+      document.getElementById('cancel-btn').disabled = false;
     }
 
     function isEqual(a, b) {
