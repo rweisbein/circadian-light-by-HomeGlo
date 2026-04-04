@@ -444,13 +444,14 @@
       flex-shrink: 0;
     }
 
-    /* Horizontal slider track — display-only, not interactive */
+    /* Horizontal slider track — track not tappable, thumb is draggable */
     .row-slider-track {
       height: 0;
       position: relative;
       pointer-events: none;
-      padding: 14px 0 13px;
-      margin: 0 6px;
+      touch-action: none;
+      padding: 12px 0;
+      margin: 0 16px;
     }
 
     .row-slider-track::before {
@@ -464,7 +465,6 @@
       border-radius: 2px;
       background: rgba(0,0,0,0.35);
       box-shadow: 0 0.5px 0 rgba(255,255,255,0.15);
-      pointer-events: none;
     }
 
     .row-slider-fill {
@@ -475,13 +475,19 @@
       position: absolute;
       top: 50%;
       transform: translate(-50%, -50%);
-      width: 30px;
-      height: 16px;
-      border-radius: 8px 8px 5px 5px;
+      width: 44px;
+      height: 19px;
+      border-radius: 9px 9px 6px 6px;
       background: rgba(255,255,255,0.9);
       box-shadow: 0 1px 4px rgba(0,0,0,0.4);
-      pointer-events: none;
+      pointer-events: auto;
+      cursor: pointer;
+      touch-action: none;
       transition: left 0.15s;
+    }
+
+    .row-slider-thumb.dragging {
+      transition: none;
     }
 
     /* Row control buttons - dark container like modal header */
@@ -2595,7 +2601,50 @@
     }
 
     function initRowSliders() {
-      // Sliders are display-only — no interaction handlers needed
+      document.querySelectorAll('.row-slider-thumb').forEach(thumb => {
+        const track = thumb.closest('.row-slider-track');
+        if (!track) return;
+
+        thumb.addEventListener('pointerdown', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          sliderDragging = true;
+          thumb.setPointerCapture(e.pointerId);
+          thumb.classList.add('dragging');
+        });
+        thumb.addEventListener('pointermove', (e) => {
+          if (!thumb.hasPointerCapture(e.pointerId)) return;
+          e.stopPropagation();
+          const pct = getSliderPctFromPointer(track, e);
+          thumb.style.left = pct + '%';
+        });
+        thumb.addEventListener('pointerup', (e) => {
+          if (!thumb.hasPointerCapture(e.pointerId)) return;
+          e.stopPropagation();
+          thumb.classList.remove('dragging');
+          const pct = getSliderPctFromPointer(track, e);
+          const areaId = track.dataset.areaId;
+          if (areaId) {
+            const bMin = parseFloat(track.dataset.bmin) || 1;
+            const bMax = parseFloat(track.dataset.bmax) || 100;
+            const targetActual = Math.round(bMin + (bMax - bMin) * pct / 100);
+            rowAction(areaId, 'set_circadian', targetActual);
+          } else {
+            sliderDragging = false;
+          }
+        });
+        thumb.addEventListener('pointercancel', () => {
+          sliderDragging = false;
+          thumb.classList.remove('dragging');
+        });
+        // Prevent click from bubbling to row's onclick
+        thumb.addEventListener('click', (e) => e.stopPropagation());
+      });
+    }
+
+    function getSliderPctFromPointer(track, e) {
+      const rect = track.getBoundingClientRect();
+      return Math.max(0, Math.min(100, (e.clientX - rect.left) / rect.width * 100));
     }
 
   </script>

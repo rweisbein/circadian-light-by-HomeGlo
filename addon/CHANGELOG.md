@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.222
+- **Fix home page sliders**: Handle is now draggable (grab and slide), but track is not tappable (no accidental brightness changes from touching the bar). Handle enlarged from 30×16px to 44×19px within the existing track space (no padding/margin changes).
+
 ## 1.0.221
 - **Cheatsheet edit flow**: Edit and Copy are now simple text links. Edit link hidden in edit mode — exit via Cancel (returns to cheatsheet, discards changes) or Save (returns to cheatsheet). Removed toggle button styling.
 
