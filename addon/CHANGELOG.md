@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.227
+- **Bigger area row buttons**: Reset button now 28×42px (fills vertical space). Stacked step buttons 28×20px each. Better touch targets on mobile.
+
 ## 1.0.226
 - **Home page area row: 3 buttons in same space**: Reset button (glo_down) + stacked step up/down chevrons. Container padding tightened from 4px to 2px. Stacked buttons are 13px tall each with compact SVGs.
 
