@@ -204,6 +204,8 @@
       justify-content: center;
       transition: all 0.2s;
       font-size: 1.1rem;
+      -webkit-tap-highlight-color: transparent;
+      outline: none;
     }
 
     @media (hover: hover) {
@@ -2565,11 +2567,11 @@
           if (action === 'lights_toggle') {
             selectedArea.is_on = !selectedArea.is_on;
             const pb = document.getElementById('toggle-power');
-            if (pb) pb.classList.toggle('active', selectedArea.is_on);
+            if (pb) { pb.classList.toggle('active', selectedArea.is_on); pb.blur(); }
           } else if (action === 'freeze_toggle') {
             selectedArea.frozen = !selectedArea.frozen;
             const fb = document.getElementById('toggle-freeze');
-            if (fb) fb.classList.toggle('active', selectedArea.frozen);
+            if (fb) { fb.classList.toggle('active', selectedArea.frozen); fb.blur(); }
           }
           setTimeout(async () => {
             try {

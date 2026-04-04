@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.223
+- **Fix power button staying lit on mobile (take 2)**: Added `-webkit-tap-highlight-color: transparent` and `outline: none` to toggle buttons. Blur button after optimistic toggle to release focus state. Fixes iOS sticky focus making the button appear lit after tapping off.
+
 ## 1.0.222
 - **Fix home page sliders**: Handle is now draggable (grab and slide), but track is not tappable (no accidental brightness changes from touching the bar). Handle enlarged from 30×16px to 44×19px within the existing track space (no padding/margin changes).
 
