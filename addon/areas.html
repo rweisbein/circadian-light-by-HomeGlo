@@ -490,13 +490,18 @@
       transition: none;
     }
 
-    /* Row control buttons - dark container like modal header */
+    /* Row control buttons - two adjacent pills */
     .row-controls {
       display: inline-flex;
-      gap: 2px;
+      gap: 1px;
+      align-items: center;
+    }
+
+    .row-controls-pill {
       background: rgba(0,0,0,0.5);
       padding: 2px;
       border-radius: 8px;
+      display: flex;
       align-items: center;
     }
 
@@ -2530,10 +2535,14 @@
 
       const rightControls = `
         <div class="row-controls">
-          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_down')" title="Reset to rhythm zone">${resetSvg}</button>
-          <div class="row-step-stack">
-            <button class="row-btn" onclick="event.stopPropagation(); homeStepUp('${area.area_id}')" title="Step up">${stepUpSvg}</button>
-            <button class="row-btn" onclick="event.stopPropagation(); homeStepDown('${area.area_id}')" title="Step down">${stepDownSvg}</button>
+          <div class="row-controls-pill">
+            <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_down')" title="Reset to rhythm zone">${resetSvg}</button>
+          </div>
+          <div class="row-controls-pill">
+            <div class="row-step-stack">
+              <button class="row-btn" onclick="event.stopPropagation(); homeStepUp('${area.area_id}')" title="Step up">${stepUpSvg}</button>
+              <button class="row-btn" onclick="event.stopPropagation(); homeStepDown('${area.area_id}')" title="Step down">${stepDownSvg}</button>
+            </div>
           </div>
         </div>
       `;

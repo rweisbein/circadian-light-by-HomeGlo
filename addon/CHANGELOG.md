@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.230
+- **Area row buttons: tighter pill shapes**: Reset button and stacked step buttons each get their own pill background that traces their height. Reset pill is shorter, step pill is taller. 1px gap between them reads as one group.
+
 ## 1.0.229
 - **Fix circadian slider mode**: Circadian slider now uses `set_circadian` (same as area detail page) instead of `set_position` with mode `step`. Maps slider pct to target brightness using area's bMin/bMax range.
 - **Live row color preview while dragging**: Row background updates in real-time during slider drag. In circadian mode, shows both brightness and color changes (using slider preview data). In brightness mode, shows brightness change with current color.
