@@ -1902,6 +1902,8 @@ class LightDesignerServer:
         "power_recovery",  # Power failure recovery: "bright" or "last_state" (default "last_state")
         "advanced_logging_until",  # ISO timestamp or "forever" for advanced logging expiry
         "confirm_zone_pushes",  # Show confirmation dialogs for zone push actions (default true)
+        "home_slider_mode",  # Homepage slider: "brightness", "step", or "color" (default "brightness")
+        "home_buttons_mode",  # Homepage up/down buttons: "step", "bright", or "color" (default "step")
     }
 
     def _migrate_to_glozone_format(self, config: dict) -> dict:

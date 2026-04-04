@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.228
+- **Configurable homepage controls**: New "Homepage" subsection in Settings → App. Slider mode (Brightness/Circadian/Color) and up/down button mode (Circadian/Brightness/Color) are now user-selectable. Defaults: slider=Brightness, buttons=Circadian.
+- **Fix reset button aspect ratio**: Reset buttons back to 28×28 square. Stacked step chevrons remain 28×20 for better touch targets.
+
 ## 1.0.227
 - **Bigger area row buttons**: Reset button now 28×42px (fills vertical space). Stacked step buttons 28×20px each. Better touch targets on mobile.
 

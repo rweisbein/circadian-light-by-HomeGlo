@@ -500,10 +500,6 @@
       align-items: center;
     }
 
-    .row-controls > .row-btn {
-      height: 42px;
-    }
-
     .row-step-stack {
       display: flex;
       flex-direction: column;
@@ -1579,6 +1575,18 @@
       zoneAction(zoneName, 'glozone_reset_full');
     }
 
+    function homeStepUp(areaId) {
+      const mode = cachedConfig?.home_buttons_mode || 'step';
+      const action = mode === 'bright' ? 'bright_up' : mode === 'color' ? 'color_up' : 'step_up';
+      rowAction(areaId, action);
+    }
+
+    function homeStepDown(areaId) {
+      const mode = cachedConfig?.home_buttons_mode || 'step';
+      const action = mode === 'bright' ? 'bright_down' : mode === 'color' ? 'color_down' : 'step_down';
+      rowAction(areaId, action);
+    }
+
     async function confirmZonePowerOff(zoneName) {
       const onAreas = areas.filter(a => {
         const s = areaStatus[a.area_id] || {};
@@ -2524,8 +2532,8 @@
         <div class="row-controls">
           <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_down')" title="Reset to rhythm zone">${resetSvg}</button>
           <div class="row-step-stack">
-            <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'step_up')" title="Step up">${stepUpSvg}</button>
-            <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'step_down')" title="Step down">${stepDownSvg}</button>
+            <button class="row-btn" onclick="event.stopPropagation(); homeStepUp('${area.area_id}')" title="Step up">${stepUpSvg}</button>
+            <button class="row-btn" onclick="event.stopPropagation(); homeStepDown('${area.area_id}')" title="Step down">${stepDownSvg}</button>
           </div>
         </div>
       `;
@@ -2654,7 +2662,8 @@
           const pct = getSliderPctFromPointer(track, e);
           const areaId = track.dataset.areaId;
           if (areaId) {
-            rowAction(areaId, 'set_position', Math.round(pct), 'brightness');
+            const sliderMode = cachedConfig?.home_slider_mode || 'brightness';
+            rowAction(areaId, 'set_position', Math.round(pct), sliderMode);
           } else {
             sliderDragging = false;
           }
