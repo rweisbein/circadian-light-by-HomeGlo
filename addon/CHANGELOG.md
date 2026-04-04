@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.225
+- **Fix auto schedule pill showing wrong next event**: When both auto_on and auto_off had the same day offset (e.g. both tomorrow), auto_on always won the tie. Now compares chronologically using `offset * 24 + decimal_hour`, so tomorrow 6am auto_off correctly beats tomorrow 7pm auto_on.
+- **Cheatsheet "Reset to defaults" toned down**: Changed from red-bordered button to small muted text link, left-aligned away from Save/Cancel.
+
 ## 1.0.224
 - **Home page slider = brightness only**: Thumb drag now calls `set_position` with `mode: 'brightness'` (adjusts brightness override without moving along color curve). Previously used `set_circadian` which changed both brightness and color.
 - **Home page area buttons = step up/down**: Right-side buttons changed from GloUp/GloDown to Step Up/Step Down (move along circadian curve — brighter+cooler / dimmer+warmer).

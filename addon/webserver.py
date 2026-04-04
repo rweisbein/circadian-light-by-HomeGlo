@@ -2687,6 +2687,7 @@ class LightDesignerServer:
             "day": day_label,
             "offset": display_offset,
             "day_abbr": day_abbrs[fire_day],
+            "decimal_hour": round(fire_time, 2),
         }
         if fire_offset > 6:
             fire_date_r = today_date + timedelta(days=fire_offset)

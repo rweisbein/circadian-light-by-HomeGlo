@@ -587,8 +587,8 @@
     </div>
 
     <div class="save-bar" id="save-bar" style="display:none;">
-      <button class="btn btn-danger" onclick="resetToDefaults()">Reset to Defaults</button>
-      <button class="btn btn-secondary" id="cancel-btn" onclick="cancelChanges()" disabled>Cancel</button>
+      <a href="#" style="font-size:0.75rem;color:var(--muted2);text-decoration:none;margin-right:auto;" onclick="event.preventDefault();resetToDefaults()">Reset to defaults</a>
+      <button class="btn btn-secondary" id="cancel-btn" onclick="cancelChanges()">Cancel</button>
       <button class="btn btn-primary" id="save-btn" onclick="saveMappings()" disabled>Save</button>
     </div>
   </main>

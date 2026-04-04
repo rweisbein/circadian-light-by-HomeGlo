@@ -1361,7 +1361,10 @@
         const nxtOn = fadeDir ? null : status.next_auto_on;
         const nxtOff = fadeDir ? null : status.next_auto_off;
         if (nxtOn && nxtOff) {
-          const onOff = (nxtOn.offset ?? 999) <= (nxtOff.offset ?? 999) ? ['on', nxtOn] : ['off', nxtOff];
+          // Compare chronologically: offset * 24 + decimal_hour
+          const onAt = (nxtOn.offset ?? 999) * 24 + (nxtOn.decimal_hour ?? 0);
+          const offAt = (nxtOff.offset ?? 999) * 24 + (nxtOff.decimal_hour ?? 0);
+          const onOff = onAt <= offAt ? ['on', nxtOn] : ['off', nxtOff];
           parts.push(formatAutoSchedulePill(onOff[1], onOff[0]));
         } else if (nxtOn) {
           parts.push(formatAutoSchedulePill(nxtOn, 'on'));
