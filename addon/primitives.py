@@ -5094,7 +5094,13 @@ class CircadianLightPrimitives:
             logger.debug(f"Alert bounce: no feedback target for {area_id}")
             return
 
-        targets = [feedback_target]
+        # Build clean HA target (strip metadata like filter_name)
+        if "entity_id" in feedback_target:
+            targets = [{"entity_id": feedback_target["entity_id"]}]
+        elif "area_id" in feedback_target:
+            targets = [{"area_id": feedback_target["area_id"]}]
+        else:
+            targets = [feedback_target]
 
         # Read bounce settings
         max_pct = self._get_limit_bounce_max_percent() / 100.0

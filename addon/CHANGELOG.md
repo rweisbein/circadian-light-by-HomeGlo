@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.233
+- **Fix alert bounce not firing**: Target dict passed to HA contained extra keys (filter_name, area_id alongside entity_id) causing silent call rejection. Now strips to clean entity_id only, matching the fix in _bounce_at_limit.
+
 ## 1.0.232
 - **Alert bounce debug logging**: Added per-phase logging (target entity, brightness, phase 1/2) to diagnose alert bounce visibility issues.
 
