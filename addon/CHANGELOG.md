@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.229
+- **Fix circadian slider mode**: Circadian slider now uses `set_circadian` (same as area detail page) instead of `set_position` with mode `step`. Maps slider pct to target brightness using area's bMin/bMax range.
+- **Live row color preview while dragging**: Row background updates in real-time during slider drag. In circadian mode, shows both brightness and color changes (using slider preview data). In brightness mode, shows brightness change with current color.
+- **Remove color from slider options**: Slider dropdown now only offers Brightness and Circadian.
+
 ## 1.0.228
 - **Configurable homepage controls**: New "Homepage" subsection in Settings → App. Slider mode (Brightness/Circadian/Color) and up/down button mode (Circadian/Brightness/Color) are now user-selectable. Defaults: slider=Brightness, buttons=Circadian.
 - **Fix reset button aspect ratio**: Reset buttons back to 28×28 square. Stacked step chevrons remain 28×20 for better touch targets.
