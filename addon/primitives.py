@@ -239,6 +239,15 @@ class CircadianLightPrimitives:
         except Exception:
             return 13
 
+    def _get_alert_bounce_speed(self) -> float:
+        """Get the alert bounce animation speed in seconds."""
+        try:
+            raw_config = glozone.load_config_from_files()
+            tenths = raw_config.get("alert_bounce_speed", 10)
+            return tenths / 10.0
+        except Exception:
+            return 1.0
+
     def _get_reach_daytime_threshold(self) -> float:
         """Get the reach daytime threshold (brightness % below which flash goes UP).
 
@@ -5056,6 +5065,106 @@ class CircadianLightPrimitives:
             f"target={target_entity}, "
             f"visible {visible_bri}/255 -> {target_visible}/255 -> restore, "
             f"speed={limit_speed}s, delay={two_step_delay}s"
+        )
+
+    async def alert_bounce(
+        self,
+        area_id: str,
+        intensity: str = "low",
+        count: int = 3,
+        source: str = "motion_sensor",
+    ):
+        """Visual alert bounce — brightness pulse on the area's feedback target.
+
+        Uses the shared "Small bounce" settings (max_percent / min_percent).
+        Intensity multiplies the bounce percentage: low=1x, med=2x, high=3x.
+        When lights are off, flashes on at bounce percentage then off.
+
+        Args:
+            area_id: The area to alert
+            intensity: "low", "med", or "high"
+            count: Number of bounces
+            source: Source of the action
+        """
+        import asyncio
+
+        # Resolve feedback target (same as limit bounce / reach feedback)
+        feedback_target = self.client._get_feedback_group_for_area(area_id)
+        if not feedback_target:
+            logger.debug(f"Alert bounce: no feedback target for {area_id}")
+            return
+
+        targets = [feedback_target]
+
+        # Read bounce settings
+        max_pct = self._get_limit_bounce_max_percent() / 100.0
+        min_pct = self._get_limit_bounce_min_percent() / 100.0
+        multiplier = {"low": 1, "med": 2, "high": 3}.get(intensity, 1)
+        speed = self._get_alert_bounce_speed()
+        two_step_delay = self._get_two_step_delay()
+
+        # Read cached brightness of feedback entity
+        target_entity = feedback_target.get("entity_id") if feedback_target else None
+        if target_entity:
+            cached = self.client.cached_states.get(target_entity, {})
+            cached_state = cached.get("state", "off")
+            was_on = cached_state not in ("off", "unavailable", "unknown")
+            cached_bri = cached.get("attributes", {}).get("brightness", 0) if was_on else 0
+        else:
+            was_on = False
+            cached_bri = 0
+
+        # Determine bounce direction and delta
+        if was_on and cached_bri > 0:
+            bri_pct = cached_bri / 2.55  # 0-100
+            if bri_pct >= 50:
+                # Bright: dip down
+                bounce_pct = min(max_pct * multiplier, 0.95)
+                target_bri = max(1, int(cached_bri * (1 - bounce_pct)))
+            else:
+                # Dim: flash up
+                bounce_pct = min(min_pct * multiplier, 0.95)
+                target_bri = min(255, int(cached_bri + 255 * bounce_pct))
+        else:
+            # Lights off: flash on at bounce percentage
+            bounce_pct = min(min_pct * multiplier, 0.95)
+            target_bri = max(1, int(255 * bounce_pct))
+
+        self.client._defer_periodic_tick = True
+        try:
+            for i in range(count):
+                # Phase 1: bounce to target
+                for target in targets:
+                    await self.client.call_service(
+                        "light", "turn_on",
+                        {"brightness": target_bri, "transition": speed},
+                        target=target,
+                    )
+                await asyncio.sleep(speed + two_step_delay)
+
+                # Phase 2: restore
+                if was_on:
+                    for target in targets:
+                        await self.client.call_service(
+                            "light", "turn_on",
+                            {"brightness": cached_bri, "transition": speed},
+                            target=target,
+                        )
+                else:
+                    for target in targets:
+                        await self.client.call_service(
+                            "light", "turn_off",
+                            {"transition": speed},
+                            target=target,
+                        )
+                await asyncio.sleep(speed + two_step_delay)
+        finally:
+            self.client._defer_periodic_tick = False
+            self.client.record_light_action()
+
+        logger.info(
+            f"Alert bounce for {area_id}: {count}x, intensity={intensity} ({multiplier}x), "
+            f"was_on={was_on}, cached_bri={cached_bri}, target_bri={target_bri}, speed={speed}s"
         )
 
     async def _standard_brightness_step(

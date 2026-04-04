@@ -663,10 +663,18 @@ class HomeAssistantWebSocketClient:
         # Merge configs for areas that appear in multiple scopes:
         # Most permissive power mode wins (on_only > on_off > disabled)
         # Boost applies if any config enables it
+        # Alert runs independently (doesn't affect power merge)
         mode_priority = {"on_only": 2, "on_off": 1, "disabled": 0}
         merged_areas = {}  # area_id -> merged config dict
+        alert_areas = {}  # area_id -> alert config (runs independently)
         for area_config in active_configs:
             area_id = area_config.area_id
+
+            # Alert mode tracked separately — doesn't merge with power modes
+            if area_config.mode == "alert":
+                if area_id not in alert_areas:
+                    alert_areas[area_id] = area_config
+                continue
 
             if area_id not in merged_areas:
                 merged_areas[area_id] = {
@@ -751,6 +759,24 @@ class HomeAssistantWebSocketClient:
             # Note: For on_off, the timer is managed via motion_expires_at state
             # When motion clears, we don't need to do anything - the timer continues
             # If motion is detected again, motion_on_off extends the timer
+
+        # Process alert scopes (independent of power modes, only on motion-on)
+        if new_state == "on":
+            for area_id, alert_config in alert_areas.items():
+                # Check active window
+                if not self._is_motion_time_active(alert_config):
+                    logger.debug(f"[Motion] Alert outside active window for {area_id}")
+                    continue
+                logger.info(
+                    f"[Motion] Alert bounce for {area_id}: "
+                    f"intensity={alert_config.alert_intensity}, count={alert_config.alert_count}"
+                )
+                await self.primitives.alert_bounce(
+                    area_id,
+                    intensity=alert_config.alert_intensity,
+                    count=alert_config.alert_count,
+                    source="motion_sensor",
+                )
 
     async def _handle_zha_motion_event(
         self, sensor_config, command: str, args, device_id: str

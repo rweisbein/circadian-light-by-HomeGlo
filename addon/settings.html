@@ -751,40 +751,57 @@
 
         <div class="form-row" style="margin-top: 20px;">
           <label class="form-label">
-            Limit bounce
-            <span class="info-icon">i<span class="info-tooltip">When stepping up/down hits the brightness or color limit, lights briefly dip/flash to indicate the limit has been reached.</span></span>
+            Bounce
+            <span class="info-icon">i<span class="info-tooltip">Visual brightness dip/flash used for limit bounce (hitting step limits) and motion alerts. Controls the base bounce percentages shared by both features.</span></span>
           </label>
           <div class="form-control">
             <label class="checkbox-label">
               <input type="checkbox" id="limit-bounce-enabled" checked>
             </label>
-            <span id="limit-bounce-settings" style="display: flex; align-items: center; gap: 8px; margin-left: 12px;">
-              <span class="form-hint" style="margin-left: 0;">Speed</span>
-              <input type="number" class="form-input" id="limit-warning-speed" min="0" max="100" step="0.1" value="3" style="width: 60px;">
-              <span class="form-hint">tenths/s</span>
-            </span>
           </div>
         </div>
 
         <div class="form-row" id="limit-bounce-max-row" style="padding-left: 20px;">
           <label class="form-label">
-            Limit bounce (max)
-            <span class="info-icon">i<span class="info-tooltip">How much to dip when hitting the upper limit. Expressed as a percentage of the brightness or color range.</span></span>
+            Small bounce (max bright)
+            <span class="info-icon">i<span class="info-tooltip">How much to dip when brightness is high. Used as the base for limit bounce and alert bounce (alert intensity multiplies this).</span></span>
           </label>
           <div class="form-control">
             <input type="number" class="form-input" id="limit-bounce-max-percent" min="5" max="50" step="1" value="25" style="width: 80px;">
-            <span class="form-hint">% of range</span>
+            <span class="form-hint">%</span>
           </div>
         </div>
 
         <div class="form-row" id="limit-bounce-min-row" style="padding-left: 20px;">
           <label class="form-label">
-            Limit bounce (min)
-            <span class="info-icon">i<span class="info-tooltip">How much to flash when hitting the lower limit. Expressed as a percentage of the brightness or color range.</span></span>
+            Small bounce (min bright)
+            <span class="info-icon">i<span class="info-tooltip">How much to flash up when brightness is low. Used as the base for limit bounce and alert bounce (alert intensity multiplies this).</span></span>
           </label>
           <div class="form-control">
             <input type="number" class="form-input" id="limit-bounce-min-percent" min="5" max="50" step="1" value="13" style="width: 80px;">
-            <span class="form-hint">% of range</span>
+            <span class="form-hint">%</span>
+          </div>
+        </div>
+
+        <div class="form-row" id="limit-bounce-speed-row" style="padding-left: 20px;">
+          <label class="form-label">
+            Limit bounce speed
+            <span class="info-icon">i<span class="info-tooltip">How fast the brightness bounces when hitting a step limit.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="limit-warning-speed" min="0" max="100" step="0.1" value="3" style="width: 80px;">
+            <span class="form-hint">tenths of a second</span>
+          </div>
+        </div>
+
+        <div class="form-row" id="alert-bounce-speed-row" style="padding-left: 20px;">
+          <label class="form-label">
+            Alert bounce speed
+            <span class="info-icon">i<span class="info-tooltip">How fast the brightness bounces for motion alert mode. Slower makes the alert more visible.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="alert-bounce-speed" min="1" max="50" step="1" value="10" style="width: 80px;">
+            <span class="form-hint">tenths of a second</span>
           </div>
         </div>
 
@@ -1169,6 +1186,7 @@
           updateFreezeFeedbackState();
           document.getElementById('limit-bounce-enabled').checked = config.limit_bounce_enabled ?? true;
           document.getElementById('limit-warning-speed').value = config.limit_warning_speed ?? 3;
+          document.getElementById('alert-bounce-speed').value = config.alert_bounce_speed ?? 10;
           updateLimitBounceState();
           document.getElementById('limit-bounce-max-percent').value = config.limit_bounce_max_percent ?? 25;
           document.getElementById('limit-bounce-min-percent').value = config.limit_bounce_min_percent ?? 13;
@@ -1252,6 +1270,7 @@
         freeze_off_rise: parseFloat(document.getElementById('freeze-off-rise').value) || 10,
         limit_bounce_enabled: document.getElementById('limit-bounce-enabled').checked,
         limit_warning_speed: parseFloat(document.getElementById('limit-warning-speed').value) || 3,
+        alert_bounce_speed: parseInt(document.getElementById('alert-bounce-speed').value) || 10,
         limit_bounce_max_percent: parseInt(document.getElementById('limit-bounce-max-percent').value) || 25,
         limit_bounce_min_percent: parseInt(document.getElementById('limit-bounce-min-percent').value) || 13,
         outdoor_brightness_source: document.getElementById('outdoor-brightness-source').value,
@@ -1311,27 +1330,15 @@
 
     function updateLimitBounceState() {
       const enabled = document.getElementById('limit-bounce-enabled').checked;
-      const settings = document.getElementById('limit-bounce-settings');
-      const speedInput = document.getElementById('limit-warning-speed');
-      const maxRow = document.getElementById('limit-bounce-max-row');
-      const minRow = document.getElementById('limit-bounce-min-row');
-      const maxInput = document.getElementById('limit-bounce-max-percent');
-      const minInput = document.getElementById('limit-bounce-min-percent');
-
-      if (enabled) {
-        settings.style.opacity = '1';
-        speedInput.disabled = false;
-        maxRow.style.opacity = '1';
-        minRow.style.opacity = '1';
-        maxInput.disabled = false;
-        minInput.disabled = false;
-      } else {
-        settings.style.opacity = '0.4';
-        speedInput.disabled = true;
-        maxRow.style.opacity = '0.4';
-        minRow.style.opacity = '0.4';
-        maxInput.disabled = true;
-        minInput.disabled = true;
+      const subRows = ['limit-bounce-max-row', 'limit-bounce-min-row', 'limit-bounce-speed-row', 'alert-bounce-speed-row'];
+      const subInputs = ['limit-bounce-max-percent', 'limit-bounce-min-percent', 'limit-warning-speed', 'alert-bounce-speed'];
+      for (const id of subRows) {
+        const el = document.getElementById(id);
+        if (el) el.style.opacity = enabled ? '1' : '0.4';
+      }
+      for (const id of subInputs) {
+        const el = document.getElementById(id);
+        if (el) el.disabled = !enabled;
       }
     }
 
@@ -1593,6 +1600,7 @@
     document.getElementById('limit-warning-speed').addEventListener('blur', saveSettings);
     document.getElementById('limit-bounce-max-percent').addEventListener('blur', saveSettings);
     document.getElementById('limit-bounce-min-percent').addEventListener('blur', saveSettings);
+    document.getElementById('alert-bounce-speed').addEventListener('blur', saveSettings);
     document.getElementById('outdoor-brightness-source').addEventListener('change', () => {
       updateOutdoorSourceState();
       saveSettings();

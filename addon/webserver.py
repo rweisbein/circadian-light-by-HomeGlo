@@ -1873,6 +1873,7 @@ class LightDesignerServer:
         "motion_blink_threshold",  # Brightness % below which motion warning blinks instead of dims
         "freeze_feedback_enabled",  # Whether freeze/unfreeze shows visual dip-and-restore cue (default true)
         "freeze_off_rise",  # Transition time in tenths of seconds for unfreeze rise (default 10 = 1.0s)
+        "alert_bounce_speed",  # Transition time in tenths of seconds for alert bounce animation (default 10 = 1.0s)
         "limit_bounce_enabled",  # Whether to show visual bounce when hitting step limits (default true)
         "limit_warning_speed",  # Transition time in tenths of seconds for limit bounce animation (default 3 = 0.3s)
         "limit_bounce_max_percent",  # Percentage of range to dip when hitting max limit (default 25)
@@ -2095,6 +2096,7 @@ class LightDesignerServer:
             "limit_warning_speed": 3,  # tenths of seconds (0.3s)
             "limit_bounce_max_percent": 25,  # % of range (hitting max)
             "limit_bounce_min_percent": 13,  # % of range (hitting min)
+            "alert_bounce_speed": 10,  # tenths of seconds (1.0s)
             # Reach feedback
             "post_action_burst_count": 1,  # 0-3 burst refreshes after actions
             "reach_feedback_enabled": True,  # Flash lights on reach change
@@ -2197,6 +2199,7 @@ class LightDesignerServer:
             "limit_warning_speed": 3,  # tenths of seconds (0.3s)
             "limit_bounce_max_percent": 25,  # % of range (hitting max)
             "limit_bounce_min_percent": 13,  # % of range (hitting min)
+            "alert_bounce_speed": 10,
             "post_action_burst_count": 1,
             # Reach feedback
             "reach_feedback_enabled": True,
@@ -6455,6 +6458,8 @@ class LightDesignerServer:
                         active_offset = scope.get("active_offset", 0)
                         cooldown = scope.get("cooldown", 0)
                         trigger_entities = scope.get("trigger_entities", [])
+                        alert_intensity = scope.get("alert_intensity", "low")
+                        alert_count = scope.get("alert_count", 3)
 
                         for area_id in scope_areas:
                             areas.append(
@@ -6468,6 +6473,8 @@ class LightDesignerServer:
                                     active_offset=active_offset,
                                     cooldown=cooldown,
                                     trigger_entities=trigger_entities,
+                                    alert_intensity=alert_intensity,
+                                    alert_count=alert_count,
                                 )
                             )
                 else:

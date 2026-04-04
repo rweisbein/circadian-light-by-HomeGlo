@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.231
+- **Alert mode for motion sensors**: New 4th mode option ("Alert") on motion sensor scopes. Performs brightness bounces on the area's feedback target when motion is detected. Parameters: intensity (Low/Med/High — 1x/2x/3x bounce percentage) and count (number of bounces, default 3). Works independently of on_off/on_only — create separate scopes for the same area to combine alert + power behavior.
+- **Settings: bounce label rework**: "Limit bounce" renamed to "Bounce" (shared by limit bounce and alert). Sub-fields renamed: "Small bounce (max bright)", "Small bounce (min bright)". Speed split into "Limit bounce speed" and new "Alert bounce speed" (default 1.0s). All sub-fields grey out when bounce is disabled.
+- **Lights-off alert**: When lights are off, alert flashes on at the bounce percentage then off (scaled by intensity multiplier).
+
 ## 1.0.230
 - **Area row buttons: tighter pill shapes**: Reset button and stacked step buttons each get their own pill background that traces their height. Reset pill is shorter, step pill is taller. 1px gap between them reads as one group.
 

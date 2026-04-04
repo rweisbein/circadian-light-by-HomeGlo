@@ -871,15 +871,16 @@ class MotionAreaConfig:
     Mode controls power behavior:
     - on_only: Turn on lights, never auto-off
     - on_off: Turn on lights, auto-off after duration
+    - alert: Visual bounce on feedback target (no power change)
     - disabled: Sensor ignored for this area
 
-    Boost is independent - can be combined with any mode:
+    Boost is independent - can be combined with any mode (except alert):
     - boost_enabled: Whether to temporarily increase brightness
     - boost_brightness: Percentage points to add
     """
 
     area_id: str
-    mode: str = "on_off"  # on_only, on_off, disabled
+    mode: str = "on_off"  # on_only, on_off, alert, disabled
     duration: int = 60  # seconds for on_off auto-off timer
     boost_enabled: bool = False  # whether to boost brightness
     boost_brightness: int = 50  # percentage points to add when boosting
@@ -887,6 +888,8 @@ class MotionAreaConfig:
     active_offset: int = 0  # minutes: positive = widen window, negative = shrink
     cooldown: int = 0  # per-scope cooldown in seconds (0 = use sensor default)
     trigger_entities: List[str] = field(default_factory=list)  # specific entity_ids that trigger this scope (empty = any)
+    alert_intensity: str = "low"  # low, med, high — multiplier for bounce percentage
+    alert_count: int = 3  # number of bounces in alert mode
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -904,6 +907,9 @@ class MotionAreaConfig:
             d["cooldown"] = self.cooldown
         if self.trigger_entities:
             d["trigger_entities"] = self.trigger_entities
+        if self.mode == "alert":
+            d["alert_intensity"] = self.alert_intensity
+            d["alert_count"] = self.alert_count
         return d
 
     @classmethod
@@ -946,6 +952,8 @@ class MotionAreaConfig:
             active_offset=data.get("active_offset", 0),
             cooldown=data.get("cooldown", 0),
             trigger_entities=data.get("trigger_entities", []),
+            alert_intensity=data.get("alert_intensity", "low"),
+            alert_count=data.get("alert_count", 3),
         )
 
 

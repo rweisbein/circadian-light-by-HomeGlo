@@ -2017,6 +2017,7 @@
       const modeLabels = {
         'on_only': 'On only',
         'on_off': 'On/Off',
+        'alert': 'Alert',
         'disabled': 'Disabled'
       };
 
@@ -2025,6 +2026,10 @@
         const mode = scope.mode || 'on_off';
         const boostEnabled = scope.boost_enabled || false;
         const showDuration = mode === 'on_off';
+        const showBoost = mode !== 'alert' && mode !== 'disabled';
+        const showAlert = mode === 'alert';
+        const alertIntensity = scope.alert_intensity || 'low';
+        const alertCount = scope.alert_count || 3;
         const boostBrightness = scope.boost_brightness || 50;
         const activeWhen = scope.active_when || 'always';
         const activeOffset = scope.active_offset || 0;
@@ -2082,12 +2087,12 @@
                 </div>
                 <span style="color: var(--muted); font-size: 0.85rem;">min</span>
               </div>
-              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <label style="display: ${showBoost ? 'flex' : 'none'}; align-items: center; gap: 6px; cursor: pointer;">
                 <input type="checkbox" style="width: 16px; height: 16px;" ${boostEnabled ? 'checked' : ''}
                   onchange="updateMotionScope(${idx}, 'boost_enabled', this.checked)">
                 <span style="font-size: 0.85rem;">Boost</span>
               </label>
-              <div style="display: ${boostEnabled ? 'flex' : 'none'}; align-items: center; gap: 6px;">
+              <div style="display: ${boostEnabled && showBoost ? 'flex' : 'none'}; align-items: center; gap: 6px;">
                 <span style="color: var(--muted); font-size: 0.85rem;">+</span>
                 <div class="number-input-wrap">
                   <input type="number" id="boost-${idx}" style="width: 55px;" value="${boostBrightness}" min="5" max="100" step="5"
@@ -2098,6 +2103,22 @@
                   </div>
                 </div>
                 <span style="color: var(--muted); font-size: 0.85rem;">%</span>
+              </div>
+              <div style="display: ${showAlert ? 'flex' : 'none'}; align-items: center; gap: 8px;">
+                <select onchange="updateMotionScope(${idx}, 'alert_intensity', this.value)">
+                  <option value="low" ${alertIntensity === 'low' ? 'selected' : ''}>Low</option>
+                  <option value="med" ${alertIntensity === 'med' ? 'selected' : ''}>Med</option>
+                  <option value="high" ${alertIntensity === 'high' ? 'selected' : ''}>High</option>
+                </select>
+                <div class="number-input-wrap">
+                  <input type="number" id="alert-count-${idx}" style="width: 45px;" value="${alertCount}" min="1" max="10" step="1"
+                    onchange="updateMotionScope(${idx}, 'alert_count', parseInt(this.value))">
+                  <div class="number-input-btns">
+                    <button type="button" onclick="stepNumberInput('alert-count-${idx}', 1)">&#9650;</button>
+                    <button type="button" onclick="stepNumberInput('alert-count-${idx}', -1)">&#9660;</button>
+                  </div>
+                </div>
+                <span style="color: var(--muted); font-size: 0.85rem;">bounces</span>
               </div>
             </div>
             <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
@@ -2150,6 +2171,8 @@
         active_offset: 0,
         cooldown: 0,
         trigger_entities: [],
+        alert_intensity: 'low',
+        alert_count: 3,
       });
       renderMotionScopesEditor();
       autoSave();
@@ -2296,6 +2319,8 @@
             active_when: s.active_when || 'always',
             active_offset: s.active_offset || 0,
             trigger_entities: [...(s.trigger_entities || [])],
+            alert_intensity: s.alert_intensity || 'low',
+            alert_count: s.alert_count || 3,
           }));
         } else if (ctrl.areas && ctrl.areas.length > 0) {
           const scopeMap = new Map();
@@ -2309,13 +2334,15 @@
               active_when: a.active_when || 'always',
               active_offset: a.active_offset || 0,
               trigger_entities: [...(a.trigger_entities || [])],
+              alert_intensity: a.alert_intensity || 'low',
+              alert_count: a.alert_count || 3,
             };
-            // Group by settings excluding trigger_entities (those are per-scope, not per-area)
             const groupKey = JSON.stringify({
               mode: settings.mode, duration: settings.duration, cooldown: settings.cooldown,
               boost_enabled: settings.boost_enabled, boost_brightness: settings.boost_brightness,
               active_when: settings.active_when, active_offset: settings.active_offset,
               trigger_entities: settings.trigger_entities,
+              alert_intensity: settings.alert_intensity, alert_count: settings.alert_count,
             });
             if (scopeMap.has(groupKey)) {
               scopeMap.get(groupKey).areas.push(a.area_id);
