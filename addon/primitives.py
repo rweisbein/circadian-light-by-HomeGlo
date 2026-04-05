@@ -5121,19 +5121,6 @@ class CircadianLightPrimitives:
         else:
             cached_bri = 0
 
-        # Compute current circadian color for the area (include in all turn_on calls)
-        color_data = {}
-        try:
-            config = self._get_config(area_id)
-            hour = get_current_hour()
-            sun_times = self.client._get_sun_times() if hasattr(self.client, "_get_sun_times") else None
-            area_state = self._get_area_state(area_id)
-            result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
-            xy = CircadianLight.color_temperature_to_xy(result.color_temp)
-            color_data = {"xy_color": list(xy)}
-        except Exception:
-            pass  # Bounce without color if calculation fails
-
         # Determine bounce direction and delta
         if was_on and cached_bri > 0:
             bri_pct = cached_bri / 2.55  # 0-100
@@ -5146,6 +5133,20 @@ class CircadianLightPrimitives:
         else:
             bounce_pct = min(min_pct * multiplier, 0.95)
             target_bri = max(1, int(255 * bounce_pct))
+
+        # Compute circadian color only for was_off (lights on already have correct color)
+        color_data = {}
+        if not was_on:
+            try:
+                config = self._get_config(area_id)
+                hour = get_current_hour()
+                sun_times = self.client._get_sun_times() if hasattr(self.client, "_get_sun_times") else None
+                area_state_obj = self._get_area_state(area_id)
+                result = CircadianLight.calculate_lighting(hour, config, area_state_obj, sun_times=sun_times)
+                xy = CircadianLight.color_temperature_to_xy(result.color_temp)
+                color_data = {"xy_color": list(xy)}
+            except Exception:
+                pass
 
         target_desc = feedback_target.get("entity_id", feedback_target.get("area_id", "?"))
         logger.info(

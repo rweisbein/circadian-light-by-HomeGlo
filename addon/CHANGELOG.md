@@ -1,7 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.236
+- **Alert bounce color only for off lights**: Circadian xy_color included only when bouncing was_off lights (so they flash at correct color, not white). Was_on lights bounce brightness only, preserving their current color.
+
 ## 1.0.235
-- **Fix alert bounce leaving lights on/white**: Three fixes: (1) Use internal state (`state.get_is_on`) instead of HA cached_states for was_on detection — prevents stale HA state from treating off lights as on. (2) Include circadian xy_color in all turn_on calls so lights bounce at correct color, not cool white. (3) Reset off-confirm counter after was_off bounce so periodic tick re-sends turn_off commands.
+- **Fix alert bounce leaving lights on/white**: Three fixes: (1) Use internal state (`state.get_is_on`) instead of HA cached_states for was_on detection — prevents stale HA state from treating off lights as on. (2) Include circadian xy_color in was_off turn_on calls so lights bounce at correct color, not cool white. (3) Reset off-confirm counter after was_off bounce so periodic tick re-sends turn_off commands.
 - **Concurrent alert bounces**: Multiple alert areas now run via `asyncio.gather` instead of sequentially. 3 areas × 3 bounces drops from ~16s to ~5.5s.
 
 ## 1.0.234
