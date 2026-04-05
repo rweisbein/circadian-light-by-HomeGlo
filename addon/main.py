@@ -761,9 +761,10 @@ class HomeAssistantWebSocketClient:
             # If motion is detected again, motion_on_off extends the timer
 
         # Process alert scopes (independent of power modes, only on motion-on)
+        # Run all alert bounces concurrently to minimize total blocking time
         if new_state == "on":
+            alert_tasks = []
             for area_id, alert_config in alert_areas.items():
-                # Check active window
                 if not self._is_motion_time_active(alert_config):
                     logger.debug(f"[Motion] Alert outside active window for {area_id}")
                     continue
@@ -771,12 +772,16 @@ class HomeAssistantWebSocketClient:
                     f"[Motion] Alert bounce for {area_id}: "
                     f"intensity={alert_config.alert_intensity}, count={alert_config.alert_count}"
                 )
-                await self.primitives.alert_bounce(
-                    area_id,
-                    intensity=alert_config.alert_intensity,
-                    count=alert_config.alert_count,
-                    source="motion_sensor",
+                alert_tasks.append(
+                    self.primitives.alert_bounce(
+                        area_id,
+                        intensity=alert_config.alert_intensity,
+                        count=alert_config.alert_count,
+                        source="motion_sensor",
+                    )
                 )
+            if alert_tasks:
+                await asyncio.gather(*alert_tasks)
 
     async def _handle_zha_motion_event(
         self, sensor_config, command: str, args, device_id: str

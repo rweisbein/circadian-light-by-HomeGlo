@@ -5109,34 +5109,45 @@ class CircadianLightPrimitives:
         speed = self._get_alert_bounce_speed()
         two_step_delay = self._get_two_step_delay()
 
-        # Read cached brightness of feedback entity
-        target_entity = feedback_target.get("entity_id") if feedback_target else None
-        if target_entity:
-            cached = self.client.cached_states.get(target_entity, {})
-            cached_state = cached.get("state", "off")
-            was_on = cached_state not in ("off", "unavailable", "unknown")
-            cached_bri = cached.get("attributes", {}).get("brightness", 0) if was_on else 0
+        # Use our internal state, not HA cached_states
+        was_on = state.get_is_on(area_id)
+        if was_on:
+            target_entity = feedback_target.get("entity_id") if feedback_target else None
+            if target_entity:
+                cached = self.client.cached_states.get(target_entity, {})
+                cached_bri = cached.get("attributes", {}).get("brightness", 0) or 1
+            else:
+                cached_bri = 128  # fallback
         else:
-            was_on = False
             cached_bri = 0
+
+        # Compute current circadian color for the area (include in all turn_on calls)
+        color_data = {}
+        try:
+            config = self._get_config(area_id)
+            hour = get_current_hour()
+            sun_times = self.client._get_sun_times() if hasattr(self.client, "_get_sun_times") else None
+            area_state = self._get_area_state(area_id)
+            result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
+            xy = CircadianLight.color_temperature_to_xy(result.color_temp)
+            color_data = {"xy_color": list(xy)}
+        except Exception:
+            pass  # Bounce without color if calculation fails
 
         # Determine bounce direction and delta
         if was_on and cached_bri > 0:
             bri_pct = cached_bri / 2.55  # 0-100
             if bri_pct >= 50:
-                # Bright: dip down
                 bounce_pct = min(max_pct * multiplier, 0.95)
                 target_bri = max(1, int(cached_bri * (1 - bounce_pct)))
             else:
-                # Dim: flash up
                 bounce_pct = min(min_pct * multiplier, 0.95)
                 target_bri = min(255, int(cached_bri + 255 * bounce_pct))
         else:
-            # Lights off: flash on at bounce percentage
             bounce_pct = min(min_pct * multiplier, 0.95)
             target_bri = max(1, int(255 * bounce_pct))
 
-        target_desc = target_entity or feedback_target.get("area_id", "?")
+        target_desc = feedback_target.get("entity_id", feedback_target.get("area_id", "?"))
         logger.info(
             f"Alert bounce starting for {area_id}: {count}x, intensity={intensity} ({multiplier}x), "
             f"target={target_desc}, was_on={was_on}, cached_bri={cached_bri}, "
@@ -5146,10 +5157,10 @@ class CircadianLightPrimitives:
         self.client._defer_periodic_tick = True
         try:
             for i in range(count):
-                # Phase 1: bounce to target
-                sdata = {"brightness": target_bri, "transition": speed}
+                # Phase 1: bounce to target (include color data)
+                sdata = {"brightness": target_bri, "transition": speed, **color_data}
                 for target in targets:
-                    logger.info(f"Alert bounce [{i+1}/{count}] phase1: turn_on {target} {sdata}")
+                    logger.info(f"Alert bounce [{i+1}/{count}] phase1: turn_on {target} bri={target_bri}")
                     await self.client.call_service(
                         "light", "turn_on", sdata, target=target,
                     )
@@ -5157,15 +5168,15 @@ class CircadianLightPrimitives:
 
                 # Phase 2: restore
                 if was_on:
-                    rdata = {"brightness": cached_bri, "transition": speed}
+                    rdata = {"brightness": cached_bri, "transition": speed, **color_data}
                     for target in targets:
-                        logger.info(f"Alert bounce [{i+1}/{count}] phase2: turn_on {target} {rdata}")
+                        logger.info(f"Alert bounce [{i+1}/{count}] phase2: restore bri={cached_bri}")
                         await self.client.call_service(
                             "light", "turn_on", rdata, target=target,
                         )
                 else:
                     for target in targets:
-                        logger.info(f"Alert bounce [{i+1}/{count}] phase2: turn_off {target}")
+                        logger.info(f"Alert bounce [{i+1}/{count}] phase2: turn_off")
                         await self.client.call_service(
                             "light", "turn_off",
                             {"transition": speed},
@@ -5175,6 +5186,12 @@ class CircadianLightPrimitives:
         finally:
             self.client._defer_periodic_tick = False
             self.client.record_light_action()
+
+        # For was_off areas: reset off-confirm counter so periodic tick
+        # re-sends turn_off commands (catches lights stuck on from missed Zigbee)
+        if not was_on:
+            state.reset_off_confirm_count(area_id)
+            state.set_off_enforced(area_id, False)
 
         logger.info(f"Alert bounce complete for {area_id}")
 
