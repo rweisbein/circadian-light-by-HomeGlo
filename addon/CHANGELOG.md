@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.234
+- **Fix motion timer not extending on continued motion**: ZHA `on_with_timed_off` events from motion sensors were being silently ignored (anti-triple-trigger guard). Now wired to `_handle_zha_motion_event` which extends the on_off timer. Fixes lights turning off while motion is still active.
+
 ## 1.0.233
 - **Fix alert bounce not firing**: Target dict passed to HA contained extra keys (filter_name, area_id alongside entity_id) causing silent call rejection. Now strips to clean entity_id only, matching the fix in _bounce_at_limit.
 

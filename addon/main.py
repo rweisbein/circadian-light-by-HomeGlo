@@ -1093,11 +1093,17 @@ class HomeAssistantWebSocketClient:
             f"ZHA event: device={device_ieee}, device_id={device_id}, command={command}, args={args}, cluster={cluster_id}"
         )
 
-        # Motion sensors: handled exclusively via binary_sensor state_changed
-        # (not ZHA events) to avoid triple-trigger. See _handle_motion_event.
+        # Motion sensors: initial detection via binary_sensor state_changed.
+        # ZHA on_with_timed_off events extend the timer (sensor stays "on"
+        # continuously, so state_changed doesn't re-fire between detections).
+        # Other ZHA events (attribute_updated) are ignored to avoid triple-trigger.
         if device_id:
             motion_config = switches.get_motion_sensor_by_device_id(device_id)
             if motion_config:
+                if command == "on_with_timed_off":
+                    await self._handle_zha_motion_event(
+                        motion_config, command, args, device_id
+                    )
                 return
 
         # Check if this switch is configured
