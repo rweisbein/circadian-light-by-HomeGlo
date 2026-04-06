@@ -4739,14 +4739,54 @@ class CircadianLightPrimitives:
         if not reach_commands:
             return handled_filters
 
+        # Check if 2-step is needed: any area turning on from off with large CT delta
+        raw_cfg = glozone.load_config_from_files()
+        ct_threshold = raw_cfg.get("two_step_ct_threshold", 500)
+        needs_two_step = False
+        target_ct = reach_commands[0][2] if reach_commands else None
+        for area_id in area_ids:
+            if not state.get_is_on(area_id):
+                last_ct = state.get_last_sent_kelvin(area_id)
+                if last_ct is not None and target_ct is not None:
+                    ct_diff = abs(target_ct - last_ct)
+                    if ct_diff >= ct_threshold:
+                        needs_two_step = True
+                        logger.info(
+                            f"Reach 2-step needed: {area_id} last={last_ct}K, target={target_ct}K, diff={ct_diff}K"
+                        )
+                        break
+                elif last_ct is None:
+                    needs_two_step = True
+                    break
+
         # Send reach group commands
-        tasks = []
         xy = None
         if reach_commands:
-            # Compute xy from first color_temp
             ct = reach_commands[0][2]
             xy = CircadianLight.color_temperature_to_xy(ct)
 
+        if needs_two_step:
+            # Phase 1: set color at 1% brightness (nearly invisible)
+            phase1_tasks = []
+            for entity_id, bri, ct, filter_norm, cap in reach_commands:
+                sdata = {"transition": 0, "brightness_pct": 1}
+                if cap == "color" and xy is not None:
+                    sdata["xy_color"] = list(xy)
+                elif cap == "ct":
+                    sdata["color_temp_kelvin"] = max(2000, ct)
+                phase1_tasks.append(
+                    self.client.call_service(
+                        "light", "turn_on", sdata, {"entity_id": entity_id}
+                    )
+                )
+            if phase1_tasks:
+                await asyncio.gather(*phase1_tasks)
+
+            delay = self._get_two_step_delay()
+            await asyncio.sleep(delay)
+
+        # Phase 2 (or direct if no 2-step): transition to target brightness
+        phase2_tasks = []
         for entity_id, bri, ct, filter_norm, cap in reach_commands:
             service_data = {"transition": transition, "brightness_pct": bri}
             if cap == "color" and xy is not None:
@@ -4757,15 +4797,16 @@ class CircadianLightPrimitives:
             logger.info(
                 f"Reach group {filter_norm} {cap}: {entity_id}, "
                 f"brightness={bri}%, {ct}K, transition={transition}s"
+                f"{' (after 2-step)' if needs_two_step else ''}"
             )
-            tasks.append(
+            phase2_tasks.append(
                 self.client.call_service(
                     "light", "turn_on", service_data, {"entity_id": entity_id}
                 )
             )
 
-        if tasks:
-            await asyncio.gather(*tasks)
+        if phase2_tasks:
+            await asyncio.gather(*phase2_tasks)
 
         if filters_handled:
             fully = [

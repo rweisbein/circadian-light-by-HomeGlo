@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.238
+- **Add 2-step to reach group turn-on**: Reach groups now use 2-step turn-on (set color at 1% first, pause, then transition to target brightness) when any area in the reach has a CT delta above threshold. Prevents visible color arc when turning on lights that were at a different color temperature. Same CT threshold setting as per-area 2-step.
+
 ## 1.0.237
 - **Fix reach feedback when lights are off at night**: When lights are off and NL=0, reach feedback now flashes on at bounce percentage with circadian color then off (same pattern as alert bounce). Previously sent turn_off→turn_off which was invisible. Daytime NL-aware flash-up-to-255 path unchanged. Also resets off-confirm counter after flashing so periodic tick catches stuck-on lights.
 
