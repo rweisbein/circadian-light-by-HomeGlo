@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.244
+- **Fix battery not showing**: Battery entity detection now also checks `device_class: battery` (not just `_battery` in entity_id). Covers ZHA/Hue sensors that use device_class instead of naming convention.
+- **Swap Cheatsheet and 4th field positions**: Cheatsheet link now on left, 4th field dropdown on right.
+
 ## 1.0.243
 - **Two-step delay default increased**: 2 → 5 tenths (200ms → 500ms). Gives ZHA lights more time to process color before brightness transition.
 
