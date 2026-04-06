@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.239
+- **Fix reach 2-step not triggering**: The is_on check was always True because state is set to on before reach turn-on runs. Now checks last_sent_kelvin directly regardless of on/off state. Also triggers 2-step when last_sent_kelvin is None (after state reset).
+
 ## 1.0.238
 - **Add 2-step to reach group turn-on**: Reach groups now use 2-step turn-on (set color at 1% first, pause, then transition to target brightness) when any area in the reach has a CT delta above threshold. Prevents visible color arc when turning on lights that were at a different color temperature. Same CT threshold setting as per-area 2-step.
 

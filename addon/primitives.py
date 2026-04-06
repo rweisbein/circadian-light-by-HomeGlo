@@ -4739,25 +4739,29 @@ class CircadianLightPrimitives:
         if not reach_commands:
             return handled_filters
 
-        # Check if 2-step is needed: any area turning on from off with large CT delta
+        # Check if 2-step is needed: any area with large CT delta from last-sent
+        # Note: state.is_on is already True here (set before reach turn-on),
+        # so we check last_sent_kelvin regardless of on/off state.
         raw_cfg = glozone.load_config_from_files()
         ct_threshold = raw_cfg.get("two_step_ct_threshold", 500)
         needs_two_step = False
         target_ct = reach_commands[0][2] if reach_commands else None
         for area_id in area_ids:
-            if not state.get_is_on(area_id):
-                last_ct = state.get_last_sent_kelvin(area_id)
-                if last_ct is not None and target_ct is not None:
-                    ct_diff = abs(target_ct - last_ct)
-                    if ct_diff >= ct_threshold:
-                        needs_two_step = True
-                        logger.info(
-                            f"Reach 2-step needed: {area_id} last={last_ct}K, target={target_ct}K, diff={ct_diff}K"
-                        )
-                        break
-                elif last_ct is None:
+            last_ct = state.get_last_sent_kelvin(area_id)
+            if last_ct is not None and target_ct is not None:
+                ct_diff = abs(target_ct - last_ct)
+                if ct_diff >= ct_threshold:
                     needs_two_step = True
+                    logger.info(
+                        f"Reach 2-step needed: {area_id} last={last_ct}K, target={target_ct}K, diff={ct_diff}K"
+                    )
                     break
+            elif last_ct is None:
+                needs_two_step = True
+                logger.info(
+                    f"Reach 2-step needed: {area_id} last=None, target={target_ct}K"
+                )
+                break
 
         # Send reach group commands
         xy = None
