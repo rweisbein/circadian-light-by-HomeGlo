@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.245
+- **Last action time filters**: New filter dropdown when "Last action" 4th field is selected: Last hour, Today, Past week, Not in past week, Not in past month, Never. "Not in past week/month" excludes items with no last action (use "Never" for those).
+- **Fix battery detection**: Now checks device_class from cached_states as fallback. Consolidated sensor entity scanning (battery + illuminance in one block).
+
 ## 1.0.244
 - **Fix battery not showing**: Battery entity detection now also checks `device_class: battery` (not just `_battery` in entity_id). Covers ZHA/Hue sensors that use device_class instead of naming convention.
 - **Swap Cheatsheet and 4th field positions**: Cheatsheet link now on left, 4th field dropdown on right.

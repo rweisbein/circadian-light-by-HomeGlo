@@ -599,6 +599,7 @@
     let searchFilter = '';
     let statusFilter = 'all';
     let pauseFilter = 'all';
+    let lastActionFilter = 'all';
     let refreshIntervalMs = 3000;
     let customAreaOrder = {};  // area_id -> order index
 
@@ -628,6 +629,7 @@
           searchFilter = prefs.search_filter || '';
           statusFilter = prefs.status_filter || 'all';
           pauseFilter = prefs.pause_filter || 'all';
+          lastActionFilter = prefs.last_action_filter || 'all';
         }
       } catch (err) {
         console.error('Error loading preferences:', err);
@@ -645,6 +647,7 @@
           search_filter: searchFilter,
           status_filter: statusFilter,
           pause_filter: pauseFilter,
+          last_action_filter: lastActionFilter,
           saved_at: Date.now()
         }));
       } catch (err) {
@@ -750,6 +753,18 @@
           if (pauseFilter === 'paused' && !c.inactive) return false;
           if (pauseFilter === 'active' && c.inactive) return false;
         }
+        if (fourthField === 'lastAction' && lastActionFilter !== 'all') {
+          const ts = c.last_action?.timestamp ? new Date(c.last_action.timestamp).getTime() : 0;
+          const now = Date.now();
+          const hasAction = ts > 0;
+          if (lastActionFilter === 'never') return !hasAction;
+          if (!hasAction) return false; // "not in past week/month" excludes never-acted items
+          if (lastActionFilter === '1h') return (now - ts) < 3600000;
+          if (lastActionFilter === 'today') return new Date(ts).toDateString() === new Date(now).toDateString();
+          if (lastActionFilter === 'week') return (now - ts) < 7 * 86400000;
+          if (lastActionFilter === 'not_week') return (now - ts) >= 7 * 86400000;
+          if (lastActionFilter === 'not_month') return (now - ts) >= 30 * 86400000;
+        }
         return true;
       });
 
@@ -834,10 +849,19 @@
       } else if (fourthField === 'pause') {
         const pauseOpts = `<option value="all">All</option><option value="paused" ${pauseFilter === 'paused' ? 'selected' : ''}>Paused</option><option value="active" ${pauseFilter === 'active' ? 'selected' : ''}>Active</option>`;
         fourthFilterHtml = `<select class="header-filter" id="fourth-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(pauseFilter)}">${pauseOpts}</select>`;
+      } else if (fourthField === 'lastAction') {
+        const laOpts = `<option value="all">All</option>` +
+          `<option value="1h" ${lastActionFilter === '1h' ? 'selected' : ''}>Last hour</option>` +
+          `<option value="today" ${lastActionFilter === 'today' ? 'selected' : ''}>Today</option>` +
+          `<option value="week" ${lastActionFilter === 'week' ? 'selected' : ''}>Past week</option>` +
+          `<option value="not_week" ${lastActionFilter === 'not_week' ? 'selected' : ''}>Not in past week</option>` +
+          `<option value="not_month" ${lastActionFilter === 'not_month' ? 'selected' : ''}>Not in past month</option>` +
+          `<option value="never" ${lastActionFilter === 'never' ? 'selected' : ''}>Never</option>`;
+        fourthFilterHtml = `<select class="header-filter" id="fourth-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(lastActionFilter)}">${laOpts}</select>`;
       }
 
       // Check if any filters are active and show/hide clear filters link
-      const hasActiveFilters = categoryFilter !== 'all' || areaFilter !== 'all' || searchFilter !== '' || statusFilter !== 'all' || pauseFilter !== 'all';
+      const hasActiveFilters = categoryFilter !== 'all' || areaFilter !== 'all' || searchFilter !== '' || statusFilter !== 'all' || pauseFilter !== 'all' || lastActionFilter !== 'all';
 
       // Update zone filter dropdown
 
@@ -869,7 +893,7 @@
                 <div class="th-with-filter">
                   <div class="th-title-row">
                     <span style="font-size:0.7rem;color:var(--muted);">${{'lastAction':'Last action','status':'Status','battery':'Battery','lux':'Lux','pause':'Pause'}[fourthField] || fourthField}</span>
-                    <span class="fourth-sort-btn" onclick="sortBy('fourth')" title="Sort by this column">${sortColumn === 'fourth' ? (sortAsc ? '&#9650;' : '&#9660;') : '&#9650;'}</span>${fourthField === 'status' ? filterIndicator('status', statusFilter, "clearSingleFilter('status')") : ''}${fourthField === 'pause' ? filterIndicator('pause', pauseFilter, "clearSingleFilter('pause')") : ''}
+                    <span class="fourth-sort-btn" onclick="sortBy('fourth')" title="Sort by this column">${sortColumn === 'fourth' ? (sortAsc ? '&#9650;' : '&#9660;') : '&#9650;'}</span>${fourthField === 'status' ? filterIndicator('status', statusFilter, "clearSingleFilter('status')") : ''}${fourthField === 'pause' ? filterIndicator('pause', pauseFilter, "clearSingleFilter('pause')") : ''}${fourthField === 'lastAction' ? filterIndicator('lastAction', lastActionFilter, "clearSingleFilter('lastAction')") : ''}
                   </div>
                   ${fourthFilterHtml}
                 </div>
@@ -1099,6 +1123,7 @@
       searchFilter = '';
       statusFilter = 'all';
       pauseFilter = 'all';
+      lastActionFilter = 'all';
       savePreferences();
       renderControls();
     }
@@ -1109,6 +1134,7 @@
         case 'area': areaFilter = 'all'; break;
         case 'status': statusFilter = 'all'; break;
         case 'pause': pauseFilter = 'all'; break;
+        case 'lastAction': lastActionFilter = 'all'; break;
       }
       savePreferences();
       renderControls();
@@ -1218,6 +1244,7 @@
         } else if (e.target.id === 'fourth-filter') {
           if (fourthField === 'status') statusFilter = e.target.value;
           else if (fourthField === 'pause') pauseFilter = e.target.value;
+          else if (fourthField === 'lastAction') lastActionFilter = e.target.value;
           savePreferences();
           renderControls();
         }
@@ -1248,6 +1275,7 @@
         fourthField = e.target.value;
         statusFilter = 'all';
         pauseFilter = 'all';
+        lastActionFilter = 'all';
         sortColumn = 'fourth';
         sortAsc = true;
         savePreferences();

@@ -6205,16 +6205,20 @@ class LightDesignerServer:
                         "device_class": dc,
                         "name": entity.get("name") or entity.get("original_name") or entity_id.split(".")[-1].replace("_", " ").title(),
                     })
-                elif entity_id.startswith("sensor.") and (
-                    "_battery" in entity_id
-                    or entity.get("device_class") == "battery"
-                    or entity.get("original_device_class") == "battery"
-                ):
-                    device_entities[device_id]["battery_entity"] = entity_id
-                elif entity_id.startswith("sensor.") and (
-                    "illuminance" in entity_id or "_lux" in entity_id
-                ):
-                    device_entities[device_id]["illuminance_entity"] = entity_id
+                elif entity_id.startswith("sensor."):
+                    dc = (
+                        entity.get("device_class")
+                        or entity.get("original_device_class")
+                        or ""
+                    )
+                    if not dc:
+                        # Fallback: check cached_states for device_class
+                        s = self.client.cached_states.get(entity_id, {})
+                        dc = s.get("attributes", {}).get("device_class", "")
+                    if dc == "battery" or "_battery" in entity_id:
+                        device_entities[device_id]["battery_entity"] = entity_id
+                    elif "illuminance" in entity_id or "_lux" in entity_id:
+                        device_entities[device_id]["illuminance_entity"] = entity_id
                 elif (
                     entity_id.startswith("select.") or entity_id.startswith("number.")
                 ) and "sensitivity" in entity_id.lower():
