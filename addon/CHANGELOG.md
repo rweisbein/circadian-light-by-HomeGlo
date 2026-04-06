@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.242
+- **Control detail page redesign**: Subtitle now shows "Area · Type" (moved from header-right and toolbar menu). Last activity moved to toolbar menu (top, muted). Toolbar menu now includes: last action, type, model, battery (color-coded), Copy IEEE, Copy ID, and Reset. Location badge removed from header (cleaner layout with ⋮ alone).
+
 ## 1.0.241
 - **Battery level on controls page**: New "Battery" option in the 4th field selector. Shows battery percentage color-coded (red ≤20%, yellow ≤50%, grey above). Low battery indicator (red dot) always visible after control name regardless of 4th field selection.
 - **Controls page cleanup**: Moved 4th field selector to page header. Removed zone filter and active-only filter. Made "Cheatsheet" link more prominent (white text).

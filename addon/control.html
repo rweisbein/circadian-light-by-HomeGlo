@@ -753,6 +753,9 @@
       <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">&#8942;</button>
       <div class="toolbar-menu-dropdown" id="toolbar-menu-dropdown">
         <div class="toolbar-menu-info" id="toolbar-menu-info"></div>
+        <div class="toolbar-menu-divider"></div>
+        <a href="#" class="toolbar-menu-item" id="toolbar-menu-copy-ieee" style="display:none;" onclick="copyToClipboard(editingControlId, 'IEEE'); toggleToolbarMenu(event); return false;">Copy IEEE</a>
+        <a href="#" class="toolbar-menu-item" id="toolbar-menu-copy-id" style="display:none;" onclick="copyToClipboard(editingDeviceId, 'ID'); toggleToolbarMenu(event); return false;">Copy ID</a>
         <div class="toolbar-menu-divider" id="toolbar-menu-reset-divider" style="display:none;"></div>
         <a href="#" class="toolbar-menu-item" id="toolbar-menu-reset" style="display:none; color: var(--danger);" onclick="removeConfig(); toggleToolbarMenu(event); return false;">Reset</a>
       </div>
@@ -913,6 +916,22 @@
       const dd = document.getElementById('toolbar-menu-dropdown');
       if (dd) dd.classList.remove('open');
     });
+
+    function copyToClipboard(text, label) {
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => {
+        showSaveStatus(`${label} copied`);
+      }).catch(() => {
+        // Fallback for older browsers
+        const el = document.createElement('textarea');
+        el.value = text;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+        showSaveStatus(`${label} copied`);
+      });
+    }
 
     // ============================================================
     // Card toggle
@@ -2371,8 +2390,17 @@
       const pausedSpan = editingInactive ? ' <span style="color:var(--muted);font-weight:normal;"> (paused)</span>' : '';
       document.getElementById('page-title').innerHTML = `${ctrl.name}${pausedSpan}`;
 
-      // Show last action in header subtitle
+      // Subtitle: area + type
       const subEl = document.getElementById('page-title-sub');
+      const locationName = ctrl.area_name || 'Unassigned';
+      const typeName = ctrl.type_name || ctrl.type || '';
+      subEl.textContent = typeName ? `${locationName} · ${typeName}` : locationName;
+
+      // Hide header-meta-area (location now in subtitle)
+      document.getElementById('header-meta-area').textContent = '';
+
+      // Build last action string for toolbar menu
+      let lastActionStr = '';
       if (ctrl.last_action && typeof ctrl.last_action === 'object' && ctrl.last_action.action) {
         const la = ctrl.last_action;
         let actionLabel = la.action;
@@ -2389,20 +2417,34 @@
           h = h % 12 || 12;
           timeStr = ` ${mo}/${day} ${h}:${mi}${ap}`;
         }
-        subEl.textContent = `last: ${actionLabel}${timeStr}`;
-      } else {
-        subEl.textContent = '';
+        lastActionStr = `Last: ${actionLabel}${timeStr}`;
       }
 
-      // Populate toolbar menu with device metadata + Reset action
-      const typeName = ctrl.type_name || ctrl.type || 'Unknown';
-      const toolbarInfo = document.getElementById('toolbar-menu-info');
-      toolbarInfo.innerHTML = `
-        <div>Type: ${typeName}</div>
-        ${ctrl.id ? `<div>IEEE: ${ctrl.id}</div>` : ''}
-        ${ctrl.device_id ? `<div>ID: ${ctrl.device_id}</div>` : ''}
-      `;
+      // Battery string
+      let batteryStr = '';
+      if (ctrl.battery?.value != null) {
+        const bv = ctrl.battery.value;
+        const bColor = bv <= 20 ? 'var(--danger)' : bv <= 50 ? 'var(--warning)' : 'var(--muted2)';
+        batteryStr = `<span style="color:${bColor};">Battery: ${bv}%</span>`;
+      }
 
+      // Populate toolbar menu
+      const toolbarInfo = document.getElementById('toolbar-menu-info');
+      toolbarInfo.innerHTML = [
+        lastActionStr ? `<div>${lastActionStr}</div>` : '',
+        lastActionStr ? '<div class="toolbar-menu-divider" style="margin:4px -16px;"></div>' : '',
+        `<div>Type: ${typeName || 'Unknown'}</div>`,
+        ctrl.model ? `<div>Model: ${ctrl.model}</div>` : '',
+        batteryStr ? `<div>${batteryStr}</div>` : '',
+      ].filter(Boolean).join('');
+
+      // Show copy IEEE/ID items
+      const copyIeee = document.getElementById('toolbar-menu-copy-ieee');
+      const copyId = document.getElementById('toolbar-menu-copy-id');
+      if (copyIeee) copyIeee.style.display = ctrl.id ? '' : 'none';
+      if (copyId) copyId.style.display = ctrl.device_id ? '' : 'none';
+
+      // Show reset for configured controls
       const resetItem = document.getElementById('toolbar-menu-reset');
       const resetDivider = document.getElementById('toolbar-menu-reset-divider');
       if (isConfigured) {
@@ -2413,9 +2455,6 @@
         resetItem.style.display = 'none';
       }
 
-      // Populate header meta: area (top-right in page header)
-      const locationName = ctrl.area_name || 'Unassigned';
-      document.getElementById('header-meta-area').textContent = locationName;
       document.getElementById('device-info-section').style.display = 'none';
 
       // Show/hide appropriate sections based on control type
