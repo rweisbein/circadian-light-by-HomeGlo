@@ -6013,6 +6013,7 @@ class LightDesignerServer:
                     "status": status,
                     "last_action": last_action,
                     "illuminance": ctrl.get("illuminance"),
+                    "battery": ctrl.get("battery"),
                 }
 
                 control_data["inactive"] = config.get("inactive", False)
@@ -6223,16 +6224,6 @@ class LightDesignerServer:
                     entity_id.startswith("select.") or entity_id.startswith("number.")
                 ) and "sensitivity" in entity_id.lower():
                     device_entities[device_id]["sensitivity_entity"] = entity_id
-
-            # Debug: check battery entity coverage
-            batt_count = sum(1 for de in device_entities.values() if de.get("battery_entity"))
-            logger.info(f"[Controls] Entity scan: {len(device_entities)} devices scanned, {batt_count} with battery entities")
-            # Check specifically for entry_wall_battery
-            entry_batt = self.client.entity_registry.get("sensor.entry_wall_battery")
-            if entry_batt:
-                logger.info(f"[Controls] sensor.entry_wall_battery in entity_registry: device_id={entry_batt.get('device_id')}, in devices={entry_batt.get('device_id') in devices}")
-            else:
-                logger.info(f"[Controls] sensor.entry_wall_battery NOT in entity_registry. entity_registry has {len(self.client.entity_registry)} entities")
 
             # Filter to allowlisted controls
             controls = []

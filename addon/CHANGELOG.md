@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.248
+- **Fix battery not showing on controls page**: `get_controls` was missing `battery` field in response dict — `_fetch_ha_controls` collected it but `get_controls` never passed it through. One-line fix. Removed diagnostic logging.
+
 ## 1.0.247
 - **Battery debug logging**: Removed name-matching hack. Added diagnostic logs to trace why battery entities aren't linking to devices via entity_registry.
 
