@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.241
+- **Battery level on controls page**: New "Battery" option in the 4th field selector. Shows battery percentage color-coded (red ≤20%, yellow ≤50%, grey above). Low battery indicator (red dot) always visible after control name regardless of 4th field selection.
+- **Controls page cleanup**: Moved 4th field selector to page header. Removed zone filter and active-only filter. Made "Cheatsheet" link more prominent (white text).
+- **Backend: battery entity detection**: `_fetch_ha_controls` now scans for `sensor.*_battery` entities and reads cached battery level for each control device.
+
 ## 1.0.240
 - **Preserve last_sent_kelvin through state reset**: `last_sent_kelvin` is a physical bulb fact, not runtime state — now survives `reset_area()` and `reset_all_areas()`. Eliminates false 2-step triggers after glo_reset/glo_down. Truly fresh areas (never controlled, kelvin=None) skip 2-step since there's no prior color to arc from.
 

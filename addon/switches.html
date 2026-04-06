@@ -565,14 +565,14 @@
   <main class="main">
     <div class="page-header">
       <div style="display: flex; align-items: center; gap: 12px;">
-        <select id="zone-filter" class="toolbar-zone-filter">
-          <option value="all">All zones</option>
+        <select id="fourth-field-header" style="font-size:0.78rem;padding:2px 6px;border-radius:4px;border:1px solid var(--line);background:var(--card);color:var(--text);cursor:pointer;">
+          <option value="lastAction">Last action</option>
+          <option value="status">Status</option>
+          <option value="battery">Battery</option>
+          <option value="lux">Lux</option>
+          <option value="pause">Pause</option>
         </select>
-        <label class="active-filter-label" title="Show only active controls">
-          <input type="checkbox" id="active-filter"> Active
-        </label>
-        <a href="#" id="clear-filters-link" style="display: none; margin-left: 8px; font-size: 0.75rem; color: var(--accent); text-decoration: none;" onclick="clearFilters(); return false;">Clear filters</a>
-        <a href="./switchmap" style="margin-left:auto; font-size: 0.8rem; color: var(--muted); text-decoration: none;">Cheatsheet</a>
+        <a href="./switchmap" style="margin-left:auto; font-size: 0.85rem; color: var(--text); text-decoration: none;">Cheatsheet</a>
       </div>
     </div>
 
@@ -595,10 +595,8 @@
     let sortAsc = false;
     let categoryFilter = 'all';
     let areaFilter = 'all';
-    let zoneFilter = 'all';
     let fourthField = 'lastAction';
     let searchFilter = '';
-    let activeOnly = false;
     let statusFilter = 'all';
     let pauseFilter = 'all';
     let refreshIntervalMs = 3000;
@@ -626,8 +624,6 @@
           sortAsc = prefs.sort_asc !== false;
           categoryFilter = prefs.category_filter || 'all';
           areaFilter = prefs.area_filter || 'all';
-          zoneFilter = prefs.zone_filter || 'all';
-          activeOnly = prefs.active_only || false;
           fourthField = prefs.fourth_field || 'lastAction';
           searchFilter = prefs.search_filter || '';
           statusFilter = prefs.status_filter || 'all';
@@ -645,8 +641,6 @@
           sort_asc: sortAsc,
           category_filter: categoryFilter,
           area_filter: areaFilter,
-          zone_filter: zoneFilter,
-          active_only: activeOnly,
           fourth_field: fourthField,
           search_filter: searchFilter,
           status_filter: statusFilter,
@@ -732,21 +726,13 @@
         areaFilter = 'all';
         filtersReset = true;
       }
-      const zoneNames = allGlozones.map(z => z.name);
-      if (zoneFilter !== 'all' && !zoneNames.includes(zoneFilter)) {
-        zoneFilter = 'all';
-        filtersReset = true;
-      }
       if (filtersReset) {
         savePreferences();
       }
 
-      // Build set of area IDs in the selected zone
-      let zoneAreaIds = null;
-      if (zoneFilter !== 'all') {
-        const zone = allGlozones.find(z => z.name === zoneFilter);
-        zoneAreaIds = zone ? new Set(zone.areaIds) : null;
-      }
+      // Sync header fourth-field selector
+      const headerSelect = document.getElementById('fourth-field-header');
+      if (headerSelect) headerSelect.value = fourthField;
 
       // Apply all filters
       const filtered = controls.filter(c => {
@@ -759,8 +745,6 @@
         if (categoryFilter !== 'all' && c.category !== categoryFilter) return false;
         if (areaFilter === 'unassigned' && c.area_name) return false;
         if (areaFilter !== 'all' && areaFilter !== 'unassigned' && c.area_name !== areaFilter) return false;
-        if (zoneAreaIds && !zoneAreaIds.has(c.area_id)) return false;
-        if (activeOnly && c.status !== 'active' && c.status !== 'inactive') return false;
         if (fourthField === 'status' && statusFilter !== 'all' && c.status !== statusFilter) return false;
         if (fourthField === 'pause' && pauseFilter !== 'all') {
           if (pauseFilter === 'paused' && !c.inactive) return false;
@@ -791,6 +775,9 @@
               const statusOrder = { active: 0, inactive: 1, not_configured: 2, unsupported: 3, stale: 4 };
               valA = statusOrder[a.status] ?? 99;
               valB = statusOrder[b.status] ?? 99;
+            } else if (fourthField === 'battery') {
+              valA = a.battery?.value ?? -1;
+              valB = b.battery?.value ?? -1;
             } else if (fourthField === 'lux') {
               valA = a.illuminance?.value ?? -1;
               valB = b.illuminance?.value ?? -1;
@@ -850,18 +837,9 @@
       }
 
       // Check if any filters are active and show/hide clear filters link
-      const hasActiveFilters = categoryFilter !== 'all' || areaFilter !== 'all' || zoneFilter !== 'all' || searchFilter !== '' || activeOnly || statusFilter !== 'all' || pauseFilter !== 'all';
-      document.getElementById('clear-filters-link').style.display = hasActiveFilters ? 'block' : 'none';
+      const hasActiveFilters = categoryFilter !== 'all' || areaFilter !== 'all' || searchFilter !== '' || statusFilter !== 'all' || pauseFilter !== 'all';
 
       // Update zone filter dropdown
-      const zoneSelect = document.getElementById('zone-filter');
-      if (zoneSelect) {
-        zoneSelect.innerHTML = `<option value="all">All zones</option>` +
-          allGlozones.map(z => `<option value="${z.name}" ${zoneFilter === z.name ? 'selected' : ''}>${z.name}</option>`).join('');
-        zoneSelect.style.borderColor = zoneFilter !== 'all' ? 'var(--accent)' : '';
-      }
-      const activeCheckbox = document.getElementById('active-filter');
-      if (activeCheckbox) activeCheckbox.checked = activeOnly;
 
       container.innerHTML = `
         <table class="switches-table">
@@ -890,12 +868,7 @@
               <th class="${thClass('fourth')}">
                 <div class="th-with-filter">
                   <div class="th-title-row">
-                    <select class="header-filter fourth-field-picker" id="fourth-field-select" onclick="event.stopPropagation()">
-                      <option value="lastAction" ${fourthField === 'lastAction' ? 'selected' : ''}>Last action</option>
-                      <option value="status" ${fourthField === 'status' ? 'selected' : ''}>Status</option>
-                      <option value="lux" ${fourthField === 'lux' ? 'selected' : ''}>Lux</option>
-                      <option value="pause" ${fourthField === 'pause' ? 'selected' : ''}>Pause</option>
-                    </select>
+                    <span style="font-size:0.7rem;color:var(--muted);">${{'lastAction':'Last action','status':'Status','battery':'Battery','lux':'Lux','pause':'Pause'}[fourthField] || fourthField}</span>
                     <span class="fourth-sort-btn" onclick="sortBy('fourth')" title="Sort by this column">${sortColumn === 'fourth' ? (sortAsc ? '&#9650;' : '&#9660;') : '&#9650;'}</span>${fourthField === 'status' ? filterIndicator('status', statusFilter, "clearSingleFilter('status')") : ''}${fourthField === 'pause' ? filterIndicator('pause', pauseFilter, "clearSingleFilter('pause')") : ''}
                   </div>
                   ${fourthFilterHtml}
@@ -948,13 +921,25 @@
                   }
                 }
                 fourthCell = `<input type="checkbox" ${ctrl.inactive ? 'checked' : ''} onclick="event.stopPropagation(); toggleInactive('${ctrl.id}', '${ctrl.category}', ${!ctrl.inactive})">${timerLabel}`;
+              } else if (fourthField === 'battery') {
+                const batt = ctrl.battery?.value;
+                if (batt != null) {
+                  const bColor = batt <= 20 ? 'var(--danger)' : batt <= 50 ? 'var(--warning)' : 'var(--muted)';
+                  fourthCell = `<span style="color:${bColor};">${batt}%</span>`;
+                } else {
+                  fourthCell = '—';
+                }
               } else {
                 fourthCell = formatLastAction(ctrl);
               }
+              // Low battery indicator (always visible regardless of 4th field)
+              const lowBatt = (ctrl.battery?.value != null && ctrl.battery.value <= 20)
+                ? '<span title="Low battery" style="color:var(--danger);font-size:0.7rem;margin-left:4px;vertical-align:middle;">&#9679;</span>'
+                : '';
               const rowClass = ctrl.stale ? 'clickable-row stale-row' : 'clickable-row';
               return `
                 <tr class="${rowClass}" ${rowClick}>
-                  <td><span class="switch-name-text">${ctrl.name}</span>${magicIcon}${statusSub}</td>
+                  <td><span class="switch-name-text">${ctrl.name}</span>${magicIcon}${lowBatt}${statusSub}</td>
                   <td title="${categoryLabel}" style="text-align: center; color: var(--muted);">${categoryIcon(ctrl.category)}</td>
                   <td>${glozoneLabel}${areaName}</td>
                   <td>${fourthCell}</td>
@@ -1111,9 +1096,7 @@
     function clearFilters() {
       categoryFilter = 'all';
       areaFilter = 'all';
-      zoneFilter = 'all';
       searchFilter = '';
-      activeOnly = false;
       statusFilter = 'all';
       pauseFilter = 'all';
       savePreferences();
@@ -1260,16 +1243,13 @@
         }
       }, true);
 
-      // Active-only checkbox
-      document.getElementById('active-filter').addEventListener('change', (e) => {
-        activeOnly = e.target.checked;
-        savePreferences();
-        renderControls();
-      });
-
-      // Zone filter (lives above the table, not re-rendered)
-      document.getElementById('zone-filter').addEventListener('change', (e) => {
-        zoneFilter = e.target.value;
+      // Header fourth-field selector (lives above the table, not re-rendered)
+      document.getElementById('fourth-field-header').addEventListener('change', (e) => {
+        fourthField = e.target.value;
+        statusFilter = 'all';
+        pauseFilter = 'all';
+        sortColumn = 'fourth';
+        sortAsc = true;
         savePreferences();
         renderControls();
       });

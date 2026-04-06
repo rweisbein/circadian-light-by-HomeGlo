@@ -6185,6 +6185,7 @@ class LightDesignerServer:
                         "has_light": False,
                         "illuminance_entity": None,
                         "sensitivity_entity": None,
+                        "battery_entity": None,
                         "binary_sensors": [],
                     }
 
@@ -6204,6 +6205,8 @@ class LightDesignerServer:
                         "device_class": dc,
                         "name": entity.get("name") or entity.get("original_name") or entity_id.split(".")[-1].replace("_", " ").title(),
                     })
+                elif entity_id.startswith("sensor.") and "_battery" in entity_id:
+                    device_entities[device_id]["battery_entity"] = entity_id
                 elif entity_id.startswith("sensor.") and (
                     "illuminance" in entity_id or "_lux" in entity_id
                 ):
@@ -6268,6 +6271,21 @@ class LightDesignerServer:
                     else None
                 )
 
+                # Battery level
+                batt_entity = entities.get("battery_entity")
+                batt_info = None
+                if batt_entity:
+                    raw_batt = self.client.cached_states.get(batt_entity, {}).get("state")
+                    try:
+                        batt_val = (
+                            round(float(raw_batt))
+                            if raw_batt not in (None, "unavailable", "unknown")
+                            else None
+                        )
+                    except (ValueError, TypeError):
+                        batt_val = None
+                    batt_info = {"entity_id": batt_entity, "value": batt_val}
+
                 controls.append(
                     {
                         **device,
@@ -6276,6 +6294,7 @@ class LightDesignerServer:
                         "type_name": type_name,
                         "supported": is_supported,
                         "illuminance": illum_info,
+                        "battery": batt_info,
                         "sensitivity_entity": sensitivity_entity,
                         "binary_sensors": entities.get("binary_sensors", []),
                     }
