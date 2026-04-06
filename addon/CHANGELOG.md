@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.240
+- **Preserve last_sent_kelvin through state reset**: `last_sent_kelvin` is a physical bulb fact, not runtime state — now survives `reset_area()` and `reset_all_areas()`. Eliminates false 2-step triggers after glo_reset/glo_down. Truly fresh areas (never controlled, kelvin=None) skip 2-step since there's no prior color to arc from.
+
 ## 1.0.239
 - **Fix reach 2-step not triggering**: The is_on check was always True because state is set to on before reach turn-on runs. Now checks last_sent_kelvin directly regardless of on/off state. Also triggers 2-step when last_sent_kelvin is None (after state reset).
 

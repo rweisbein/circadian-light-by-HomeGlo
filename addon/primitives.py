@@ -4756,12 +4756,7 @@ class CircadianLightPrimitives:
                         f"Reach 2-step needed: {area_id} last={last_ct}K, target={target_ct}K, diff={ct_diff}K"
                     )
                     break
-            elif last_ct is None:
-                needs_two_step = True
-                logger.info(
-                    f"Reach 2-step needed: {area_id} last=None, target={target_ct}K"
-                )
-                break
+            # last_ct is None = truly fresh area, no prior color to arc from — skip
 
         # Send reach group commands
         xy = None

@@ -361,6 +361,8 @@ def reset_area(area_id: str) -> None:
         "is_circadian": current.get("is_circadian", False),
         "is_on": current.get("is_on", False),
         # frozen_at is NOT preserved - reset clears it
+        # last_sent_kelvin IS preserved - it's a physical bulb fact, not runtime state
+        "last_sent_kelvin": current.get("last_sent_kelvin"),
     }
 
     _state[area_id] = _get_default_area_state()
@@ -381,6 +383,7 @@ def reset_all_areas() -> None:
             "is_circadian": current.get("is_circadian", False),
             "is_on": current.get("is_on", False),
             "frozen_at": current.get("frozen_at"),  # Preserve frozen state
+            "last_sent_kelvin": current.get("last_sent_kelvin"),  # Physical bulb fact
         }
         _state[area_id] = _get_default_area_state()
         _state[area_id].update(preserved)
