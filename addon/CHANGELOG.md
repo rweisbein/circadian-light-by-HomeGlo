@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.246
+- **Battery detection: cached_states fallback scan**: If entity_registry doesn't link a battery sensor to the device, scans cached_states by device name pattern as a last resort. Adds debug logging for battery discovery.
+- **Control detail toolbar cleanup**: Removed "Type" (already in subtitle). Last action now shows date/time on first line, action indented below. Copy uses textarea fallback first (works in HA ingress iframe).
+
 ## 1.0.245
 - **Last action time filters**: New filter dropdown when "Last action" 4th field is selected: Last hour, Today, Past week, Not in past week, Not in past month, Never. "Not in past week/month" excludes items with no last action (use "Never" for those).
 - **Fix battery detection**: Now checks device_class from cached_states as fallback. Consolidated sensor entity scanning (battery + illuminance in one block).

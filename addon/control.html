@@ -919,18 +919,30 @@
 
     function copyToClipboard(text, label) {
       if (!text) return;
-      navigator.clipboard.writeText(text).then(() => {
-        showSaveStatus(`${label} copied`);
-      }).catch(() => {
-        // Fallback for older browsers
+      // Use textarea fallback first (works in HA ingress iframe context)
+      try {
         const el = document.createElement('textarea');
         el.value = text;
+        el.style.position = 'fixed';
+        el.style.left = '-9999px';
         document.body.appendChild(el);
+        el.focus();
         el.select();
         document.execCommand('copy');
         document.body.removeChild(el);
         showSaveStatus(`${label} copied`);
-      });
+      } catch (e) {
+        // Try clipboard API as fallback
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(text).then(() => {
+            showSaveStatus(`${label} copied`);
+          }).catch(() => {
+            showSaveStatus(`Copy failed`);
+          });
+        } else {
+          showSaveStatus(`Copy failed`);
+        }
+      }
     }
 
     // ============================================================
@@ -2399,8 +2411,8 @@
       // Hide header-meta-area (location now in subtitle)
       document.getElementById('header-meta-area').textContent = '';
 
-      // Build last action string for toolbar menu
-      let lastActionStr = '';
+      // Build last action for toolbar menu
+      let lastActionHtml = '';
       if (ctrl.last_action && typeof ctrl.last_action === 'object' && ctrl.last_action.action) {
         const la = ctrl.last_action;
         let actionLabel = la.action;
@@ -2415,9 +2427,9 @@
           const mi = d.getMinutes().toString().padStart(2, '0');
           const ap = h >= 12 ? 'p' : 'a';
           h = h % 12 || 12;
-          timeStr = ` ${mo}/${day} ${h}:${mi}${ap}`;
+          timeStr = `${mo}/${day} ${h}:${mi}${ap}`;
         }
-        lastActionStr = `Last: ${actionLabel}${timeStr}`;
+        lastActionHtml = `<div>${timeStr}</div><div style="padding-left:8px;color:var(--muted);">${actionLabel}</div>`;
       }
 
       // Battery string
@@ -2431,9 +2443,8 @@
       // Populate toolbar menu
       const toolbarInfo = document.getElementById('toolbar-menu-info');
       toolbarInfo.innerHTML = [
-        lastActionStr ? `<div>${lastActionStr}</div>` : '',
-        lastActionStr ? '<div class="toolbar-menu-divider" style="margin:4px -16px;"></div>' : '',
-        `<div>Type: ${typeName || 'Unknown'}</div>`,
+        lastActionHtml,
+        lastActionHtml ? '<div class="toolbar-menu-divider" style="margin:4px -16px;"></div>' : '',
         ctrl.model ? `<div>Model: ${ctrl.model}</div>` : '',
         batteryStr ? `<div>${batteryStr}</div>` : '',
       ].filter(Boolean).join('');

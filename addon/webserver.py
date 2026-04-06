@@ -6282,6 +6282,15 @@ class LightDesignerServer:
                 # Battery level
                 batt_entity = entities.get("battery_entity")
                 batt_info = None
+                if not batt_entity:
+                    # Debug: scan cached_states for any battery-like sensor on this device
+                    for eid in self.client.cached_states:
+                        if eid.startswith("sensor.") and device.get("name", "").lower().replace(" ", "_") in eid:
+                            s = self.client.cached_states[eid]
+                            if s.get("attributes", {}).get("device_class") == "battery":
+                                batt_entity = eid
+                                logger.debug(f"[Controls] Battery found via cached_states scan: {eid} for {device.get('name')}")
+                                break
                 if batt_entity:
                     raw_batt = self.client.cached_states.get(batt_entity, {}).get("state")
                     try:
