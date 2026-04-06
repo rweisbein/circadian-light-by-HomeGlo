@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.247
+- **Battery debug logging**: Removed name-matching hack. Added diagnostic logs to trace why battery entities aren't linking to devices via entity_registry.
+
 ## 1.0.246
 - **Battery detection: cached_states fallback scan**: If entity_registry doesn't link a battery sensor to the device, scans cached_states by device name pattern as a last resort. Adds debug logging for battery discovery.
 - **Control detail toolbar cleanup**: Removed "Type" (already in subtitle). Last action now shows date/time on first line, action indented below. Copy uses textarea fallback first (works in HA ingress iframe).

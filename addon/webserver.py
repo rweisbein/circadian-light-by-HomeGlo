@@ -6224,6 +6224,16 @@ class LightDesignerServer:
                 ) and "sensitivity" in entity_id.lower():
                     device_entities[device_id]["sensitivity_entity"] = entity_id
 
+            # Debug: check battery entity coverage
+            batt_count = sum(1 for de in device_entities.values() if de.get("battery_entity"))
+            logger.info(f"[Controls] Entity scan: {len(device_entities)} devices scanned, {batt_count} with battery entities")
+            # Check specifically for entry_wall_battery
+            entry_batt = self.client.entity_registry.get("sensor.entry_wall_battery")
+            if entry_batt:
+                logger.info(f"[Controls] sensor.entry_wall_battery in entity_registry: device_id={entry_batt.get('device_id')}, in devices={entry_batt.get('device_id') in devices}")
+            else:
+                logger.info(f"[Controls] sensor.entry_wall_battery NOT in entity_registry. entity_registry has {len(self.client.entity_registry)} entities")
+
             # Filter to allowlisted controls
             controls = []
             for device_id, device in devices.items():
@@ -6282,15 +6292,6 @@ class LightDesignerServer:
                 # Battery level
                 batt_entity = entities.get("battery_entity")
                 batt_info = None
-                if not batt_entity:
-                    # Debug: scan cached_states for any battery-like sensor on this device
-                    for eid in self.client.cached_states:
-                        if eid.startswith("sensor.") and device.get("name", "").lower().replace(" ", "_") in eid:
-                            s = self.client.cached_states[eid]
-                            if s.get("attributes", {}).get("device_class") == "battery":
-                                batt_entity = eid
-                                logger.debug(f"[Controls] Battery found via cached_states scan: {eid} for {device.get('name')}")
-                                break
                 if batt_entity:
                     raw_batt = self.client.cached_states.get(batt_entity, {}).get("state")
                     try:
