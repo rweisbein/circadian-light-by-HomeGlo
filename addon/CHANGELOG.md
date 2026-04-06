@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.243
+- **Two-step delay default increased**: 2 → 5 tenths (200ms → 500ms). Gives ZHA lights more time to process color before brightness transition.
+
 ## 1.0.242
 - **Control detail page redesign**: Subtitle now shows "Area · Type" (moved from header-right and toolbar menu). Last activity moved to toolbar menu (top, muted). Toolbar menu now includes: last action, type, model, battery (color-coded), Copy IEEE, Copy ID, and Reset. Location badge removed from header (cleaner layout with ⋮ alone).
 

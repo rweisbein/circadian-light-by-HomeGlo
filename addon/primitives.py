@@ -164,7 +164,7 @@ class CircadianLightPrimitives:
         """
         try:
             raw_config = glozone.load_config_from_files()
-            tenths = raw_config.get("two_step_delay", 2)
+            tenths = raw_config.get("two_step_delay", 5)
             return tenths / 10.0  # Convert tenths to seconds
         except Exception:
             return 0.2  # Default 0.2 seconds
