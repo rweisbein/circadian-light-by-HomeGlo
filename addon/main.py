@@ -2702,9 +2702,11 @@ class HomeAssistantWebSocketClient:
                     return
 
                 # Determine flash direction based on NL and brightness
-                # NL = 0: flash OFF → restore (normal)
-                # NL > 0, brightness ≥ threshold: flash OFF → restore (normal)
-                # NL > 0, brightness < threshold: flash UP to 100% → restore
+                # On + NL=0: flash OFF → restore (normal)
+                # On + NL > 0, brightness ≥ threshold: flash OFF → restore (normal)
+                # On + NL > 0, brightness < threshold: flash UP to 100% → restore
+                # Off + NL > 0: flash UP to 100% → off (daytime, NL-aware)
+                # Off + NL=0: flash on at bounce % with circadian color → off
                 flash_up = False
                 bri_pct = cached_bri / 2.55
                 if feedback_area:
@@ -2720,6 +2722,26 @@ class HomeAssistantWebSocketClient:
                             if bri_pct < threshold:
                                 flash_up = True
 
+                # Off + no flash_up: flash on at bounce % with circadian color
+                flash_on_off = False
+                flash_on_data = {}
+                if not was_on and not flash_up:
+                    flash_on_off = True
+                    bounce_pct = self.primitives._get_limit_bounce_min_percent() / 100.0
+                    flash_bri = max(1, int(255 * bounce_pct))
+                    flash_on_data = {"brightness": flash_bri, "transition": 0}
+                    # Add circadian color
+                    try:
+                        config = self.primitives._get_config(feedback_area)
+                        hour = get_current_hour()
+                        sun_times = self._get_sun_times()
+                        area_state = self.primitives._get_area_state(feedback_area)
+                        result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
+                        xy = CircadianLight.color_temperature_to_xy(result.color_temp)
+                        flash_on_data["xy_color"] = list(xy)
+                    except Exception:
+                        pass
+
                 # N flashes for reach 1-5
                 for i in range(scope_number):
                     if flash_up:
@@ -2727,6 +2749,13 @@ class HomeAssistantWebSocketClient:
                             "light",
                             "turn_on",
                             {"brightness": 255, "transition": 0},
+                            target=target,
+                        )
+                    elif flash_on_off:
+                        await self.call_service(
+                            "light",
+                            "turn_on",
+                            flash_on_data,
                             target=target,
                         )
                     else:
@@ -2753,6 +2782,10 @@ class HomeAssistantWebSocketClient:
                     await self.call_service(
                         "light", "turn_off", {"transition": 0}, target=target
                     )
+                    # Reset off-confirm so periodic tick re-sends turn_off
+                    if feedback_area:
+                        state.reset_off_confirm_count(feedback_area)
+                        state.set_off_enforced(feedback_area, False)
                 logger.info(
                     f"Feedback reach: {scope_number} flash(es), "
                     f"area={feedback_area}, purpose={feedback_filter}, "

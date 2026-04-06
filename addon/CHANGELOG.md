@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.237
+- **Fix reach feedback when lights are off at night**: When lights are off and NL=0, reach feedback now flashes on at bounce percentage with circadian color then off (same pattern as alert bounce). Previously sent turn_off→turn_off which was invisible. Daytime NL-aware flash-up-to-255 path unchanged. Also resets off-confirm counter after flashing so periodic tick catches stuck-on lights.
+
 ## 1.0.236
 - **Alert bounce color only for off lights**: Circadian xy_color included only when bouncing was_off lights (so they flash at correct color, not white). Was_on lights bounce brightness only, preserving their current color.
 
