@@ -311,7 +311,7 @@ input[type=range]::-moz-range-thumb {
 .modeled-conditions {
   display: flex;
   align-items: center;
-  margin-left: auto;
+  width: 100%;
 }
 .modeled-conditions select {
   padding: 4px 8px;
@@ -4185,8 +4185,18 @@ function setupEventListeners() {
     });
   }
 
-  document.getElementById('modeled-conditions').addEventListener('change', () => {
+  const _condSel = document.getElementById('modeled-conditions');
+  _condSel.addEventListener('change', () => {
     renderChart();
+  });
+  // Swap "Current" label: short when collapsed, full when open
+  _condSel.addEventListener('focus', () => {
+    const opt = _condSel.options[0];
+    if (opt?.value === 'current' && opt.dataset.fullLabel) opt.text = opt.dataset.fullLabel;
+  });
+  _condSel.addEventListener('blur', () => {
+    const opt = _condSel.options[0];
+    if (opt?.value === 'current' && opt.dataset.shortLabel) opt.text = opt.dataset.shortLabel;
   });
 
   // Chart schedule toggles (wake/bed primary vs alt)
@@ -5290,18 +5300,24 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!c) return '';
       return c.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     }
-    // Update the "Current" option label
+    // Update the "Current" option label (short when collapsed, full when dropped down)
     const sel = document.getElementById('modeled-conditions');
     if (sel && sel.options[0]?.value === 'current') {
-      let label = 'Current';
+      let shortLabel = 'Current';
+      let fullLabel = 'Current';
       if (_liveSource === 'weather' && _liveCondition) {
-        label = 'Current: ' + fmtCondition(_liveCondition) + ' (' + Math.round(_liveConditionMult * 100) + '%)';
+        shortLabel = fmtCondition(_liveCondition) + ' (' + Math.round(_liveConditionMult * 100) + '%)';
+        fullLabel = 'Current: ' + shortLabel;
       } else if (_liveSource === 'lux') {
-        label = 'Current: lux (' + Math.round(_liveConditionMult * 100) + '%)';
+        shortLabel = 'lux (' + Math.round(_liveConditionMult * 100) + '%)';
+        fullLabel = 'Current: ' + shortLabel;
       } else if (_liveSource === 'angle') {
-        label = 'Current: sun angle';
+        shortLabel = 'sun angle';
+        fullLabel = 'Current: ' + shortLabel;
       }
-      sel.options[0].text = label;
+      sel.options[0].dataset.shortLabel = shortLabel;
+      sel.options[0].dataset.fullLabel = fullLabel;
+      sel.options[0].text = sel === document.activeElement ? fullLabel : shortLabel;
     }
     if (sel?.value === 'current') {
       renderChart();

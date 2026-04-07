@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.250
+- **Rhythm zone page: weather dropdown on own line**: Full width on mobile instead of cramped next to date slider. "Current:" prefix hidden when collapsed (shows just condition + percentage), shown when dropdown is open.
+
 ## 1.0.249
 - **Controls page polish**: Cheatsheet link styled as subtle underlined link with arrow (not a page title). Low battery red dot threshold lowered from ≤20% to <10%. Device count shown in Name column header — e.g. "Name (47)".
 
