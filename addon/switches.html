@@ -600,6 +600,7 @@
     let statusFilter = 'all';
     let pauseFilter = 'all';
     let lastActionFilter = 'all';
+    let batteryFilter = 'all';
     let refreshIntervalMs = 3000;
     let customAreaOrder = {};  // area_id -> order index
 
@@ -630,6 +631,7 @@
           statusFilter = prefs.status_filter || 'all';
           pauseFilter = prefs.pause_filter || 'all';
           lastActionFilter = prefs.last_action_filter || 'all';
+          batteryFilter = prefs.battery_filter || 'all';
         }
       } catch (err) {
         console.error('Error loading preferences:', err);
@@ -648,6 +650,7 @@
           status_filter: statusFilter,
           pause_filter: pauseFilter,
           last_action_filter: lastActionFilter,
+          battery_filter: batteryFilter,
           saved_at: Date.now()
         }));
       } catch (err) {
@@ -752,6 +755,18 @@
         if (fourthField === 'pause' && pauseFilter !== 'all') {
           if (pauseFilter === 'paused' && !c.inactive) return false;
           if (pauseFilter === 'active' && c.inactive) return false;
+        }
+        if (fourthField === 'battery' && batteryFilter !== 'all') {
+          const bv = c.battery?.value;
+          const hasBatt = bv != null;
+          if (batteryFilter === 'has') return hasBatt;
+          if (batteryFilter === 'none') return !hasBatt;
+          if (!hasBatt) return false;
+          if (batteryFilter === 'lt10') return bv < 10;
+          if (batteryFilter === 'lt20') return bv < 20;
+          if (batteryFilter === 'lt30') return bv < 30;
+          if (batteryFilter === 'lt40') return bv < 40;
+          if (batteryFilter === 'lt50') return bv < 50;
         }
         if (fourthField === 'lastAction' && lastActionFilter !== 'all') {
           const ts = c.last_action?.timestamp ? new Date(c.last_action.timestamp).getTime() : 0;
@@ -858,10 +873,20 @@
           `<option value="not_month" ${lastActionFilter === 'not_month' ? 'selected' : ''}>Not in past month</option>` +
           `<option value="never" ${lastActionFilter === 'never' ? 'selected' : ''}>Never</option>`;
         fourthFilterHtml = `<select class="header-filter" id="fourth-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(lastActionFilter)}">${laOpts}</select>`;
+      } else if (fourthField === 'battery') {
+        const battOpts = `<option value="all">All</option>` +
+          `<option value="has" ${batteryFilter === 'has' ? 'selected' : ''}>Has battery</option>` +
+          `<option value="lt10" ${batteryFilter === 'lt10' ? 'selected' : ''}>&lt; 10%</option>` +
+          `<option value="lt20" ${batteryFilter === 'lt20' ? 'selected' : ''}>&lt; 20%</option>` +
+          `<option value="lt30" ${batteryFilter === 'lt30' ? 'selected' : ''}>&lt; 30%</option>` +
+          `<option value="lt40" ${batteryFilter === 'lt40' ? 'selected' : ''}>&lt; 40%</option>` +
+          `<option value="lt50" ${batteryFilter === 'lt50' ? 'selected' : ''}>&lt; 50%</option>` +
+          `<option value="none" ${batteryFilter === 'none' ? 'selected' : ''}>No battery</option>`;
+        fourthFilterHtml = `<select class="header-filter" id="fourth-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(batteryFilter)}">${battOpts}</select>`;
       }
 
       // Check if any filters are active and show/hide clear filters link
-      const hasActiveFilters = categoryFilter !== 'all' || areaFilter !== 'all' || searchFilter !== '' || statusFilter !== 'all' || pauseFilter !== 'all' || lastActionFilter !== 'all';
+      const hasActiveFilters = categoryFilter !== 'all' || areaFilter !== 'all' || searchFilter !== '' || statusFilter !== 'all' || pauseFilter !== 'all' || lastActionFilter !== 'all' || batteryFilter !== 'all';
 
       // Update zone filter dropdown
 
@@ -893,7 +918,7 @@
                 <div class="th-with-filter">
                   <div class="th-title-row">
                     <span style="font-size:0.7rem;color:var(--muted);">${{'lastAction':'Last action','status':'Status','battery':'Battery','lux':'Lux','pause':'Pause'}[fourthField] || fourthField}</span>
-                    <span class="fourth-sort-btn" onclick="sortBy('fourth')" title="Sort by this column">${sortColumn === 'fourth' ? (sortAsc ? '&#9650;' : '&#9660;') : '&#9650;'}</span>${fourthField === 'status' ? filterIndicator('status', statusFilter, "clearSingleFilter('status')") : ''}${fourthField === 'pause' ? filterIndicator('pause', pauseFilter, "clearSingleFilter('pause')") : ''}${fourthField === 'lastAction' ? filterIndicator('lastAction', lastActionFilter, "clearSingleFilter('lastAction')") : ''}
+                    <span class="fourth-sort-btn" onclick="sortBy('fourth')" title="Sort by this column">${sortColumn === 'fourth' ? (sortAsc ? '&#9650;' : '&#9660;') : '&#9650;'}</span>${fourthField === 'status' ? filterIndicator('status', statusFilter, "clearSingleFilter('status')") : ''}${fourthField === 'pause' ? filterIndicator('pause', pauseFilter, "clearSingleFilter('pause')") : ''}${fourthField === 'lastAction' ? filterIndicator('lastAction', lastActionFilter, "clearSingleFilter('lastAction')") : ''}${fourthField === 'battery' ? filterIndicator('battery', batteryFilter, "clearSingleFilter('battery')") : ''}
                   </div>
                   ${fourthFilterHtml}
                 </div>
@@ -1124,6 +1149,7 @@
       statusFilter = 'all';
       pauseFilter = 'all';
       lastActionFilter = 'all';
+      batteryFilter = 'all';
       savePreferences();
       renderControls();
     }
@@ -1135,6 +1161,7 @@
         case 'status': statusFilter = 'all'; break;
         case 'pause': pauseFilter = 'all'; break;
         case 'lastAction': lastActionFilter = 'all'; break;
+        case 'battery': batteryFilter = 'all'; break;
       }
       savePreferences();
       renderControls();
@@ -1245,6 +1272,7 @@
           if (fourthField === 'status') statusFilter = e.target.value;
           else if (fourthField === 'pause') pauseFilter = e.target.value;
           else if (fourthField === 'lastAction') lastActionFilter = e.target.value;
+          else if (fourthField === 'battery') batteryFilter = e.target.value;
           savePreferences();
           renderControls();
         }
@@ -1276,6 +1304,7 @@
         statusFilter = 'all';
         pauseFilter = 'all';
         lastActionFilter = 'all';
+        batteryFilter = 'all';
         sortColumn = 'fourth';
         sortAsc = true;
         savePreferences();

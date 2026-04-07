@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.251
+- **Rhythm zone time buttons bigger**: Increased padding and font size, added "min" labels (-30 min, -5 min, +5 min, +30 min). Now button also taller.
+- **Battery filter on controls page**: When Battery 4th field is selected, filter dropdown offers: Has battery, < 10%, < 20%, < 30%, < 40%, < 50%, No battery.
+
 ## 1.0.250
 - **Rhythm zone page: weather dropdown on own line**: Full width on mobile instead of cramped next to date slider. "Current:" prefix hidden when collapsed (shows just condition + percentage), shown when dropdown is open.
 
