@@ -4698,6 +4698,10 @@ class CircadianLightPrimitives:
             if len(other_areas) >= 2 and other_areas.issubset(area_set):
                 candidate_reaches.append((other_key, other_reach))
 
+        # Pre-compute 2-step threshold
+        raw_cfg = glozone.load_config_from_files()
+        ct_threshold = raw_cfg.get("two_step_ct_threshold", 500)
+
         for rkey, rgroup in candidate_reaches:
             for (
                 filter_norm,
@@ -4717,7 +4721,7 @@ class CircadianLightPrimitives:
                 if len(matching) < 2:
                     continue  # Need 2+ areas for reach to be useful
 
-                # Check if all matching areas have the same brightness
+                # Check if all matching areas have the same target brightness
                 values = set(matching.values())
                 if len(values) != 1:
                     if rkey == key:
@@ -4730,7 +4734,49 @@ class CircadianLightPrimitives:
                 if bri <= 0:
                     continue  # All off — handled by per-area off logic
 
-                reach_commands.append((entity_id, bri, ct, filter_norm, cap))
+                # Check if 2-step is needed for this reach group
+                needs_two_step_here = False
+                phase1_bri = 1  # default for off→on
+                if ct_threshold > 0:
+                    # Check CT delta for any area in this candidate
+                    for area_id in matching:
+                        last_ct = state.get_last_sent_kelvin(area_id)
+                        if last_ct is not None:
+                            if abs(ct - last_ct) >= ct_threshold:
+                                needs_two_step_here = True
+                                break
+
+                if needs_two_step_here:
+                    # Check current state matches across all areas in this candidate
+                    current_states = {}
+                    for area_id in matching:
+                        is_on = state.get_is_on(area_id)
+                        curr_bri = state.get_last_sent_brightness(area_id) or 0
+                        current_states[area_id] = (is_on, curr_bri)
+
+                    state_values = set(current_states.values())
+                    if len(state_values) != 1:
+                        # Current states differ — can't batch 2-step, fall back to per-area
+                        logger.debug(
+                            f"Reach {rkey} {filter_norm}: current states differ, falling back for 2-step"
+                        )
+                        continue
+
+                    shared_on, shared_bri = state_values.pop()
+                    if shared_on:
+                        # Already on: phase 1 at current brightness (color shift while at current level)
+                        phase1_bri = max(1, shared_bri)
+                    else:
+                        # Off→on: phase 1 at 1% (nearly invisible)
+                        phase1_bri = 1
+
+                    logger.info(
+                        f"Reach 2-step: {filter_norm} {cap}, "
+                        f"{'off→on' if not shared_on else f'on@{shared_bri}%'}, "
+                        f"phase1={phase1_bri}%, target={bri}% {ct}K"
+                    )
+
+                reach_commands.append((entity_id, bri, ct, filter_norm, cap, needs_two_step_here, phase1_bri))
                 for area_id in matching:
                     if area_id not in filters_handled:
                         filters_handled[area_id] = set()
@@ -4740,70 +4786,63 @@ class CircadianLightPrimitives:
         if not reach_commands:
             return handled_filters
 
-        # Check if 2-step is needed (only for off→on turn-on, not step/bright)
-        needs_two_step = False
-        if is_turn_on and reach_commands:
-            raw_cfg = glozone.load_config_from_files()
-            ct_threshold = raw_cfg.get("two_step_ct_threshold", 500)
-            target_ct = reach_commands[0][2]
-            for area_id in area_ids:
-                last_ct = state.get_last_sent_kelvin(area_id)
-                if last_ct is not None and target_ct is not None:
-                    ct_diff = abs(target_ct - last_ct)
-                    if ct_diff >= ct_threshold:
-                        needs_two_step = True
-                        logger.info(
-                            f"Reach 2-step needed: {area_id} last={last_ct}K, target={target_ct}K, diff={ct_diff}K"
-                        )
-                        break
-
         # Send reach group commands
-        xy = None
-        if reach_commands:
-            ct = reach_commands[0][2]
+        # Separate 2-step commands from direct commands
+        two_step_commands = [(e, b, c, fn, cp, p1) for e, b, c, fn, cp, ts, p1 in reach_commands if ts]
+        direct_commands = [(e, b, c, fn, cp) for e, b, c, fn, cp, ts, p1 in reach_commands if not ts]
+
+        # Phase 1 for 2-step + direct commands (parallel)
+        phase1_tasks = []
+        for entity_id, bri, ct, filter_norm, cap, phase1_bri in two_step_commands:
             xy = CircadianLight.color_temperature_to_xy(ct)
+            sdata = {"transition": 0, "brightness_pct": phase1_bri}
+            if cap == "color":
+                sdata["xy_color"] = list(xy)
+            elif cap == "ct":
+                sdata["color_temp_kelvin"] = max(2000, ct)
+            phase1_tasks.append(
+                self.client.call_service("light", "turn_on", sdata, {"entity_id": entity_id})
+            )
 
-        if needs_two_step:
-            # Phase 1: set color at 1% brightness (nearly invisible)
-            phase1_tasks = []
-            for entity_id, bri, ct, filter_norm, cap in reach_commands:
-                sdata = {"transition": 0, "brightness_pct": 1}
-                if cap == "color" and xy is not None:
-                    sdata["xy_color"] = list(xy)
-                elif cap == "ct":
-                    sdata["color_temp_kelvin"] = max(2000, ct)
-                phase1_tasks.append(
-                    self.client.call_service(
-                        "light", "turn_on", sdata, {"entity_id": entity_id}
-                    )
-                )
-            if phase1_tasks:
-                await asyncio.gather(*phase1_tasks)
-
-            delay = self._get_two_step_delay()
-            await asyncio.sleep(delay)
-
-        # Phase 2 (or direct if no 2-step): transition to target brightness
-        phase2_tasks = []
-        for entity_id, bri, ct, filter_norm, cap in reach_commands:
+        direct_tasks = []
+        for entity_id, bri, ct, filter_norm, cap in direct_commands:
+            xy = CircadianLight.color_temperature_to_xy(ct)
             service_data = {"transition": transition, "brightness_pct": bri}
-            if cap == "color" and xy is not None:
+            if cap == "color":
                 service_data["xy_color"] = list(xy)
             elif cap == "ct":
                 service_data["color_temp_kelvin"] = max(2000, ct)
-
             logger.info(
                 f"Reach group {filter_norm} {cap}: {entity_id}, "
                 f"brightness={bri}%, {ct}K, transition={transition}s"
-                f"{' (after 2-step)' if needs_two_step else ''}"
             )
-            phase2_tasks.append(
-                self.client.call_service(
-                    "light", "turn_on", service_data, {"entity_id": entity_id}
-                )
+            direct_tasks.append(
+                self.client.call_service("light", "turn_on", service_data, {"entity_id": entity_id})
             )
 
-        if phase2_tasks:
+        if phase1_tasks or direct_tasks:
+            await asyncio.gather(*(phase1_tasks + direct_tasks))
+
+        # Phase 2 for 2-step commands (after delay)
+        if two_step_commands:
+            delay = self._get_two_step_delay()
+            await asyncio.sleep(delay)
+
+            phase2_tasks = []
+            for entity_id, bri, ct, filter_norm, cap, phase1_bri in two_step_commands:
+                xy = CircadianLight.color_temperature_to_xy(ct)
+                service_data = {"transition": transition, "brightness_pct": bri}
+                if cap == "color":
+                    service_data["xy_color"] = list(xy)
+                elif cap == "ct":
+                    service_data["color_temp_kelvin"] = max(2000, ct)
+                logger.info(
+                    f"Reach group {filter_norm} {cap}: {entity_id}, "
+                    f"brightness={bri}%, {ct}K, transition={transition}s (after 2-step)"
+                )
+                phase2_tasks.append(
+                    self.client.call_service("light", "turn_on", service_data, {"entity_id": entity_id})
+                )
             await asyncio.gather(*phase2_tasks)
 
         # Update state for areas/filters handled by reach groups

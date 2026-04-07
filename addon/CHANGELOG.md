@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.253
+- **Smart reach group 2-step**: Reach groups now do proper 2-step matching the per-area pipeline logic. Off→on: phase 1 at 1%. Already on: phase 1 at current brightness (color shifts at current level, then brightness transitions). If current states differ across areas in a candidate reach, falls back to per-area control (each area gets individual smart 2-step). 2-step and direct commands run in parallel for non-blocking sends.
+
 ## 1.0.252
 - **Fix reach groups not updating state**: Reach group commands now update `last_sent_kelvin` and per-purpose state (`set_last_sent_purpose`) after sending. Previously reach groups bypassed all state tracking, causing stale CT values that triggered false 2-step on subsequent commands (step_down, glo_down, etc.).
 - **Reach 2-step only on turn-on**: Added `is_turn_on` parameter to `_try_reach_turn_on`. Only the `lights_toggle_multiple` caller passes `True`. Step/bright callers skip 2-step entirely since lights are already on.
