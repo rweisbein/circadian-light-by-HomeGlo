@@ -4763,9 +4763,16 @@ class CircadianLightPrimitives:
                         continue
 
                     shared_on, shared_bri = state_values.pop()
+
+                    # Already on: also require brightness delta >= 15%
+                    # (color-only changes don't benefit from 2-step)
+                    bri_delta_threshold = 15
                     if shared_on:
-                        # Already on: phase 1 at current brightness (color shift while at current level)
-                        phase1_bri = max(1, shared_bri)
+                        bri_delta = abs(bri - shared_bri)
+                        if bri_delta < bri_delta_threshold:
+                            needs_two_step_here = False
+                        else:
+                            phase1_bri = max(1, shared_bri)
                     else:
                         # Off→on: phase 1 at 1% (nearly invisible)
                         phase1_bri = 1

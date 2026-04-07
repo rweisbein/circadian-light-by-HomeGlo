@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.254
+- **Reach 2-step requires brightness delta**: For already-on lights, reach 2-step now requires ≥15% brightness change in addition to CT delta ≥ threshold. Matches `turn_on_lights_circadian` logic. Color-only changes (color_up/down, set_position color) no longer trigger false 2-step.
+
 ## 1.0.253
 - **Smart reach group 2-step**: Reach groups now do proper 2-step matching the per-area pipeline logic. Off→on: phase 1 at 1%. Already on: phase 1 at current brightness (color shifts at current level, then brightness transitions). If current states differ across areas in a candidate reach, falls back to per-area control (each area gets individual smart 2-step). 2-step and direct commands run in parallel for non-blocking sends.
 
