@@ -2155,7 +2155,7 @@ class CircadianLightPrimitives:
 
             # Try filter-aware reach groups for multi-area turn-on
             reach_handled = await self._try_reach_turn_on(
-                area_ids, area_lighting, transition=transition
+                area_ids, area_lighting, transition=transition, is_turn_on=True
             )
 
             # Collect areas needing per-area turn-on (not fully handled by reach)
@@ -4586,6 +4586,7 @@ class CircadianLightPrimitives:
         area_ids: List[str],
         area_lighting: List[Tuple],
         transition: float = 0.4,
+        is_turn_on: bool = False,
     ) -> Dict[str, Set[str]]:
         """Try to use filter-aware reach groups for multi-area turn-on.
 
@@ -4739,24 +4740,22 @@ class CircadianLightPrimitives:
         if not reach_commands:
             return handled_filters
 
-        # Check if 2-step is needed: any area with large CT delta from last-sent
-        # Note: state.is_on is already True here (set before reach turn-on),
-        # so we check last_sent_kelvin regardless of on/off state.
-        raw_cfg = glozone.load_config_from_files()
-        ct_threshold = raw_cfg.get("two_step_ct_threshold", 500)
+        # Check if 2-step is needed (only for off→on turn-on, not step/bright)
         needs_two_step = False
-        target_ct = reach_commands[0][2] if reach_commands else None
-        for area_id in area_ids:
-            last_ct = state.get_last_sent_kelvin(area_id)
-            if last_ct is not None and target_ct is not None:
-                ct_diff = abs(target_ct - last_ct)
-                if ct_diff >= ct_threshold:
-                    needs_two_step = True
-                    logger.info(
-                        f"Reach 2-step needed: {area_id} last={last_ct}K, target={target_ct}K, diff={ct_diff}K"
-                    )
-                    break
-            # last_ct is None = truly fresh area, no prior color to arc from — skip
+        if is_turn_on and reach_commands:
+            raw_cfg = glozone.load_config_from_files()
+            ct_threshold = raw_cfg.get("two_step_ct_threshold", 500)
+            target_ct = reach_commands[0][2]
+            for area_id in area_ids:
+                last_ct = state.get_last_sent_kelvin(area_id)
+                if last_ct is not None and target_ct is not None:
+                    ct_diff = abs(target_ct - last_ct)
+                    if ct_diff >= ct_threshold:
+                        needs_two_step = True
+                        logger.info(
+                            f"Reach 2-step needed: {area_id} last={last_ct}K, target={target_ct}K, diff={ct_diff}K"
+                        )
+                        break
 
         # Send reach group commands
         xy = None
@@ -4807,7 +4806,15 @@ class CircadianLightPrimitives:
         if phase2_tasks:
             await asyncio.gather(*phase2_tasks)
 
+        # Update state for areas/filters handled by reach groups
+        # (reach bypasses the per-area pipeline which normally does this)
         if filters_handled:
+            for area_id, filter_norms in filters_handled.items():
+                for fn, fk, bri, ct in area_filter_data.get(area_id, []):
+                    if fn in filter_norms:
+                        state.set_last_sent_kelvin(area_id, ct)
+                        state.set_last_sent_purpose(area_id, fn, bri, ct or 4000)
+
             fully = [
                 a
                 for a, fns in filters_handled.items()
