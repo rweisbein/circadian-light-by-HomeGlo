@@ -565,7 +565,7 @@
   <main class="main">
     <div class="page-header">
       <div style="display: flex; align-items: center; gap: 12px;">
-        <a href="./switchmap" style="font-size: 0.85rem; color: var(--text); text-decoration: none;">Cheatsheet</a>
+        <a href="./switchmap" style="font-size: 0.8rem; color: var(--muted); text-decoration: underline; text-decoration-color: rgba(255,255,255,0.2); text-underline-offset: 3px;">Cheatsheet &rarr;</a>
         <select id="fourth-field-header" style="margin-left:auto;font-size:0.78rem;padding:2px 6px;border-radius:4px;border:1px solid var(--line);background:var(--card);color:var(--text);cursor:pointer;">
           <option value="lastAction">Last action</option>
           <option value="status">Status</option>
@@ -869,7 +869,7 @@
         <table class="switches-table">
           <thead>
             <tr>
-              <th class="${thClass('name')}" onclick="sortBy('name')">Name
+              <th class="${thClass('name')}" onclick="sortBy('name')">Name <span style="font-weight:normal;color:var(--muted2);font-size:0.7rem;">(${sorted.length})</span>
                 <div style="margin-top: 4px;" onclick="event.stopPropagation()">
                   <div style="position: relative;">
                     <input type="text" id="search-input" class="toolbar-search" placeholder="Search..." style="width: 100%; box-sizing: border-box;">
@@ -957,7 +957,7 @@
                 fourthCell = formatLastAction(ctrl);
               }
               // Low battery indicator (always visible regardless of 4th field)
-              const lowBatt = (ctrl.battery?.value != null && ctrl.battery.value <= 20)
+              const lowBatt = (ctrl.battery?.value != null && ctrl.battery.value < 10)
                 ? '<span title="Low battery" style="color:var(--danger);font-size:0.7rem;margin-left:4px;vertical-align:middle;">&#9679;</span>'
                 : '';
               const rowClass = ctrl.stale ? 'clickable-row stale-row' : 'clickable-row';

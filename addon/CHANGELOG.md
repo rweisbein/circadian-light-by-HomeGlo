@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.249
+- **Controls page polish**: Cheatsheet link styled as subtle underlined link with arrow (not a page title). Low battery red dot threshold lowered from ≤20% to <10%. Device count shown in Name column header — e.g. "Name (47)".
+
 ## 1.0.248
 - **Fix battery not showing on controls page**: `get_controls` was missing `battery` field in response dict — `_fetch_ha_controls` collected it but `get_controls` never passed it through. One-line fix. Removed diagnostic logging.
 
