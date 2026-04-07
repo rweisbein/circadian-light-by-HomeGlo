@@ -4537,17 +4537,18 @@ class CircadianLightPrimitives:
             )
             return
 
-        # Check if 2-step is needed based on CT difference
+        # Check if 2-step is needed based on CT difference and brightness threshold
         last_ct = state.get_last_sent_kelvin(area_id)
         raw_cfg = glozone.load_config_from_files()
         ct_threshold = raw_cfg.get("two_step_ct_threshold", 500)
+        bri_threshold = raw_cfg.get("two_step_bri_threshold", 15)
 
-        needs_two_step = True
+        needs_two_step = False
         if last_ct is not None:
             ct_diff = abs(color_temp - last_ct)
-            needs_two_step = ct_diff >= ct_threshold
+            needs_two_step = ct_diff >= ct_threshold and brightness >= bri_threshold
             logger.debug(
-                f"Turn-on CT check: last={last_ct}K, new={color_temp}K, diff={ct_diff}K, 2-step={needs_two_step}"
+                f"Turn-on CT check: last={last_ct}K, new={color_temp}K, diff={ct_diff}K, bri={brightness}%, 2-step={needs_two_step}"
             )
 
         if needs_two_step:
@@ -4764,9 +4765,9 @@ class CircadianLightPrimitives:
 
                     shared_on, shared_bri = state_values.pop()
 
-                    # Already on: also require brightness delta >= 15%
+                    # Require brightness delta >= threshold
                     # (color-only changes don't benefit from 2-step)
-                    bri_delta_threshold = 15
+                    bri_delta_threshold = raw_cfg.get("two_step_bri_threshold", 15)
                     if shared_on:
                         bri_delta = abs(bri - shared_bri)
                         if bri_delta < bri_delta_threshold:
@@ -4774,8 +4775,11 @@ class CircadianLightPrimitives:
                         else:
                             phase1_bri = max(1, shared_bri)
                     else:
-                        # Off→on: phase 1 at 1% (nearly invisible)
-                        phase1_bri = 1
+                        # Off→on: skip 2-step if target brightness < threshold
+                        if bri < bri_delta_threshold:
+                            needs_two_step_here = False
+                        else:
+                            phase1_bri = 1
 
                     logger.info(
                         f"Reach 2-step: {filter_norm} {cap}, "
@@ -4904,6 +4908,7 @@ class CircadianLightPrimitives:
         no_two_step = []
         raw_cfg = glozone.load_config_from_files()
         ct_threshold = raw_cfg.get("two_step_ct_threshold", 500)
+        bri_threshold = raw_cfg.get("two_step_bri_threshold", 15)
 
         for entry in area_lighting:
             area_id, brightness, color_temp = entry[0], entry[1], entry[2]
@@ -4914,6 +4919,11 @@ class CircadianLightPrimitives:
 
             # All-Hue areas skip 2-step
             if self.client.is_all_hue_area(area_id):
+                no_two_step.append(item)
+                continue
+
+            # Skip 2-step if target brightness below threshold
+            if brightness < bri_threshold:
                 no_two_step.append(item)
                 continue
 

@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.255
+- **Unified 2-step brightness threshold**: New "Brightness threshold" setting under Zigbee Improvements → 2-step color arc reduction (default 15%). Applied consistently across all 4 code paths: per-area turn-on, batch turn-on, reach group, and `turn_on_lights_circadian`. Off→on transitions below threshold skip 2-step (e.g. nitelite at 1%). Existing "Two-step delay" moved into same subsection.
+
 ## 1.0.254
 - **Reach 2-step requires brightness delta**: For already-on lights, reach 2-step now requires ≥15% brightness change in addition to CT delta ≥ threshold. Matches `turn_on_lights_circadian` logic. Color-only changes (color_up/down, set_position color) no longer trigger false 2-step.
 

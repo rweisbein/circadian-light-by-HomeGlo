@@ -1862,6 +1862,7 @@ class LightDesignerServer:
         "sun_saturation_ramp",  # Ramp curve: 'linear' or 'squared' (default squared)
         "turn_on_transition",  # Transition time in tenths of seconds for turn-on operations
         "turn_off_transition",  # Transition time in tenths of seconds for turn-off operations
+        "two_step_bri_threshold",  # Min brightness change (%) to trigger 2-step (default 15)
         "two_step_delay",  # Delay between two-step phases in tenths of seconds (default 5 = 500ms)
         "nudge_delay",  # Post-command nudge delay in tenths of seconds (default 10 = 1.0s, 0 = disabled)
         "multi_click_enabled",  # Enable multi-click detection for Hue Hub switches
@@ -2079,6 +2080,7 @@ class LightDesignerServer:
             # Advanced timing settings (tenths of seconds unless noted)
             "turn_on_transition": 3,
             "turn_off_transition": 3,
+            "two_step_bri_threshold": 15,
             "two_step_delay": 5,
             "nudge_delay": 10,
             "multi_click_enabled": True,
@@ -2182,6 +2184,7 @@ class LightDesignerServer:
             # Advanced timing settings (tenths of seconds unless noted)
             "turn_on_transition": 3,
             "turn_off_transition": 3,
+            "two_step_bri_threshold": 15,
             "two_step_delay": 5,
             "nudge_delay": 10,
             "multi_click_enabled": True,

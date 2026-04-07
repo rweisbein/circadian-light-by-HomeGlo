@@ -3733,8 +3733,8 @@ class HomeAssistantWebSocketClient:
                         continue
                     ct_diff = None
 
-                # Off→on: always 2-step. Already-on: need >= 15% brightness delta.
-                bri_delta_threshold = 15
+                # Require brightness delta >= threshold for 2-step
+                bri_delta_threshold = raw_cfg.get("two_step_bri_threshold", 15)
                 if not is_off:
                     current_bri_pct = (
                         purpose_st.get("brightness", 0) if purpose_st else 0
@@ -3744,6 +3744,9 @@ class HomeAssistantWebSocketClient:
                         continue  # Brightness change too small for 2-step to help
                     brightening = filtered_bri > current_bri_pct
                 else:
+                    # Off→on: skip 2-step if target brightness < threshold
+                    if filtered_bri < bri_delta_threshold:
+                        continue
                     current_bri_pct = 0
                     brightening = True
 
