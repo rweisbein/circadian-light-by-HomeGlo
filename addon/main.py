@@ -3320,6 +3320,9 @@ class HomeAssistantWebSocketClient:
             if nl_factor < 1.0:
                 brightness = max(1, int(round(brightness * nl_factor)))
 
+        # Save previous kelvin for 2-step check (before updating to target)
+        _prev_kelvin = state.get_last_sent_kelvin(area_id)
+
         # Track last-sent kelvin (always correct, same for phase 1 and 2)
         if kelvin is not None:
             state.set_last_sent_kelvin(area_id, kelvin)
@@ -3348,6 +3351,7 @@ class HomeAssistantWebSocketClient:
                 skip_filters=skip_filters,
                 skip_two_step=skip_two_step,
                 skip_off_threshold=skip_off_threshold,
+                prev_kelvin=_prev_kelvin,
             )
             return
 
@@ -3604,6 +3608,7 @@ class HomeAssistantWebSocketClient:
         skip_filters: set = None,
         skip_two_step: bool = False,
         skip_off_threshold: bool = False,
+        prev_kelvin: int = None,
     ) -> None:
         """Filtered light dispatch: applies per-light filter brightness and routes to sub-groups.
 
@@ -3723,8 +3728,8 @@ class HomeAssistantWebSocketClient:
                     else not state.get_is_on(area_id)
                 )
 
-                # Get current CT from our own tracking (not HA cached_states)
-                current_ct = state.get_last_sent_kelvin(area_id)
+                # Get previous CT (before this update overwrote it)
+                current_ct = prev_kelvin
 
                 # Check CT delta — skip if color is close enough
                 if current_ct is not None:
