@@ -642,6 +642,9 @@ MOTION_SENSOR_MODELS: Dict[str, Dict[str, Dict[str, Any]]] = {
     "gl technologies": {
         "40961": {"name": "Lafaer Presence"},
     },
+    "lumi": {
+        "lumi.motion.ac02": {"name": "Aqara P1 Motion"},
+    },
 }
 
 CONTACT_SENSOR_MODELS: Dict[str, Dict[str, Dict[str, Any]]] = {
