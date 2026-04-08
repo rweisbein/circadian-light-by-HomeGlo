@@ -4553,8 +4553,10 @@ class CircadianLightPrimitives:
 
         if needs_two_step:
             # Phase 1: Set color at minimal brightness (nearly invisible)
+            # skip_off_threshold ensures purposes below threshold still get color pre-set
             await self._apply_lighting(
-                area_id, 1, color_temp, include_color=True, transition=0
+                area_id, 1, color_temp, include_color=True, transition=0,
+                skip_off_threshold=True,
             )
 
             # Delay to ensure phase 1 completes before phase 2

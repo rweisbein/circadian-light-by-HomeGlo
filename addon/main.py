@@ -3831,12 +3831,16 @@ class HomeAssistantWebSocketClient:
 
             if should_off:
                 if skip_off_threshold:
-                    # During outer 2-step phase 1 (brightness=1), don't send OFF
-                    # to filters whose off_threshold > 1%. Phase 2 will handle them.
-                    logger.debug(
-                        f"Purpose '{filter_name}': skipping OFF (skip_off_threshold, phase 1)"
-                    )
-                    continue
+                    # During 2-step phase 1 (brightness=1), this purpose is below
+                    # off threshold BUT will be above it in phase 2. Send color at 1%
+                    # so bulbs pre-set the color (otherwise they turn on at last
+                    # remembered color in phase 2, causing a visible color arc).
+                    filtered_bri = 1
+                    should_off = False
+                    if log_periodic:
+                        logger.info(
+                            f"Purpose '{filter_name}': forcing 1% color pre-set (skip_off_threshold, phase 1)"
+                        )
 
                 # Send OFF to these lights
                 off_entities = (

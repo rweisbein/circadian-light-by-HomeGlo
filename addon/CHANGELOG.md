@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.256
+- **Fix 2-step skipping purposes below off threshold**: During 2-step phase 1 (at 1% brightness), purposes like "Standard no nitelite" calculated below the off threshold and were skipped — no color pre-set. Bulbs then turned on at their last remembered color (e.g. 500K red from nitelite) in phase 2 and ignored the color command. Now forces a 1% color pre-set for these purposes in phase 1. Also added missing `skip_off_threshold=True` to single-area turn-on phase 1.
+
 ## 1.0.255
 - **Unified 2-step brightness threshold**: New "Brightness threshold" setting under Zigbee Improvements → 2-step color arc reduction (default 15%). Applied consistently across all 4 code paths: per-area turn-on, batch turn-on, reach group, and `turn_on_lights_circadian`. Off→on transitions below threshold skip 2-step (e.g. nitelite at 1%). Existing "Two-step delay" moved into same subsection.
 
