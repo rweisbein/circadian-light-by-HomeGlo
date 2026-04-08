@@ -3674,12 +3674,18 @@ class HomeAssistantWebSocketClient:
         is_all_hue = self.is_all_hue_area(area_id)
         raw_cfg = glozone.load_config_from_files()
         ct_threshold = raw_cfg.get("two_step_ct_threshold", 500)
-        if (
+        _two_step_gate = (
             not skip_two_step
             and not is_all_hue
             and kelvin is not None
             and ct_threshold > 0
-        ):
+        )
+        if not _two_step_gate:
+            logger.debug(
+                f"[2-step] Skipped for {area_id}: skip_two_step={skip_two_step}, "
+                f"is_all_hue={is_all_hue}, kelvin={kelvin}, ct_threshold={ct_threshold}"
+            )
+        if _two_step_gate:
             for filter_name, lights_by_cap in filter_groups.items():
                 filt_norm = filter_name.replace(" ", "_").lower()
                 if skip_filters and filt_norm in skip_filters:
@@ -3725,11 +3731,16 @@ class HomeAssistantWebSocketClient:
                 if current_ct is not None:
                     ct_diff = abs(kelvin - current_ct)
                     if ct_diff < ct_threshold:
+                        logger.debug(
+                            f"[2-step] {area_id}/{filter_name}: SKIP ct_diff={ct_diff}K < {ct_threshold}K"
+                        )
                         continue
                 else:
                     # Unknown CT: 2-step for off→on (flash is jarring), skip for already-on
-                    # (light is already showing its color, extra Zigbee call not worth it)
                     if not is_off:
+                        logger.debug(
+                            f"[2-step] {area_id}/{filter_name}: SKIP unknown CT, lights on"
+                        )
                         continue
                     ct_diff = None
 
@@ -3741,7 +3752,11 @@ class HomeAssistantWebSocketClient:
                     )
                     bri_delta = abs(filtered_bri - current_bri_pct)
                     if bri_delta < bri_delta_threshold:
-                        continue  # Brightness change too small for 2-step to help
+                        logger.info(
+                            f"[2-step] {area_id}/{filter_name}: SKIP bri_delta={bri_delta} < {bri_delta_threshold} "
+                            f"(current={current_bri_pct}%, target={filtered_bri}%, ct_diff={ct_diff}K)"
+                        )
+                        continue
                     brightening = filtered_bri > current_bri_pct
                 else:
                     # Off→on: skip 2-step if target brightness < threshold
@@ -3751,6 +3766,11 @@ class HomeAssistantWebSocketClient:
                     brightening = True
 
                 two_step_filters.add(filt_norm)
+                logger.info(
+                    f"[2-step] {area_id}/{filter_name}: FIRE "
+                    f"is_off={is_off}, current_bri={current_bri_pct}%, target={filtered_bri}%, "
+                    f"ct_diff={ct_diff}K, {'brightening' if brightening else 'dimming'}"
+                )
 
                 if brightening:
                     # Brightening: send target color at current brightness first
