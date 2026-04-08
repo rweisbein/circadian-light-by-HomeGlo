@@ -4,6 +4,9 @@
 - **Settings page slider styling**: Added full slider CSS (track fill/empty contrast, bigger handles) to settings page. Weather condition and light purpose sliders now match all other pages. Added fill-pct tracking for dynamic sliders.
 - **Fix auto on/off fade slider fill**: Fade slider now updates fill-pct on input, so the filled portion tracks the handle position correctly.
 
+## 1.0.270
+- **Fix 2-step phase 2 executing immediately**: Phase 2 tasks were built with `asyncio.create_task()` which starts the coroutine immediately when created — not when gathered. Phase 2 commands were sent during wave 1, not after the delay. Now rebuilds and sends phase 2 commands fresh after the delay.
+
 ## 1.0.265
 - **Remove 2-step debug logging**: Cleaned up temporary INFO/DEBUG logs from the 2-step investigation.
 

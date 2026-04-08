@@ -4141,11 +4141,47 @@ class HomeAssistantWebSocketClient:
             await asyncio.gather(*wave1)
 
         # Wave 2: delay + phase 2 (target brightness for off→on groups)
-        if phase2_tasks:
+        # NOTE: phase2_tasks contains already-started create_task coroutines.
+        # We need to rebuild them as fresh coroutines so they execute AFTER the delay.
+        if two_step_filters:
             two_step_delay = self.primitives._get_two_step_delay()
-            logger.info(f"[2-step wave] {area_id}: delay {two_step_delay}s before {len(phase2_tasks)} phase2 tasks")
+            logger.info(f"[2-step wave] {area_id}: delay {two_step_delay}s before phase2")
             await asyncio.sleep(two_step_delay)
-            await asyncio.gather(*phase2_tasks)
+            # Re-send all 2-step purposes at target brightness
+            for filter_name, lights_by_cap in filter_groups.items():
+                filt_norm_p2 = filter_name.replace(" ", "_").lower()
+                if filt_norm_p2 not in two_step_filters:
+                    continue
+                preset = presets.get(filter_name, {"at_bright": 100, "at_dim": 100})
+                filtered_bri, should_off = apply_light_filter_pipeline(
+                    base_brightness, min_bri, max_bri, area_factor, preset, off_threshold,
+                    rhythm_brightness=rhythm_brightness, brightness_override=brightness_override,
+                    boost_brightness=boost_brightness,
+                )
+                if should_off or filtered_bri <= 0:
+                    continue
+                comp_bri = filtered_bri
+                if kelvin and self.primitives._is_ct_comp_enabled():
+                    comp_bri = self.primitives._apply_ct_brightness_compensation(filtered_bri, kelvin)
+                sdata = {"transition": transition, "brightness_pct": comp_bri}
+                if include_color and xy is not None:
+                    sdata["xy_color"] = list(xy)
+                zha_group = group_candidates.get(f"zha_group_{filt_norm_p2}_color")
+                if zha_group:
+                    logger.info(f"[2-step phase2] {area_id}/{filter_name}: {zha_group} brightness={comp_bri}%, {kelvin}K")
+                    await self.call_service("light", "turn_on", sdata, {"entity_id": zha_group})
+                elif lights_by_cap["color"]:
+                    logger.info(f"[2-step phase2] {area_id}/{filter_name}: {len(lights_by_cap['color'])} lights, brightness={comp_bri}%")
+                    await self.call_service("light", "turn_on", sdata, {"entity_id": lights_by_cap["color"]})
+                # CT lights
+                zha_ct = group_candidates.get(f"zha_group_{filt_norm_p2}_ct")
+                ct_data = {"transition": transition, "brightness_pct": comp_bri}
+                if include_color and kelvin:
+                    ct_data["color_temp_kelvin"] = max(2000, kelvin)
+                if zha_ct:
+                    await self.call_service("light", "turn_on", ct_data, {"entity_id": zha_ct})
+                elif lights_by_cap["ct"]:
+                    await self.call_service("light", "turn_on", ct_data, {"entity_id": lights_by_cap["ct"]})
 
     async def turn_off_lights(
         self,
