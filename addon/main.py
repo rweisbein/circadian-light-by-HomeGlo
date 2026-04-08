@@ -3681,11 +3681,9 @@ class HomeAssistantWebSocketClient:
             and kelvin is not None
             and ct_threshold > 0
         )
+        logger.info(f"[2-step] {area_id}: gate={'OPEN' if _two_step_gate else 'CLOSED'}, skip_two_step={skip_two_step}, is_all_hue={is_all_hue}, kelvin={kelvin}, ct_threshold={ct_threshold}")
         if not _two_step_gate:
-            logger.info(
-                f"[2-step] Gate CLOSED for {area_id}: skip_two_step={skip_two_step}, "
-                f"is_all_hue={is_all_hue}, kelvin={kelvin}, ct_threshold={ct_threshold}"
-            )
+            pass  # gate closed, skip 2-step check
         if _two_step_gate:
             for filter_name, lights_by_cap in filter_groups.items():
                 filt_norm = filter_name.replace(" ", "_").lower()
