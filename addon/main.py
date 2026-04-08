@@ -3616,6 +3616,8 @@ class HomeAssistantWebSocketClient:
         applies CT compensation per-group, and dispatches to filter-specific ZHA sub-groups.
         Lights below the off threshold receive a turn_off command.
         """
+        if prev_kelvin is not None and kelvin is not None and abs(kelvin - prev_kelvin) >= 500:
+            logger.info(f"[2-step check] {area_id}: prev_kelvin={prev_kelvin}, kelvin={kelvin}, delta={abs(kelvin - prev_kelvin)}")
         presets = glozone.get_light_filter_presets()
         off_threshold = glozone.get_off_threshold()
 
