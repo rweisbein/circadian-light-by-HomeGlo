@@ -3685,7 +3685,6 @@ class HomeAssistantWebSocketClient:
             and kelvin is not None
             and ct_threshold > 0
         )
-        if not _two_step_gate:
         if _two_step_gate:
             for filter_name, lights_by_cap in filter_groups.items():
                 filt_norm = filter_name.replace(" ", "_").lower()
