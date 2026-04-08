@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.258
+- **Slider styling overhaul**: All range sliders across 4 pages (home, area detail, rhythm design, tune) now have stronger fill/empty contrast (50% vs 12% opacity), thicker track (4px), and bigger handles (30×18px, was 24×14px). Consistent look across all pages.
+
 ## 1.0.257
 - **Fix 2-step phase 1 still sending OFF**: The `skip_off_threshold` override set `should_off = False` but the OFF send code was in the same `if` block and ran anyway. Split into two separate `if should_off` checks so the override actually prevents the OFF command.
 
