@@ -4161,8 +4161,8 @@ class HomeAssistantWebSocketClient:
                 if should_off or filtered_bri <= 0:
                     continue
                 comp_bri = filtered_bri
-                if kelvin and self.primitives._is_ct_comp_enabled():
-                    comp_bri = self.primitives._apply_ct_brightness_compensation(filtered_bri, kelvin)
+                if kelvin:
+                    comp_bri = self._apply_ct_brightness_compensation(filtered_bri, kelvin)
                 sdata = {"transition": transition, "brightness_pct": comp_bri}
                 if include_color and xy is not None:
                     sdata["xy_color"] = list(xy)
