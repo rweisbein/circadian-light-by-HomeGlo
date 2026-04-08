@@ -424,8 +424,35 @@
 
     .filter-slider-group input[type="range"] {
       flex: 1;
-      accent-color: var(--accent);
       min-width: 80px;
+    }
+
+    input[type=range] {
+      -webkit-appearance: none; appearance: none;
+      height: 18px; padding: 0; margin: 0;
+      background: transparent; cursor: pointer;
+      --track-fill: rgba(255,255,255,0.5);
+      --track-empty: rgba(255,255,255,0.12);
+    }
+    input[type=range]:focus { outline: none; }
+    input[type=range]::-webkit-slider-runnable-track {
+      height: 4px;
+      background: linear-gradient(to right, var(--track-fill) var(--fill-pct, 50%), var(--track-empty) var(--fill-pct, 50%));
+      border-radius: 2px;
+    }
+    input[type=range]::-moz-range-track {
+      height: 4px; background: var(--track-empty); border-radius: 2px;
+    }
+    input[type=range]::-moz-range-progress {
+      height: 4px; background: var(--track-fill); border-radius: 2px;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 30px; height: 18px; border-radius: 9px;
+      background: #fff; border: 1px solid rgba(0,0,0,0.15); margin-top: -7px;
+    }
+    input[type=range]::-moz-range-thumb {
+      width: 30px; height: 18px; border-radius: 9px;
+      background: #fff; border: 1px solid rgba(0,0,0,0.15);
     }
 
     .filter-slider-value {
@@ -1855,6 +1882,19 @@
         console.error('Error loading filter presets:', err);
       }
     });
+
+    // Slider fill tracking for all range inputs
+    function updateSliderFill(el) {
+      const pct = (el.value - el.min) / (el.max - el.min) * 100;
+      el.style.setProperty('--fill-pct', pct + '%');
+    }
+    document.addEventListener('input', (e) => {
+      if (e.target.matches('input[type=range]')) updateSliderFill(e.target);
+    });
+    // Init all sliders on load
+    setTimeout(() => {
+      document.querySelectorAll('input[type=range]').forEach(updateSliderFill);
+    }, 500);
   </script>
 </body>
 </html>

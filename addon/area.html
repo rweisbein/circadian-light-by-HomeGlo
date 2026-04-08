@@ -482,7 +482,7 @@
 
     .auto-sched-fade-row { display: flex; align-items: center; gap: 8px; padding: 6px 14px 2px 30px; }
     .auto-sched-fade-label { font-size: 0.78rem; color: var(--muted); min-width: 4em; }
-    .auto-sched-fade-slider { flex: 1; accent-color: var(--muted); }
+    .auto-sched-fade-slider { flex: 1; }
     .auto-sched-fade-val { font-size: 0.78rem; color: var(--muted); min-width: 3em; text-align: right; font-variant-numeric: tabular-nums; }
 
     .auto-sched-skip-row { display: flex; align-items: center; gap: 6px; padding: 4px 14px 2px 30px; font-size: 0.78rem; color: var(--muted); cursor: pointer; }
@@ -4094,9 +4094,11 @@
     }
 
     function updateAutoFadeDisplay(type) {
-      const idx = parseInt(document.getElementById('auto-' + type + '-fade')?.value || '0');
+      const el = document.getElementById('auto-' + type + '-fade');
+      const idx = parseInt(el?.value || '0');
       const min = fadeIndexToMinutes(idx);
       document.getElementById('auto-' + type + '-fade-val').textContent = min + ' min';
+      if (el) updateSliderFill(el);
     }
 
     // ---- Override popover ----
