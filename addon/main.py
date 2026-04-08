@@ -3787,28 +3787,16 @@ class HomeAssistantWebSocketClient:
 
                 two_step_filters.add(filt_norm)
 
-                if brightening:
-                    # Brightening: send target color at current brightness first
-                    phase1_bri = max(1, current_bri_pct)
-                else:
-                    # Dimming: send target brightness at current color first
-                    # (dim while warm, then shift color at dim level)
-                    # Phase 1 dims without color; phase 2 applies color
-                    phase1_bri = None  # handled below as dim-first
+                # Phase 1: target color at low brightness (min of current and target)
+                # Color change happens at low brightness = invisible arc
+                phase1_bri = max(1, min(current_bri_pct, filtered_bri))
 
-                # Build phase 1 command based on direction:
-                # Brightening: target color at current brightness (color shifts while dim)
-                # Dimming: target brightness without color change (dims first, then color)
                 def _add_p1(entity_id, cap_type):
-                    if brightening:
-                        p1 = {"transition": 0, "brightness_pct": phase1_bri}
-                        if cap_type == "color" and xy is not None:
-                            p1["xy_color"] = list(xy)
-                        elif cap_type == "ct":
-                            p1["color_temp_kelvin"] = max(2000, kelvin)
-                    else:
-                        # Dimming: brightness only, no color (shift color in phase 2)
-                        p1 = {"transition": 0, "brightness_pct": filtered_bri}
+                    p1 = {"transition": 0, "brightness_pct": phase1_bri}
+                    if cap_type == "color" and xy is not None:
+                        p1["xy_color"] = list(xy)
+                    elif cap_type == "ct":
+                        p1["color_temp_kelvin"] = max(2000, kelvin)
                     phase1_tasks.append(
                         self.call_service(
                             "light", "turn_on", p1, {"entity_id": entity_id}
@@ -3828,10 +3816,9 @@ class HomeAssistantWebSocketClient:
                     reason = (
                         "off→on" if is_off else f"{current_bri_pct}%→{filtered_bri}%"
                     )
-                    direction = "brighten" if brightening else "dim"
                     delta_str = f"{ct_diff}K" if ct_diff is not None else "?K"
                     logger.info(
-                        f"Purpose 2-step ({filter_name}): {direction} phase 1 ({reason}, CT Δ{delta_str})"
+                        f"Purpose 2-step ({filter_name}): phase 1 at {phase1_bri}% ({reason}, CT Δ{delta_str})"
                     )
 
         for filter_name, lights_by_cap in filter_groups.items():
