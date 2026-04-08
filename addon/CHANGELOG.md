@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.257
+- **Fix 2-step phase 1 still sending OFF**: The `skip_off_threshold` override set `should_off = False` but the OFF send code was in the same `if` block and ran anyway. Split into two separate `if should_off` checks so the override actually prevents the OFF command.
+
 ## 1.0.256
 - **Fix 2-step skipping purposes below off threshold**: During 2-step phase 1 (at 1% brightness), purposes like "Standard no nitelite" calculated below the off threshold and were skipped — no color pre-set. Bulbs then turned on at their last remembered color (e.g. 500K red from nitelite) in phase 2 and ignored the color command. Now forces a 1% color pre-set for these purposes in phase 1. Also added missing `skip_off_threshold=True` to single-area turn-on phase 1.
 

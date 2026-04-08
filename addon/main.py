@@ -3837,11 +3837,12 @@ class HomeAssistantWebSocketClient:
                     # remembered color in phase 2, causing a visible color arc).
                     filtered_bri = 1
                     should_off = False
-                    if log_periodic:
-                        logger.info(
-                            f"Purpose '{filter_name}': forcing 1% color pre-set (skip_off_threshold, phase 1)"
-                        )
+                    logger.info(
+                        f"Purpose '{filter_name}': forcing 1% color pre-set (skip_off_threshold, phase 1)"
+                    )
+                    # Fall through to normal turn-on path below with filtered_bri=1
 
+            if should_off:
                 # Send OFF to these lights
                 off_entities = (
                     lights_by_cap["color"]
