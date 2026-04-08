@@ -3703,6 +3703,36 @@ class HomeAssistantWebSocketClient:
                     boost_brightness=boost_brightness,
                 )
                 if should_off:
+                    # Check if this purpose would be ON at the target brightness
+                    # (it's only off because we're checking at the current low brightness)
+                    target_bri, target_off = apply_light_filter_pipeline(
+                        base_brightness if base_brightness > 1 else rhythm_brightness or base_brightness,
+                        min_bri, max_bri, area_factor, preset, off_threshold,
+                        rhythm_brightness=rhythm_brightness,
+                        brightness_override=brightness_override,
+                        boost_brightness=boost_brightness,
+                    )
+                    if not target_off and target_bri > 0:
+                        # Will be on at target — add to 2-step with forced 1% color pre-set
+                        two_step_filters.add(filt_norm)
+                        # Build phase 1 task: 1% with target color
+                        zha_color_p1 = group_candidates.get(f"zha_group_{filt_norm}_color")
+                        zha_ct_p1 = group_candidates.get(f"zha_group_{filt_norm}_ct")
+                        def _add_offpurpose_p1(entity_id, cap_type):
+                            p1 = {"transition": 0, "brightness_pct": 1}
+                            if cap_type == "color" and xy is not None:
+                                p1["xy_color"] = list(xy)
+                            elif cap_type == "ct":
+                                p1["color_temp_kelvin"] = max(2000, kelvin)
+                            phase1_tasks.append(
+                                self.call_service("light", "turn_on", p1, {"entity_id": entity_id})
+                            )
+                        if zha_color_p1:
+                            _add_offpurpose_p1(zha_color_p1, "color")
+                        if zha_ct_p1:
+                            _add_offpurpose_p1(zha_ct_p1, "ct")
+                        if log_periodic:
+                            logger.info(f"Purpose '{filter_name}': off at check bri, forcing 1% phase1 for 2-step")
                     continue
 
                 # Find representative entity to check current state
