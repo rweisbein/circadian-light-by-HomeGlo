@@ -4107,11 +4107,13 @@ class HomeAssistantWebSocketClient:
         # Wave 1: phase 1 (1% for off→on groups) + normal updates (already-on + turn-offs)
         wave1 = phase1_tasks + tasks
         if wave1:
+            logger.info(f"[2-step wave] {area_id}: wave1={len(phase1_tasks)} phase1 + {len(tasks)} direct, wave2={len(phase2_tasks)} phase2, two_step_filters={two_step_filters}")
             await asyncio.gather(*wave1)
 
         # Wave 2: delay + phase 2 (target brightness for off→on groups)
         if phase2_tasks:
             two_step_delay = self.primitives._get_two_step_delay()
+            logger.info(f"[2-step wave] {area_id}: delay {two_step_delay}s before {len(phase2_tasks)} phase2 tasks")
             await asyncio.sleep(two_step_delay)
             await asyncio.gather(*phase2_tasks)
 
