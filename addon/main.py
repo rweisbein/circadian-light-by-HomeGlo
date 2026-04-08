@@ -3747,6 +3747,7 @@ class HomeAssistantWebSocketClient:
                     or (lights_by_cap["ct"][0] if lights_by_cap["ct"] else None)
                 )
                 if not check_entity:
+                    logger.info(f"[2-step] {area_id}/{filter_name}: SKIP no check_entity (zha_color={zha_color}, zha_ct={zha_ct}, color_lights={len(lights_by_cap['color'])}, ct_lights={len(lights_by_cap['ct'])})")
                     continue
 
                 purpose_st = state.get_last_sent_purpose(area_id, filter_name)
@@ -3788,6 +3789,7 @@ class HomeAssistantWebSocketClient:
                     brightening = True
 
                 two_step_filters.add(filt_norm)
+                logger.info(f"[2-step] {area_id}/{filter_name}: FIRE ct_diff={ct_diff}, bri {current_bri_pct}→{filtered_bri}")
 
                 # Phase 1: target color at low brightness (min of current and target)
                 # Color change happens at low brightness = invisible arc
