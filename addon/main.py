@@ -3611,6 +3611,7 @@ class HomeAssistantWebSocketClient:
         applies CT compensation per-group, and dispatches to filter-specific ZHA sub-groups.
         Lights below the off threshold receive a turn_off command.
         """
+        logger.info(f"[turn_on_lights_circadian] {area_id}: kelvin={color_temp}, bri={brightness}, log_periodic={log_periodic}, skip_two_step={skip_two_step}")
         presets = glozone.get_light_filter_presets()
         off_threshold = glozone.get_off_threshold()
 
@@ -3681,8 +3682,8 @@ class HomeAssistantWebSocketClient:
             and ct_threshold > 0
         )
         if not _two_step_gate:
-            logger.debug(
-                f"[2-step] Skipped for {area_id}: skip_two_step={skip_two_step}, "
+            logger.info(
+                f"[2-step] Gate CLOSED for {area_id}: skip_two_step={skip_two_step}, "
                 f"is_all_hue={is_all_hue}, kelvin={kelvin}, ct_threshold={ct_threshold}"
             )
         if _two_step_gate:
