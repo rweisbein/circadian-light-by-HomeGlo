@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.265
+- **Remove 2-step debug logging**: Cleaned up temporary INFO/DEBUG logs from the 2-step investigation.
+
 ## 1.0.264
 - **Fix 2-step never firing in filtered path**: `set_last_sent_kelvin` was called in `turn_on_lights_circadian` BEFORE passing to `_turn_on_lights_filtered`, overwriting the previous kelvin. The 2-step check then saw zero CT delta (target == just-written value) and always skipped. Now saves `prev_kelvin` before updating and passes it to the 2-step check.
 

@@ -3616,7 +3616,6 @@ class HomeAssistantWebSocketClient:
         applies CT compensation per-group, and dispatches to filter-specific ZHA sub-groups.
         Lights below the off threshold receive a turn_off command.
         """
-        logger.info(f"[turn_on_lights_filtered] {area_id}: kelvin={kelvin}, bri={base_brightness}, log_periodic={log_periodic}, skip_two_step={skip_two_step}")
         presets = glozone.get_light_filter_presets()
         off_threshold = glozone.get_off_threshold()
 
@@ -3686,9 +3685,7 @@ class HomeAssistantWebSocketClient:
             and kelvin is not None
             and ct_threshold > 0
         )
-        logger.info(f"[2-step] {area_id}: gate={'OPEN' if _two_step_gate else 'CLOSED'}, skip_two_step={skip_two_step}, is_all_hue={is_all_hue}, kelvin={kelvin}, ct_threshold={ct_threshold}")
         if not _two_step_gate:
-            pass  # gate closed, skip 2-step check
         if _two_step_gate:
             for filter_name, lights_by_cap in filter_groups.items():
                 filt_norm = filter_name.replace(" ", "_").lower()
@@ -3735,16 +3732,10 @@ class HomeAssistantWebSocketClient:
                 if current_ct is not None:
                     ct_diff = abs(kelvin - current_ct)
                     if ct_diff < ct_threshold:
-                        logger.debug(
-                            f"[2-step] {area_id}/{filter_name}: SKIP ct_diff={ct_diff}K < {ct_threshold}K"
-                        )
                         continue
                 else:
                     # Unknown CT: 2-step for off→on (flash is jarring), skip for already-on
                     if not is_off:
-                        logger.debug(
-                            f"[2-step] {area_id}/{filter_name}: SKIP unknown CT, lights on"
-                        )
                         continue
                     ct_diff = None
 
@@ -3756,10 +3747,6 @@ class HomeAssistantWebSocketClient:
                     )
                     bri_delta = abs(filtered_bri - current_bri_pct)
                     if bri_delta < bri_delta_threshold:
-                        logger.info(
-                            f"[2-step] {area_id}/{filter_name}: SKIP bri_delta={bri_delta} < {bri_delta_threshold} "
-                            f"(current={current_bri_pct}%, target={filtered_bri}%, ct_diff={ct_diff}K)"
-                        )
                         continue
                     brightening = filtered_bri > current_bri_pct
                 else:
@@ -3770,11 +3757,6 @@ class HomeAssistantWebSocketClient:
                     brightening = True
 
                 two_step_filters.add(filt_norm)
-                logger.info(
-                    f"[2-step] {area_id}/{filter_name}: FIRE "
-                    f"is_off={is_off}, current_bri={current_bri_pct}%, target={filtered_bri}%, "
-                    f"ct_diff={ct_diff}K, {'brightening' if brightening else 'dimming'}"
-                )
 
                 if brightening:
                     # Brightening: send target color at current brightness first
