@@ -4135,6 +4135,7 @@ class HomeAssistantWebSocketClient:
             logger.info(f"[2-step wave] {area_id}: delay {two_step_delay}s before phase2")
             await asyncio.sleep(two_step_delay)
             # Re-send all 2-step purposes at target brightness
+            logger.info(f"[2-step phase2] {area_id}: starting phase2 for {two_step_filters}, base_bri={base_brightness}, kelvin={kelvin}")
             for filter_name, lights_by_cap in filter_groups.items():
                 filt_norm_p2 = filter_name.replace(" ", "_").lower()
                 if filt_norm_p2 not in two_step_filters:
