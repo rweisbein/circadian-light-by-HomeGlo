@@ -3844,10 +3844,10 @@ class HomeAssistantWebSocketClient:
                     )
                 continue
 
-            # Route 2-step groups to phase2_tasks (run after delay)
-            target_tasks = (
-                phase2_tasks if filt_norm_check in two_step_filters else tasks
-            )
+            # Skip 2-step purposes in main loop — handled by phase 2 after delay
+            if filt_norm_check in two_step_filters:
+                continue
+            target_tasks = tasks
 
             preset = presets.get(filter_name, {"at_bright": 100, "at_dim": 100})
 
