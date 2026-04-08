@@ -311,7 +311,6 @@ input[type=range]::-moz-range-thumb {
 .modeled-conditions {
   display: flex;
   align-items: center;
-  width: 100%;
 }
 .modeled-conditions select {
   padding: 4px 8px;
@@ -1205,26 +1204,28 @@ input[type=range]::-moz-range-thumb {
         <span class="chart-date-display" id="chart-date-display">Today</span>
         <input type="range" id="chart-date-slider" min="0" max="364" value="0">
       </div>
-      <div class="modeled-conditions">
-        <select id="modeled-conditions" title="Preview how weather affects the color curve" style="width: 130px;">
-          <option value="current" selected>Current</option>
-          <option value="1.0">Sunny (100%)</option>
-          <option value="0.6">Partly cloudy (60%)</option>
-          <option value="0.3">Cloudy (30%)</option>
-          <option value="0.2">Rainy / Snowy (20%)</option>
-          <option value="0.15">Fog (15%)</option>
-          <option value="0.1">Pouring / Hail (10%)</option>
-          <option value="0.08">Lightning (8%)</option>
-          <option value="0">Dark (0%)</option>
-        </select>
-      </div>
-      <div class="chart-schedule-toggles" id="chart-schedule-toggles" style="display:none;">
-        <label class="schedule-toggle" id="chart-wake-secondary-toggle">
-          <input type="checkbox" id="chart-wake-secondary"> wake 2
-        </label>
-        <label class="schedule-toggle" id="chart-bed-secondary-toggle">
-          <input type="checkbox" id="chart-bed-secondary"> bed 2
-        </label>
+      <div style="display:flex;align-items:center;width:100%;">
+        <div class="chart-schedule-toggles" id="chart-schedule-toggles" style="display:none;">
+          <label class="schedule-toggle" id="chart-wake-secondary-toggle">
+            <input type="checkbox" id="chart-wake-secondary"> wake 2
+          </label>
+          <label class="schedule-toggle" id="chart-bed-secondary-toggle">
+            <input type="checkbox" id="chart-bed-secondary"> bed 2
+          </label>
+        </div>
+        <div class="modeled-conditions" style="margin-left:auto;">
+          <select id="modeled-conditions" title="Preview how weather affects the color curve" style="width: 130px;">
+            <option value="current" selected>Current</option>
+            <option value="1.0">Sunny (100%)</option>
+            <option value="0.6">Partly cloudy (60%)</option>
+            <option value="0.3">Cloudy (30%)</option>
+            <option value="0.2">Rainy / Snowy (20%)</option>
+            <option value="0.15">Fog (15%)</option>
+            <option value="0.1">Pouring / Hail (10%)</option>
+            <option value="0.08">Lightning (8%)</option>
+            <option value="0">Dark (0%)</option>
+          </select>
+        </div>
       </div>
     </div>
     <div class="chart-wrapper">

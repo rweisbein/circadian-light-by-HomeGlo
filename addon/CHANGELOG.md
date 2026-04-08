@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.259
+- **Rhythm zone chart toolbar**: Wake 2/Bed 2 toggles and weather conditions dropdown now on same line (toggles left, conditions right). Saves vertical space.
+
 ## 1.0.258
 - **Slider styling overhaul**: All range sliders across 4 pages (home, area detail, rhythm design, tune) now have stronger fill/empty contrast (50% vs 12% opacity), thicker track (4px), and bigger handles (30×18px, was 24×14px). Consistent look across all pages.
 
