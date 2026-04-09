@@ -3791,9 +3791,10 @@ class HomeAssistantWebSocketClient:
                 two_step_filters.add(filt_norm)
                 logger.info(f"[2-step] {area_id}/{filter_name}: FIRE ct_diff={ct_diff}, bri {current_bri_pct}→{filtered_bri}")
 
-                # Phase 1: target color at low brightness (min of current and target)
-                # Color change happens at low brightness = invisible arc
-                phase1_bri = max(1, min(current_bri_pct, filtered_bri))
+                # Phase 1: target color at low brightness
+                # Off→on: always 1% (bulbs remember last color, minimize flash)
+                # Already on: min of current and target (color change at dimmer level)
+                phase1_bri = 1 if is_off else max(1, min(current_bri_pct, filtered_bri))
 
                 def _add_p1(entity_id, cap_type):
                     p1 = {"transition": 0, "brightness_pct": phase1_bri}
