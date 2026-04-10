@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.287
+- **2-step direction-aware phases**: When dimming, phase 1 dims to target (keeps old color), phase 2 changes color at dim level. When brightening, phase 1 sets color at low brightness, phase 2 ramps up. Both phases now use configured transition speed (no more instant `transition=0` jumps).
+
 ## 1.0.286
 - **Retire "NL" terminology**: Rename all `nl_factor` → `sun_bright_factor`, `_compute_nl_factor` → `_compute_sun_bright_factor`, `nl_exposure` → `sun_exposure` across all Python, HTML, and test files. Comments and log strings updated. Zero logic changes.
 

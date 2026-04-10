@@ -3823,6 +3823,7 @@ class HomeAssistantWebSocketClient:
         phase1_tasks = []
         phase2_tasks = []
         two_step_filters = set()
+        two_step_dimming = set()  # filters where 2-step is dimming (swap phase order)
         is_all_hue = self.is_all_hue_area(area_id)
         raw_cfg = glozone.load_config_from_files()
         ct_threshold = raw_cfg.get("two_step_ct_threshold", 500)
@@ -3885,7 +3886,7 @@ class HomeAssistantWebSocketClient:
                         zha_ct_p1 = group_candidates.get(f"zha_group_{filt_norm}_ct")
 
                         def _add_offpurpose_p1(entity_id, cap_type):
-                            p1 = {"transition": 0, "brightness_pct": 1}
+                            p1 = {"transition": transition, "brightness_pct": 1}
                             if cap_type == "color" and xy is not None:
                                 p1["xy_color"] = list(xy)
                             elif cap_type == "ct":
@@ -3957,40 +3958,61 @@ class HomeAssistantWebSocketClient:
                     brightening = True
 
                 two_step_filters.add(filt_norm)
+                if not brightening:
+                    two_step_dimming.add(filt_norm)
 
-                # Phase 1: target color at low brightness
-                # Off→on: always 1% (bulbs remember last color, minimize flash)
-                # Already on: min of current and target (color change at dimmer level)
-                phase1_bri = 1 if is_off else max(1, min(current_bri_pct, filtered_bri))
+                if brightening or is_off:
+                    # Brightening / off→on: phase 1 = new color at low brightness
+                    phase1_bri = 1 if is_off else max(1, min(current_bri_pct, filtered_bri))
 
-                def _add_p1(entity_id, cap_type):
-                    p1 = {"transition": 0, "brightness_pct": phase1_bri}
-                    if cap_type == "color" and xy is not None:
-                        p1["xy_color"] = list(xy)
-                    elif cap_type == "ct":
-                        p1["color_temp_kelvin"] = max(2000, kelvin)
-                    phase1_tasks.append(
-                        self.call_service(
-                            "light", "turn_on", p1, {"entity_id": entity_id}
+                    def _add_p1_brighten(entity_id, cap_type):
+                        p1 = {"transition": transition, "brightness_pct": phase1_bri}
+                        if cap_type == "color" and xy is not None:
+                            p1["xy_color"] = list(xy)
+                        elif cap_type == "ct":
+                            p1["color_temp_kelvin"] = max(2000, kelvin)
+                        phase1_tasks.append(
+                            self.call_service(
+                                "light", "turn_on", p1, {"entity_id": entity_id}
+                            )
                         )
-                    )
 
-                if zha_color:
-                    _add_p1(zha_color, "color")
-                elif lights_by_cap["color"]:
-                    _add_p1(lights_by_cap["color"], "color")
-                if zha_ct:
-                    _add_p1(zha_ct, "ct")
-                elif lights_by_cap["ct"]:
-                    _add_p1(lights_by_cap["ct"], "ct")
+                    if zha_color:
+                        _add_p1_brighten(zha_color, "color")
+                    elif lights_by_cap["color"]:
+                        _add_p1_brighten(lights_by_cap["color"], "color")
+                    if zha_ct:
+                        _add_p1_brighten(zha_ct, "ct")
+                    elif lights_by_cap["ct"]:
+                        _add_p1_brighten(lights_by_cap["ct"], "ct")
+                else:
+                    # Dimming: phase 1 = dim to target brightness (keep OLD color)
+                    def _add_p1_dim(entity_id, cap_type):
+                        p1 = {"transition": transition, "brightness_pct": filtered_bri}
+                        # No color data — keep current color during dim
+                        phase1_tasks.append(
+                            self.call_service(
+                                "light", "turn_on", p1, {"entity_id": entity_id}
+                            )
+                        )
+
+                    if zha_color:
+                        _add_p1_dim(zha_color, "color")
+                    elif lights_by_cap["color"]:
+                        _add_p1_dim(lights_by_cap["color"], "color")
+                    if zha_ct:
+                        _add_p1_dim(zha_ct, "ct")
+                    elif lights_by_cap["ct"]:
+                        _add_p1_dim(lights_by_cap["ct"], "ct")
 
                 if log_periodic:
                     reason = (
                         "off→on" if is_off else f"{current_bri_pct}%→{filtered_bri}%"
                     )
                     delta_str = f"{ct_diff}K" if ct_diff is not None else "?K"
+                    mode = "brighten" if brightening else "dim"
                     logger.info(
-                        f"Purpose 2-step ({filter_name}): phase 1 at {phase1_bri}% ({reason}, CT Δ{delta_str})"
+                        f"Purpose 2-step ({filter_name}): phase 1 {mode} ({reason}, CT Δ{delta_str})"
                     )
 
         for filter_name, lights_by_cap in filter_groups.items():
@@ -4308,7 +4330,9 @@ class HomeAssistantWebSocketClient:
         if two_step_filters:
             two_step_delay = self.primitives._get_two_step_delay()
             await asyncio.sleep(two_step_delay)
-            # Re-send all 2-step purposes at target brightness
+            # Phase 2: complete the 2-step for each purpose
+            # Brightening: send target brightness + color
+            # Dimming: send new color at target brightness (already dimmed in phase 1)
             try:
                 for filter_name, lights_by_cap in filter_groups.items():
                     filt_norm_p2 = filter_name.replace(" ", "_").lower()
@@ -4340,7 +4364,15 @@ class HomeAssistantWebSocketClient:
                             comp_bri = self._apply_ct_brightness_compensation(
                                 filtered_bri, kelvin
                             )
-                        sdata = {"transition": transition, "brightness_pct": comp_bri}
+
+                        is_dimming = filt_norm_p2 in two_step_dimming
+
+                        # Color lights
+                        sdata = {"transition": transition}
+                        if not is_dimming:
+                            # Brightening: send brightness + color
+                            sdata["brightness_pct"] = comp_bri
+                        # Dimming: brightness already at target from phase 1, just add color
                         if include_color and xy is not None:
                             sdata["xy_color"] = list(xy)
                         zha_group = group_candidates.get(
@@ -4359,7 +4391,9 @@ class HomeAssistantWebSocketClient:
                             )
                         # CT lights
                         zha_ct = group_candidates.get(f"zha_group_{filt_norm_p2}_ct")
-                        ct_data = {"transition": transition, "brightness_pct": comp_bri}
+                        ct_data = {"transition": transition}
+                        if not is_dimming:
+                            ct_data["brightness_pct"] = comp_bri
                         if include_color and kelvin:
                             ct_data["color_temp_kelvin"] = max(2000, kelvin)
                         if zha_ct:
