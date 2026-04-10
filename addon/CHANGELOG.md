@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.286
+- **Retire "NL" terminology**: Rename all `nl_factor` → `sun_bright_factor`, `_compute_nl_factor` → `_compute_sun_bright_factor`, `nl_exposure` → `sun_exposure` across all Python, HTML, and test files. Comments and log strings updated. Zero logic changes.
+
 ## 1.0.285
 - **Pipeline re-architecture Phase 2**: All callers (primitives, motion, boost, step, etc.) now compute via `pipeline.compute()`. Added precomputed curve support to pipeline — callers that already computed base values skip `calculate_lighting`. Legacy inline NL/override/boost/filter/CT computation in `turn_on_lights_circadian` replaced with pipeline. 7 new precomputed tests. Zero changes to primitives.py.
 

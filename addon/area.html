@@ -1767,7 +1767,7 @@
       // Color slider: prefer API kelvin (handles direct additive override + decay)
       const effectiveCCT = areaState.api_kelvin != null ? areaState.api_kelvin : currentCCT;
       const cctFrac = cMax > cMin ? Math.max(0, Math.min(100, (effectiveCCT - cMin) / (cMax - cMin) * 100)) : 50;
-      // Circadian slider uses actual_brightness (same as home page — reflects fade, NL, etc.)
+      // Circadian slider uses actual_brightness (same as home page — reflects fade, sun bright, etc.)
       const actualBriMapped = areaState.actual_brightness != null
         ? (bMax > bMin ? Math.max(0, Math.min(100, (areaState.actual_brightness - bMin) / (bMax - bMin) * 100)) : 50)
         : curveFrac;
@@ -2243,7 +2243,7 @@
                 tuneState.outdoorSourceEntity = ls.outdoor_source_entity ?? null;
                 tuneState.outdoorLastUpdate = ls.outdoor_last_update ?? null;
                 tuneState.brightnessSensitivity = ls.brightness_sensitivity ?? 5.0;
-                tuneState.backendNlFactor = ls.nl_factor ?? null;
+                tuneState.backendSunBrightFactor = ls.sun_bright_factor ?? null;
                 tuneState.brightnessFadeWeight = ls.brightness_fade_weight ?? null;
                 tuneState.luxSmoothed = ls.lux_smoothed ?? null;
                 tuneState.luxCeiling = ls.lux_ceiling ?? null;
@@ -2746,7 +2746,7 @@
       luxSmoothed: null, luxCeiling: null, luxFloor: null, weatherCondition: null,
       ctEnabled: false, ctBegin: 1650, ctEnd: 2250, ctMax: 1.4,
       brightnessSensitivity: 5.0,
-      backendNlFactor: null,
+      backendSunBrightFactor: null,
       brightnessFadeWeight: null,
       solarBreakdown: null,
       areaFactor: 1.0,
@@ -3127,23 +3127,23 @@
       if (!tuneState.initialized) return;
       const ts = tuneState;
 
-      // -- Brightness cascade (matches backend: curve → NL → area×factor → +override → +boost) --
+      // -- Brightness cascade (matches backend: curve → sun bright → area×factor → +override → +boost) --
       const baseBriPct = ts.baseBri;
       let running = baseBriPct / 100;
 
-      // Solar: client-side NL factor (mirrors brain.py:calculate_natural_light_factor)
+      // Solar: client-side sun bright factor (mirrors brain.py:calculate_natural_light_factor)
       const exposure = SOLAR_STEPS[ts.solarStep].exposure;
-      let nlFactor = 1.0;
+      let sunBrightFactor = 1.0;
       if (exposure > 0 && ts.outdoorNormalized > 0) {
         // Use brightness-specific fade weight from backend (not color breakdown)
         const fadeWeight = (ts.brightnessFadeWeight != null)
           ? ts.brightnessFadeWeight : 1.0;
         const fadedOutdoor = ts.outdoorNormalized * fadeWeight;
-        nlFactor = Math.max(0.0, 1.0 - exposure * fadedOutdoor * ts.brightnessSensitivity);
+        sunBrightFactor = Math.max(0.0, 1.0 - exposure * fadedOutdoor * ts.brightnessSensitivity);
       }
-      const nlFactorPct = Math.round(nlFactor * 100);
+      const sunBrightFactorPct = Math.round(sunBrightFactor * 100);
       const beforeSolar = Math.round(running * 100);
-      running *= nlFactor;
+      running *= sunBrightFactor;
       const afterSolar = Math.round(running * 100);
       const solarImpact = afterSolar - beforeSolar;
 
@@ -3456,7 +3456,7 @@
         ctEnd: config.ct_comp_end || 2250,
         ctMax: config.ct_comp_factor || 1.7,
         brightnessSensitivity: liveStatus.brightness_sensitivity ?? 5.0,
-        backendNlFactor: liveStatus.nl_factor ?? null,
+        backendSunBrightFactor: liveStatus.sun_bright_factor ?? null,
         brightnessFadeWeight: liveStatus.brightness_fade_weight ?? null,
         solarBreakdown: liveStatus.solar_breakdown ?? null,
         areaFactor: LUMEN_STEPS[lumenStep].factor,

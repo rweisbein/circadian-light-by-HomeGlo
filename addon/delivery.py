@@ -21,7 +21,7 @@ async def deliver(
     """Deliver pipeline results to lights.
 
     Passes the PipelineResult directly — turn_on_lights_circadian skips
-    all inline computation (NL, filters, CT comp) when pipeline_result is set.
+    all inline computation (sun bright, filters, CT comp) when pipeline_result is set.
     """
     await client.turn_on_lights_circadian(
         area_id,

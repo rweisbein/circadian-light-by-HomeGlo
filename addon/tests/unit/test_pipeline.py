@@ -74,7 +74,7 @@ class TestBaseCurve:
 
 
 # ---------------------------------------------------------------------------
-# Step 5: Sun bright adjustment (NL)
+# Step 5: Sun bright adjustment
 # ---------------------------------------------------------------------------
 
 
@@ -82,7 +82,7 @@ class TestSunBrightAdjustment:
     """Pipeline step 5: natural light / sun bright adjustment."""
 
     def test_no_exposure_no_reduction(self):
-        """Area with zero exposure should have no NL reduction."""
+        """Area with zero exposure should have no sun bright reduction."""
         result = compute(
             _make_ctx(
                 hour=12.0,
@@ -277,8 +277,8 @@ class TestCTCompensation:
 class TestPipelineConsistency:
     """Verify pipeline output matches existing brain.py calculations."""
 
-    def test_matches_brain_no_nl_no_filter(self):
-        """With no NL and no filters, pipeline brightness should match curve."""
+    def test_matches_brain_no_sun_bright_no_filter(self):
+        """With no sun bright and no filters, pipeline brightness should match curve."""
         ctx = _make_ctx(hour=14.0)
         result = compute(ctx)
         direct = CircadianLight.calculate_lighting(
@@ -287,8 +287,8 @@ class TestPipelineConsistency:
         assert result.purposes[0].brightness == direct.brightness
         assert result.purposes[0].kelvin == direct.color_temp
 
-    def test_matches_brain_with_nl(self):
-        """With NL, pipeline should apply same factor as brain."""
+    def test_matches_brain_with_sun_bright(self):
+        """With sun bright, pipeline should apply same factor as brain."""
         ctx = _make_ctx(
             hour=12.0,
             sun_exposure=0.5,
@@ -419,9 +419,9 @@ class TestPrecomputedCurve:
         )
         assert result.rhythm_brightness == 60
 
-    def test_precomputed_nl_still_applies(self):
-        """NL should still reduce brightness on top of precomputed values."""
-        no_nl = compute(
+    def test_precomputed_sun_bright_still_applies(self):
+        """Sun bright should still reduce brightness on top of precomputed values."""
+        no_sun = compute(
             _make_ctx(
                 hour=12.0,
                 precomputed_brightness=80,
@@ -430,7 +430,7 @@ class TestPrecomputedCurve:
                 sun_intensity=1.0,
             )
         )
-        with_nl = compute(
+        with_sun = compute(
             _make_ctx(
                 hour=12.0,
                 precomputed_brightness=80,
@@ -439,7 +439,7 @@ class TestPrecomputedCurve:
                 sun_intensity=1.0,
             )
         )
-        assert with_nl.purposes[0].brightness < no_nl.purposes[0].brightness
+        assert with_sun.purposes[0].brightness < no_sun.purposes[0].brightness
 
     def test_precomputed_with_filters(self):
         """Filters should work on top of precomputed brightness."""

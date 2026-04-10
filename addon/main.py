@@ -2782,17 +2782,17 @@ class HomeAssistantWebSocketClient:
                     logger.debug("Reach feedback disabled, skipping")
                     return
 
-                # Determine flash direction based on NL and brightness
-                # On + NL=0: flash OFF → restore (normal)
-                # On + NL > 0, brightness ≥ threshold: flash OFF → restore (normal)
-                # On + NL > 0, brightness < threshold: flash UP to 100% → restore
-                # Off + NL > 0: flash UP to 100% → off (daytime, NL-aware)
-                # Off + NL=0: flash on at bounce % with circadian color → off
+                # Determine flash direction based on sun bright and brightness
+                # On + sun=0: flash OFF → restore (normal)
+                # On + sun > 0, brightness ≥ threshold: flash OFF → restore (normal)
+                # On + sun > 0, brightness < threshold: flash UP to 100% → restore
+                # Off + sun > 0: flash UP to 100% → off (daytime, sun-bright-aware)
+                # Off + sun=0: flash on at bounce % with circadian color → off
                 flash_up = False
                 bri_pct = cached_bri / 2.55
                 if feedback_area:
-                    nl_exposure = glozone.get_area_natural_light_exposure(feedback_area)
-                    if nl_exposure > 0:
+                    sun_exposure = glozone.get_area_natural_light_exposure(feedback_area)
+                    if sun_exposure > 0:
                         outdoor_norm = lux_tracker.get_outdoor_normalized() or 0.0
                         if outdoor_norm > 0:
                             threshold = self.primitives._get_reach_daytime_threshold()
@@ -3343,7 +3343,7 @@ class HomeAssistantWebSocketClient:
         1. With circadian_values dict: turn_on_lights_circadian(area_id, {"brightness": 50, "kelvin": 3000, "xy": (0.4, 0.4)})
         2. With keyword args: turn_on_lights_circadian(area_id, brightness=50, color_temp=3000)
         3. With pipeline_result: turn_on_lights_circadian(area_id, pipeline_result=result)
-           Skips all computation (NL, filters, CT comp) — uses pre-computed values.
+           Skips all computation (sun bright, filters, CT comp) — uses pre-computed values.
 
         Args:
             area_id: The area ID to control lights in
@@ -3397,7 +3397,7 @@ class HomeAssistantWebSocketClient:
             if log_periodic and p_bri is not None:
                 parts = [f"curve={pipeline_result.rhythm_brightness}%"]
                 if pipeline_result.sun_bright_factor < 1.0:
-                    parts.append(f"NL×{pipeline_result.sun_bright_factor:.2f}")
+                    parts.append(f"sun×{pipeline_result.sun_bright_factor:.2f}")
                 parts.append(f"→{p_bri}% {p_kelvin}K")
                 logger.info(f"[Pipeline] {area_id}: {' '.join(parts)}")
 
@@ -3508,7 +3508,7 @@ class HomeAssistantWebSocketClient:
         if log_periodic and p_bri is not None:
             parts = [f"curve={pipeline_result.rhythm_brightness}%"]
             if pipeline_result.sun_bright_factor < 1.0:
-                parts.append(f"NL×{pipeline_result.sun_bright_factor:.2f}")
+                parts.append(f"sun×{pipeline_result.sun_bright_factor:.2f}")
             parts.append(f"→{p_bri}% {p_kelvin}K")
             logger.info(f"[Pipeline] {area_id}: {' '.join(parts)}")
 
@@ -3736,7 +3736,7 @@ class HomeAssistantWebSocketClient:
         area_filters: Dict[str, str],
         area_factor: float,
         rhythm_brightness: int = None,
-        pre_nl_brightness: int = None,
+        pre_sun_brightness: int = None,
         brightness_override: float = None,
         boost_brightness: int = None,
         skip_filters: set = None,
@@ -4139,10 +4139,10 @@ class HomeAssistantWebSocketClient:
 
             if log_periodic:
                 curve_bri = rhythm_brightness or base_brightness
-                pre_nl = pre_nl_brightness or base_brightness
+                pre_sun = pre_sun_brightness or base_brightness
                 parts = [f"curve={curve_bri}%"]
-                if pre_nl != base_brightness:
-                    parts.append(f"NL→{base_brightness}%")
+                if pre_sun != base_brightness:
+                    parts.append(f"sun→{base_brightness}%")
                 if area_factor != 1.0:
                     parts.append(f"area×{area_factor:.2f}")
                 if brightness_override:

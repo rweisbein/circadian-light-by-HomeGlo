@@ -479,13 +479,13 @@ def apply_light_filter_pipeline(
     Pipeline: (base × area_factor + override + boost) × filter_multiplier → cap → off check.
 
     Args:
-        base_brightness: Brightness from the circadian curve (0-100), post NL
+        base_brightness: Brightness from the circadian curve (0-100), post sun bright
         min_brightness: Configured min brightness for the rhythm
         max_brightness: Configured max brightness for the rhythm
         area_factor: Per-area brightness factor (e.g., 0.85, 1.2)
         filter_preset: Dict with "at_bright" and "at_dim" keys (percent values)
         off_threshold: Brightness below which lights should be turned off
-        rhythm_brightness: Pure rhythm curve brightness for curve position (pre-NL/boost).
+        rhythm_brightness: Pure rhythm curve brightness for curve position (pre-sun-bright/boost).
                           Falls back to base_brightness if not provided.
         brightness_override: Decay-adjusted additive delta (already multiplied by decay factor).
                             Added after area_factor, before boost and filter multiplier.

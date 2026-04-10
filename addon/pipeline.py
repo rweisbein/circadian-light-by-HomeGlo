@@ -102,7 +102,7 @@ class PipelineResult:
     """Complete pipeline output for one area."""
 
     purposes: List[PurposeResult]
-    # Area-level values (pre-purpose, post-NL/factor/override/boost)
+    # Area-level values (pre-purpose, post-sun-bright/factor/override/boost)
     area_brightness: int
     area_kelvin: int
     area_xy: Tuple[float, float]
@@ -151,7 +151,7 @@ def compute(ctx: PipelineContext) -> PipelineResult:
         xy = result.xy
         phase = result.phase
 
-    # --- Step 5: Sun bright adjustment (NL) ---
+    # --- Step 5: Sun bright adjustment ---
     brightness = rhythm_brightness
     sun_bright_factor = calculate_natural_light_factor(
         ctx.sun_exposure,
@@ -202,7 +202,7 @@ def compute(ctx: PipelineContext) -> PipelineResult:
                 )
             )
 
-        # Area-level brightness = post-NL before purpose split
+        # Area-level brightness = post-sun-bright before purpose split
         area_brightness = brightness
     else:
         # No purposes — apply area_factor, override, boost directly

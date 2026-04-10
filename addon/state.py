@@ -47,7 +47,7 @@ def _get_default_area_state() -> Dict[str, Any]:
         "color_override_set_at": None,  # Hour when color override set (for decay)
         # Last-sent values (for 2-step detection and state tracking)
         "last_sent_kelvin": None,  # Kelvin we last sent (persists through on/off)
-        "last_sent_brightness": None,  # Area-level brightness % (post curve+boost+NL+area_factor+override, pre-filter)
+        "last_sent_brightness": None,  # Area-level brightness % (post curve+boost+sun_bright+area_factor+override, pre-filter)
         # Boost state
         "boost_started_from_off": False,  # If true, turn off when boost ends; else restore circadian
         "boost_expires_at": None,  # ISO timestamp string when boost expires (None = not boosted, 0 = forever)
@@ -286,7 +286,7 @@ def get_last_sent_kelvin(area_id: str) -> Optional[int]:
 
 
 def set_last_sent_brightness(area_id: str, brightness: int) -> None:
-    """Store area-level brightness (post curve+boost+NL+area_factor+override, pre-filter)."""
+    """Store area-level brightness (post curve+boost+sun_bright+area_factor+override, pre-filter)."""
     update_area(area_id, {"last_sent_brightness": brightness})
 
 

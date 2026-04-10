@@ -1880,7 +1880,7 @@ class LightDesignerServer:
         "limit_bounce_max_percent",  # Percentage of range to dip when hitting max limit (default 25)
         "limit_bounce_min_percent",  # Percentage of range to flash when hitting min limit (default 13)
         "post_action_burst_count",  # Number of burst refreshes after switch actions (0-3, default 3)
-        "reach_daytime_threshold",  # Brightness % below which reach feedback flashes UP when NL > 0 (default 50)
+        "reach_daytime_threshold",  # Brightness % below which reach feedback flashes UP when sun bright > 0 (default 50)
         "reach_feedback_enabled",  # Whether reach scope changes flash lights (default true)
         "boost_default",  # Default boost percentage (10-100, default 30)
         "long_press_repeat_interval",  # Long-press repeat interval in tenths of seconds (default 7 = 700ms)
@@ -2714,7 +2714,7 @@ class LightDesignerServer:
         Supports optional query params:
             ?area_id=X — return a single area
             ?lite=true — lightweight mode for homepage (reads stored state,
-                         skips curve/solar/NL computation)
+                         skips curve/solar/sun-bright computation)
 
         Returns a dict mapping area_id to status.
         """
@@ -2876,7 +2876,7 @@ class LightDesignerServer:
                     is_boosted = state.is_boosted(area_id)
                     boost_state = state.get_boost_state(area_id) if is_boosted else {}
 
-                    # Keep curve brightness before NL (pure circadian value)
+                    # Keep curve brightness before sun bright (pure circadian value)
                     curve_brightness = brightness
                     boost_amount = (
                         (boost_state.get("boost_brightness") or 0) if is_boosted else 0
@@ -2887,22 +2887,22 @@ class LightDesignerServer:
                     motion_warning_active = state.is_motion_warned(area_id)
 
                     # Natural light factor for this area
-                    area_nl_exposure = glozone.get_area_natural_light_exposure(area_id)
+                    area_sun_exposure = glozone.get_area_natural_light_exposure(area_id)
                     rhythm_cfg = glozone.get_zone_config_for_area(area_id)
                     area_brightness_sensitivity = glozone.get_config().get(
                         "brightness_sensitivity", 5.0
                     )
-                    # Brightness NL uses raw outdoor_norm (no daylight fade —
+                    # Brightness sun bright uses raw outdoor_norm (no daylight fade —
                     # fade applies to color solar rules only, not brightness)
-                    nl_factor = calculate_natural_light_factor(
-                        area_nl_exposure,
+                    sun_bright_factor = calculate_natural_light_factor(
+                        area_sun_exposure,
                         outdoor_norm,
                         area_brightness_sensitivity,
                     )
 
                     # Apply natural light reduction to brightness (matches main.py)
-                    if nl_factor < 1.0:
-                        brightness = max(1, int(round(brightness * nl_factor)))
+                    if sun_bright_factor < 1.0:
+                        brightness = max(1, int(round(brightness * sun_bright_factor)))
 
                     # Base kelvin (before solar rules) and solar rule breakdown
                     base_kelvin = 4000
@@ -3077,8 +3077,8 @@ class LightDesignerServer:
                         "adjusted_bed_time": adjusted_bed_time,
                         # Solar / natural light
                         "sun_elevation": round(lux_tracker.compute_sun_elevation(), 1),
-                        "natural_light_exposure": area_nl_exposure,
-                        "nl_factor": round(nl_factor, 3),
+                        "natural_light_exposure": area_sun_exposure,
+                        "sun_bright_factor": round(sun_bright_factor, 3),
                         "brightness_fade_weight": 1.0,  # Fade applies to color only, not brightness
                         "outdoor_normalized": round(outdoor_norm, 3),
                         "outdoor_source": outdoor_source,
@@ -4888,13 +4888,13 @@ class LightDesignerServer:
             b_max = area_config.max_brightness
 
             # Pipeline factors for inverting actual → curve brightness
-            area_nl_exposure = glozone.get_area_natural_light_exposure(area_id)
+            area_sun_exposure = glozone.get_area_natural_light_exposure(area_id)
             area_bri_sensitivity = glozone.get_config().get(
                 "brightness_sensitivity", 5.0
             )
             outdoor_norm = lux_tracker.get_outdoor_normalized() or 0.0
-            nl_factor = calculate_natural_light_factor(
-                area_nl_exposure, outdoor_norm, area_bri_sensitivity
+            sun_bright_factor = calculate_natural_light_factor(
+                area_sun_exposure, outdoor_norm, area_bri_sensitivity
             )
             area_factor = glozone.get_area_brightness_factor(area_id)
 
@@ -4904,8 +4904,8 @@ class LightDesignerServer:
                 boost_amount = boost_st.get("boost_brightness") or 0
 
             # Compute curve limits in actual-brightness space
-            # Pipeline: curve × NL × area_factor + override + boost
-            denominator = max(0.01, nl_factor * area_factor)
+            # Pipeline: curve × sun_bright × area_factor + override + boost
+            denominator = max(0.01, sun_bright_factor * area_factor)
             curve_max_actual = b_max * denominator + boost_amount
             curve_min_actual = max(0, b_min * denominator + boost_amount)
 

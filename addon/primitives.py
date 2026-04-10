@@ -251,7 +251,7 @@ class CircadianLightPrimitives:
     def _get_reach_daytime_threshold(self) -> float:
         """Get the reach daytime threshold (brightness % below which flash goes UP).
 
-        When NL > 0 and brightness is below this threshold, reach feedback
+        When sun bright > 0 and brightness is below this threshold, reach feedback
         flashes UP to 100% instead of off to ensure visibility.
 
         Returns:
@@ -891,8 +891,8 @@ class CircadianLightPrimitives:
     #  _color_step override+decay versions below. See color_up/color_down
     #  near _color_step for the active implementations.)
 
-    def _compute_nl_factor(self, area_id: str) -> float:
-        """Compute current natural light factor for an area (matches main.py pipeline)."""
+    def _compute_sun_bright_factor(self, area_id: str) -> float:
+        """Compute current sun bright factor for an area (matches main.py pipeline)."""
         import lux_tracker
 
         natural_exposure = glozone.get_area_natural_light_exposure(area_id)
@@ -909,7 +909,7 @@ class CircadianLightPrimitives:
     def _compute_current_actual(self, area_id: str) -> float:
         """Compute current actual brightness (post-pipeline approximation).
 
-        Pipeline: curve → NL → area_factor + override + boost.
+        Pipeline: curve → sun bright → area_factor + override + boost.
         """
         area_state = self._get_area_state(area_id)
         config = self._get_config(area_id)
@@ -930,16 +930,16 @@ class CircadianLightPrimitives:
         brightness = result.brightness
 
         # Natural light
-        nl_factor = self._compute_nl_factor(area_id)
-        if nl_factor < 1.0:
-            brightness = max(1, int(round(brightness * nl_factor)))
+        sun_bright_factor = self._compute_sun_bright_factor(area_id)
+        if sun_bright_factor < 1.0:
+            brightness = max(1, int(round(brightness * sun_bright_factor)))
 
         # Area factor + override
         area_factor = glozone.get_area_brightness_factor(area_id)
         effective_override = self._get_decayed_brightness_override(area_id) or 0
         actual = brightness * area_factor + effective_override
 
-        # Boost (after NL, area_factor, override)
+        # Boost (after sun bright, area_factor, override)
         if state.is_boosted(area_id):
             boost_state = state.get_boost_state(area_id)
             actual += boost_state.get("boost_brightness") or 0
@@ -1011,7 +1011,7 @@ class CircadianLightPrimitives:
             # Target maps slider 0-100 to actual brightness 0-100%.
             target_actual = max(0, min(100, value))
 
-            # Current actual = rhythm_bri × NL × area_factor
+            # Current actual = rhythm_bri × sun_bright × area_factor
             result = CircadianLight.calculate_lighting(
                 hour,
                 config,
@@ -1019,9 +1019,9 @@ class CircadianLightPrimitives:
                 sun_times=sun_times,
             )
             rhythm_bri = result.brightness
-            nl_factor = self._compute_nl_factor(area_id)
+            sun_bright_factor = self._compute_sun_bright_factor(area_id)
             area_factor = glozone.get_area_brightness_factor(area_id)
-            current_actual = rhythm_bri * nl_factor * area_factor
+            current_actual = rhythm_bri * sun_bright_factor * area_factor
 
             delta = round(target_actual - current_actual, 1)
             self._update_area_state(
@@ -1219,16 +1219,16 @@ class CircadianLightPrimitives:
         if abs(delta) >= 0.5:
             # Invert target to curve space
             area_factor = glozone.get_area_brightness_factor(area_id)
-            nl_factor = self._compute_nl_factor(area_id)
+            sun_bright_factor = self._compute_sun_bright_factor(area_id)
             remaining_override = self._get_decayed_brightness_override(area_id) or 0
 
-            # Undo pipeline: actual = curve * nl * area_factor + override + boost
+            # Undo pipeline: actual = curve * sun_bright * area_factor + override + boost
             boost_amount = 0
             if state.is_boosted(area_id):
                 boost_state = state.get_boost_state(area_id)
                 boost_amount = boost_state.get("boost_brightness") or 0
 
-            denominator = nl_factor * area_factor
+            denominator = sun_bright_factor * area_factor
             if denominator < 0.01:
                 denominator = 0.01  # Avoid division by zero
 
@@ -1445,9 +1445,9 @@ class CircadianLightPrimitives:
 
         # Pre-compute constants that don't change between iterations
         base_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
-        nl_factor = self._compute_nl_factor(area_id)
+        sun_bright_factor = self._compute_sun_bright_factor(area_id)
         area_factor = glozone.get_area_brightness_factor(area_id)
-        scaled_base = base_bri * nl_factor * area_factor
+        scaled_base = base_bri * sun_bright_factor * area_factor
 
         applied = False
         for step_i in range(steps):
@@ -1476,7 +1476,7 @@ class CircadianLightPrimitives:
                 if step_i == 0:
                     logger.info(
                         f"brightness_{direction} at limit for {area_id} "
-                        f"(effective={effective_bri:.1f}, nl={nl_factor:.2f}, "
+                        f"(effective={effective_bri:.1f}, sun={sun_bright_factor:.2f}, "
                         f"raw_override={area_state.brightness_override}, "
                         f"set_at={area_state.brightness_override_set_at}, "
                         f"decayed={current_override:.2f}, base={base_bri:.1f}, "
@@ -1490,7 +1490,7 @@ class CircadianLightPrimitives:
                             apply_solar_rules=True,
                             sun_times=sun_times,
                         )
-                        # Pass raw circadian brightness (pre-NL, pre-boost)
+                        # Pass raw circadian brightness (pre-sun-bright, pre-boost)
                         await self._bounce_at_limit(
                             area_id,
                             base_bri,
@@ -1520,7 +1520,7 @@ class CircadianLightPrimitives:
                 if step_i == 0:
                     logger.info(
                         f"brightness_{direction} clamped at limit for {area_id} "
-                        f"(effective={scaled_base + new_override:.1f}, nl={nl_factor:.2f}, "
+                        f"(effective={scaled_base + new_override:.1f}, sun={sun_bright_factor:.2f}, "
                         f"raw_override={area_state.brightness_override}, "
                         f"set_at={area_state.brightness_override_set_at}, "
                         f"decayed={current_override:.2f}, base={base_bri:.1f}, "
@@ -1534,7 +1534,7 @@ class CircadianLightPrimitives:
                             apply_solar_rules=True,
                             sun_times=sun_times,
                         )
-                        # Pass raw circadian brightness (pre-NL, pre-boost)
+                        # Pass raw circadian brightness (pre-sun-bright, pre-boost)
                         await self._bounce_at_limit(
                             area_id,
                             base_bri,
@@ -1555,7 +1555,7 @@ class CircadianLightPrimitives:
             logger.info(
                 f"[{source}] brightness_{direction} for {area_id}: "
                 f"override {current_override:.1f} -> {new_override} "
-                f"(base={base_bri:.0f}, nl={nl_factor:.2f}, factor={area_factor:.2f})"
+                f"(base={base_bri:.0f}, sun={sun_bright_factor:.2f}, factor={area_factor:.2f})"
             )
             applied = True
 
@@ -1768,7 +1768,7 @@ class CircadianLightPrimitives:
         )
         transition = self._get_turn_on_transition()
 
-        # brightness_override applied post-NL in the filter pipeline (not pre-applied)
+        # brightness_override applied post-sun-bright in the filter pipeline (not pre-applied)
         effective_override = self._get_decayed_brightness_override(area_id)
         final_brightness = result.brightness
 
@@ -2141,7 +2141,7 @@ class CircadianLightPrimitives:
                     hour, config, area_state, sun_times=sun_times
                 )
                 # Pass rhythm_brightness and brightness_override through to the
-                # filter pipeline (applied post-NL, matching the periodic path).
+                # filter pipeline (applied post-sun-bright, matching the periodic path).
                 effective_override = self._get_decayed_brightness_override(area_id)
                 area_lighting.append(
                     (
@@ -4401,9 +4401,9 @@ class CircadianLightPrimitives:
             color_temp: Color temperature in Kelvin
             include_color: Whether to include color in the command
             transition: Transition time in seconds
-            rhythm_brightness: Pure curve brightness for filter curve position (pre-NL/boost).
-                If provided, brightness_override is applied post-NL in the filter pipeline.
-            brightness_override: Decay-adjusted additive delta applied post-NL.
+            rhythm_brightness: Pure curve brightness for filter curve position (pre-sun-bright/boost).
+                If provided, brightness_override is applied post-sun-bright in the filter pipeline.
+            brightness_override: Decay-adjusted additive delta applied post-sun-bright.
             skip_filters: Set of filter_norms to skip (already handled by reach groups).
             skip_two_step: Skip inner 2-step detection (caller already handles 2-step).
             skip_off_threshold: Skip OFF commands for filters below off_threshold (phase 1 only).
@@ -4445,7 +4445,7 @@ class CircadianLightPrimitives:
         This is a wrapper around _apply_lighting that automatically adds boost
         brightness if the area is boosted, and passes rhythm_brightness and
         brightness_override so the filter pipeline computes correct curve position
-        and applies the override post-NL (matching the periodic update path).
+        and applies the override post-sun-bright (matching the periodic update path).
 
         Use _apply_lighting directly when you've already calculated the final
         brightness (e.g., motion sensor boost functions).
@@ -4457,7 +4457,7 @@ class CircadianLightPrimitives:
             include_color: Whether to include color in the command
             transition: Transition time in seconds
         """
-        # brightness parameter IS the rhythm brightness (pre-boost, pre-NL)
+        # brightness parameter IS the rhythm brightness (pre-boost, pre-sun-bright)
         rhythm_brightness = brightness
 
         # Fetch brightness_override from state (same as periodic path)
@@ -4510,8 +4510,8 @@ class CircadianLightPrimitives:
             brightness: Target brightness percentage (0-100)
             color_temp: Color temperature in Kelvin
             transition: Transition time for phase 2 (brightness ramp)
-            rhythm_brightness: Pure curve brightness for filter curve position (pre-NL/boost).
-            brightness_override: Decay-adjusted additive delta applied post-NL.
+            rhythm_brightness: Pure curve brightness for filter curve position (pre-sun-bright/boost).
+            brightness_override: Decay-adjusted additive delta applied post-sun-bright.
             boost_brightness: Additive boost applied after override, before filter.
         """
         pipeline_kwargs = {}
@@ -4631,9 +4631,9 @@ class CircadianLightPrimitives:
             rhythm_brightness = entry[3] if len(entry) > 3 else rhythm_bri
             bri_override = entry[4] if len(entry) > 4 else None
 
-            # NL reduction
-            nl_factor = self._compute_nl_factor(area_id)
-            base_bri = max(1, int(round(rhythm_bri * nl_factor)))
+            # Sun bright reduction
+            sun_bright_factor = self._compute_sun_bright_factor(area_id)
+            base_bri = max(1, int(round(rhythm_bri * sun_bright_factor)))
 
             # Get filter and factor info
             area_filters = glozone.get_area_light_filters(area_id)
@@ -5040,11 +5040,11 @@ class CircadianLightPrimitives:
         via call_service (bypasses pipeline to avoid override interference).
 
         Phase 2 (restore) goes through the full pipeline via
-        _apply_circadian_lighting (boost, NL, filters).
+        _apply_circadian_lighting (boost, sun bright, filters).
 
         Args:
             area_id: The area ID
-            current_brightness: Raw circadian brightness (pre-NL, pre-boost) for Phase 2 restore
+            current_brightness: Raw circadian brightness (pre-sun-bright, pre-boost) for Phase 2 restore
             current_color: Current color temperature in Kelvin
             direction: "up" (hit upper limit, dip down) or "down" (hit lower limit, flash up)
             bounce_type: "step", "bright", or "color"
