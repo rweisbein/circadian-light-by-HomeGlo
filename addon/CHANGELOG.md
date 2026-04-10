@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.282
+- **Pipeline re-architecture Phase 0**: Add `pipeline.py` (unified compute function), `delivery.py` (thin wrapper), and 21 unit tests. No entry points wired yet — zero risk scaffolding for incremental migration.
+
 ## 1.0.281
 - **Remove 2-step debug logs**: Clean up all `[2-step]` INFO-level debug logging from filtered path. Error handlers retained with simplified messages.
 
