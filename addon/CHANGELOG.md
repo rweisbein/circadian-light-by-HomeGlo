@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.1.1
+- **Reach rebuild**: `_send_via_reach` replaces `_try_reach_turn_on` — uses `pipeline.compute()` instead of inline computation, greedy set cover (largest reach first), direction-aware 2-step with configured transition. Merged `_send_step_via_reach_or_fallback` + `_send_bright_via_reach_or_fallback` into single `_send_via_reach_or_fallback`. Added `_compute_pipeline_for_area` helper for multi-area pipeline computation.
+
 ## 1.1.0
 - **Pipeline v1.1: single computation engine + clean delivery API.** All light paths now flow through `pipeline.compute()`. Renamed: `turn_on_lights_circadian` → `send_light`, `_dispatch_fast_path` → `_deliver_fast`, `_turn_on_lights_filtered` → `_deliver_filtered`, `_apply_lighting` → `_send_light`, `_apply_circadian_lighting` → `_send_light_add_override_boost`. Deleted outer 2-step (`_apply_lighting_turn_on`, `_apply_lighting_turn_on_multiple`) — inner 2-step handles all off→on and CT shift scenarios. Deleted unused `_apply_step_result`, `_apply_color_only`. Net -290 lines.
 

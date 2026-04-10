@@ -1349,7 +1349,7 @@ class ZigBeeController(LightController):
                         ct_groups_created.append(entity_id)
 
                 # Backward compat: populate entity_id_color/ct for simple reaches
-                # (single color/ct group per reach — used by runtime _try_reach_turn_on)
+                # (single color/ct group per reach — used by runtime _send_via_reach)
                 if len(color_groups_created) == 1:
                     reach_group.entity_id_color = color_groups_created[0]
                 if len(ct_groups_created) == 1:

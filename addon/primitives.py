@@ -873,6 +873,49 @@ class CircadianLightPrimitives:
             natural_exposure, outdoor_norm, sensitivity
         )
 
+    def _compute_pipeline_for_area(
+        self, area_id: str, brightness: int, color_temp: int,
+        rhythm_brightness: int = None, brightness_override: float = None,
+        boost_brightness: int = None,
+    ):
+        """Compute a PipelineResult for an area with precomputed curve values.
+
+        Used by reach dispatch and other multi-area coordinators that already
+        have base curve values and need pipeline to apply sun bright, filters,
+        CT comp, etc.
+        """
+        import lux_tracker
+        from pipeline import PipelineContext
+        import pipeline as pipeline_mod
+
+        raw_config = glozone.load_config_from_files()
+        outdoor_norm = lux_tracker.get_outdoor_normalized()
+        zone_cfg = glozone.get_zone_config_for_area(area_id)
+
+        ctx = PipelineContext(
+            area_id=area_id,
+            hour=0.0,
+            config=Config.from_dict(zone_cfg),
+            area_state=AreaState(is_circadian=True, is_on=True),
+            sun_times=SunTimes(),
+            area_factor=glozone.get_area_brightness_factor(area_id),
+            area_filters=glozone.get_area_light_filters(area_id),
+            filter_presets=glozone.get_light_filter_presets(),
+            off_threshold=glozone.get_off_threshold(),
+            sun_exposure=glozone.get_area_natural_light_exposure(area_id),
+            sun_intensity=outdoor_norm if outdoor_norm is not None else 0.0,
+            brightness_override=brightness_override,
+            boost_brightness=boost_brightness,
+            ct_comp_enabled=raw_config.get("ct_comp_enabled", False),
+            ct_comp_begin=raw_config.get("ct_comp_begin", 1650),
+            ct_comp_end=raw_config.get("ct_comp_end", 2250),
+            ct_comp_factor=raw_config.get("ct_comp_factor", 1.7),
+            precomputed_brightness=brightness,
+            precomputed_kelvin=color_temp,
+            precomputed_rhythm_brightness=rhythm_brightness or brightness,
+        )
+        return pipeline_mod.compute(ctx)
+
     def _compute_current_actual(self, area_id: str) -> float:
         """Compute current actual brightness (post-pipeline approximation).
 
@@ -2071,21 +2114,17 @@ class CircadianLightPrimitives:
                 self.cancel_fade(area_id, source=source or "toggle_on")
                 state.mark_user_action(area_id)
 
-            # Collect lighting values for all areas first
-            area_lighting: List[Tuple[str, int, int]] = []
+            # Compute pipeline results for all areas
+            area_pipeline_results = {}
             for area_id in area_ids:
-                # Ensure area is in a zone (add to default zone if not)
                 if not glozone.is_area_in_any_zone(area_id):
                     glozone.add_area_to_default_zone(area_id)
                     logger.info(f"Added area {area_id} to default zone")
 
-                # Enable circadian and set is_on=True (resets state if was not circadian)
                 state.enable_circadian_and_set_on(area_id, True)
 
-                # Get zone-aware config and calculate lighting
                 config = self._get_config(area_id)
                 area_state = self._get_area_state(area_id)
-                # Use area's frozen_at if set, otherwise current time
                 hour = (
                     area_state.frozen_at
                     if area_state.frozen_at is not None
@@ -2095,31 +2134,27 @@ class CircadianLightPrimitives:
                 result = CircadianLight.calculate_lighting(
                     hour, config, area_state, sun_times=sun_times
                 )
-                # Pass rhythm_brightness and brightness_override through to the
-                # filter pipeline (applied post-sun-bright, matching the periodic path).
                 effective_override = self._get_decayed_brightness_override(area_id)
-                area_lighting.append(
-                    (
-                        area_id,
-                        result.brightness,
-                        result.color_temp,
-                        result.brightness,
-                        effective_override,
-                    )
+                boost = None
+                if state.is_boosted(area_id):
+                    boost_st = state.get_boost_state(area_id)
+                    boost = boost_st.get("boost_brightness") or None
+
+                area_pipeline_results[area_id] = self._compute_pipeline_for_area(
+                    area_id, result.brightness, result.color_temp,
+                    rhythm_brightness=result.brightness,
+                    brightness_override=effective_override,
+                    boost_brightness=boost,
                 )
 
-            # Try filter-aware reach groups for multi-area turn-on
-            reach_handled = await self._try_reach_turn_on(
-                area_ids, area_lighting, transition=transition, is_turn_on=True
+            # Try reach groups (greedy largest-first)
+            reach_handled = await self._send_via_reach(
+                area_ids, area_pipeline_results, transition=transition
             )
 
-            # Collect areas needing per-area turn-on (not fully handled by reach)
-            needs_per_area_turn_on = []  # entries with no reach handling (get 2-step)
-            needs_per_area_partial = (
-                []
-            )  # entries partially handled by reach (no 2-step, some lights already on)
-            for entry in area_lighting:
-                area_id = entry[0]
+            # Per-area fallback for unhandled
+            fallback_tasks = []
+            for area_id, pipe_result in area_pipeline_results.items():
                 skip = reach_handled.get(area_id)
                 if skip:
                     area_filters = glozone.get_area_light_filters(area_id)
@@ -2128,40 +2163,17 @@ class CircadianLightPrimitives:
                     )
                     all_norms = {f.replace(" ", "_").lower() for f in all_filters}
                     if all_norms.issubset(skip):
-                        continue  # Fully handled by reach — skip per-area entirely
-                    needs_per_area_partial.append((entry, skip))
-                else:
-                    needs_per_area_turn_on.append(entry)
-
-            # 2-step turn-on for areas not handled by reach
-            if needs_per_area_turn_on:
-                await asyncio.gather(
-                    *[
-                        self._send_light(
-                            entry[0],
-                            entry[1],
-                            entry[2],
-                            include_color=True,
-                            transition=transition,
-                            rhythm_brightness=entry[3] if len(entry) > 3 else None,
-                            brightness_override=entry[4] if len(entry) > 4 else None,
-                        )
-                        for entry in needs_per_area_turn_on
-                    ]
+                        continue  # Fully handled by reach
+                # Per-area delivery (inner 2-step handles off→on)
+                fallback_tasks.append(
+                    self.client.send_light(
+                        area_id,
+                        transition=transition,
+                        pipeline_result=pipe_result,
+                    )
                 )
-
-            # Direct apply for partially reach-handled areas (some lights already on)
-            for entry, skip in needs_per_area_partial:
-                await self._send_light(
-                    entry[0],
-                    entry[1],
-                    entry[2],
-                    include_color=True,
-                    transition=transition,
-                    rhythm_brightness=entry[3] if len(entry) > 3 else None,
-                    brightness_override=entry[4] if len(entry) > 4 else None,
-                    skip_filters=skip,
-                )
+            if fallback_tasks:
+                await asyncio.gather(*fallback_tasks)
 
             # Also turn on any switch entities (relays, smart plugs)
             for area_id in area_ids:
@@ -4433,23 +4445,21 @@ class CircadianLightPrimitives:
             boost_brightness=boost_brightness,
         )
 
-    async def _try_reach_turn_on(
+    async def _send_via_reach(
         self,
         area_ids: List[str],
-        area_lighting: List[Tuple],
+        area_pipeline_results: Dict[str, "PipelineResult"],
         transition: float = 0.4,
-        is_turn_on: bool = False,
     ) -> Dict[str, Set[str]]:
-        """Try to use filter-aware reach groups for multi-area turn-on.
+        """Attempt reach group dispatch for multi-area actions.
 
-        Computes per-area per-filter brightness through the full pipeline,
-        then uses reach groups where values match across areas. Returns a
-        dict of area_id -> set of filter_norms that were handled via reach.
-        The caller should skip those specific filters in per-area fallback.
+        Uses pre-computed pipeline results per area. Matches values across
+        areas using greedy set cover (largest reach group first) to minimize
+        ZigBee calls. Direction-aware 2-step with configured transition.
 
         Args:
             area_ids: List of area IDs
-            area_lighting: List of (area_id, brightness, color_temp, ...) tuples
+            area_pipeline_results: Dict of area_id -> PipelineResult
             transition: Transition time in seconds
 
         Returns:
@@ -4461,275 +4471,226 @@ class CircadianLightPrimitives:
         if len(area_ids) < 2:
             return handled_filters
 
-        import switches as _switches  # lazy import to avoid circular
+        import switches as _switches
 
-        # Look up the reach group for this set of areas
-        key = _switches.get_reach_key(area_ids)
-        reach = self.client.reach_groups.get(key)
-        if not reach or not reach.filter_groups:
-            return handled_filters
-
-        # Pre-compute per-area filter data
-        area_filter_data = (
-            {}
-        )  # area_id -> [(filter_norm, factor_key, brightness, color_temp)]
-        for entry in area_lighting:
-            area_id = entry[0]
-            rhythm_bri = entry[1]
-            color_temp = entry[2]
-            rhythm_brightness = entry[3] if len(entry) > 3 else rhythm_bri
-            bri_override = entry[4] if len(entry) > 4 else None
-
-            # Sun bright reduction
-            sun_bright_factor = self._compute_sun_bright_factor(area_id)
-            base_bri = max(1, int(round(rhythm_bri * sun_bright_factor)))
-
-            # Get filter and factor info
-            area_filters = glozone.get_area_light_filters(area_id)
+        # Build per-area per-purpose data from pipeline results
+        # area_purpose_data[area_id] = [(filter_norm, factor_key, brightness, kelvin)]
+        area_purpose_data: Dict[str, List[Tuple]] = {}
+        for area_id, pipe_result in area_pipeline_results.items():
             area_factor = glozone.get_area_brightness_factor(area_id)
             factor_key = round(area_factor, 3)
-            presets = glozone.get_light_filter_presets()
-            off_threshold = glozone.get_off_threshold()
-            zone_cfg = glozone.get_zone_config_for_area(area_id)
-            min_bri = zone_cfg.get("min_brightness", 1)
-            max_bri = zone_cfg.get("max_brightness", 100)
+            purposes = []
+            for p in pipe_result.purposes:
+                filter_norm = p.name.replace(" ", "_").lower()
+                purposes.append((filter_norm, factor_key, p.brightness, p.kelvin))
+            area_purpose_data[area_id] = purposes
 
-            # Determine which filters this area uses
-            # Include "Standard" for any lights not explicitly assigned a filter
-            filter_names = set(area_filters.values()) if area_filters else set()
-            # Check if any lights in this area lack an explicit filter assignment (→ Standard)
-            area_lights = self.client.area_lights.get(area_id, [])
-            if not area_filters or any(l not in area_filters for l in area_lights):
-                filter_names.add("Standard")
-
-            filter_results = []
-            for filter_name in filter_names:
-                filter_norm = filter_name.replace(" ", "_").lower()
-                preset = presets.get(filter_name, {"at_bright": 100, "at_dim": 100})
-
-                filtered_bri, should_off = apply_light_filter_pipeline(
-                    base_bri,
-                    min_bri,
-                    max_bri,
-                    area_factor,
-                    preset,
-                    off_threshold,
-                    rhythm_brightness=rhythm_brightness,
-                    brightness_override=bri_override,
-                )
-                if should_off:
-                    filtered_bri = 0
-
-                # CT compensation
-                if filtered_bri > 0 and color_temp:
-                    filtered_bri = self.client._apply_ct_brightness_compensation(
-                        filtered_bri, color_temp
-                    )
-
-                filter_results.append(
-                    (filter_norm, factor_key, filtered_bri, color_temp)
-                )
-
-            area_filter_data[area_id] = filter_results
-
-        # For each reach filter group, check if all contributing areas match
-        reach_commands = []  # (entity_id, brightness, color_temp)
-        filters_handled = {}  # area_id -> set of filter_norms handled via reach
-        handled_set = set()  # (area_id, filter_norm) pairs already handled
-
-        # Try exact reach group first, then subset reach groups
-        candidate_reaches = [(key, reach)]
-        # Collect subset reach groups (other reaches whose areas ⊂ our areas)
+        # Collect all candidate reach groups (exact + subset reaches)
         area_set = set(area_ids)
-        for other_key, other_reach in self.client.reach_groups.items():
-            if other_key == key:
+        candidate_reaches = []
+        for rkey, rgroup in self.client.reach_groups.items():
+            if not rgroup.filter_groups:
                 continue
-            if not other_reach.filter_groups:
-                continue
-            other_areas = set(other_reach.areas)
-            if len(other_areas) >= 2 and other_areas.issubset(area_set):
-                candidate_reaches.append((other_key, other_reach))
+            rgroup_areas = set(rgroup.areas)
+            if len(rgroup_areas) >= 2 and rgroup_areas.issubset(area_set):
+                candidate_reaches.append((rkey, rgroup))
 
-        # Pre-compute 2-step threshold
+        if not candidate_reaches:
+            return handled_filters
+
+        # Sort by group size descending (greedy: largest reach first = most ZigBee calls saved)
+        candidate_reaches.sort(
+            key=lambda x: len(x[1].filter_groups), reverse=True
+        )
+
+        # 2-step config
         raw_cfg = glozone.load_config_from_files()
         ct_threshold = raw_cfg.get("two_step_ct_threshold", 500)
+        bri_delta_threshold = raw_cfg.get("two_step_bri_threshold", 15)
+
+        handled_set: Set[Tuple[str, str]] = set()  # (area_id, filter_norm)
+        reach_commands = []  # list of command dicts
 
         for rkey, rgroup in candidate_reaches:
-            for (
-                filter_norm,
-                factor_key,
-                cap,
-            ), entity_id in rgroup.filter_groups.items():
-                # Find areas that contribute to this group (matching filter+factor)
-                # and haven't already been handled for this filter
+            for (filter_norm, factor_key, cap), entity_id in rgroup.filter_groups.items():
+                # Find areas in this reach group that match filter+factor and aren't handled
                 matching = {}
                 for area_id in rgroup.areas:
                     if (area_id, filter_norm) in handled_set:
                         continue
-                    for fn, fk, bri, ct in area_filter_data.get(area_id, []):
+                    for fn, fk, bri, ct in area_purpose_data.get(area_id, []):
                         if fn == filter_norm and fk == factor_key:
                             matching[area_id] = (bri, ct)
 
                 if len(matching) < 2:
-                    continue  # Need 2+ areas for reach to be useful
+                    continue
 
-                # Check if all matching areas have the same target brightness
+                # All areas must have identical target values
                 values = set(matching.values())
                 if len(values) != 1:
-                    if rkey == key:
-                        logger.debug(
-                            f"Reach {rkey} {filter_norm} {cap}: values differ across areas, falling back"
-                        )
                     continue
 
                 bri, ct = values.pop()
                 if bri <= 0:
                     continue  # All off — handled by per-area off logic
 
-                # Check if 2-step is needed for this reach group
-                needs_two_step_here = False
-                phase1_bri = 1  # default for off→on
+                # --- 2-step detection ---
+                needs_2step = False
+                brightening = True
+                phase1_data = None  # (brightness, include_color)
+                phase2_data = None  # (brightness, include_color)
+
                 if ct_threshold > 0:
-                    # Check CT delta for any area in this candidate
+                    # Check CT delta for any area
+                    any_ct_exceeded = False
                     for area_id in matching:
                         last_ct = state.get_last_sent_kelvin(area_id)
-                        if last_ct is not None:
-                            if abs(ct - last_ct) >= ct_threshold:
-                                needs_two_step_here = True
-                                break
+                        if last_ct is not None and abs(ct - last_ct) >= ct_threshold:
+                            any_ct_exceeded = True
+                            break
 
-                if needs_two_step_here:
-                    # Check current state matches across all areas in this candidate
-                    current_states = {}
-                    for area_id in matching:
-                        is_on = state.get_is_on(area_id)
-                        curr_bri = state.get_last_sent_brightness(area_id) or 0
-                        current_states[area_id] = (is_on, curr_bri)
+                    if any_ct_exceeded:
+                        # Current state must match across all areas for batched 2-step
+                        current_states = {}
+                        for area_id in matching:
+                            is_on = state.get_is_on(area_id)
+                            curr_bri = state.get_last_sent_brightness(area_id) or 0
+                            current_states[area_id] = (is_on, curr_bri)
 
-                    state_values = set(current_states.values())
-                    if len(state_values) != 1:
-                        # Current states differ — can't batch 2-step, fall back to per-area
-                        logger.debug(
-                            f"Reach {rkey} {filter_norm}: current states differ, falling back for 2-step"
-                        )
-                        continue
+                        state_values = set(current_states.values())
+                        if len(state_values) != 1:
+                            # States differ — can't batch, fall through to per-area
+                            continue
 
-                    shared_on, shared_bri = state_values.pop()
+                        shared_on, shared_bri = state_values.pop()
 
-                    # Require brightness delta >= threshold
-                    # (color-only changes don't benefit from 2-step)
-                    bri_delta_threshold = raw_cfg.get("two_step_bri_threshold", 15)
-                    if shared_on:
-                        bri_delta = abs(bri - shared_bri)
-                        if bri_delta < bri_delta_threshold:
-                            needs_two_step_here = False
+                        # Check brightness delta threshold
+                        if not shared_on:
+                            # Off→on
+                            if bri >= bri_delta_threshold:
+                                needs_2step = True
+                                brightening = True
+                                # Phase 1: color at 1%, Phase 2: target brightness + color
+                                phase1_data = (1, True)
+                                phase2_data = (bri, True)
                         else:
-                            phase1_bri = max(1, shared_bri)
-                    else:
-                        # Off→on: skip 2-step if target brightness < threshold
-                        if bri < bri_delta_threshold:
-                            needs_two_step_here = False
-                        else:
-                            phase1_bri = 1
+                            bri_delta = abs(bri - shared_bri)
+                            if bri_delta >= bri_delta_threshold:
+                                needs_2step = True
+                                brightening = bri > shared_bri
+                                if brightening:
+                                    # Phase 1: color at low bri, Phase 2: target bri + color
+                                    phase1_bri = max(1, min(shared_bri, bri))
+                                    phase1_data = (phase1_bri, True)
+                                    phase2_data = (bri, True)
+                                else:
+                                    # Phase 1: dim to target (no color), Phase 2: color (no bri)
+                                    phase1_data = (bri, False)
+                                    phase2_data = (None, True)
 
-                    logger.info(
-                        f"Reach 2-step: {filter_norm} {cap}, "
-                        f"{'off→on' if not shared_on else f'on@{shared_bri}%'}, "
-                        f"phase1={phase1_bri}%, target={bri}% {ct}K"
-                    )
+                        if needs_2step:
+                            mode = "off→on" if not shared_on else (
+                                f"brighten {shared_bri}→{bri}%" if brightening
+                                else f"dim {shared_bri}→{bri}%"
+                            )
+                            logger.info(
+                                f"Reach 2-step: {filter_norm} {cap}, {mode}, {ct}K"
+                            )
 
-                reach_commands.append((entity_id, bri, ct, filter_norm, cap, needs_two_step_here, phase1_bri))
+                reach_commands.append({
+                    "entity_id": entity_id,
+                    "bri": bri,
+                    "ct": ct,
+                    "filter_norm": filter_norm,
+                    "cap": cap,
+                    "needs_2step": needs_2step,
+                    "phase1_data": phase1_data,
+                    "phase2_data": phase2_data,
+                })
                 for area_id in matching:
-                    if area_id not in filters_handled:
-                        filters_handled[area_id] = set()
-                    filters_handled[area_id].add(filter_norm)
+                    handled_filters.setdefault(area_id, set()).add(filter_norm)
                     handled_set.add((area_id, filter_norm))
 
         if not reach_commands:
             return handled_filters
 
-        # Send reach group commands
-        # Separate 2-step commands from direct commands
-        two_step_commands = [(e, b, c, fn, cp, p1) for e, b, c, fn, cp, ts, p1 in reach_commands if ts]
-        direct_commands = [(e, b, c, fn, cp) for e, b, c, fn, cp, ts, p1 in reach_commands if not ts]
+        # --- Execute commands ---
+        two_step_cmds = [c for c in reach_commands if c["needs_2step"]]
+        direct_cmds = [c for c in reach_commands if not c["needs_2step"]]
 
-        # Phase 1 for 2-step + direct commands (parallel)
-        phase1_tasks = []
-        for entity_id, bri, ct, filter_norm, cap, phase1_bri in two_step_commands:
-            xy = CircadianLight.color_temperature_to_xy(ct)
-            sdata = {"transition": 0, "brightness_pct": phase1_bri}
-            if cap == "color":
+        # Wave 1: phase 1 for 2-step + direct commands (parallel)
+        wave1 = []
+        for cmd in two_step_cmds:
+            p1_bri, p1_color = cmd["phase1_data"]
+            xy = CircadianLight.color_temperature_to_xy(cmd["ct"])
+            sdata = {"transition": transition}
+            if p1_bri is not None:
+                sdata["brightness_pct"] = p1_bri
+            if p1_color:
+                if cmd["cap"] == "color":
+                    sdata["xy_color"] = list(xy)
+                elif cmd["cap"] == "ct":
+                    sdata["color_temp_kelvin"] = max(2000, cmd["ct"])
+            wave1.append(
+                self.client.call_service("light", "turn_on", sdata, {"entity_id": cmd["entity_id"]})
+            )
+
+        for cmd in direct_cmds:
+            xy = CircadianLight.color_temperature_to_xy(cmd["ct"])
+            sdata = {"transition": transition, "brightness_pct": cmd["bri"]}
+            if cmd["cap"] == "color":
                 sdata["xy_color"] = list(xy)
-            elif cap == "ct":
-                sdata["color_temp_kelvin"] = max(2000, ct)
-            phase1_tasks.append(
-                self.client.call_service("light", "turn_on", sdata, {"entity_id": entity_id})
-            )
-
-        direct_tasks = []
-        for entity_id, bri, ct, filter_norm, cap in direct_commands:
-            xy = CircadianLight.color_temperature_to_xy(ct)
-            service_data = {"transition": transition, "brightness_pct": bri}
-            if cap == "color":
-                service_data["xy_color"] = list(xy)
-            elif cap == "ct":
-                service_data["color_temp_kelvin"] = max(2000, ct)
+            elif cmd["cap"] == "ct":
+                sdata["color_temp_kelvin"] = max(2000, cmd["ct"])
             logger.info(
-                f"Reach group {filter_norm} {cap}: {entity_id}, "
-                f"brightness={bri}%, {ct}K, transition={transition}s"
+                f"Reach {cmd['filter_norm']} {cmd['cap']}: {cmd['entity_id']}, "
+                f"{cmd['bri']}% {cmd['ct']}K, transition={transition}s"
             )
-            direct_tasks.append(
-                self.client.call_service("light", "turn_on", service_data, {"entity_id": entity_id})
+            wave1.append(
+                self.client.call_service("light", "turn_on", sdata, {"entity_id": cmd["entity_id"]})
             )
 
-        if phase1_tasks or direct_tasks:
-            await asyncio.gather(*(phase1_tasks + direct_tasks))
+        if wave1:
+            await asyncio.gather(*wave1)
 
-        # Phase 2 for 2-step commands (after delay)
-        if two_step_commands:
+        # Wave 2: phase 2 for 2-step (after delay)
+        if two_step_cmds:
             delay = self._get_two_step_delay()
             await asyncio.sleep(delay)
 
-            phase2_tasks = []
-            for entity_id, bri, ct, filter_norm, cap, phase1_bri in two_step_commands:
-                xy = CircadianLight.color_temperature_to_xy(ct)
-                service_data = {"transition": transition, "brightness_pct": bri}
-                if cap == "color":
-                    service_data["xy_color"] = list(xy)
-                elif cap == "ct":
-                    service_data["color_temp_kelvin"] = max(2000, ct)
+            wave2 = []
+            for cmd in two_step_cmds:
+                p2_bri, p2_color = cmd["phase2_data"]
+                xy = CircadianLight.color_temperature_to_xy(cmd["ct"])
+                sdata = {"transition": transition}
+                if p2_bri is not None:
+                    sdata["brightness_pct"] = p2_bri
+                if p2_color:
+                    if cmd["cap"] == "color":
+                        sdata["xy_color"] = list(xy)
+                    elif cmd["cap"] == "ct":
+                        sdata["color_temp_kelvin"] = max(2000, cmd["ct"])
                 logger.info(
-                    f"Reach group {filter_norm} {cap}: {entity_id}, "
-                    f"brightness={bri}%, {ct}K, transition={transition}s (after 2-step)"
+                    f"Reach {cmd['filter_norm']} {cmd['cap']}: {cmd['entity_id']}, "
+                    f"phase 2, transition={transition}s"
                 )
-                phase2_tasks.append(
-                    self.client.call_service("light", "turn_on", service_data, {"entity_id": entity_id})
+                wave2.append(
+                    self.client.call_service("light", "turn_on", sdata, {"entity_id": cmd["entity_id"]})
                 )
-            await asyncio.gather(*phase2_tasks)
+            await asyncio.gather(*wave2)
 
-        # Update state for areas/filters handled by reach groups
-        # (reach bypasses the per-area pipeline which normally does this)
-        if filters_handled:
-            for area_id, filter_norms in filters_handled.items():
-                for fn, fk, bri, ct in area_filter_data.get(area_id, []):
-                    if fn in filter_norms:
-                        state.set_last_sent_kelvin(area_id, ct)
-                        state.set_last_sent_purpose(area_id, fn, bri, ct or 4000)
+        # Update state for handled areas
+        for area_id, filter_norms in handled_filters.items():
+            for fn, fk, bri, ct in area_purpose_data.get(area_id, []):
+                if fn in filter_norms:
+                    state.set_last_sent_kelvin(area_id, ct)
+                    state.set_last_sent_purpose(area_id, fn, bri, ct or 4000)
 
-            fully = [
-                a
-                for a, fns in filters_handled.items()
-                if fns == {fn for fn, fk, bri, ct in area_filter_data.get(a, [])}
-            ]
-            partial = [a for a in filters_handled if a not in fully]
-            parts = []
-            if fully:
-                parts.append(f"{len(fully)} fully")
-            if partial:
-                parts.append(f"{len(partial)} partially ({', '.join(partial)})")
-            logger.info(f"Reach groups handled: {', '.join(parts)}")
+        handled_count = sum(len(fns) for fns in handled_filters.values())
+        if handled_count:
+            logger.info(f"Reach handled {handled_count} area/purpose combos across {len(handled_filters)} areas")
 
-        return filters_handled
+        return handled_filters
 
     async def _bounce_at_limit(
         self,
