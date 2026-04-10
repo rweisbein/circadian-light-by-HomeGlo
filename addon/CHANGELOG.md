@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.281
+- **Remove 2-step debug logs**: Clean up all `[2-step]` INFO-level debug logging from filtered path. Error handlers retained with simplified messages.
+
 ## 1.0.266
 - **Settings page slider styling**: Added full slider CSS (track fill/empty contrast, bigger handles) to settings page. Weather condition and light purpose sliders now match all other pages. Added fill-pct tracking for dynamic sliders.
 - **Fix auto on/off fade slider fill**: Fade slider now updates fill-pct on input, so the filled portion tracks the handle position correctly.

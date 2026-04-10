@@ -628,7 +628,10 @@ class HomeAssistantWebSocketClient:
         active_configs = []
         for i, area_config in enumerate(sensor_config.areas):
             # Scope-level trigger filter: skip if this entity isn't in the scope's trigger list
-            if area_config.trigger_entities and entity_id not in area_config.trigger_entities:
+            if (
+                area_config.trigger_entities
+                and entity_id not in area_config.trigger_entities
+            ):
                 continue
             cd = area_config.cooldown
             if cd > 0 and new_state == "on":
@@ -1708,9 +1711,11 @@ class HomeAssistantWebSocketClient:
         at_limit = [a for a, r in zip(areas, results) if r is None and a in on_areas]
         if on_areas and len(at_limit) == len(on_areas):
             if switch_id:
-                asyncio.create_task(self._feedback_cue(
-                    switch_id, "bounce", direction=direction, bounce_type="step"
-                ))
+                asyncio.create_task(
+                    self._feedback_cue(
+                        switch_id, "bounce", direction=direction, bounce_type="step"
+                    )
+                )
             return
 
         # Build area_lighting tuples from step results
@@ -1777,12 +1782,16 @@ class HomeAssistantWebSocketClient:
         # Check if ALL on-areas are at limit
         on_areas = [a for a in areas if state.get_is_on(a)]
         at_limit = [a for a, r in zip(areas, results) if r is None and a in on_areas]
-        logger.info(f"[bright reach bounce check] on_areas={on_areas}, at_limit={at_limit}, switch_id={switch_id}")
+        logger.info(
+            f"[bright reach bounce check] on_areas={on_areas}, at_limit={at_limit}, switch_id={switch_id}"
+        )
         if on_areas and len(at_limit) == len(on_areas):
             if switch_id:
-                asyncio.create_task(self._feedback_cue(
-                    switch_id, "bounce", direction=direction, bounce_type="bright"
-                ))
+                asyncio.create_task(
+                    self._feedback_cue(
+                        switch_id, "bounce", direction=direction, bounce_type="bright"
+                    )
+                )
             return
 
         sun_times = self._get_sun_times()
@@ -1969,7 +1978,9 @@ class HomeAssistantWebSocketClient:
                 else:
                     results = await asyncio.gather(
                         *[
-                            self.primitives.step_up(area, "switch", steps=step_count, skip_bounce=True)
+                            self.primitives.step_up(
+                                area, "switch", steps=step_count, skip_bounce=True
+                            )
                             for area in areas
                         ]
                     )
@@ -1979,7 +1990,14 @@ class HomeAssistantWebSocketClient:
                     )
                     if at_limit:
                         if switch_id:
-                            asyncio.create_task(self._feedback_cue(switch_id, "bounce", direction="up", bounce_type="step"))
+                            asyncio.create_task(
+                                self._feedback_cue(
+                                    switch_id,
+                                    "bounce",
+                                    direction="up",
+                                    bounce_type="step",
+                                )
+                            )
                         return "at_limit"
             else:
                 await execute_when_off()
@@ -2008,7 +2026,9 @@ class HomeAssistantWebSocketClient:
                 else:
                     results = await asyncio.gather(
                         *[
-                            self.primitives.step_down(area, "switch", steps=step_count, skip_bounce=True)
+                            self.primitives.step_down(
+                                area, "switch", steps=step_count, skip_bounce=True
+                            )
                             for area in areas
                         ]
                     )
@@ -2018,12 +2038,25 @@ class HomeAssistantWebSocketClient:
                     )
                     if at_limit:
                         if switch_id:
-                            asyncio.create_task(self._feedback_cue(switch_id, "bounce", direction="down", bounce_type="step"))
+                            asyncio.create_task(
+                                self._feedback_cue(
+                                    switch_id,
+                                    "bounce",
+                                    direction="down",
+                                    bounce_type="step",
+                                )
+                            )
                         return "at_limit"
             else:
                 await execute_when_off()
 
-        elif main_action in ("bright_up", "bright_up_2", "bright_up_3", "bright_up_4", "bright_up_5"):
+        elif main_action in (
+            "bright_up",
+            "bright_up_2",
+            "bright_up_3",
+            "bright_up_4",
+            "bright_up_5",
+        ):
             # Bright up only if lights are on AND in circadian mode
             step_count = (
                 int(main_action.split("_")[-1]) if main_action[-1].isdigit() else 1
@@ -2060,12 +2093,25 @@ class HomeAssistantWebSocketClient:
                     )
                     if at_limit:
                         if switch_id:
-                            asyncio.create_task(self._feedback_cue(switch_id, "bounce", direction="up", bounce_type="bright"))
+                            asyncio.create_task(
+                                self._feedback_cue(
+                                    switch_id,
+                                    "bounce",
+                                    direction="up",
+                                    bounce_type="bright",
+                                )
+                            )
                         return "at_limit"
             else:
                 await execute_when_off()
 
-        elif main_action in ("bright_down", "bright_down_2", "bright_down_3", "bright_down_4", "bright_down_5"):
+        elif main_action in (
+            "bright_down",
+            "bright_down_2",
+            "bright_down_3",
+            "bright_down_4",
+            "bright_down_5",
+        ):
             # Bright down only if lights are on AND in circadian mode
             step_count = (
                 int(main_action.split("_")[-1]) if main_action[-1].isdigit() else 1
@@ -2102,7 +2148,14 @@ class HomeAssistantWebSocketClient:
                     )
                     if at_limit:
                         if switch_id:
-                            asyncio.create_task(self._feedback_cue(switch_id, "bounce", direction="down", bounce_type="bright"))
+                            asyncio.create_task(
+                                self._feedback_cue(
+                                    switch_id,
+                                    "bounce",
+                                    direction="down",
+                                    bounce_type="bright",
+                                )
+                            )
                         return "at_limit"
             else:
                 await execute_when_off()
@@ -2126,7 +2179,10 @@ class HomeAssistantWebSocketClient:
                 else:
                     multi = len(areas) > 1
                     results = await asyncio.gather(
-                        *[self.primitives.color_up(area, "switch", skip_bounce=multi) for area in areas]
+                        *[
+                            self.primitives.color_up(area, "switch", skip_bounce=multi)
+                            for area in areas
+                        ]
                     )
                     if multi:
                         on_areas = [a for a in areas if state.get_is_on(a)]
@@ -2134,7 +2190,14 @@ class HomeAssistantWebSocketClient:
                             r is None for a, r in zip(areas, results) if a in on_areas
                         )
                         if at_limit and switch_id:
-                            asyncio.create_task(self._feedback_cue(switch_id, "bounce", direction="up", bounce_type="color"))
+                            asyncio.create_task(
+                                self._feedback_cue(
+                                    switch_id,
+                                    "bounce",
+                                    direction="up",
+                                    bounce_type="color",
+                                )
+                            )
             else:
                 await execute_when_off()
 
@@ -2157,7 +2220,12 @@ class HomeAssistantWebSocketClient:
                 else:
                     multi = len(areas) > 1
                     results = await asyncio.gather(
-                        *[self.primitives.color_down(area, "switch", skip_bounce=multi) for area in areas]
+                        *[
+                            self.primitives.color_down(
+                                area, "switch", skip_bounce=multi
+                            )
+                            for area in areas
+                        ]
                     )
                     if multi:
                         on_areas = [a for a in areas if state.get_is_on(a)]
@@ -2165,7 +2233,14 @@ class HomeAssistantWebSocketClient:
                             r is None for a, r in zip(areas, results) if a in on_areas
                         )
                         if at_limit and switch_id:
-                            asyncio.create_task(self._feedback_cue(switch_id, "bounce", direction="down", bounce_type="color"))
+                            asyncio.create_task(
+                                self._feedback_cue(
+                                    switch_id,
+                                    "bounce",
+                                    direction="down",
+                                    bounce_type="color",
+                                )
+                            )
             else:
                 await execute_when_off()
 
@@ -2538,7 +2613,8 @@ class HomeAssistantWebSocketClient:
         area_filters = glozone.get_area_light_filters(area_id)
         area_lights = self.area_lights.get(area_id, [])
         purpose_lights = [
-            eid for eid in area_lights
+            eid
+            for eid in area_lights
             if (area_filters.get(eid, "Standard") == best_filter)
         ]
         if len(purpose_lights) >= 1:
@@ -2638,10 +2714,13 @@ class HomeAssistantWebSocketClient:
                 if bounce_color:
                     # Shift color for visual effect using xy (works across full Kelvin range)
                     last_kelvin = (
-                        state.get_last_sent_kelvin(feedback_area) if feedback_area else None
+                        state.get_last_sent_kelvin(feedback_area)
+                        if feedback_area
+                        else None
                     )
                     if last_kelvin:
                         from brain import CircadianLight as CL
+
                         config = Config.from_dict(glozone.get_config())
                         ct_range = config.max_color_temp - config.min_color_temp
                         kelvin_delta = int(bounce_pct * ct_range)
@@ -2649,7 +2728,9 @@ class HomeAssistantWebSocketClient:
                             shifted_kelvin = max(500, last_kelvin - kelvin_delta)
                         else:
                             shifted_kelvin = min(6500, last_kelvin + kelvin_delta)
-                        phase1_data["xy_color"] = list(CL.color_temperature_to_xy(shifted_kelvin))
+                        phase1_data["xy_color"] = list(
+                            CL.color_temperature_to_xy(shifted_kelvin)
+                        )
                         restore_xy = list(CL.color_temperature_to_xy(last_kelvin))
 
                 # Phase 1: dip/flash
@@ -2710,15 +2791,11 @@ class HomeAssistantWebSocketClient:
                 flash_up = False
                 bri_pct = cached_bri / 2.55
                 if feedback_area:
-                    nl_exposure = glozone.get_area_natural_light_exposure(
-                        feedback_area
-                    )
+                    nl_exposure = glozone.get_area_natural_light_exposure(feedback_area)
                     if nl_exposure > 0:
                         outdoor_norm = lux_tracker.get_outdoor_normalized() or 0.0
                         if outdoor_norm > 0:
-                            threshold = (
-                                self.primitives._get_reach_daytime_threshold()
-                            )
+                            threshold = self.primitives._get_reach_daytime_threshold()
                             if bri_pct < threshold:
                                 flash_up = True
 
@@ -2736,7 +2813,9 @@ class HomeAssistantWebSocketClient:
                         hour = get_current_hour()
                         sun_times = self._get_sun_times()
                         area_state = self.primitives._get_area_state(feedback_area)
-                        result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
+                        result = CircadianLight.calculate_lighting(
+                            hour, config, area_state, sun_times=sun_times
+                        )
                         xy = CircadianLight.color_temperature_to_xy(result.color_temp)
                         flash_on_data["xy_color"] = list(xy)
                     except Exception:
@@ -3616,8 +3695,6 @@ class HomeAssistantWebSocketClient:
         applies CT compensation per-group, and dispatches to filter-specific ZHA sub-groups.
         Lights below the off threshold receive a turn_off command.
         """
-        if prev_kelvin is not None and kelvin is not None and abs(kelvin - prev_kelvin) >= 500:
-            logger.info(f"[2-step check] {area_id}: prev_kelvin={prev_kelvin}, kelvin={kelvin}, delta={abs(kelvin - prev_kelvin)}")
         presets = glozone.get_light_filter_presets()
         off_threshold = glozone.get_off_threshold()
 
@@ -3708,8 +3785,16 @@ class HomeAssistantWebSocketClient:
                     # Check if this purpose would be ON at the target brightness
                     # (it's only off because we're checking at the current low brightness)
                     target_bri, target_off = apply_light_filter_pipeline(
-                        base_brightness if base_brightness > 1 else rhythm_brightness or base_brightness,
-                        min_bri, max_bri, area_factor, preset, off_threshold,
+                        (
+                            base_brightness
+                            if base_brightness > 1
+                            else rhythm_brightness or base_brightness
+                        ),
+                        min_bri,
+                        max_bri,
+                        area_factor,
+                        preset,
+                        off_threshold,
                         rhythm_brightness=rhythm_brightness,
                         brightness_override=brightness_override,
                         boost_brightness=boost_brightness,
@@ -3718,8 +3803,11 @@ class HomeAssistantWebSocketClient:
                         # Will be on at target — add to 2-step with forced 1% color pre-set
                         two_step_filters.add(filt_norm)
                         # Build phase 1 task: 1% with target color
-                        zha_color_p1 = group_candidates.get(f"zha_group_{filt_norm}_color")
+                        zha_color_p1 = group_candidates.get(
+                            f"zha_group_{filt_norm}_color"
+                        )
                         zha_ct_p1 = group_candidates.get(f"zha_group_{filt_norm}_ct")
+
                         def _add_offpurpose_p1(entity_id, cap_type):
                             p1 = {"transition": 0, "brightness_pct": 1}
                             if cap_type == "color" and xy is not None:
@@ -3727,14 +3815,19 @@ class HomeAssistantWebSocketClient:
                             elif cap_type == "ct":
                                 p1["color_temp_kelvin"] = max(2000, kelvin)
                             phase1_tasks.append(
-                                self.call_service("light", "turn_on", p1, {"entity_id": entity_id})
+                                self.call_service(
+                                    "light", "turn_on", p1, {"entity_id": entity_id}
+                                )
                             )
+
                         if zha_color_p1:
                             _add_offpurpose_p1(zha_color_p1, "color")
                         if zha_ct_p1:
                             _add_offpurpose_p1(zha_ct_p1, "ct")
                         if log_periodic:
-                            logger.info(f"Purpose '{filter_name}': off at check bri, forcing 1% phase1 for 2-step")
+                            logger.info(
+                                f"Purpose '{filter_name}': off at check bri, forcing 1% phase1 for 2-step"
+                            )
                     continue
 
                 # Find representative entity to check current state
@@ -3747,7 +3840,6 @@ class HomeAssistantWebSocketClient:
                     or (lights_by_cap["ct"][0] if lights_by_cap["ct"] else None)
                 )
                 if not check_entity:
-                    logger.info(f"[2-step] {area_id}/{filter_name}: SKIP no check_entity (zha_color={zha_color}, zha_ct={zha_ct}, color_lights={len(lights_by_cap['color'])}, ct_lights={len(lights_by_cap['ct'])})")
                     continue
 
                 purpose_st = state.get_last_sent_purpose(area_id, filter_name)
@@ -3789,7 +3881,6 @@ class HomeAssistantWebSocketClient:
                     brightening = True
 
                 two_step_filters.add(filt_norm)
-                logger.info(f"[2-step] {area_id}/{filter_name}: FIRE ct_diff={ct_diff}, bri {current_bri_pct}→{filtered_bri}")
 
                 # Phase 1: target color at low brightness
                 # Off→on: always 1% (bulbs remember last color, minimize flash)
@@ -4129,7 +4220,6 @@ class HomeAssistantWebSocketClient:
         # Wave 1: phase 1 (1% for off→on groups) + normal updates (already-on + turn-offs)
         wave1 = phase1_tasks + tasks
         if wave1:
-            logger.info(f"[2-step wave] {area_id}: wave1={len(phase1_tasks)} phase1 + {len(tasks)} direct, wave2={len(phase2_tasks)} phase2, two_step_filters={two_step_filters}")
             await asyncio.gather(*wave1)
 
         # Wave 2: delay + phase 2 (target brightness for off→on groups)
@@ -4137,50 +4227,74 @@ class HomeAssistantWebSocketClient:
         # We need to rebuild them as fresh coroutines so they execute AFTER the delay.
         if two_step_filters:
             two_step_delay = self.primitives._get_two_step_delay()
-            logger.info(f"[2-step wave] {area_id}: delay {two_step_delay}s before phase2")
             await asyncio.sleep(two_step_delay)
             # Re-send all 2-step purposes at target brightness
             try:
-                logger.info(f"[2-step phase2] {area_id}: starting phase2 for {two_step_filters}, base_bri={base_brightness}, kelvin={kelvin}")
                 for filter_name, lights_by_cap in filter_groups.items():
                     filt_norm_p2 = filter_name.replace(" ", "_").lower()
                     if filt_norm_p2 not in two_step_filters:
                         continue
                     try:
-                        preset = presets.get(filter_name, {"at_bright": 100, "at_dim": 100})
+                        preset = presets.get(
+                            filter_name, {"at_bright": 100, "at_dim": 100}
+                        )
                         filtered_bri, should_off = apply_light_filter_pipeline(
-                            base_brightness, min_bri, max_bri, area_factor, preset, off_threshold,
-                            rhythm_brightness=rhythm_brightness, brightness_override=brightness_override,
+                            base_brightness,
+                            min_bri,
+                            max_bri,
+                            area_factor,
+                            preset,
+                            off_threshold,
+                            rhythm_brightness=rhythm_brightness,
+                            brightness_override=brightness_override,
                             boost_brightness=boost_brightness,
                         )
                         if should_off or filtered_bri <= 0:
                             continue
                         comp_bri = filtered_bri
                         if kelvin:
-                            comp_bri = self._apply_ct_brightness_compensation(filtered_bri, kelvin)
+                            comp_bri = self._apply_ct_brightness_compensation(
+                                filtered_bri, kelvin
+                            )
                         sdata = {"transition": transition, "brightness_pct": comp_bri}
                         if include_color and xy is not None:
                             sdata["xy_color"] = list(xy)
-                        zha_group = group_candidates.get(f"zha_group_{filt_norm_p2}_color")
+                        zha_group = group_candidates.get(
+                            f"zha_group_{filt_norm_p2}_color"
+                        )
                         if zha_group:
-                            logger.info(f"[2-step phase2] {area_id}/{filter_name}: {zha_group} brightness={comp_bri}%, {kelvin}K")
-                            await self.call_service("light", "turn_on", sdata, {"entity_id": zha_group})
+                            await self.call_service(
+                                "light", "turn_on", sdata, {"entity_id": zha_group}
+                            )
                         elif lights_by_cap["color"]:
-                            logger.info(f"[2-step phase2] {area_id}/{filter_name}: {len(lights_by_cap['color'])} lights, brightness={comp_bri}%")
-                            await self.call_service("light", "turn_on", sdata, {"entity_id": lights_by_cap["color"]})
+                            await self.call_service(
+                                "light",
+                                "turn_on",
+                                sdata,
+                                {"entity_id": lights_by_cap["color"]},
+                            )
                         # CT lights
                         zha_ct = group_candidates.get(f"zha_group_{filt_norm_p2}_ct")
                         ct_data = {"transition": transition, "brightness_pct": comp_bri}
                         if include_color and kelvin:
                             ct_data["color_temp_kelvin"] = max(2000, kelvin)
                         if zha_ct:
-                            await self.call_service("light", "turn_on", ct_data, {"entity_id": zha_ct})
+                            await self.call_service(
+                                "light", "turn_on", ct_data, {"entity_id": zha_ct}
+                            )
                         elif lights_by_cap["ct"]:
-                            await self.call_service("light", "turn_on", ct_data, {"entity_id": lights_by_cap["ct"]})
+                            await self.call_service(
+                                "light",
+                                "turn_on",
+                                ct_data,
+                                {"entity_id": lights_by_cap["ct"]},
+                            )
                     except Exception as e:
-                        logger.error(f"[2-step phase2] Error for {area_id}/{filter_name}: {e}")
+                        logger.error(
+                            f"2-step phase2 error for {area_id}/{filter_name}: {e}"
+                        )
             except Exception as e:
-                logger.error(f"[2-step phase2] OUTER Error for {area_id}: {e}", exc_info=True)
+                logger.error(f"2-step phase2 error for {area_id}: {e}")
 
     async def turn_off_lights(
         self,
@@ -4903,7 +5017,9 @@ class HomeAssistantWebSocketClient:
                     if te not in self.motion_sensor_ids:
                         dev_id = sensor.device_id or sensor.id
                         self.motion_sensor_ids[te] = dev_id
-                        logger.debug(f"  Registered trigger entity {te} -> device:{dev_id}")
+                        logger.debug(
+                            f"  Registered trigger entity {te} -> device:{dev_id}"
+                        )
 
         # Log binary_sensor count for debugging
         binary_sensors = [
@@ -5933,7 +6049,9 @@ class HomeAssistantWebSocketClient:
                         brightness = max(1, int(round(brightness * progress)))
                         fade_note = f" (fade-in {progress:.0%})"
                     elif fade_state and fade_state["fade_direction"] == "out":
-                        start_bri = fade_state.get("fade_start_brightness") or brightness
+                        start_bri = (
+                            fade_state.get("fade_start_brightness") or brightness
+                        )
                         brightness = max(1, int(round(start_bri * (1.0 - progress))))
                         fade_note = f" (fade-out {1.0 - progress:.0%})"
 
@@ -6200,6 +6318,7 @@ class HomeAssistantWebSocketClient:
     async def _circadian_tick_loop(self):
         """Circadian tick (configurable 5-120s): update all circadian areas with current lighting."""
         import glozone_state
+
         while True:
             try:
                 # Get refresh interval, logging, and transition config
@@ -6316,22 +6435,43 @@ class HomeAssistantWebSocketClient:
                                 if _zone and _zone not in _solar_cached_zones:
                                     _solar_cached_zones.add(_zone)
                                     try:
-                                        _zcfg = Config.from_dict(glozone.get_effective_config_for_zone(_zone))
+                                        _zcfg = Config.from_dict(
+                                            glozone.get_effective_config_for_zone(_zone)
+                                        )
                                         _zhour = get_current_hour()
                                         _zsun = self._get_sun_times()
-                                        _zbase_state = AreaState(is_circadian=True, is_on=True)
-                                        _zbase_k = CircadianLight.calculate_color_at_hour(
-                                            _zhour, _zcfg, _zbase_state, apply_solar_rules=False, sun_times=_zsun
+                                        _zbase_state = AreaState(
+                                            is_circadian=True, is_on=True
                                         )
-                                        _zbreakdown = CircadianLight.get_solar_rule_breakdown(
-                                            _zbase_k, _zhour, _zcfg, _zbase_state, _zsun
+                                        _zbase_k = (
+                                            CircadianLight.calculate_color_at_hour(
+                                                _zhour,
+                                                _zcfg,
+                                                _zbase_state,
+                                                apply_solar_rules=False,
+                                                sun_times=_zsun,
+                                            )
                                         )
-                                        glozone_state.set_zone_solar_cache(_zone, {
-                                            "base_kelvin": _zbase_k,
-                                            **_zbreakdown,
-                                        })
+                                        _zbreakdown = (
+                                            CircadianLight.get_solar_rule_breakdown(
+                                                _zbase_k,
+                                                _zhour,
+                                                _zcfg,
+                                                _zbase_state,
+                                                _zsun,
+                                            )
+                                        )
+                                        glozone_state.set_zone_solar_cache(
+                                            _zone,
+                                            {
+                                                "base_kelvin": _zbase_k,
+                                                **_zbreakdown,
+                                            },
+                                        )
                                     except Exception as _e:
-                                        logger.debug(f"Solar cache error for zone {_zone}: {_e}")
+                                        logger.debug(
+                                            f"Solar cache error for zone {_zone}: {_e}"
+                                        )
                                 logger.debug(
                                     f"Updating lights in Circadian area: {area_id}"
                                 )
@@ -6595,7 +6735,9 @@ class HomeAssistantWebSocketClient:
                         if ug:
                             area_name = m["area"]
                             normalized_name = area_name.lower().replace(" ", "_")
-                            area_id = self.area_name_to_id.get(normalized_name, normalized_name)
+                            area_id = self.area_name_to_id.get(
+                                normalized_name, normalized_name
+                            )
                             area_key = self._normalize_area_key(area_id)
                             if area_key not in self._ungrouped_lights:
                                 self._ungrouped_lights[area_key] = {
