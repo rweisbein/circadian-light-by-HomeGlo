@@ -78,6 +78,13 @@ class PipelineContext:
     # Fade multiplier (auto on/off transitions, applied post-compute)
     fade_factor: float = 1.0
 
+    # Pre-computed base curve values (skip calculate_lighting when set).
+    # Used by primitives that already computed the curve via brain.py.
+    precomputed_brightness: Optional[int] = None
+    precomputed_kelvin: Optional[int] = None
+    precomputed_xy: Optional[Tuple[float, float]] = None
+    precomputed_rhythm_brightness: Optional[int] = None
+
 
 @dataclass
 class PurposeResult:
@@ -118,21 +125,31 @@ def compute(ctx: PipelineContext) -> PipelineResult:
     Pure computation — no I/O, no async, no side effects.
     """
     # --- Step 1: Base curve ---
-    result = CircadianLight.calculate_lighting(
-        ctx.hour,
-        ctx.config,
-        ctx.area_state,
-        sun_times=ctx.sun_times,
-        weekday=ctx.weekday,
-    )
-    rhythm_brightness = result.brightness
-    rhythm_kelvin = result.color_temp
-
-    # Steps 2-4 (night color, sun color, color override) are currently
-    # handled inside calculate_lighting via solar rules + AreaState.color_override.
-    # In Phase 5 we'll separate them; for now the curve output includes them.
-    kelvin = result.color_temp
-    xy = result.xy
+    if ctx.precomputed_brightness is not None:
+        # Caller already computed the curve (primitives path)
+        rhythm_brightness = (
+            ctx.precomputed_rhythm_brightness or ctx.precomputed_brightness
+        )
+        rhythm_kelvin = ctx.precomputed_kelvin or 4000
+        kelvin = ctx.precomputed_kelvin or 4000
+        xy = ctx.precomputed_xy or CircadianLight.color_temperature_to_xy(kelvin)
+        phase = "precomputed"
+    else:
+        # Compute from scratch (periodic tick path)
+        result = CircadianLight.calculate_lighting(
+            ctx.hour,
+            ctx.config,
+            ctx.area_state,
+            sun_times=ctx.sun_times,
+            weekday=ctx.weekday,
+        )
+        rhythm_brightness = result.brightness
+        rhythm_kelvin = result.color_temp
+        # Steps 2-4 (night color, sun color, color override) are currently
+        # handled inside calculate_lighting via solar rules + AreaState.color_override.
+        kelvin = result.color_temp
+        xy = result.xy
+        phase = result.phase
 
     # --- Step 5: Sun bright adjustment (NL) ---
     brightness = rhythm_brightness
@@ -227,7 +244,7 @@ def compute(ctx: PipelineContext) -> PipelineResult:
         area_xy=xy,
         rhythm_brightness=rhythm_brightness,
         rhythm_kelvin=rhythm_kelvin,
-        phase=result.phase,
+        phase=phase,
         sun_bright_factor=sun_bright_factor,
     )
 

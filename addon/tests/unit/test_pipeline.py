@@ -370,3 +370,127 @@ class TestFadeFactor:
             if fp.brightness > 0:
                 expected = max(1, int(round(fp.brightness * 0.3)))
                 assert ff.brightness == expected
+
+
+# ---------------------------------------------------------------------------
+# Precomputed curve values (primitives path)
+# ---------------------------------------------------------------------------
+
+
+class TestPrecomputedCurve:
+    """Pipeline with precomputed base curve values (skip calculate_lighting)."""
+
+    def test_uses_precomputed_brightness(self):
+        """When precomputed_brightness is set, pipeline uses it directly."""
+        result = compute(
+            _make_ctx(
+                hour=12.0,
+                precomputed_brightness=75,
+                precomputed_kelvin=3500,
+                precomputed_xy=(0.4, 0.38),
+            )
+        )
+        # Should use precomputed values, not compute from hour
+        assert result.rhythm_brightness == 75
+        assert result.area_kelvin == 3500
+        assert result.area_xy == (0.4, 0.38)
+
+    def test_precomputed_with_separate_rhythm(self):
+        """precomputed_rhythm_brightness used for filter curve position."""
+        result = compute(
+            _make_ctx(
+                hour=12.0,
+                precomputed_brightness=50,
+                precomputed_kelvin=3000,
+                precomputed_rhythm_brightness=80,
+            )
+        )
+        # rhythm_brightness should be the separate value
+        assert result.rhythm_brightness == 80
+
+    def test_precomputed_rhythm_defaults_to_brightness(self):
+        """Without precomputed_rhythm_brightness, falls back to precomputed_brightness."""
+        result = compute(
+            _make_ctx(
+                hour=12.0,
+                precomputed_brightness=60,
+                precomputed_kelvin=3000,
+            )
+        )
+        assert result.rhythm_brightness == 60
+
+    def test_precomputed_nl_still_applies(self):
+        """NL should still reduce brightness on top of precomputed values."""
+        no_nl = compute(
+            _make_ctx(
+                hour=12.0,
+                precomputed_brightness=80,
+                precomputed_kelvin=4000,
+                sun_exposure=0.0,
+                sun_intensity=1.0,
+            )
+        )
+        with_nl = compute(
+            _make_ctx(
+                hour=12.0,
+                precomputed_brightness=80,
+                precomputed_kelvin=4000,
+                sun_exposure=1.0,
+                sun_intensity=1.0,
+            )
+        )
+        assert with_nl.purposes[0].brightness < no_nl.purposes[0].brightness
+
+    def test_precomputed_with_filters(self):
+        """Filters should work on top of precomputed brightness."""
+        result = compute(
+            _make_ctx(
+                hour=12.0,
+                precomputed_brightness=80,
+                precomputed_kelvin=4000,
+                precomputed_rhythm_brightness=80,
+                area_filters={"light.a": "Bright", "light.b": "Dim"},
+                filter_presets={
+                    "Bright": {"at_dim": 80, "at_bright": 100},
+                    "Dim": {"at_dim": 20, "at_bright": 50},
+                },
+            )
+        )
+        assert len(result.purposes) == 2
+        bright = next(p for p in result.purposes if p.name == "Bright")
+        dim = next(p for p in result.purposes if p.name == "Dim")
+        assert bright.brightness >= dim.brightness
+
+    def test_precomputed_phase_is_precomputed(self):
+        """Phase should be 'precomputed' when using precomputed values."""
+        result = compute(
+            _make_ctx(
+                hour=12.0,
+                precomputed_brightness=50,
+                precomputed_kelvin=3000,
+            )
+        )
+        assert result.phase == "precomputed"
+
+    def test_precomputed_ct_comp_applies(self):
+        """CT compensation should apply to precomputed values."""
+        no_comp = compute(
+            _make_ctx(
+                hour=2.0,
+                precomputed_brightness=30,
+                precomputed_kelvin=1500,
+                ct_comp_enabled=False,
+            )
+        )
+        with_comp = compute(
+            _make_ctx(
+                hour=2.0,
+                precomputed_brightness=30,
+                precomputed_kelvin=1500,
+                ct_comp_enabled=True,
+                ct_comp_begin=1650,
+                ct_comp_end=2250,
+                ct_comp_factor=1.7,
+            )
+        )
+        assert with_comp.purposes[0].brightness > no_comp.purposes[0].brightness

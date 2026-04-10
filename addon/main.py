@@ -3397,9 +3397,7 @@ class HomeAssistantWebSocketClient:
             if log_periodic and p_bri is not None:
                 parts = [f"curve={pipeline_result.rhythm_brightness}%"]
                 if pipeline_result.sun_bright_factor < 1.0:
-                    parts.append(
-                        f"NL×{pipeline_result.sun_bright_factor:.2f}"
-                    )
+                    parts.append(f"NL×{pipeline_result.sun_bright_factor:.2f}")
                 parts.append(f"→{p_bri}% {p_kelvin}K")
                 logger.info(f"[Pipeline] {area_id}: {' '.join(parts)}")
 
@@ -3408,10 +3406,8 @@ class HomeAssistantWebSocketClient:
             )
             return
 
-        # --- Legacy path: inline computation ---
+        # --- Dict/kwargs path: extract values, compute via pipeline ---
         # Support both dict and kwargs calling conventions
-        rhythm_brightness = None
-        brightness_override = None
         skip_filters = None
         skip_two_step = False
         skip_off_threshold = False
@@ -3429,111 +3425,95 @@ class HomeAssistantWebSocketClient:
             skip_off_threshold = circadian_values.get("skip_off_threshold", False)
         else:
             kelvin = color_temp
+            rhythm_brightness = None
+            brightness_override = None
             boost_brightness = None
 
         # Compute xy from kelvin if not provided (for color-capable lights)
         if xy is None and kelvin is not None and include_color:
             xy = CircadianLight.color_temperature_to_xy(kelvin)
 
-        # Apply natural light reduction (outdoor intensity, per-area exposure)
-        natural_exposure = glozone.get_area_natural_light_exposure(area_id)
-        pre_nl_bri = brightness
-        nl_factor = 1.0
-        if natural_exposure > 0.0 and brightness is not None:
-            outdoor_norm = lux_tracker.get_outdoor_normalized()
-            if outdoor_norm is None:
-                outdoor_norm = 0.0
+        # Build PipelineContext from extracted values + glozone/lux lookups
+        from pipeline import PipelineContext
+        import pipeline as pipeline_mod
 
-            brightness_sensitivity = glozone.get_config().get(
-                "brightness_sensitivity", 5.0
-            )
-            nl_factor = calculate_natural_light_factor(
-                natural_exposure, outdoor_norm, brightness_sensitivity
-            )
-            if nl_factor < 1.0:
-                brightness = max(1, int(round(brightness * nl_factor)))
+        raw_config = glozone.load_config_from_files()
+        outdoor_norm = lux_tracker.get_outdoor_normalized()
+        zone_cfg = glozone.get_zone_config_for_area(area_id)
 
-        # Save previous kelvin for 2-step check (before updating to target)
+        ctx = PipelineContext(
+            area_id=area_id,
+            hour=0.0,  # Not used when precomputed
+            config=Config.from_dict(zone_cfg),
+            area_state=AreaState(is_circadian=True, is_on=True),
+            sun_times=SunTimes(),
+            area_factor=glozone.get_area_brightness_factor(area_id),
+            area_filters=glozone.get_area_light_filters(area_id),
+            filter_presets=glozone.get_light_filter_presets(),
+            off_threshold=glozone.get_off_threshold(),
+            sun_exposure=glozone.get_area_natural_light_exposure(area_id),
+            sun_intensity=outdoor_norm if outdoor_norm is not None else 0.0,
+            brightness_override=brightness_override,
+            boost_brightness=boost_brightness,
+            ct_comp_enabled=raw_config.get("ct_comp_enabled", False),
+            ct_comp_begin=raw_config.get("ct_comp_begin", 1650),
+            ct_comp_end=raw_config.get("ct_comp_end", 2250),
+            ct_comp_factor=raw_config.get("ct_comp_factor", 1.7),
+            transition=transition,
+            precomputed_brightness=brightness,
+            precomputed_kelvin=kelvin,
+            precomputed_xy=xy,
+            precomputed_rhythm_brightness=rhythm_brightness,
+        )
+        pipeline_result = pipeline_mod.compute(ctx)
+
+        # State tracking
         _prev_kelvin = state.get_last_sent_kelvin(area_id)
+        if pipeline_result.area_kelvin is not None:
+            state.set_last_sent_kelvin(area_id, pipeline_result.area_kelvin)
 
-        # Track last-sent kelvin (always correct, same for phase 1 and 2)
-        if kelvin is not None:
-            state.set_last_sent_kelvin(area_id, kelvin)
-
-        # Check if light filters are active for this area
         area_filters = glozone.get_area_light_filters(area_id)
         area_factor = glozone.get_area_brightness_factor(area_id)
         has_filters = bool(area_filters) or area_factor != 1.0
 
         if has_filters and brightness is not None:
-            # ---- Filtered path: per-filter brightness with sub-groups ----
             await self._turn_on_lights_filtered(
                 area_id,
-                brightness,
-                kelvin,
-                xy,
+                pipeline_result.area_brightness,
+                pipeline_result.area_kelvin,
+                pipeline_result.area_xy,
                 transition,
                 include_color,
                 log_periodic,
                 area_filters,
                 area_factor,
-                rhythm_brightness=rhythm_brightness,
-                pre_nl_brightness=pre_nl_bri,
-                brightness_override=brightness_override,
-                boost_brightness=boost_brightness,
                 skip_filters=skip_filters,
                 skip_two_step=skip_two_step,
                 skip_off_threshold=skip_off_threshold,
                 prev_kelvin=_prev_kelvin,
+                precomputed_purposes=pipeline_result.purposes,
             )
             return
 
-        # ---- Fast path: no filters, area_factor == 1.0 ----
-        post_nl_bri = brightness
-        # Apply brightness_override directly (additive delta, already decay-adjusted)
-        if brightness_override is not None and brightness is not None:
-            brightness = int(min(100, max(1, round(brightness + brightness_override))))
-        post_override_bri = brightness
+        # Fast path: single Standard purpose
+        p = pipeline_result.purposes[0]
+        p_bri = p.brightness
+        p_kelvin = p.kelvin
+        p_xy = p.xy
 
-        # Apply boost (after NL + override, before purpose/CT)
-        if boost_brightness and brightness is not None:
-            brightness = min(100, brightness + boost_brightness)
-        post_boost_bri = brightness
+        if not skip_off_threshold and p_bri is not None:
+            state.set_last_sent_brightness(area_id, p_bri)
+        state.set_last_sent_purpose(area_id, "Standard", p_bri, p_kelvin)
 
-        # Track area-level brightness (post override + boost, pre CT compensation)
-        if not skip_off_threshold and brightness is not None:
-            state.set_last_sent_brightness(area_id, brightness)
-
-        # Apply CT brightness compensation (for warm color temps on Hue bulbs)
-        ct_comp_bri = brightness
-        if brightness is not None and kelvin is not None:
-            brightness = self._apply_ct_brightness_compensation(brightness, kelvin)
-            ct_comp_bri = brightness
-
-        # Cache per-purpose last-sent (fast path = Standard only)
-        if brightness is not None:
-            state.set_last_sent_purpose(
-                area_id, "Standard", ct_comp_bri, kelvin or 4000
-            )
-
-        # Pipeline summary
-        if log_periodic and brightness is not None:
-            parts = [f"curve={rhythm_brightness or pre_nl_bri}%"]
-            if nl_factor < 1.0:
-                parts.append(f"NL×{nl_factor:.2f}={post_nl_bri}%")
-            if brightness_override:
-                parts.append(
-                    f"override={brightness_override:+.0f}→{post_override_bri}%"
-                )
-            if boost_brightness:
-                parts.append(f"+boost={boost_brightness}→{post_boost_bri}%")
-            if ct_comp_bri != post_boost_bri:
-                parts.append(f"CT→{ct_comp_bri}%")
-            parts.append(f"{kelvin}K")
-            logger.info(f"[Pipeline] {area_id}: {' → '.join(parts)}")
+        if log_periodic and p_bri is not None:
+            parts = [f"curve={pipeline_result.rhythm_brightness}%"]
+            if pipeline_result.sun_bright_factor < 1.0:
+                parts.append(f"NL×{pipeline_result.sun_bright_factor:.2f}")
+            parts.append(f"→{p_bri}% {p_kelvin}K")
+            logger.info(f"[Pipeline] {area_id}: {' '.join(parts)}")
 
         await self._dispatch_fast_path(
-            area_id, brightness, kelvin, xy, transition, include_color, log_periodic
+            area_id, p_bri, p_kelvin, p_xy, transition, include_color, log_periodic
         )
 
     async def _dispatch_fast_path(
@@ -6155,8 +6135,7 @@ class HomeAssistantWebSocketClient:
                         fade_note = f" (fade-in {progress:.0%})"
                     elif fade_state and fade_state["fade_direction"] == "out":
                         start_bri = (
-                            fade_state.get("fade_start_brightness")
-                            or result.brightness
+                            fade_state.get("fade_start_brightness") or result.brightness
                         )
                         _fade_out_target = max(
                             1, int(round(start_bri * (1.0 - progress)))

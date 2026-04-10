@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.285
+- **Pipeline re-architecture Phase 2**: All callers (primitives, motion, boost, step, etc.) now compute via `pipeline.compute()`. Added precomputed curve support to pipeline — callers that already computed base values skip `calculate_lighting`. Legacy inline NL/override/boost/filter/CT computation in `turn_on_lights_circadian` replaced with pipeline. 7 new precomputed tests. Zero changes to primitives.py.
+
 ## 1.0.284
 - **Pipeline re-architecture Phase 1**: Periodic tick now computes via `pipeline.compute()` — NL, filters, CT comp, override, boost all computed once. Extracted `_dispatch_fast_path` helper. Added `pipeline_result` param to `turn_on_lights_circadian` and `precomputed_purposes` to `_turn_on_lights_filtered` to skip redundant re-computation. Fade-in uses pipeline `fade_factor`; fade-out uses post-compute override. 4 new fade tests.
 
