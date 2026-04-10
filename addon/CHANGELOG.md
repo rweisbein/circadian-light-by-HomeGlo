@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.1.2
+- **Fix silent delivery logging**: All primitive callers of `update_lights_in_circadian_mode` now pass `log_periodic=True` so per-purpose delivery is visible in logs (brightness_step, color_step, circadian_adjust, glo_reset, etc.).
+
 ## 1.1.1
 - **Reach rebuild**: `_send_via_reach` replaces `_try_reach_turn_on` — uses `pipeline.compute()` instead of inline computation, greedy set cover (largest reach first), direction-aware 2-step with configured transition. Merged `_send_step_via_reach_or_fallback` + `_send_bright_via_reach_or_fallback` into single `_send_via_reach_or_fallback`. Added `_compute_pipeline_for_area` helper for multi-area pipeline computation.
 

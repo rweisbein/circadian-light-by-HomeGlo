@@ -562,7 +562,7 @@ class CircadianLightPrimitives:
                             direction=direction,
                             bounce_type="step",
                         )
-                        await self.client.update_lights_in_circadian_mode(area_id)
+                        await self.client.update_lights_in_circadian_mode(area_id, log_periodic=True)
                     return None
                 break  # Mid-sequence limit → use last good result
             last_result = result
@@ -1046,7 +1046,7 @@ class CircadianLightPrimitives:
                 f"target={target_actual}, current={current_actual:.1f}, delta={delta}"
             )
             if area_state.is_on:
-                await self.client.update_lights_in_circadian_mode(area_id)
+                await self.client.update_lights_in_circadian_mode(area_id, log_periodic=True)
             return
 
         if mode == "color":
@@ -1219,7 +1219,7 @@ class CircadianLightPrimitives:
             if abs(delta) < 0.5:
                 # P1 was sufficient — apply lighting and return
                 if send_command and area_state.is_on:
-                    await self.client.update_lights_in_circadian_mode(area_id)
+                    await self.client.update_lights_in_circadian_mode(area_id, log_periodic=True)
                 result = CircadianLight.calculate_lighting(
                     hour, config, area_state, sun_times=sun_times
                 )
@@ -1573,7 +1573,9 @@ class CircadianLightPrimitives:
         if send_command and applied:
             area_state = self._get_area_state(area_id)
             if area_state.is_on:
-                await self.client.update_lights_in_circadian_mode(area_id)
+                await self.client.update_lights_in_circadian_mode(
+                    area_id, log_periodic=True
+                )
 
         return True if applied else None
 
@@ -1698,7 +1700,7 @@ class CircadianLightPrimitives:
             f"override {current_override:.1f}K -> {new_override}K"
         )
         if area_state.is_on and send_command:
-            await self.client.update_lights_in_circadian_mode(area_id)
+            await self.client.update_lights_in_circadian_mode(area_id, log_periodic=True)
 
         if steps > 1:
             await self._color_step(
@@ -3525,7 +3527,7 @@ class CircadianLightPrimitives:
                         and state.get_is_on(area_id)
                         and send_command
                     ):
-                        await self.client.update_lights_in_circadian_mode(area_id)
+                        await self.client.update_lights_in_circadian_mode(area_id, log_periodic=True)
                 return
 
             else:
@@ -3895,7 +3897,7 @@ class CircadianLightPrimitives:
 
         # Apply lighting if area is circadian and is_on
         if state.is_circadian(area_id) and state.get_is_on(area_id) and send_command:
-            await self.client.update_lights_in_circadian_mode(area_id)
+            await self.client.update_lights_in_circadian_mode(area_id, log_periodic=True)
             logger.info(f"glo_down complete for {area_id}")
         elif not state.is_circadian(area_id) or not state.get_is_on(area_id):
             logger.info(
