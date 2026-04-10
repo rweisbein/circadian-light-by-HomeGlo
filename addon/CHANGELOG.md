@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.283
+- **Pipeline naming cleanup**: Rename `natural_exposure` → `sun_exposure`, `outdoor_normalized` → `sun_intensity`, `nl_factor` → `sun_bright_factor` in new pipeline module.
+
 ## 1.0.282
 - **Pipeline re-architecture Phase 0**: Add `pipeline.py` (unified compute function), `delivery.py` (thin wrapper), and 21 unit tests. No entry points wired yet — zero risk scaffolding for incremental migration.
 

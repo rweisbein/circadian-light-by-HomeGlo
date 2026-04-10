@@ -55,8 +55,8 @@ class PipelineContext:
     off_threshold: int = 0
 
     # Sun bright adjustment inputs
-    natural_exposure: float = 0.0  # 0.0 (cave) to 1.0 (sunroom)
-    outdoor_normalized: float = 0.0  # 0.0 (dark) to 1.0 (bright sun)
+    sun_exposure: float = 0.0  # 0.0 (cave) to 1.0 (sunroom)
+    sun_intensity: float = 0.0  # 0.0 (dark) to 1.0 (bright sun)
 
     # Override / boost (already decay-adjusted by caller)
     brightness_override: Optional[float] = None
@@ -101,7 +101,7 @@ class PipelineResult:
     rhythm_kelvin: int
     phase: str  # "ascend" or "descend"
     # Sun bright adjustment factor applied
-    nl_factor: float = 1.0
+    sun_bright_factor: float = 1.0
 
 
 # ---------------------------------------------------------------------------
@@ -133,13 +133,13 @@ def compute(ctx: PipelineContext) -> PipelineResult:
 
     # --- Step 5: Sun bright adjustment (NL) ---
     brightness = rhythm_brightness
-    nl_factor = calculate_natural_light_factor(
-        ctx.natural_exposure,
-        ctx.outdoor_normalized,
+    sun_bright_factor = calculate_natural_light_factor(
+        ctx.sun_exposure,
+        ctx.sun_intensity,
         ctx.config.brightness_sensitivity,
     )
-    if nl_factor < 1.0:
-        brightness = max(1, int(round(brightness * nl_factor)))
+    if sun_bright_factor < 1.0:
+        brightness = max(1, int(round(brightness * sun_bright_factor)))
 
     # --- Step 6: Area factor ---
     # Applied inside per-purpose filter pipeline (step 9).
@@ -216,7 +216,7 @@ def compute(ctx: PipelineContext) -> PipelineResult:
         rhythm_brightness=rhythm_brightness,
         rhythm_kelvin=rhythm_kelvin,
         phase=result.phase,
-        nl_factor=nl_factor,
+        sun_bright_factor=sun_bright_factor,
     )
 
 

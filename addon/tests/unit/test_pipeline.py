@@ -86,22 +86,22 @@ class TestSunBrightAdjustment:
         result = compute(
             _make_ctx(
                 hour=12.0,
-                natural_exposure=0.0,
-                outdoor_normalized=1.0,
+                sun_exposure=0.0,
+                sun_intensity=1.0,
             )
         )
-        assert result.nl_factor == 1.0
+        assert result.sun_bright_factor == 1.0
 
     def test_full_exposure_bright_sun(self):
         """Area with full exposure and bright sun should reduce significantly."""
         result = compute(
             _make_ctx(
                 hour=12.0,
-                natural_exposure=1.0,
-                outdoor_normalized=1.0,
+                sun_exposure=1.0,
+                sun_intensity=1.0,
             )
         )
-        assert result.nl_factor < 0.5
+        assert result.sun_bright_factor < 0.5
         # Brightness should be reduced from rhythm
         assert result.area_brightness < result.rhythm_brightness
 
@@ -110,22 +110,22 @@ class TestSunBrightAdjustment:
         result = compute(
             _make_ctx(
                 hour=12.0,
-                natural_exposure=0.3,
-                outdoor_normalized=0.5,
+                sun_exposure=0.3,
+                sun_intensity=0.5,
             )
         )
-        assert 0.0 < result.nl_factor < 1.0
+        assert 0.0 < result.sun_bright_factor < 1.0
 
     def test_no_sun_no_reduction(self):
         """No outdoor light should mean no reduction."""
         result = compute(
             _make_ctx(
                 hour=12.0,
-                natural_exposure=1.0,
-                outdoor_normalized=0.0,
+                sun_exposure=1.0,
+                sun_intensity=0.0,
             )
         )
-        assert result.nl_factor == 1.0
+        assert result.sun_bright_factor == 1.0
 
 
 # ---------------------------------------------------------------------------
@@ -291,8 +291,8 @@ class TestPipelineConsistency:
         """With NL, pipeline should apply same factor as brain."""
         ctx = _make_ctx(
             hour=12.0,
-            natural_exposure=0.5,
-            outdoor_normalized=0.8,
+            sun_exposure=0.5,
+            sun_intensity=0.8,
         )
         result = compute(ctx)
         direct = CircadianLight.calculate_lighting(
