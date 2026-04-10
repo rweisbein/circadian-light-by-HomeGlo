@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.1.0
+- **Pipeline v1.1: single computation engine + clean delivery API.** All light paths now flow through `pipeline.compute()`. Renamed: `turn_on_lights_circadian` → `send_light`, `_dispatch_fast_path` → `_deliver_fast`, `_turn_on_lights_filtered` → `_deliver_filtered`, `_apply_lighting` → `_send_light`, `_apply_circadian_lighting` → `_send_light_add_override_boost`. Deleted outer 2-step (`_apply_lighting_turn_on`, `_apply_lighting_turn_on_multiple`) — inner 2-step handles all off→on and CT shift scenarios. Deleted unused `_apply_step_result`, `_apply_color_only`. Net -290 lines.
+
 ## 1.0.287
 - **2-step direction-aware phases**: When dimming, phase 1 dims to target (keeps old color), phase 2 changes color at dim level. When brightening, phase 1 sets color at low brightness, phase 2 ramps up. Both phases now use configured transition speed (no more instant `transition=0` jumps).
 

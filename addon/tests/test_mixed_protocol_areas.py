@@ -68,7 +68,7 @@ class TestMixedProtocolAreas:
         }
         
         # Test 1: ZHA-only area (living_room) should use ZHA group entity
-        await client.turn_on_lights_circadian("living_room", circadian_values)
+        await client.send_light("living_room", circadian_values)
         assert client.call_service.call_count == 1
         call_args = client.call_service.call_args
         target = call_args[0][3]  # Fourth positional arg is target
@@ -77,7 +77,7 @@ class TestMixedProtocolAreas:
         
         # Test 2: Mixed area (bedroom) should use area-based control
         client.call_service.reset_mock()
-        await client.turn_on_lights_circadian("bedroom", circadian_values)
+        await client.send_light("bedroom", circadian_values)
         assert client.call_service.call_count == 1
         call_args = client.call_service.call_args
         target = call_args[0][3]  # Fourth positional arg is target
@@ -86,7 +86,7 @@ class TestMixedProtocolAreas:
         
         # Test 3: WiFi-only area (kitchen) should use area-based control
         client.call_service.reset_mock()
-        await client.turn_on_lights_circadian("kitchen", circadian_values)
+        await client.send_light("kitchen", circadian_values)
         assert client.call_service.call_count == 1
         call_args = client.call_service.call_args
         target = call_args[0][3]  # Fourth positional arg is target

@@ -416,39 +416,6 @@ class CircadianLightPrimitives:
             return None
         return area_state.brightness_override * decay
 
-    async def _apply_step_result(
-        self, area_id: str, result, skip_filters: Set[str] = None
-    ) -> None:
-        """Apply a StepResult to lights using the full pipeline.
-
-        Uses the step's color/brightness values (not re-rendered) but runs
-        through turn_on_lights_circadian so area_factor, filters, and
-        brightness_override are applied correctly.
-
-        Args:
-            area_id: The area ID
-            result: StepResult with brightness, color_temp, rgb, xy
-            skip_filters: Set of filter_norms to skip (handled by reach groups)
-        """
-        effective_override = self._get_decayed_brightness_override(area_id)
-        boost_amount = 0
-        if state.is_boosted(area_id):
-            boost_state = state.get_boost_state(area_id)
-            boost_amount = boost_state.get("boost_brightness") or 0
-
-        lighting_values = {
-            "brightness": result.brightness,
-            "kelvin": result.color_temp,
-            "rgb": result.rgb,
-            "xy": result.xy,
-            "rhythm_brightness": result.brightness,
-            "brightness_override": effective_override,
-            "boost_brightness": boost_amount if boost_amount > 0 else None,
-        }
-        if skip_filters:
-            lighting_values["skip_filters"] = skip_filters
-        await self.client.turn_on_lights_circadian(area_id, lighting_values)
-
     def _reduce_overrides_toward_zero(
         self, area_id: str, area_state, config, direction: str
     ) -> bool:
@@ -766,7 +733,7 @@ class CircadianLightPrimitives:
 
         # Apply to lights only if is_on=True
         if area_state.is_on:
-            await self._apply_circadian_lighting(
+            await self._send_light_add_override_boost(
                 area_id, result.brightness, result.color_temp
             )
             logger.info(f"Bright up applied: {result.brightness}%")
@@ -873,7 +840,7 @@ class CircadianLightPrimitives:
 
         # Apply to lights only if is_on=True
         if area_state.is_on:
-            await self._apply_circadian_lighting(
+            await self._send_light_add_override_boost(
                 area_id, result.brightness, result.color_temp
             )
             logger.info(f"Bright down applied: {result.brightness}%")
@@ -1057,7 +1024,7 @@ class CircadianLightPrimitives:
             self._update_area_state(area_id, updates)
 
             if area_state.is_on:
-                await self._apply_circadian_lighting(
+                await self._send_light_add_override_boost(
                     area_id, result.brightness, result.color_temp
                 )
                 logger.info(
@@ -1085,7 +1052,7 @@ class CircadianLightPrimitives:
         self._update_area_state(area_id, result.state_updates)
 
         if area_state.is_on:
-            await self._apply_circadian_lighting(
+            await self._send_light_add_override_boost(
                 area_id, result.brightness, result.color_temp
             )
             logger.info(
@@ -1346,7 +1313,7 @@ class CircadianLightPrimitives:
 
         # Send light commands only if send_command and is_on
         if send_command and area_state.is_on:
-            await self._apply_circadian_lighting(
+            await self._send_light_add_override_boost(
                 area_id, result.brightness, result.color_temp
             )
 
@@ -1772,9 +1739,9 @@ class CircadianLightPrimitives:
         effective_override = self._get_decayed_brightness_override(area_id)
         final_brightness = result.brightness
 
-        # Set boost state BEFORE applying lighting to prevent race condition:
-        # _apply_lighting_turn_on() has an asyncio.sleep for two-step delay,
-        # during which the circadian tick can run. If boost state isn't saved yet,
+        # Set boost state BEFORE sending light to prevent race condition:
+        # inner 2-step has an asyncio.sleep for delay, during which the
+        # circadian tick can run. If boost state isn't saved yet,
         # the tick sees is_boosted=False and overwrites with base brightness.
         if has_boost:
             started_from_off = not lights_were_on
@@ -1805,25 +1772,14 @@ class CircadianLightPrimitives:
         if has_boost:
             pipeline_kwargs["boost_brightness"] = boost_brightness
 
-        if lights_were_on:
-            # Lights already on - just adjust, no two-step needed
-            await self._apply_lighting(
-                area_id,
-                final_brightness,
-                result.color_temp,
-                include_color=True,
-                transition=transition,
-                **pipeline_kwargs,
-            )
-        else:
-            # Lights were off - use two-phase turn-on to avoid color jump
-            await self._apply_lighting_turn_on(
-                area_id,
-                final_brightness,
-                result.color_temp,
-                transition=transition,
-                **pipeline_kwargs,
-            )
+        await self._send_light(
+            area_id,
+            final_brightness,
+            result.color_temp,
+            include_color=True,
+            transition=transition,
+            **pipeline_kwargs,
+        )
 
         # Also turn on any switch entities (relays, smart plugs) in the area
         await self.client.turn_on_switch_entities(area_id)
@@ -1971,15 +1927,14 @@ class CircadianLightPrimitives:
             )
             result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
             transition = self._get_turn_on_transition()
-            # Apply brightness_override (from step_up/down or zone sync)
-            final_brightness = result.brightness
             effective_override = self._get_decayed_brightness_override(area_id)
-            if effective_override is not None:
-                final_brightness = max(
-                    1, min(100, round(final_brightness + effective_override))
-                )
-            await self._apply_lighting_turn_on(
-                area_id, final_brightness, result.color_temp, transition
+            await self._send_light(
+                area_id,
+                result.brightness,
+                result.color_temp,
+                transition=transition,
+                rhythm_brightness=result.brightness,
+                brightness_override=effective_override,
             )
             logger.info(
                 f"circadian_on applied: {final_brightness}%, {result.color_temp}K (is_on=True)"
@@ -2180,13 +2135,24 @@ class CircadianLightPrimitives:
 
             # 2-step turn-on for areas not handled by reach
             if needs_per_area_turn_on:
-                await self._apply_lighting_turn_on_multiple(
-                    needs_per_area_turn_on, transition=transition
+                await asyncio.gather(
+                    *[
+                        self._send_light(
+                            entry[0],
+                            entry[1],
+                            entry[2],
+                            include_color=True,
+                            transition=transition,
+                            rhythm_brightness=entry[3] if len(entry) > 3 else None,
+                            brightness_override=entry[4] if len(entry) > 4 else None,
+                        )
+                        for entry in needs_per_area_turn_on
+                    ]
                 )
 
             # Direct apply for partially reach-handled areas (some lights already on)
             for entry, skip in needs_per_area_partial:
-                await self._apply_lighting(
+                await self._send_light(
                     entry[0],
                     entry[1],
                     entry[2],
@@ -2381,28 +2347,15 @@ class CircadianLightPrimitives:
         # Apply boosted brightness with circadian color temp
         effective_override = self._get_decayed_brightness_override(area_id)
         transition = self._get_turn_on_transition()
-        if lights_currently_on:
-            # Lights already on - just adjust brightness
-            await self._apply_lighting(
-                area_id,
-                result.brightness,
-                result.color_temp,
-                transition=transition,
-                rhythm_brightness=result.brightness,
-                brightness_override=effective_override,
-                boost_brightness=boost_amount,
-            )
-        else:
-            # Lights were off - use two-phase turn-on
-            await self._apply_lighting_turn_on(
-                area_id,
-                result.brightness,
-                result.color_temp,
-                transition=transition,
-                rhythm_brightness=result.brightness,
-                brightness_override=effective_override,
-                boost_brightness=boost_amount,
-            )
+        await self._send_light(
+            area_id,
+            result.brightness,
+            result.color_temp,
+            transition=transition,
+            rhythm_brightness=result.brightness,
+            brightness_override=effective_override,
+            boost_brightness=boost_amount,
+        )
 
         logger.info(
             f"[{source}] Boosted area {area_id}: {result.brightness}% + {boost_amount}% = {boosted_brightness}%, "
@@ -2430,7 +2383,7 @@ class CircadianLightPrimitives:
         effective_override = self._get_decayed_brightness_override(area_id)
 
         transition = self._get_turn_on_transition()
-        await self._apply_lighting(
+        await self._send_light(
             area_id,
             result.brightness,
             result.color_temp,
@@ -2517,7 +2470,7 @@ class CircadianLightPrimitives:
             )
             effective_override = self._get_decayed_brightness_override(area_id)
             transition = self._get_boost_return_transition()
-            await self._apply_lighting(
+            await self._send_light(
                 area_id,
                 result.brightness,
                 result.color_temp,
@@ -3164,7 +3117,7 @@ class CircadianLightPrimitives:
         if current_brightness > blink_threshold:
             # Above threshold: dim to 50% of current
             warning_brightness = int(current_brightness * 0.5)
-            await self._apply_lighting(
+            await self._send_light(
                 area_id,
                 warning_brightness,
                 result.color_temp,
@@ -3176,12 +3129,12 @@ class CircadianLightPrimitives:
             )
         else:
             # At or below threshold: blink off, then hold at 3%
-            await self._apply_lighting(
+            await self._send_light(
                 area_id, 0, result.color_temp, include_color=False, transition=0.1
             )
             await asyncio.sleep(0.3)  # 300ms off
             warning_brightness = 3
-            await self._apply_lighting(
+            await self._send_light(
                 area_id,
                 warning_brightness,
                 result.color_temp,
@@ -3231,7 +3184,7 @@ class CircadianLightPrimitives:
             result = CircadianLight.calculate_lighting(
                 hour, config, area_state, sun_times=sun_times
             )
-            await self._apply_lighting(
+            await self._send_light(
                 area_id, pre_warning_brightness, result.color_temp, transition=0.3
             )
             logger.info(
@@ -3370,7 +3323,7 @@ class CircadianLightPrimitives:
                         else None
                     )
                     result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
-                    await self._apply_circadian_lighting(
+                    await self._send_light_add_override_boost(
                         area_id, result.brightness, result.color_temp
                     )
                 elif take_control and is_on == False and send_command:
@@ -3395,7 +3348,7 @@ class CircadianLightPrimitives:
                 result = CircadianLight.calculate_lighting(
                     frozen_at, config, area_state
                 )
-                await self._apply_circadian_lighting(
+                await self._send_light_add_override_boost(
                     area_id, result.brightness, result.color_temp
                 )
             elif take_control and is_on == False and send_command:
@@ -3593,7 +3546,7 @@ class CircadianLightPrimitives:
                 )
                 # Use turn_on_transition for presets (they're typically turn-on actions), boost-aware
                 transition = self._get_turn_on_transition()
-                await self._apply_circadian_lighting(
+                await self._send_light_add_override_boost(
                     area_id, result.brightness, result.color_temp, transition=transition
                 )
                 # Also turn on any switch entities when preset turns lights on
@@ -3822,7 +3775,7 @@ class CircadianLightPrimitives:
             )
             result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
             if send_command:
-                await self._apply_circadian_lighting(
+                await self._send_light_add_override_boost(
                     area_id, result.brightness, result.color_temp
                 )
 
@@ -4374,7 +4327,7 @@ class CircadianLightPrimitives:
     # Helper methods
     # -------------------------------------------------------------------------
 
-    async def _apply_lighting(
+    async def _send_light(
         self,
         area_id: str,
         brightness: int,
@@ -4391,7 +4344,7 @@ class CircadianLightPrimitives:
     ):
         """Apply lighting values to an area.
 
-        Delegates to client.turn_on_lights_circadian() which is the single source
+        Delegates to client.send_light() which is the single source
         of truth for light control. This ensures consistent behavior across all
         code paths (primitives, periodic updater, etc.).
 
@@ -4425,14 +4378,14 @@ class CircadianLightPrimitives:
         if skip_off_threshold:
             circadian_values["skip_off_threshold"] = True
 
-        await self.client.turn_on_lights_circadian(
+        await self.client.send_light(
             area_id,
             circadian_values,
             transition=transition,
             include_color=include_color,
         )
 
-    async def _apply_circadian_lighting(
+    async def _send_light_add_override_boost(
         self,
         area_id: str,
         brightness: int,
@@ -4442,12 +4395,12 @@ class CircadianLightPrimitives:
     ):
         """Apply circadian lighting with boost awareness and full pipeline context.
 
-        This is a wrapper around _apply_lighting that automatically adds boost
+        This is a wrapper around _send_light that automatically adds boost
         brightness if the area is boosted, and passes rhythm_brightness and
         brightness_override so the filter pipeline computes correct curve position
         and applies the override post-sun-bright (matching the periodic update path).
 
-        Use _apply_lighting directly when you've already calculated the final
+        Use _send_light directly when you've already calculated the final
         brightness (e.g., motion sensor boost functions).
 
         Args:
@@ -4469,7 +4422,7 @@ class CircadianLightPrimitives:
             boost_state = state.get_boost_state(area_id)
             boost_brightness = boost_state.get("boost_brightness") or None
 
-        await self._apply_lighting(
+        await self._send_light(
             area_id,
             brightness,
             color_temp,
@@ -4479,110 +4432,6 @@ class CircadianLightPrimitives:
             brightness_override=brightness_override,
             boost_brightness=boost_brightness,
         )
-
-    async def _apply_lighting_turn_on(
-        self,
-        area_id: str,
-        brightness: int,
-        color_temp: int,
-        transition: float = 0.4,
-        *,
-        rhythm_brightness: int = None,
-        brightness_override: float = None,
-        boost_brightness: int = None,
-    ):
-        """Turn on lights, using two-phase approach only if needed to avoid color jump.
-
-        When lights are off, they briefly show their previous color before
-        transitioning. If the new color is significantly different (>= 500K),
-        we use a two-phase approach:
-        1. Phase 1: Turn on at 1% brightness with target color (instant)
-        2. Phase 2: Transition to target brightness
-
-        If the color is similar to what it was when turned off, we skip the
-        two-phase and just turn on directly.
-
-        Hue hub-connected lights skip 2-step entirely - the Hue hub handles
-        color transitions internally.
-
-        Args:
-            area_id: The area ID
-            brightness: Target brightness percentage (0-100)
-            color_temp: Color temperature in Kelvin
-            transition: Transition time for phase 2 (brightness ramp)
-            rhythm_brightness: Pure curve brightness for filter curve position (pre-sun-bright/boost).
-            brightness_override: Decay-adjusted additive delta applied post-sun-bright.
-            boost_brightness: Additive boost applied after override, before filter.
-        """
-        pipeline_kwargs = {}
-        if rhythm_brightness is not None:
-            pipeline_kwargs["rhythm_brightness"] = rhythm_brightness
-        if brightness_override is not None:
-            pipeline_kwargs["brightness_override"] = brightness_override
-        if boost_brightness is not None:
-            pipeline_kwargs["boost_brightness"] = boost_brightness
-
-        # Hue hub handles color transitions internally - skip 2-step for all-Hue areas
-        if self.client.is_all_hue_area(area_id):
-            logger.debug(
-                f"Turn-on for all-Hue area {area_id} - skipping 2-step (Hue hub handles transitions)"
-            )
-            await self._apply_lighting(
-                area_id,
-                brightness,
-                color_temp,
-                include_color=True,
-                transition=transition,
-                **pipeline_kwargs,
-            )
-            return
-
-        # Check if 2-step is needed based on CT difference and brightness threshold
-        last_ct = state.get_last_sent_kelvin(area_id)
-        raw_cfg = glozone.load_config_from_files()
-        ct_threshold = raw_cfg.get("two_step_ct_threshold", 500)
-        bri_threshold = raw_cfg.get("two_step_bri_threshold", 15)
-
-        needs_two_step = False
-        if last_ct is not None:
-            ct_diff = abs(color_temp - last_ct)
-            needs_two_step = ct_diff >= ct_threshold and brightness >= bri_threshold
-            logger.debug(
-                f"Turn-on CT check: last={last_ct}K, new={color_temp}K, diff={ct_diff}K, bri={brightness}%, 2-step={needs_two_step}"
-            )
-
-        if needs_two_step:
-            # Phase 1: Set color at minimal brightness (nearly invisible)
-            # skip_off_threshold ensures purposes below threshold still get color pre-set
-            await self._apply_lighting(
-                area_id, 1, color_temp, include_color=True, transition=0,
-                skip_off_threshold=True,
-            )
-
-            # Delay to ensure phase 1 completes before phase 2
-            # Configurable via Settings > Two-step delay (some ZigBee lights need more time)
-            delay = self._get_two_step_delay()
-            await asyncio.sleep(delay)
-
-            # Phase 2: Transition to target brightness
-            await self._apply_lighting(
-                area_id,
-                brightness,
-                color_temp,
-                include_color=True,
-                transition=transition,
-                **pipeline_kwargs,
-            )
-        else:
-            # CT is similar - just turn on directly
-            await self._apply_lighting(
-                area_id,
-                brightness,
-                color_temp,
-                include_color=True,
-                transition=transition,
-                **pipeline_kwargs,
-            )
 
     async def _try_reach_turn_on(
         self,
@@ -4882,149 +4731,6 @@ class CircadianLightPrimitives:
 
         return filters_handled
 
-    async def _apply_lighting_turn_on_multiple(
-        self,
-        area_lighting: List[
-            Tuple
-        ],  # List of (area_id, brightness, color_temp, rhythm_brightness, brightness_override)
-        transition: float = 0.4,
-    ):
-        """Turn on multiple areas, batching 2-step phases for unified appearance.
-
-        Instead of doing Phase1-delay-Phase2 for each area sequentially, this batches:
-        1. Phase 1 (1%) for all areas needing 2-step (parallel)
-        2. Single delay
-        3. Phase 2 (target) for all areas needing 2-step (parallel)
-        4. Direct turn-on for areas not needing 2-step (parallel with phase 1)
-
-        Args:
-            area_lighting: List of (area_id, brightness, color_temp, rhythm_brightness, brightness_override) tuples.
-                rhythm_brightness and brightness_override are forwarded to the filter pipeline.
-            transition: Transition time for phase 2
-        """
-        if not area_lighting:
-            return
-
-        # Categorize areas by whether they need 2-step
-        needs_two_step = []
-        no_two_step = []
-        raw_cfg = glozone.load_config_from_files()
-        ct_threshold = raw_cfg.get("two_step_ct_threshold", 500)
-        bri_threshold = raw_cfg.get("two_step_bri_threshold", 15)
-
-        for entry in area_lighting:
-            area_id, brightness, color_temp = entry[0], entry[1], entry[2]
-            rhythm_bri = entry[3] if len(entry) > 3 else None
-            bri_override = entry[4] if len(entry) > 4 else None
-
-            item = (area_id, brightness, color_temp, rhythm_bri, bri_override)
-
-            # All-Hue areas skip 2-step
-            if self.client.is_all_hue_area(area_id):
-                no_two_step.append(item)
-                continue
-
-            # Skip 2-step if target brightness below threshold
-            if brightness < bri_threshold:
-                no_two_step.append(item)
-                continue
-
-            # Check CT difference
-            last_ct = state.get_last_sent_kelvin(area_id)
-            if last_ct is not None:
-                ct_diff = abs(color_temp - last_ct)
-                if ct_diff < ct_threshold:
-                    no_two_step.append(item)
-                    continue
-
-            needs_two_step.append(item)
-
-        def _pipeline_kwargs(rhythm_bri, bri_override):
-            kw = {}
-            if rhythm_bri is not None:
-                kw["rhythm_brightness"] = rhythm_bri
-            if bri_override is not None:
-                kw["brightness_override"] = bri_override
-            return kw
-
-        # Phase 1: Apply 1% to all 2-step areas + direct turn-on for no-2-step areas (parallel)
-        phase1_tasks = []
-        for area_id, brightness, color_temp, rhythm_bri, bri_override in needs_two_step:
-            phase1_tasks.append(
-                self._apply_lighting(
-                    area_id,
-                    1,
-                    color_temp,
-                    include_color=True,
-                    transition=0,
-                    skip_two_step=True,
-                    skip_off_threshold=True,
-                )
-            )
-        for area_id, brightness, color_temp, rhythm_bri, bri_override in no_two_step:
-            phase1_tasks.append(
-                self._apply_lighting(
-                    area_id,
-                    brightness,
-                    color_temp,
-                    include_color=True,
-                    transition=transition,
-                    **_pipeline_kwargs(rhythm_bri, bri_override),
-                )
-            )
-
-        if phase1_tasks:
-            await asyncio.gather(*phase1_tasks)
-
-        # Delay (only if any areas need 2-step)
-        if needs_two_step:
-            delay = self._get_two_step_delay()
-            await asyncio.sleep(delay)
-
-            # Phase 2: Apply target brightness to all 2-step areas (parallel)
-            phase2_tasks = []
-            for (
-                area_id,
-                brightness,
-                color_temp,
-                rhythm_bri,
-                bri_override,
-            ) in needs_two_step:
-                phase2_tasks.append(
-                    self._apply_lighting(
-                        area_id,
-                        brightness,
-                        color_temp,
-                        include_color=True,
-                        transition=transition,
-                        skip_two_step=True,
-                        **_pipeline_kwargs(rhythm_bri, bri_override),
-                    )
-                )
-            if phase2_tasks:
-                await asyncio.gather(*phase2_tasks)
-
-    async def _apply_color_only(
-        self, area_id: str, color_temp: int, transition: float = 0.4
-    ):
-        """Apply color temperature only to an area (brightness unchanged).
-
-        Delegates to client.turn_on_lights_circadian() with brightness=None,
-        which sets color without changing brightness.
-
-        Args:
-            area_id: The area ID
-            color_temp: Color temperature in Kelvin
-            transition: Transition time in seconds
-        """
-        await self.client.turn_on_lights_circadian(
-            area_id,
-            brightness=None,  # Don't change brightness
-            color_temp=color_temp,
-            transition=transition,
-            include_color=True,
-        )
-
     async def _bounce_at_limit(
         self,
         area_id: str,
@@ -5040,7 +4746,7 @@ class CircadianLightPrimitives:
         via call_service (bypasses pipeline to avoid override interference).
 
         Phase 2 (restore) goes through the full pipeline via
-        _apply_circadian_lighting (boost, sun bright, filters).
+        _send_light_add_override_boost (boost, sun bright, filters).
 
         Args:
             area_id: The area ID

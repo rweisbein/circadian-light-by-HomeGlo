@@ -1758,8 +1758,21 @@ class HomeAssistantWebSocketClient:
                 if all_norms.issubset(skip):
                     continue  # Fully handled by reach
             # Partial or no reach handling — pass skip_filters
+            override = self.primitives._get_decayed_brightness_override(area_id)
+            boost = None
+            if state.is_boosted(area_id):
+                boost_st = state.get_boost_state(area_id)
+                boost = boost_st.get("boost_brightness") or None
             tasks.append(
-                self.primitives._apply_step_result(area_id, result, skip_filters=skip)
+                self.primitives._send_light(
+                    area_id,
+                    result.brightness,
+                    result.color_temp,
+                    rhythm_brightness=result.brightness,
+                    brightness_override=override,
+                    boost_brightness=boost,
+                    skip_filters=skip,
+                )
             )
         if tasks:
             await asyncio.gather(*tasks)
@@ -1866,7 +1879,7 @@ class HomeAssistantWebSocketClient:
                 if skip:
                     lighting_values["skip_filters"] = skip
                 tasks.append(
-                    self.turn_on_lights_circadian(
+                    self.send_light(
                         area_id, lighting_values, transition=0.5
                     )
                 )
@@ -3145,7 +3158,7 @@ class HomeAssistantWebSocketClient:
         if "entity_id" in final_service_data:
             final_target["entity_id"] = final_service_data.pop("entity_id")
 
-        # Note: ZHA group vs area-based control is now handled in turn_on_lights_circadian
+        # Note: ZHA group vs area-based control is now handled in send_light
         # based on whether the area has ZHA parity (all lights are ZHA)
         # This call_service method remains generic and doesn't auto-substitute
 
@@ -3273,7 +3286,7 @@ class HomeAssistantWebSocketClient:
     def record_light_action(self) -> None:
         """Record that a light action occurred and schedule burst refreshes.
 
-        Called automatically by turn_on_lights_circadian and turn_off_lights
+        Called automatically by send_light and turn_off_lights
         when not in a periodic tick. Defers normal periodic updates, sets the
         burst counter to 3, and schedules the first refresh after the configured
         delay. Each call resets the counter and delay timer.
@@ -3317,7 +3330,7 @@ class HomeAssistantWebSocketClient:
 
         self._pending_post_action_delay = asyncio.create_task(_delayed_first_refresh())
 
-    async def turn_on_lights_circadian(
+    async def send_light(
         self,
         area_id: str,
         circadian_values: Dict[str, Any] = None,
@@ -3340,9 +3353,9 @@ class HomeAssistantWebSocketClient:
         - CT-only lights: Use color_temp_kelvin (clamped to 2000K minimum)
 
         Can be called three ways:
-        1. With circadian_values dict: turn_on_lights_circadian(area_id, {"brightness": 50, "kelvin": 3000, "xy": (0.4, 0.4)})
-        2. With keyword args: turn_on_lights_circadian(area_id, brightness=50, color_temp=3000)
-        3. With pipeline_result: turn_on_lights_circadian(area_id, pipeline_result=result)
+        1. With circadian_values dict: send_light(area_id, {"brightness": 50, "kelvin": 3000, "xy": (0.4, 0.4)})
+        2. With keyword args: send_light(area_id, brightness=50, color_temp=3000)
+        3. With pipeline_result: send_light(area_id, pipeline_result=result)
            Skips all computation (sun bright, filters, CT comp) — uses pre-computed values.
 
         Args:
@@ -3370,7 +3383,7 @@ class HomeAssistantWebSocketClient:
             has_filters = bool(area_filters) or area_factor != 1.0
 
             if has_filters:
-                await self._turn_on_lights_filtered(
+                await self._deliver_filtered(
                     area_id,
                     pipeline_result.area_brightness,
                     pipeline_result.area_kelvin,
@@ -3401,7 +3414,7 @@ class HomeAssistantWebSocketClient:
                 parts.append(f"→{p_bri}% {p_kelvin}K")
                 logger.info(f"[Pipeline] {area_id}: {' '.join(parts)}")
 
-            await self._dispatch_fast_path(
+            await self._deliver_fast(
                 area_id, p_bri, p_kelvin, p_xy, transition, include_color, log_periodic
             )
             return
@@ -3477,7 +3490,7 @@ class HomeAssistantWebSocketClient:
         has_filters = bool(area_filters) or area_factor != 1.0
 
         if has_filters and brightness is not None:
-            await self._turn_on_lights_filtered(
+            await self._deliver_filtered(
                 area_id,
                 pipeline_result.area_brightness,
                 pipeline_result.area_kelvin,
@@ -3512,11 +3525,11 @@ class HomeAssistantWebSocketClient:
             parts.append(f"→{p_bri}% {p_kelvin}K")
             logger.info(f"[Pipeline] {area_id}: {' '.join(parts)}")
 
-        await self._dispatch_fast_path(
+        await self._deliver_fast(
             area_id, p_bri, p_kelvin, p_xy, transition, include_color, log_periodic
         )
 
-    async def _dispatch_fast_path(
+    async def _deliver_fast(
         self,
         area_id: str,
         brightness: int,
@@ -3724,7 +3737,7 @@ class HomeAssistantWebSocketClient:
         if tasks:
             await asyncio.gather(*tasks)
 
-    async def _turn_on_lights_filtered(
+    async def _deliver_filtered(
         self,
         area_id: str,
         base_brightness: int,
@@ -4422,7 +4435,7 @@ class HomeAssistantWebSocketClient:
     ) -> None:
         """Turn off lights using ZHA groups when available.
 
-        This mirrors turn_on_lights_circadian but for turning off. Uses ZHA groups
+        This mirrors send_light but for turning off. Uses ZHA groups
         for efficient hardware-level control when available, with fallback to
         individual light control for non-ZHA lights.
 
@@ -5830,22 +5843,13 @@ class HomeAssistantWebSocketClient:
             if effective_override is not None:
                 pipeline_kwargs["brightness_override"] = effective_override
             pipeline_kwargs["boost_brightness"] = boost_amount
-            if started_from_off:
-                await self.primitives._apply_lighting_turn_on(
-                    area_id,
-                    result.brightness,
-                    result.color_temp,
-                    transition=transition,
-                    **pipeline_kwargs,
-                )
-            else:
-                await self.primitives._apply_lighting(
-                    area_id,
-                    result.brightness,
-                    result.color_temp,
-                    transition=transition,
-                    **pipeline_kwargs,
-                )
+            await self.primitives._send_light(
+                area_id,
+                result.brightness,
+                result.color_temp,
+                transition=transition,
+                **pipeline_kwargs,
+            )
             logger.info(
                 f"[webserver] boost_on applied: {area_id} {result.brightness}%+{boost_amount}%, {result.color_temp}K"
             )
@@ -5866,7 +5870,7 @@ class HomeAssistantWebSocketClient:
                 area_id
             )
             transition = self.primitives._get_turn_on_transition()
-            await self.primitives._apply_lighting(
+            await self.primitives._send_light(
                 area_id,
                 result.brightness,
                 result.color_temp,
@@ -6300,7 +6304,7 @@ class HomeAssistantWebSocketClient:
                 )
 
             # Deliver via pipeline-aware path
-            await self.turn_on_lights_circadian(
+            await self.send_light(
                 area_id,
                 transition=periodic_transition,
                 log_periodic=log_periodic,
