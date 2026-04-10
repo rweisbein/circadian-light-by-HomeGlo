@@ -3,8 +3,8 @@
 Takes pipeline results and sends them to lights via Home Assistant.
 Handles 2-step color pre-send, ZHA group dispatch, and prior state tracking.
 
-Phase 0: thin wrapper delegating to existing turn_on_lights_circadian.
-Later phases will implement delivery logic directly.
+Phase 1: passes PipelineResult to turn_on_lights_circadian which routes
+to the appropriate delivery path (fast or filtered) without re-computing.
 """
 
 from pipeline import PipelineResult
@@ -20,20 +20,13 @@ async def deliver(
 ) -> None:
     """Deliver pipeline results to lights.
 
-    Phase 0: delegates to existing turn_on_lights_circadian via client.
+    Passes the PipelineResult directly — turn_on_lights_circadian skips
+    all inline computation (NL, filters, CT comp) when pipeline_result is set.
     """
-    # Build circadian_values dict matching existing interface
-    circadian_values = {
-        "brightness": result.area_brightness,
-        "kelvin": result.area_kelvin,
-        "xy": result.area_xy,
-        "rhythm_brightness": result.rhythm_brightness,
-    }
-
     await client.turn_on_lights_circadian(
         area_id,
-        circadian_values,
         transition=transition,
         include_color=include_color,
         log_periodic=log_periodic,
+        pipeline_result=result,
     )

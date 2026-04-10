@@ -315,3 +315,58 @@ class TestPipelineConsistency:
         )
         assert result.area_kelvin == direct.color_temp
         assert result.area_xy == direct.xy
+
+
+# ---------------------------------------------------------------------------
+# Fade factor
+# ---------------------------------------------------------------------------
+
+
+class TestFadeFactor:
+    """Pipeline fade_factor: post-compute multiplier for auto on/off transitions."""
+
+    def test_fade_factor_one_no_change(self):
+        """fade_factor=1.0 (default) should not change brightness."""
+        base = compute(_make_ctx(hour=12.0, fade_factor=1.0))
+        default = compute(_make_ctx(hour=12.0))
+        assert base.purposes[0].brightness == default.purposes[0].brightness
+
+    def test_fade_in_half(self):
+        """fade_factor=0.5 should halve all purpose brightnesses."""
+        full = compute(_make_ctx(hour=12.0))
+        half = compute(_make_ctx(hour=12.0, fade_factor=0.5))
+        expected = max(1, int(round(full.purposes[0].brightness * 0.5)))
+        assert half.purposes[0].brightness == expected
+
+    def test_fade_factor_clamps_to_one(self):
+        """fade_factor should not push brightness below 1."""
+        result = compute(_make_ctx(hour=12.0, fade_factor=0.001))
+        assert result.purposes[0].brightness >= 1
+
+    def test_fade_with_purposes(self):
+        """fade_factor should apply to all purposes."""
+        ctx_full = _make_ctx(
+            hour=12.0,
+            area_filters={"light.a": "Bright", "light.b": "Dim"},
+            filter_presets={
+                "Bright": {"at_dim": 80, "at_bright": 100},
+                "Dim": {"at_dim": 20, "at_bright": 50},
+            },
+        )
+        full = compute(ctx_full)
+
+        ctx_faded = _make_ctx(
+            hour=12.0,
+            fade_factor=0.3,
+            area_filters={"light.a": "Bright", "light.b": "Dim"},
+            filter_presets={
+                "Bright": {"at_dim": 80, "at_bright": 100},
+                "Dim": {"at_dim": 20, "at_bright": 50},
+            },
+        )
+        faded = compute(ctx_faded)
+
+        for fp, ff in zip(full.purposes, faded.purposes):
+            if fp.brightness > 0:
+                expected = max(1, int(round(fp.brightness * 0.3)))
+                assert ff.brightness == expected

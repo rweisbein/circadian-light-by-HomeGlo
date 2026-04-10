@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.0.284
+- **Pipeline re-architecture Phase 1**: Periodic tick now computes via `pipeline.compute()` — NL, filters, CT comp, override, boost all computed once. Extracted `_dispatch_fast_path` helper. Added `pipeline_result` param to `turn_on_lights_circadian` and `precomputed_purposes` to `_turn_on_lights_filtered` to skip redundant re-computation. Fade-in uses pipeline `fade_factor`; fade-out uses post-compute override. 4 new fade tests.
+
 ## 1.0.283
 - **Pipeline naming cleanup**: Rename `natural_exposure` → `sun_exposure`, `outdoor_normalized` → `sun_intensity`, `nl_factor` → `sun_bright_factor` in new pipeline module.
 

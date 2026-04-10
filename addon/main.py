@@ -3328,6 +3328,7 @@ class HomeAssistantWebSocketClient:
         color_temp: int = None,
         xy: tuple = None,
         log_periodic: bool = True,
+        pipeline_result=None,
     ) -> None:
         """Turn on lights with circadian values - the single source of truth for light control.
 
@@ -3338,9 +3339,11 @@ class HomeAssistantWebSocketClient:
         - Color-capable lights (xy/rgb/hs): Use xy_color for full color range
         - CT-only lights: Use color_temp_kelvin (clamped to 2000K minimum)
 
-        Can be called two ways:
+        Can be called three ways:
         1. With circadian_values dict: turn_on_lights_circadian(area_id, {"brightness": 50, "kelvin": 3000, "xy": (0.4, 0.4)})
         2. With keyword args: turn_on_lights_circadian(area_id, brightness=50, color_temp=3000)
+        3. With pipeline_result: turn_on_lights_circadian(area_id, pipeline_result=result)
+           Skips all computation (NL, filters, CT comp) — uses pre-computed values.
 
         Args:
             area_id: The area ID to control lights in
@@ -3350,11 +3353,62 @@ class HomeAssistantWebSocketClient:
             brightness: Brightness percentage 0-100 (alternative to dict)
             color_temp: Color temperature in Kelvin (alternative to dict)
             xy: Pre-computed CIE xy coordinates (optional, computed from color_temp if not provided)
+            pipeline_result: Pre-computed PipelineResult — bypasses all inline computation
         """
         # Record non-periodic light action for defer + refresh
         if not self._in_periodic_tick:
             self.record_light_action()
 
+        # --- Pipeline-driven path: all computation already done ---
+        if pipeline_result is not None:
+            _prev_kelvin = state.get_last_sent_kelvin(area_id)
+            if pipeline_result.area_kelvin is not None:
+                state.set_last_sent_kelvin(area_id, pipeline_result.area_kelvin)
+
+            area_filters = glozone.get_area_light_filters(area_id)
+            area_factor = glozone.get_area_brightness_factor(area_id)
+            has_filters = bool(area_filters) or area_factor != 1.0
+
+            if has_filters:
+                await self._turn_on_lights_filtered(
+                    area_id,
+                    pipeline_result.area_brightness,
+                    pipeline_result.area_kelvin,
+                    pipeline_result.area_xy,
+                    transition,
+                    include_color,
+                    log_periodic,
+                    area_filters,
+                    area_factor,
+                    prev_kelvin=_prev_kelvin,
+                    precomputed_purposes=pipeline_result.purposes,
+                )
+                return
+
+            # Fast path: single Standard purpose, no filters
+            p = pipeline_result.purposes[0]
+            p_bri = p.brightness
+            p_kelvin = p.kelvin
+            p_xy = p.xy
+
+            state.set_last_sent_brightness(area_id, p_bri)
+            state.set_last_sent_purpose(area_id, "Standard", p_bri, p_kelvin)
+
+            if log_periodic and p_bri is not None:
+                parts = [f"curve={pipeline_result.rhythm_brightness}%"]
+                if pipeline_result.sun_bright_factor < 1.0:
+                    parts.append(
+                        f"NL×{pipeline_result.sun_bright_factor:.2f}"
+                    )
+                parts.append(f"→{p_bri}% {p_kelvin}K")
+                logger.info(f"[Pipeline] {area_id}: {' '.join(parts)}")
+
+            await self._dispatch_fast_path(
+                area_id, p_bri, p_kelvin, p_xy, transition, include_color, log_periodic
+            )
+            return
+
+        # --- Legacy path: inline computation ---
         # Support both dict and kwargs calling conventions
         rhythm_brightness = None
         brightness_override = None
@@ -3478,6 +3532,24 @@ class HomeAssistantWebSocketClient:
             parts.append(f"{kelvin}K")
             logger.info(f"[Pipeline] {area_id}: {' → '.join(parts)}")
 
+        await self._dispatch_fast_path(
+            area_id, brightness, kelvin, xy, transition, include_color, log_periodic
+        )
+
+    async def _dispatch_fast_path(
+        self,
+        area_id: str,
+        brightness: int,
+        kelvin: int,
+        xy: tuple,
+        transition: float,
+        include_color: bool,
+        log_periodic: bool,
+    ) -> None:
+        """Dispatch brightness/kelvin/xy to lights via capability groups and ZHA.
+
+        Pure delivery — no computation. Used by both legacy and pipeline paths.
+        """
         color_lights, ct_lights, brightness_lights, onoff_lights = (
             self.get_lights_by_capability(area_id)
         )
@@ -3613,7 +3685,10 @@ class HomeAssistantWebSocketClient:
                     tasks.append(
                         asyncio.create_task(
                             self.call_service(
-                                "light", "turn_on", ct_data, {"entity_id": non_zha_ct}
+                                "light",
+                                "turn_on",
+                                ct_data,
+                                {"entity_id": non_zha_ct},
                             )
                         )
                     )
@@ -3688,24 +3763,37 @@ class HomeAssistantWebSocketClient:
         skip_two_step: bool = False,
         skip_off_threshold: bool = False,
         prev_kelvin: int = None,
+        precomputed_purposes: list = None,
     ) -> None:
         """Filtered light dispatch: applies per-light filter brightness and routes to sub-groups.
 
         Groups lights by filter assignment, computes filtered brightness for each group,
         applies CT compensation per-group, and dispatches to filter-specific ZHA sub-groups.
         Lights below the off threshold receive a turn_off command.
+
+        When precomputed_purposes is provided (from pipeline), filter computation and CT
+        compensation are skipped — pre-computed brightness/should_off values are used directly.
         """
         presets = glozone.get_light_filter_presets()
         off_threshold = glozone.get_off_threshold()
 
+        # Build lookup for pre-computed purpose values (pipeline path)
+        _purpose_map = {}
+        if precomputed_purposes:
+            _purpose_map = {p.name: p for p in precomputed_purposes}
+
         # Track area-level brightness (post area_factor + override + boost, pre-filter)
         if not skip_off_threshold and base_brightness is not None:
-            area_base = base_brightness * area_factor
-            if brightness_override is not None:
-                area_base = max(1, min(100, area_base + brightness_override))
-            if boost_brightness:
-                area_base = min(100, area_base + boost_brightness)
-            state.set_last_sent_brightness(area_id, int(round(area_base)))
+            if _purpose_map:
+                # Pipeline already computed area-level brightness
+                state.set_last_sent_brightness(area_id, base_brightness)
+            else:
+                area_base = base_brightness * area_factor
+                if brightness_override is not None:
+                    area_base = max(1, min(100, area_base + brightness_override))
+                if boost_brightness:
+                    area_base = min(100, area_base + boost_brightness)
+                state.set_last_sent_brightness(area_id, int(round(area_base)))
 
         # Get rhythm bounds for curve position calculation
         zone_cfg = glozone.get_zone_config_for_area(area_id)
@@ -3770,26 +3858,12 @@ class HomeAssistantWebSocketClient:
                 if skip_filters and filt_norm in skip_filters:
                     continue
                 preset = presets.get(filter_name, {"at_bright": 100, "at_dim": 100})
-                filtered_bri, should_off = apply_light_filter_pipeline(
-                    base_brightness,
-                    min_bri,
-                    max_bri,
-                    area_factor,
-                    preset,
-                    off_threshold,
-                    rhythm_brightness=rhythm_brightness,
-                    brightness_override=brightness_override,
-                    boost_brightness=boost_brightness,
-                )
-                if should_off:
-                    # Check if this purpose would be ON at the target brightness
-                    # (it's only off because we're checking at the current low brightness)
-                    target_bri, target_off = apply_light_filter_pipeline(
-                        (
-                            base_brightness
-                            if base_brightness > 1
-                            else rhythm_brightness or base_brightness
-                        ),
+                if filter_name in _purpose_map:
+                    _pp = _purpose_map[filter_name]
+                    filtered_bri, should_off = _pp.brightness, _pp.should_off
+                else:
+                    filtered_bri, should_off = apply_light_filter_pipeline(
+                        base_brightness,
                         min_bri,
                         max_bri,
                         area_factor,
@@ -3799,6 +3873,28 @@ class HomeAssistantWebSocketClient:
                         brightness_override=brightness_override,
                         boost_brightness=boost_brightness,
                     )
+                if should_off:
+                    # Check if this purpose would be ON at the target brightness
+                    # (it's only off because we're checking at the current low brightness)
+                    if filter_name in _purpose_map:
+                        # Pipeline already determined final state — trust should_off
+                        target_bri, target_off = 0, True
+                    else:
+                        target_bri, target_off = apply_light_filter_pipeline(
+                            (
+                                base_brightness
+                                if base_brightness > 1
+                                else rhythm_brightness or base_brightness
+                            ),
+                            min_bri,
+                            max_bri,
+                            area_factor,
+                            preset,
+                            off_threshold,
+                            rhythm_brightness=rhythm_brightness,
+                            brightness_override=brightness_override,
+                            boost_brightness=boost_brightness,
+                        )
                     if not target_off and target_bri > 0:
                         # Will be on at target — add to 2-step with forced 1% color pre-set
                         two_step_filters.add(filt_norm)
@@ -3934,18 +4030,22 @@ class HomeAssistantWebSocketClient:
 
             preset = presets.get(filter_name, {"at_bright": 100, "at_dim": 100})
 
-            # Calculate filtered brightness
-            filtered_bri, should_off = apply_light_filter_pipeline(
-                base_brightness,
-                min_bri,
-                max_bri,
-                area_factor,
-                preset,
-                off_threshold,
-                rhythm_brightness=rhythm_brightness,
-                brightness_override=brightness_override,
-                boost_brightness=boost_brightness,
-            )
+            # Calculate filtered brightness (or use pre-computed from pipeline)
+            if filter_name in _purpose_map:
+                _pp = _purpose_map[filter_name]
+                filtered_bri, should_off = _pp.brightness, _pp.should_off
+            else:
+                filtered_bri, should_off = apply_light_filter_pipeline(
+                    base_brightness,
+                    min_bri,
+                    max_bri,
+                    area_factor,
+                    preset,
+                    off_threshold,
+                    rhythm_brightness=rhythm_brightness,
+                    brightness_override=brightness_override,
+                    boost_brightness=boost_brightness,
+                )
 
             if should_off:
                 if skip_off_threshold:
@@ -4041,9 +4141,9 @@ class HomeAssistantWebSocketClient:
                         )
                 continue
 
-            # Apply CT compensation per-filter (each filter category gets its own)
+            # Apply CT compensation per-filter (pipeline already includes CT comp)
             comp_brightness = filtered_bri
-            if kelvin is not None:
+            if not _purpose_map and kelvin is not None:
                 comp_brightness = self._apply_ct_brightness_compensation(
                     filtered_bri, kelvin
                 )
@@ -4238,21 +4338,25 @@ class HomeAssistantWebSocketClient:
                         preset = presets.get(
                             filter_name, {"at_bright": 100, "at_dim": 100}
                         )
-                        filtered_bri, should_off = apply_light_filter_pipeline(
-                            base_brightness,
-                            min_bri,
-                            max_bri,
-                            area_factor,
-                            preset,
-                            off_threshold,
-                            rhythm_brightness=rhythm_brightness,
-                            brightness_override=brightness_override,
-                            boost_brightness=boost_brightness,
-                        )
+                        if filter_name in _purpose_map:
+                            _pp = _purpose_map[filter_name]
+                            filtered_bri, should_off = _pp.brightness, _pp.should_off
+                        else:
+                            filtered_bri, should_off = apply_light_filter_pipeline(
+                                base_brightness,
+                                min_bri,
+                                max_bri,
+                                area_factor,
+                                preset,
+                                off_threshold,
+                                rhythm_brightness=rhythm_brightness,
+                                brightness_override=brightness_override,
+                                boost_brightness=boost_brightness,
+                            )
                         if should_off or filtered_bri <= 0:
                             continue
                         comp_bri = filtered_bri
-                        if kelvin:
+                        if not _purpose_map and kelvin:
                             comp_bri = self._apply_ct_brightness_compensation(
                                 filtered_bri, kelvin
                             )
@@ -6038,24 +6142,28 @@ class HomeAssistantWebSocketClient:
                             f"[Periodic] Area {area_id}: recalibrated color_override {old_val} -> {needed_override}"
                         )
 
-            # Apply fade multiplier (auto on/off gradual transitions)
-            brightness = result.brightness
+            # --- Compute fade factor (auto on/off gradual transitions) ---
+            fade_factor = 1.0
+            _fade_out_target = None
             fade_note = ""
             if state.is_fading(area_id):
                 progress = state.get_fade_progress(area_id)
                 if progress is not None:
                     fade_state = state.get_fade_state(area_id)
                     if fade_state and fade_state["fade_direction"] == "in":
-                        brightness = max(1, int(round(brightness * progress)))
+                        fade_factor = progress
                         fade_note = f" (fade-in {progress:.0%})"
                     elif fade_state and fade_state["fade_direction"] == "out":
                         start_bri = (
-                            fade_state.get("fade_start_brightness") or brightness
+                            fade_state.get("fade_start_brightness")
+                            or result.brightness
                         )
-                        brightness = max(1, int(round(start_bri * (1.0 - progress))))
+                        _fade_out_target = max(
+                            1, int(round(start_bri * (1.0 - progress)))
+                        )
                         fade_note = f" (fade-out {1.0 - progress:.0%})"
 
-            # Check if area is boosted
+            # --- Check if area is boosted ---
             boost_note = ""
             boost_amount = 0
             is_boosted = state.is_boosted(area_id)
@@ -6064,7 +6172,7 @@ class HomeAssistantWebSocketClient:
                 boost_amount = boost_state.get("boost_brightness") or 0
                 boost_note = f" (boosted +{boost_amount}%)"
 
-            # Compute decayed brightness_override for pipeline
+            # --- Compute decayed brightness_override ---
             effective_bri_override = None
             if area_state.brightness_override is not None:
                 in_ascend, h48, t_ascend, t_descend, _ = CircadianLight.get_phase_info(
@@ -6094,7 +6202,7 @@ class HomeAssistantWebSocketClient:
                         f"× decay={bri_decay:.2f} = {effective_bri_override:.1f}"
                     )
 
-            # Compute decayed color_override (only if set_at exists — slider/button origin)
+            # --- Compute decayed color_override (slider/button origin only) ---
             if (
                 area_state.color_override is not None
                 and area_state.color_override_set_at is not None
@@ -6115,12 +6223,9 @@ class HomeAssistantWebSocketClient:
                         },
                     )
                     area_state = AreaState.from_dict(state.get_area(area_id))
-                    result = CircadianLight.calculate_lighting(
-                        hour, config, area_state, sun_times=sun_times
-                    )
                 elif color_decay < 1.0:
-                    # Apply decayed color_override by re-rendering
-                    decayed_color_state = AreaState(
+                    # Build decayed area_state for pipeline
+                    area_state = AreaState(
                         is_circadian=area_state.is_circadian,
                         is_on=area_state.is_on,
                         frozen_at=area_state.frozen_at,
@@ -6129,25 +6234,47 @@ class HomeAssistantWebSocketClient:
                         color_override=area_state.color_override * color_decay,
                         color_override_set_at=area_state.color_override_set_at,
                     )
-                    result = CircadianLight.calculate_lighting(
-                        hour, config, decayed_color_state, sun_times=sun_times
-                    )
                     if log_periodic:
                         logger.info(
                             f"[Periodic] Area {area_id}: color_override={area_state.color_override:.1f}K "
-                            f"× decay={color_decay:.2f} = {area_state.color_override * color_decay:.1f}K"
+                            f"× decay={color_decay:.2f}"
                         )
 
-            # Build values dict for turn_on_lights_circadian
-            lighting_values = {
-                "brightness": brightness,
-                "kelvin": result.color_temp,
-                "rgb": result.rgb,
-                "xy": result.xy,
-                "rhythm_brightness": result.brightness,
-                "brightness_override": effective_bri_override,
-                "boost_brightness": boost_amount if boost_amount > 0 else None,
-            }
+            # --- Build PipelineContext and compute ---
+            from pipeline import PipelineContext
+            import pipeline as pipeline_mod
+
+            raw_config = glozone.load_config_from_files()
+            outdoor_norm = lux_tracker.get_outdoor_normalized()
+
+            ctx = PipelineContext(
+                area_id=area_id,
+                hour=hour,
+                config=config,
+                area_state=area_state,
+                sun_times=sun_times,
+                area_factor=glozone.get_area_brightness_factor(area_id),
+                area_filters=glozone.get_area_light_filters(area_id),
+                filter_presets=glozone.get_light_filter_presets(),
+                off_threshold=glozone.get_off_threshold(),
+                sun_exposure=glozone.get_area_natural_light_exposure(area_id),
+                sun_intensity=outdoor_norm if outdoor_norm is not None else 0.0,
+                brightness_override=effective_bri_override,
+                boost_brightness=boost_amount if boost_amount > 0 else None,
+                ct_comp_enabled=raw_config.get("ct_comp_enabled", False),
+                ct_comp_begin=raw_config.get("ct_comp_begin", 1650),
+                ct_comp_end=raw_config.get("ct_comp_end", 2250),
+                ct_comp_factor=raw_config.get("ct_comp_factor", 1.7),
+                transition=periodic_transition,
+                fade_factor=fade_factor,
+            )
+            pipeline_result = pipeline_mod.compute(ctx)
+
+            # Apply fade-out override (not a simple multiplier — uses start_bri snapshot)
+            if _fade_out_target is not None:
+                for p in pipeline_result.purposes:
+                    p.brightness = _fade_out_target
+                pipeline_result.area_brightness = _fade_out_target
 
             # Log the calculation
             frozen_note = (
@@ -6155,15 +6282,16 @@ class HomeAssistantWebSocketClient:
             )
             if log_periodic:
                 logger.info(
-                    f"Periodic update for area {area_id}{frozen_note}{boost_note}{fade_note}: {result.color_temp}K, {brightness}%"
+                    f"Periodic update for area {area_id}{frozen_note}{boost_note}{fade_note}: "
+                    f"{pipeline_result.area_kelvin}K, {pipeline_result.area_brightness}%"
                 )
 
-            # Use the centralized light control function
+            # Deliver via pipeline-aware path
             await self.turn_on_lights_circadian(
                 area_id,
-                lighting_values,
                 transition=periodic_transition,
                 log_periodic=log_periodic,
+                pipeline_result=pipeline_result,
             )
 
         except Exception as e:

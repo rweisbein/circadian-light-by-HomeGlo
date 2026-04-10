@@ -75,6 +75,9 @@ class PipelineContext:
     # Weekday for alt-timing
     weekday: Optional[int] = None
 
+    # Fade multiplier (auto on/off transitions, applied post-compute)
+    fade_factor: float = 1.0
+
 
 @dataclass
 class PurposeResult:
@@ -207,6 +210,15 @@ def compute(ctx: PipelineContext) -> PipelineResult:
                 should_off=False,
             )
         ]
+
+    # --- Fade factor (post-compute multiplier for auto on/off transitions) ---
+    if ctx.fade_factor < 1.0:
+        for p in purposes:
+            p.brightness = max(1, int(round(p.brightness * ctx.fade_factor)))
+        if purpose_groups:
+            area_brightness = max(1, int(round(area_brightness * ctx.fade_factor)))
+        else:
+            comp_brightness = max(1, int(round(comp_brightness * ctx.fade_factor)))
 
     return PipelineResult(
         purposes=purposes,
