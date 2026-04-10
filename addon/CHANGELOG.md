@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.1.4
+- **Fix 2-step not detecting off→on**: `turn_off_lights` now marks all per-purpose states as `is_off=True`. Previously, the 2-step gate thought lights were still on at their last-sent brightness, causing brightness delta to fall below threshold and skipping 2-step on large CT shifts (e.g., nitelite→britelite).
+
 ## 1.1.3
 - **Fix Standard purpose missing override/boost**: Pipeline's `_group_by_purpose` now always includes implicit "Standard" purpose for unassigned lights. Previously, lights defaulting to Standard at delivery time were computed without brightness_override or boost, causing them to stay at base brightness while other purposes responded correctly.
 

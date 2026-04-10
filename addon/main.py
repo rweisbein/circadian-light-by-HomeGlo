@@ -4523,6 +4523,20 @@ class HomeAssistantWebSocketClient:
         if tasks:
             await asyncio.gather(*tasks)
 
+        # Mark all per-purpose states as off so 2-step detects off→on correctly
+        area_filters = glozone.get_area_light_filters(area_id)
+        purpose_names = set(area_filters.values()) if area_filters else set()
+        purpose_names.add("Standard")
+        for purpose_name in purpose_names:
+            last = state.get_last_sent_purpose(area_id, purpose_name)
+            if last:
+                state.set_last_sent_purpose(
+                    area_id, purpose_name,
+                    last.get("brightness", 0),
+                    last.get("kelvin", 4000),
+                    is_off=True,
+                )
+
     async def turn_on_switch_entities(self, area_id: str) -> None:
         """Turn on switch.* entities (relays, smart plugs) in an area."""
         switches = self.area_switch_entities.get(area_id, [])
