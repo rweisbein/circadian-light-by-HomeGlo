@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.1.3
+- **Fix Standard purpose missing override/boost**: Pipeline's `_group_by_purpose` now always includes implicit "Standard" purpose for unassigned lights. Previously, lights defaulting to Standard at delivery time were computed without brightness_override or boost, causing them to stay at base brightness while other purposes responded correctly.
+
 ## 1.1.2
 - **Fix silent delivery logging**: All primitive callers of `update_lights_in_circadian_mode` now pass `log_periodic=True` so per-purpose delivery is visible in logs (brightness_step, color_step, circadian_adjust, glo_reset, etc.).
 

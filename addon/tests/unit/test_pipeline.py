@@ -182,10 +182,12 @@ class TestPerPurposePipeline:
             },
         )
         result = compute(ctx)
-        assert len(result.purposes) == 2
+        # 3 purposes: Bright, Dim, + implicit Standard (for unassigned lights)
+        assert len(result.purposes) == 3
         names = {p.name for p in result.purposes}
         assert "Bright" in names
         assert "Dim" in names
+        assert "Standard" in names
         # Bright purpose should be brighter than Dim
         bright = next(p for p in result.purposes if p.name == "Bright")
         dim = next(p for p in result.purposes if p.name == "Dim")
@@ -456,7 +458,8 @@ class TestPrecomputedCurve:
                 },
             )
         )
-        assert len(result.purposes) == 2
+        # 3 purposes: Bright, Dim, + implicit Standard
+        assert len(result.purposes) == 3
         bright = next(p for p in result.purposes if p.name == "Bright")
         dim = next(p for p in result.purposes if p.name == "Dim")
         assert bright.brightness >= dim.brightness

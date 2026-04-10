@@ -266,8 +266,11 @@ def _group_by_purpose(ctx: PipelineContext) -> Dict[str, dict]:
             return {"Standard": {"at_dim": 100, "at_bright": 100}}
         return {}
 
-    # Collect unique purpose names from the area's light assignments
+    # Collect unique purpose names from the area's light assignments.
+    # Always include "Standard" — lights without explicit filter assignments
+    # default to Standard at delivery time.
     purpose_names = set(ctx.area_filters.values())
+    purpose_names.add("Standard")
     result = {}
     for name in purpose_names:
         normalized = name.replace(" ", "_").lower()
