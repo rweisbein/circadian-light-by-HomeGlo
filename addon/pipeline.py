@@ -78,6 +78,9 @@ class PipelineContext:
     # Fade multiplier (auto on/off transitions, applied post-compute)
     fade_factor: float = 1.0
 
+    # Warning multiplier (motion warning dim, applied post-compute)
+    dim_factor: float = 1.0
+
     # Pre-computed base curve values (skip calculate_lighting when set).
     # Used by primitives that already computed the curve via brain.py.
     precomputed_brightness: Optional[int] = None
@@ -228,14 +231,15 @@ def compute(ctx: PipelineContext) -> PipelineResult:
             )
         ]
 
-    # --- Fade factor (post-compute multiplier for auto on/off transitions) ---
-    if ctx.fade_factor < 1.0:
+    # --- Post-compute multipliers (fade + warning) ---
+    post_factor = ctx.fade_factor * ctx.dim_factor
+    if post_factor < 1.0:
         for p in purposes:
-            p.brightness = max(1, int(round(p.brightness * ctx.fade_factor)))
+            p.brightness = max(1, int(round(p.brightness * post_factor)))
         if purpose_groups:
-            area_brightness = max(1, int(round(area_brightness * ctx.fade_factor)))
+            area_brightness = max(1, int(round(area_brightness * post_factor)))
         else:
-            comp_brightness = max(1, int(round(comp_brightness * ctx.fade_factor)))
+            comp_brightness = max(1, int(round(comp_brightness * post_factor)))
 
     return PipelineResult(
         purposes=purposes,

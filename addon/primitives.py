@@ -3082,106 +3082,35 @@ class CircadianLightPrimitives:
             await self.trigger_motion_warning(area_id, blink_threshold)
 
     async def trigger_motion_warning(self, area_id: str, blink_threshold: int = 15):
-        """Trigger motion warning for an area (dim or blink+dim).
+        """Trigger motion warning for an area.
 
-        Warning behavior:
-        - Above blink_threshold: Dim to 50% of current brightness
-        - At or below blink_threshold: Blink off (300ms), then dim to 3%
+        Sets dim_factor in area state so the pipeline dims brightness.
+        No direct light commands — the next periodic tick applies the dim.
+
+        For low brightness (at or below blink_threshold), does a momentary
+        blink-off as a visual cue before the pipeline-driven dim.
 
         Args:
             area_id: The area ID
-            blink_threshold: Brightness % below which to use blink warning
+            blink_threshold: Brightness % below which to add a blink cue
         """
         if state.is_motion_warned(area_id):
             logger.debug(f"[motion_warning] Area {area_id} already warned, skipping")
             return
 
-        # Get current brightness
-        config = self._get_config(area_id)
-        area_state = self._get_area_state(area_id)
-        hour = (
-            area_state.frozen_at
-            if area_state.frozen_at is not None
-            else get_current_hour()
-        )
-        sun_times = (
-            self.client._get_sun_times()
-            if hasattr(self.client, "_get_sun_times")
-            else None
-        )
+        # Get current actual brightness from cache
+        current_brightness = state.get_last_sent_brightness(area_id) or 0
 
-        result = CircadianLight.calculate_lighting(
-            hour, config, area_state, sun_times=sun_times
-        )
-        current_brightness = result.brightness
-
-        # Add boost if boosted
-        if state.is_boosted(area_id):
-            boost_state = state.get_boost_state(area_id)
-            boost_amount = boost_state.get("boost_brightness") or 0
-            current_brightness = min(100, current_brightness + boost_amount)
-
-        # Store pre-warning brightness for potential restoration
-        state.set_motion_warning(area_id, current_brightness)
+        # Set warning state — pipeline will apply dim_factor on next tick
+        state.set_motion_warning(area_id, current_brightness, dim_factor=0.5)
 
         logger.info(
-            f"[motion_warning] Triggering warning for area {area_id}, current brightness={current_brightness}%"
+            f"[motion_warning] Triggering warning for area {area_id}, "
+            f"current brightness={current_brightness}%, dim_factor=0.5"
         )
 
-        if current_brightness > blink_threshold:
-            # Above threshold: dim to 50% of current
-            warning_brightness = int(current_brightness * 0.5)
-            await self._send_light(
-                area_id,
-                warning_brightness,
-                result.color_temp,
-                include_color=False,
-                transition=0.5,
-            )
-            logger.info(
-                f"[motion_warning] Dimmed area {area_id} from {current_brightness}% to {warning_brightness}%"
-            )
-        else:
-            # At or below threshold: blink off, then hold at 3%
-            await self._send_light(
-                area_id, 0, result.color_temp, include_color=False, transition=0.1
-            )
-            await asyncio.sleep(0.3)  # 300ms off
-            warning_brightness = 3
-            await self._send_light(
-                area_id,
-                warning_brightness,
-                result.color_temp,
-                include_color=False,
-                transition=0.1,
-            )
-            logger.info(
-                f"[motion_warning] Blinked area {area_id} (was {current_brightness}%), holding at {warning_brightness}%"
-            )
-
-    async def cancel_motion_warning(
-        self, area_id: str, source: str = "motion_detected"
-    ):
-        """Cancel motion warning and restore brightness.
-
-        Called when motion is detected during warning period.
-
-        Args:
-            area_id: The area ID
-            source: Source of the cancellation
-        """
-        warning_state = state.get_motion_warning_state(area_id)
-
-        if not warning_state["is_warned"]:
-            return
-
-        pre_warning_brightness = warning_state["pre_warning_brightness"]
-
-        # Clear warning state
-        state.clear_motion_warning(area_id)
-
-        # Restore brightness
-        if pre_warning_brightness is not None:
+        if current_brightness <= blink_threshold and current_brightness > 0:
+            # Low brightness: blink off as visual cue (momentary side-channel)
             config = self._get_config(area_id)
             area_state = self._get_area_state(area_id)
             hour = (
@@ -3194,16 +3123,48 @@ class CircadianLightPrimitives:
                 if hasattr(self.client, "_get_sun_times")
                 else None
             )
-
             result = CircadianLight.calculate_lighting(
                 hour, config, area_state, sun_times=sun_times
             )
             await self._send_light(
-                area_id, pre_warning_brightness, result.color_temp, transition=0.3
+                area_id, 0, result.color_temp, include_color=False, transition=0.1
             )
+            await asyncio.sleep(0.3)
             logger.info(
-                f"[{source}] Cancelled motion warning for area {area_id}, restored to {pre_warning_brightness}%"
+                f"[motion_warning] Blinked area {area_id} (was {current_brightness}%)"
             )
+
+        # Trigger immediate pipeline update to apply the dim
+        await self.client.update_lights_in_circadian_mode(
+            area_id, log_periodic=True
+        )
+
+    async def cancel_motion_warning(
+        self, area_id: str, source: str = "motion_detected"
+    ):
+        """Cancel motion warning and restore brightness.
+
+        Clears dim_factor so the next pipeline computation produces
+        full brightness. Triggers an immediate update to restore.
+
+        Args:
+            area_id: The area ID
+            source: Source of the cancellation
+        """
+        if not state.is_motion_warned(area_id):
+            return
+
+        # Clear warning state — pipeline will compute full brightness
+        state.clear_motion_warning(area_id)
+
+        logger.info(
+            f"[{source}] Cancelled motion warning for area {area_id}"
+        )
+
+        # Trigger immediate pipeline update to restore brightness
+        await self.client.update_lights_in_circadian_mode(
+            area_id, log_periodic=True
+        )
 
     async def contact_off(self, area_id: str, source: str = "contact_sensor"):
         """Turn off lights and disable Circadian for contact sensor close event.

@@ -5961,17 +5961,8 @@ class HomeAssistantWebSocketClient:
                         )
                 return
 
-            # Skip areas in motion warning state (don't override the warning dim)
-            if state.is_motion_warned(area_id):
-                if log_periodic:
-                    logger.info(
-                        f"Area {area_id} in motion warning state, skipping update"
-                    )
-                else:
-                    logger.debug(
-                        f"[Periodic] Area {area_id} in motion warning state, skipping update"
-                    )
-                return
+            # Warning factor: pipeline dims brightness when motion warning active
+            dim_factor = state.get_dim_factor(area_id)
 
             if (
                 area_state.brightness_mid is not None
@@ -6201,6 +6192,7 @@ class HomeAssistantWebSocketClient:
                 ct_comp_factor=raw_config.get("ct_comp_factor", 1.7),
                 transition=periodic_transition,
                 fade_factor=fade_factor,
+                dim_factor=dim_factor,
             )
             pipeline_result = pipeline_mod.compute(ctx)
 

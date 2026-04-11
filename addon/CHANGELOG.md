@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.1.6
+- **Motion warning through pipeline**: Warning dim now uses `dim_factor` in area state (post-compute multiplier in pipeline) instead of direct `_send_light` side-channel. Eliminates race condition where cancel + fast tick re-triggered warning within 30ms. Periodic tick no longer skips warned areas — pipeline naturally applies the dim. `dim_factor` is a generic multiplier for future use (energy saving, away mode, etc.).
+
 ## 1.1.5
 - **Wire frontend to pipeline**: `/api/apply-light` (rhythm designer) now sends through `send_light` pipeline instead of inline filter/CT/dispatch (~100 lines removed). `/api/area-status` reads `actual_brightness` and `kelvin` from last-sent cache instead of recomputing (matches what pipeline delivered to lights).
 

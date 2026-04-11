@@ -700,18 +700,23 @@ def get_expired_motion() -> List[str]:
 # Motion Warning State
 # -----------------------------------------------------------------------------
 
-def set_motion_warning(area_id: str, pre_warning_brightness: int) -> None:
+def set_motion_warning(area_id: str, pre_warning_brightness: int, dim_factor: float = 0.5) -> None:
     """Set motion warning state for an area.
+
+    Sets a dim_factor that the pipeline uses to dim brightness.
+    No direct light commands — the periodic tick applies the factor.
 
     Args:
         area_id: The area ID
-        pre_warning_brightness: The brightness % before warning (to restore later)
+        pre_warning_brightness: The brightness % before warning (for blink threshold check)
+        dim_factor: Multiplier for brightness (0.5 = dim to 50%)
     """
     from datetime import datetime
 
     update_area(area_id, {
         "motion_warning_at": datetime.now().isoformat(),
-        "motion_pre_warning_brightness": pre_warning_brightness
+        "motion_pre_warning_brightness": pre_warning_brightness,
+        "dim_factor": dim_factor,
     })
 
 
@@ -721,13 +726,19 @@ def clear_motion_warning(area_id: str) -> None:
     if area.get("motion_warning_at") is not None:
         update_area(area_id, {
             "motion_warning_at": None,
-            "motion_pre_warning_brightness": None
+            "motion_pre_warning_brightness": None,
+            "dim_factor": None,
         })
 
 
 def is_motion_warned(area_id: str) -> bool:
     """Check if area is in motion warning state."""
     return get_area(area_id).get("motion_warning_at") is not None
+
+
+def get_dim_factor(area_id: str) -> float:
+    """Get the warning factor for an area (1.0 = no warning)."""
+    return get_area(area_id).get("dim_factor") or 1.0
 
 
 def get_motion_warning_state(area_id: str) -> dict:
@@ -740,7 +751,7 @@ def get_motion_warning_state(area_id: str) -> dict:
     return {
         "is_warned": area.get("motion_warning_at") is not None,
         "warning_at": area.get("motion_warning_at"),
-        "pre_warning_brightness": area.get("motion_pre_warning_brightness")
+        "pre_warning_brightness": area.get("motion_pre_warning_brightness"),
     }
 
 
