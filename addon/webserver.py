@@ -2946,27 +2946,16 @@ class LightDesignerServer:
                         )
                         effective_bri_override = bri_override_raw * bri_decay
 
-                    actual_brightness = int(
-                        min(
-                            100,
-                            max(
-                                0,
-                                round(
-                                    brightness * area_factor
-                                    + effective_bri_override
-                                    + boost_amount
-                                ),
-                            ),
-                        )
+                    # Use cached last-sent brightness — always matches what
+                    # pipeline computed and delivered to lights
+                    last_bri = state.get_last_sent_brightness(area_id)
+                    actual_brightness = last_bri if last_bri is not None else int(
+                        min(100, max(0, round(
+                            brightness * area_factor
+                            + effective_bri_override
+                            + boost_amount
+                        )))
                     )
-
-                    # During fade, use last_sent_brightness (reflects fade
-                    # multiplier applied by periodic tick) instead of
-                    # computed curve value
-                    if state.is_fading(area_id):
-                        last_bri = state.get_last_sent_brightness(area_id)
-                        if last_bri is not None:
-                            actual_brightness = last_bri
 
                     # --- Adjusted bed/wake time from midpoint shift ---
                     weekday = datetime.now().weekday()
@@ -3017,7 +3006,7 @@ class LightDesignerServer:
                         "is_on": area_state.is_on,
                         "brightness": brightness,
                         "curve_brightness": curve_brightness,
-                        "kelvin": kelvin,
+                        "kelvin": state.get_last_sent_kelvin(area_id) or kelvin,
                         "frozen": area_state.frozen_at is not None,
                         "boosted": is_boosted,
                         "boost_brightness": (
@@ -3510,138 +3499,19 @@ class LightDesignerServer:
             if not area_id:
                 return web.json_response({"error": "area_id is required"}, status=400)
 
-            # Check if we have cached capabilities for this area
-            if self.live_design_area == area_id and (
-                self.live_design_color_lights or self.live_design_ct_lights
-            ):
-                # Load per-light filter data
-                area_factor = glozone.get_area_brightness_factor(area_id)
-                area_filters = glozone.get_area_light_filters(area_id)
-                presets = glozone.get_light_filter_presets()
-                off_threshold = glozone.get_off_threshold()
-                zone_cfg = glozone.get_zone_config_for_area(area_id)
-                min_bri = zone_cfg.get("min_brightness", 1)
-                max_bri = zone_cfg.get("max_brightness", 100)
+            # Send through pipeline — applies sun bright, area factor, filters, CT comp
+            bri = int(base_brightness) if base_brightness is not None else None
+            ct = int(color_temp) if color_temp is not None else None
+            await self.client.send_light(
+                area_id,
+                {"brightness": bri, "kelvin": ct},
+                transition=transition,
+            )
 
-                # Group lights by filter assignment
-                color_set = set(self.live_design_color_lights)
-                filter_groups = {}  # {filter_name: {"color": [], "ct": []}}
-                for entity_id in (
-                    self.live_design_color_lights + self.live_design_ct_lights
-                ):
-                    filt = area_filters.get(entity_id, "Standard")
-                    if filt not in filter_groups:
-                        filter_groups[filt] = {"color": [], "ct": []}
-                    if entity_id in color_set:
-                        filter_groups[filt]["color"].append(entity_id)
-                    else:
-                        filter_groups[filt]["ct"].append(entity_id)
-
-                xy = None
-                if color_temp is not None:
-                    xy = list(CircadianLight.color_temperature_to_xy(int(color_temp)))
-
-                tasks = []
-                for filter_name, lights_by_cap in filter_groups.items():
-                    preset = presets.get(filter_name, {"at_bright": 100, "at_dim": 100})
-
-                    # Calculate filtered brightness through the pipeline
-                    filtered_bri, should_off = apply_light_filter_pipeline(
-                        int(base_brightness) if base_brightness is not None else 0,
-                        min_bri,
-                        max_bri,
-                        area_factor,
-                        preset,
-                        off_threshold,
-                    )
-
-                    if should_off:
-                        # Turn off lights below threshold
-                        off_entities = lights_by_cap["color"] + lights_by_cap["ct"]
-                        if off_entities:
-                            tasks.append(
-                                self.client.call_service(
-                                    "light",
-                                    "turn_off",
-                                    {"transition": transition},
-                                    {"entity_id": off_entities},
-                                )
-                            )
-                        continue
-
-                    # Apply CT compensation to the filtered brightness
-                    comp_bri = filtered_bri
-                    if color_temp is not None:
-                        comp_bri = self._ct_compensate(filtered_bri, int(color_temp))
-
-                    # Color-capable lights: use xy_color
-                    if lights_by_cap["color"]:
-                        color_data = {
-                            "transition": transition,
-                            "brightness_pct": comp_bri,
-                        }
-                        if xy is not None:
-                            color_data["xy_color"] = xy
-                        tasks.append(
-                            self.client.call_service(
-                                "light",
-                                "turn_on",
-                                color_data,
-                                {"entity_id": lights_by_cap["color"]},
-                            )
-                        )
-
-                    # CT-only lights: use color_temp_kelvin
-                    if lights_by_cap["ct"]:
-                        ct_data = {
-                            "transition": transition,
-                            "brightness_pct": comp_bri,
-                        }
-                        if color_temp is not None:
-                            ct_data["color_temp_kelvin"] = max(2000, int(color_temp))
-                        tasks.append(
-                            self.client.call_service(
-                                "light",
-                                "turn_on",
-                                ct_data,
-                                {"entity_id": lights_by_cap["ct"]},
-                            )
-                        )
-
-                if tasks:
-                    await asyncio.gather(*tasks)
-
-                logger.info(
-                    f"Live Design: Applied base={base_brightness}% / {color_temp}K to area {area_id} "
-                    f"({len(self.live_design_color_lights)} color, {len(self.live_design_ct_lights)} CT, "
-                    f"{len(filter_groups)} filter group(s), area_factor={area_factor})"
-                )
-                return web.json_response({"status": "ok"})
-
-            else:
-                # Fallback: no cached capabilities, use area-based with XY
-                bri = int(base_brightness) if base_brightness is not None else None
-                if bri is not None and color_temp is not None:
-                    bri = self._ct_compensate(bri, int(color_temp))
-
-                service_data = {"transition": transition}
-                if bri is not None:
-                    service_data["brightness_pct"] = bri
-                if color_temp is not None:
-                    xy = CircadianLight.color_temperature_to_xy(int(color_temp))
-                    service_data["xy_color"] = list(xy)
-
-                await self.client.call_service(
-                    "light",
-                    "turn_on",
-                    service_data,
-                    {"area_id": area_id},
-                )
-
-                logger.info(
-                    f"Live Design (fallback): Applied {bri}% / {color_temp}K to area {area_id}"
-                )
-                return web.json_response({"status": "ok"})
+            logger.info(
+                f"Live Design: Applied {bri}% / {ct}K to area {area_id} via pipeline"
+            )
+            return web.json_response({"status": "ok"})
         except json.JSONDecodeError:
             return web.json_response({"error": "Invalid JSON"}, status=400)
         except Exception as e:

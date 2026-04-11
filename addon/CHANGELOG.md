@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.1.5
+- **Wire frontend to pipeline**: `/api/apply-light` (rhythm designer) now sends through `send_light` pipeline instead of inline filter/CT/dispatch (~100 lines removed). `/api/area-status` reads `actual_brightness` and `kelvin` from last-sent cache instead of recomputing (matches what pipeline delivered to lights).
+
 ## 1.1.4
 - **Fix 2-step not detecting off→on**: `turn_off_lights` now marks all per-purpose states as `is_off=True`. Previously, the 2-step gate thought lights were still on at their last-sent brightness, causing brightness delta to fall below threshold and skipping 2-step on large CT shifts (e.g., nitelite→britelite).
 
