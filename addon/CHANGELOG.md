@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.1.9
+- **Consolidate brightness/color button and slider paths**: `brightness_up`/`brightness_down` and `color_up`/`color_down` now compute a target value and delegate to `set_position`, sharing the same override logic as sliders. Deleted dead midpoint-based `bright_up`/`bright_down` methods (~210 lines removed). Four independent override implementations reduced to two (`set_position` brightness + color). `set_position` gains `_send_command` parameter for reach batching.
+
 ## 1.1.8
 - **Fix slider override accumulation**: `set_position` brightness mode now accumulates onto existing override instead of replacing it. Previously, each slider drag computed delta from current brightness but stored it as the total override, so successive drags would snap back toward the base curve.
 
