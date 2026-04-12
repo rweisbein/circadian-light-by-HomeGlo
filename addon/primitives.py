@@ -1056,16 +1056,18 @@ class CircadianLightPrimitives:
                 )
 
             delta = round(target_actual - current_actual, 1)
+            existing_override = area_state.brightness_override or 0
+            new_override = round(existing_override + delta, 1)
             self._update_area_state(
                 area_id,
                 {
-                    "brightness_override": delta,
+                    "brightness_override": new_override,
                     "brightness_override_set_at": hour,
                 },
             )
             logger.info(
                 f"[{source}] set_position({value}, brightness) for area {area_id}: "
-                f"target={target_actual}, current={current_actual}, delta={delta}"
+                f"target={target_actual}, current={current_actual}, delta={delta}, override={new_override}"
             )
             if area_state.is_on:
                 await self.client.update_lights_in_circadian_mode(area_id, log_periodic=True)
