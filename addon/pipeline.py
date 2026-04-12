@@ -9,13 +9,15 @@ Pipeline steps (in order):
   3. Sun color adjustment (blend toward daylight_cct)
   4. Color override applied (additive on post-solar kelvin)
   5. Sun bright adjustment (multiplicative: intensity × sensitivity × exposure)
+  --- Area-level brightness (steps 6-8) ---
   6. Area factor (multiplicative)
   7. Brightness override (additive, decayed)
   8. Boost (additive)
-  9. Per-purpose adjustments (multiplicative from rhythm_brightness curve position)
- 10. Purpose participation rules (on_above/on_below + fade band)
- 11. CT brightness compensation
- 12. Prior state tracking (per-purpose)
+  9. Fade / dim factor (multiplicative)
+  --- Per-purpose brightness (steps 10-12) ---
+ 10. Purpose filter multiplier (from rhythm_brightness curve position)
+ 11. Purpose off-threshold check
+ 12. CT brightness compensation
 """
 
 from dataclasses import dataclass, field
@@ -26,7 +28,8 @@ from brain import (
     CircadianLight,
     Config,
     SunTimes,
-    apply_light_filter_pipeline,
+    calculate_curve_position,
+    calculate_filter_multiplier,
     calculate_natural_light_factor,
 )
 
@@ -164,86 +167,50 @@ def compute(ctx: PipelineContext) -> PipelineResult:
     if sun_bright_factor < 1.0:
         brightness = max(1, int(round(brightness * sun_bright_factor)))
 
-    # --- Step 6: Area factor ---
-    # Applied inside per-purpose filter pipeline (step 9).
-    # For areas without purposes, apply directly here.
+    # --- Steps 6-8: Area brightness (area_factor + override + boost) ---
+    area_brightness = brightness * ctx.area_factor
+    if ctx.brightness_override is not None:
+        area_brightness = max(1, min(100, area_brightness + ctx.brightness_override))
+    if ctx.boost_brightness is not None and ctx.boost_brightness > 0:
+        area_brightness = min(100, area_brightness + ctx.boost_brightness)
+    area_brightness = int(round(area_brightness))
 
-    # --- Steps 7-8: Brightness override + Boost ---
-    # For areas with purposes, these are applied inside the filter pipeline.
-    # For areas without purposes, apply directly.
-
-    # Determine if we have purposes
-    purpose_groups = _group_by_purpose(ctx)
-
-    if purpose_groups:
-        # --- Steps 6-11: Per-purpose pipeline ---
-        purposes = []
-        for purpose_name, preset in purpose_groups.items():
-            filtered_bri, should_off = apply_light_filter_pipeline(
-                base_brightness=brightness,
-                min_brightness=ctx.config.min_brightness,
-                max_brightness=ctx.config.max_brightness,
-                area_factor=ctx.area_factor,
-                filter_preset=preset,
-                off_threshold=ctx.off_threshold,
-                rhythm_brightness=rhythm_brightness,
-                brightness_override=ctx.brightness_override,
-                boost_brightness=ctx.boost_brightness,
-            )
-
-            # --- Step 11: CT brightness compensation ---
-            if not should_off and filtered_bri > 0:
-                filtered_bri = _apply_ct_compensation(filtered_bri, kelvin, ctx)
-
-            purposes.append(
-                PurposeResult(
-                    name=purpose_name,
-                    brightness=filtered_bri,
-                    kelvin=kelvin,
-                    xy=xy,
-                    should_off=should_off,
-                )
-            )
-
-        # Area-level brightness = post-sun-bright before purpose split
-        area_brightness = brightness
-    else:
-        # No purposes — apply area_factor, override, boost directly
-        area_brightness = brightness * ctx.area_factor
-        if ctx.brightness_override is not None:
-            area_brightness = max(
-                1, min(100, area_brightness + ctx.brightness_override)
-            )
-        if ctx.boost_brightness is not None and ctx.boost_brightness > 0:
-            area_brightness = min(100, area_brightness + ctx.boost_brightness)
-        area_brightness = int(round(area_brightness))
-
-        # CT compensation
-        comp_brightness = _apply_ct_compensation(area_brightness, kelvin, ctx)
-
-        purposes = [
-            PurposeResult(
-                name="Standard",
-                brightness=comp_brightness,
-                kelvin=kelvin,
-                xy=xy,
-                should_off=False,
-            )
-        ]
-
-    # --- Post-compute multipliers (fade + warning) ---
+    # --- Step 9: Fade / dim factor ---
     post_factor = ctx.fade_factor * ctx.dim_factor
     if post_factor < 1.0:
-        for p in purposes:
-            p.brightness = max(1, int(round(p.brightness * post_factor)))
-        if purpose_groups:
-            area_brightness = max(1, int(round(area_brightness * post_factor)))
-        else:
-            comp_brightness = max(1, int(round(comp_brightness * post_factor)))
+        area_brightness = max(1, int(round(area_brightness * post_factor)))
+
+    # --- Steps 10-12: Per-purpose pipeline ---
+    purpose_groups = _group_by_purpose(ctx)
+    purposes = []
+    for purpose_name, preset in purpose_groups.items():
+        purpose_bri, should_off = _apply_purpose_filter(
+            area_brightness=area_brightness,
+            rhythm_brightness=rhythm_brightness,
+            min_brightness=ctx.config.min_brightness,
+            max_brightness=ctx.config.max_brightness,
+            filter_preset=preset,
+            off_threshold=ctx.off_threshold,
+            brightness_override=ctx.brightness_override,
+        )
+
+        # CT brightness compensation
+        if not should_off and purpose_bri > 0:
+            purpose_bri = _apply_ct_compensation(purpose_bri, kelvin, ctx)
+
+        purposes.append(
+            PurposeResult(
+                name=purpose_name,
+                brightness=purpose_bri,
+                kelvin=kelvin,
+                xy=xy,
+                should_off=should_off,
+            )
+        )
 
     return PipelineResult(
         purposes=purposes,
-        area_brightness=area_brightness if purpose_groups else comp_brightness,
+        area_brightness=area_brightness,
         area_kelvin=kelvin,
         area_xy=xy,
         rhythm_brightness=rhythm_brightness,
@@ -261,14 +228,10 @@ def compute(ctx: PipelineContext) -> PipelineResult:
 def _group_by_purpose(ctx: PipelineContext) -> Dict[str, dict]:
     """Build {purpose_name: filter_preset} from context.
 
-    Returns empty dict if no purposes configured (fast path).
+    Always returns at least Standard with a passthrough preset.
     """
     if not ctx.area_filters or not ctx.filter_presets:
-        if ctx.area_factor != 1.0:
-            # Area has a non-default factor but no filters — treat as Standard
-            # with a pass-through preset so the filter pipeline applies area_factor.
-            return {"Standard": {"at_dim": 100, "at_bright": 100}}
-        return {}
+        return {"Standard": {"at_dim": 100, "at_bright": 100}}
 
     # Collect unique purpose names from the area's light assignments.
     # Always include "Standard" — lights without explicit filter assignments
@@ -284,6 +247,56 @@ def _group_by_purpose(ctx: PipelineContext) -> Dict[str, dict]:
             preset = {"at_dim": 100, "at_bright": 100}
         result[name] = preset
     return result
+
+
+def _apply_purpose_filter(
+    area_brightness: int,
+    rhythm_brightness: int,
+    min_brightness: int,
+    max_brightness: int,
+    filter_preset: dict,
+    off_threshold: int,
+    brightness_override: float = None,
+) -> tuple:
+    """Apply purpose filter multiplier to area brightness.
+
+    Pipeline: area_brightness × filter_multiplier → clamp → off check.
+
+    Args:
+        area_brightness: Pre-computed area-level brightness (post factor/override/boost/fade/dim)
+        rhythm_brightness: Pure curve brightness for filter curve position calculation
+        min_brightness: Configured min brightness for the rhythm
+        max_brightness: Configured max brightness for the rhythm
+        filter_preset: Dict with "at_bright" and "at_dim" keys (percent values)
+        off_threshold: Brightness below which lights should be turned off
+        brightness_override: Used only to prevent auto-off when user explicitly brightened
+
+    Returns:
+        Tuple of (final_brightness: int, should_turn_off: bool)
+    """
+    at_dim = filter_preset.get("at_dim", 100)
+    at_bright = filter_preset.get("at_bright", 100)
+
+    pos = calculate_curve_position(rhythm_brightness, min_brightness, max_brightness)
+    multiplier = calculate_filter_multiplier(pos, at_dim, at_bright)
+
+    result = area_brightness * multiplier
+
+    preset_threshold = filter_preset.get("off_threshold", off_threshold)
+    if result < preset_threshold:
+        # If user explicitly brightened (positive override), don't auto-off.
+        if brightness_override is not None and brightness_override > 0:
+            result = max(1, result)
+        else:
+            return (0, True)
+
+    has_override = brightness_override is not None
+    final = (
+        int(min(100, max(1, round(result))))
+        if has_override
+        else int(min(100, round(result)))
+    )
+    return (final, False)
 
 
 def _apply_ct_compensation(

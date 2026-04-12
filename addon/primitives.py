@@ -917,10 +917,14 @@ class CircadianLightPrimitives:
         return pipeline_mod.compute(ctx)
 
     def _compute_current_actual(self, area_id: str) -> float:
-        """Compute current actual brightness (post-pipeline approximation).
+        """Get current area brightness — from cache, falling back to pipeline.
 
-        Pipeline: curve → sun bright → area_factor + override + boost.
+        Returns the area-level brightness (post all area-level factors).
         """
+        cached = state.get_last_sent_brightness(area_id)
+        if cached is not None:
+            return cached
+
         area_state = self._get_area_state(area_id)
         config = self._get_config(area_id)
         hour = (
@@ -933,28 +937,50 @@ class CircadianLightPrimitives:
             if hasattr(self.client, "_get_sun_times")
             else None
         )
-
-        result = CircadianLight.calculate_lighting(
-            hour, config, area_state, sun_times=sun_times
+        return self._compute_current_area_brightness(
+            area_id, hour, config, area_state, sun_times
         )
-        brightness = result.brightness
 
-        # Natural light
-        sun_bright_factor = self._compute_sun_bright_factor(area_id)
-        if sun_bright_factor < 1.0:
-            brightness = max(1, int(round(brightness * sun_bright_factor)))
+    def _compute_current_area_brightness(
+        self, area_id, hour, config, area_state, sun_times
+    ) -> int:
+        """Compute current area brightness via pipeline (cold start fallback)."""
+        import lux_tracker
+        from pipeline import PipelineContext
+        import pipeline as pipeline_mod
 
-        # Area factor + override
-        area_factor = glozone.get_area_brightness_factor(area_id)
-        effective_override = self._get_decayed_brightness_override(area_id) or 0
-        actual = brightness * area_factor + effective_override
-
-        # Boost (after sun bright, area_factor, override)
+        raw_config = glozone.load_config_from_files()
+        outdoor_norm = lux_tracker.get_outdoor_normalized()
+        effective_override = self._get_decayed_brightness_override(area_id)
+        boost_brightness = None
         if state.is_boosted(area_id):
             boost_state = state.get_boost_state(area_id)
-            actual += boost_state.get("boost_brightness") or 0
+            boost_brightness = boost_state.get("boost_brightness")
 
-        return min(100, max(0, round(actual)))
+        dim_factor = state.get_area(area_id).get("dim_factor", 1.0)
+
+        ctx = PipelineContext(
+            area_id=area_id,
+            hour=hour,
+            config=config,
+            area_state=area_state,
+            sun_times=sun_times or SunTimes(),
+            area_factor=glozone.get_area_brightness_factor(area_id),
+            area_filters=glozone.get_area_light_filters(area_id),
+            filter_presets=glozone.get_light_filter_presets(),
+            off_threshold=glozone.get_off_threshold(),
+            sun_exposure=glozone.get_area_natural_light_exposure(area_id),
+            sun_intensity=outdoor_norm if outdoor_norm is not None else 0.0,
+            brightness_override=effective_override,
+            boost_brightness=boost_brightness,
+            dim_factor=dim_factor,
+            ct_comp_enabled=raw_config.get("ct_comp_enabled", False),
+            ct_comp_begin=raw_config.get("ct_comp_begin", 1650),
+            ct_comp_end=raw_config.get("ct_comp_end", 2250),
+            ct_comp_factor=raw_config.get("ct_comp_factor", 1.7),
+        )
+        result = pipeline_mod.compute(ctx)
+        return result.area_brightness
 
     def _compute_override_decay_factor(self, area_id: str) -> float:
         """Get the current decay factor (0.0-1.0) for brightness override.
@@ -1017,21 +1043,17 @@ class CircadianLightPrimitives:
         )
 
         if mode == "brightness":
-            # Override model: compute delta between target and current actual brightness.
+            # Override model: compute delta between target and current area brightness.
             # Target maps slider 0-100 to actual brightness 0-100%.
             target_actual = max(0, min(100, value))
 
-            # Current actual = rhythm_bri × sun_bright × area_factor
-            result = CircadianLight.calculate_lighting(
-                hour,
-                config,
-                area_state,
-                sun_times=sun_times,
-            )
-            rhythm_bri = result.brightness
-            sun_bright_factor = self._compute_sun_bright_factor(area_id)
-            area_factor = glozone.get_area_brightness_factor(area_id)
-            current_actual = rhythm_bri * sun_bright_factor * area_factor
+            # Current area brightness from pipeline cache (includes all area-level factors)
+            current_actual = state.get_last_sent_brightness(area_id)
+            if current_actual is None:
+                # Cold start fallback: compute via pipeline
+                current_actual = self._compute_current_area_brightness(
+                    area_id, hour, config, area_state, sun_times
+                )
 
             delta = round(target_actual - current_actual, 1)
             self._update_area_state(
@@ -1043,7 +1065,7 @@ class CircadianLightPrimitives:
             )
             logger.info(
                 f"[{source}] set_position({value}, brightness) for area {area_id}: "
-                f"target={target_actual}, current={current_actual:.1f}, delta={delta}"
+                f"target={target_actual}, current={current_actual}, delta={delta}"
             )
             if area_state.is_on:
                 await self.client.update_lights_in_circadian_mode(area_id, log_periodic=True)

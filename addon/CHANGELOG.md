@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.1.7
+- **Area brightness as first-class pipeline concept**: Pipeline now computes `area_brightness` (rhythm × sun_bright × area_factor + override + boost × fade × dim) as an explicit step before per-purpose splits. Purpose brightness derives from area_brightness × filter_multiplier. Fixes slider snap-back bug where `set_position` recomputed brightness independently (missing override, boost, fade, dim), causing the delta to be wrong. `set_position` now reads `last_sent_brightness` from cache. Removed ~90 lines of dead fallback code from `_deliver_filtered`. Eliminated the "without purpose" pipeline path — all areas go through purposes (Standard as default).
+
 ## 1.1.6
 - **Motion warning through pipeline**: Warning dim now uses `dim_factor` in area state (post-compute multiplier in pipeline) instead of direct `_send_light` side-channel. Eliminates race condition where cancel + fast tick re-triggered warning within 30ms. Periodic tick no longer skips warned areas — pipeline naturally applies the dim. `dim_factor` is a generic multiplier for future use (energy saving, away mode, etc.).
 

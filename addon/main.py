@@ -28,7 +28,6 @@ from brain import (
     get_current_hour,
     get_circadian_lighting,
     calculate_sun_times,
-    apply_light_filter_pipeline,
     calculate_natural_light_factor,
     compute_override_decay,
     angle_to_estimated_lux,
@@ -3643,7 +3642,7 @@ class HomeAssistantWebSocketClient:
     async def _deliver_filtered(
         self,
         area_id: str,
-        base_brightness: int,
+        area_brightness: int,
         kelvin: int,
         xy: tuple,
         transition: float,
@@ -3661,40 +3660,22 @@ class HomeAssistantWebSocketClient:
         prev_kelvin: int = None,
         precomputed_purposes: list = None,
     ) -> None:
-        """Filtered light dispatch: applies per-light filter brightness and routes to sub-groups.
+        """Filtered light dispatch: routes precomputed purpose brightnesses to sub-groups.
 
-        Groups lights by filter assignment, computes filtered brightness for each group,
-        applies CT compensation per-group, and dispatches to filter-specific ZHA sub-groups.
+        Groups lights by filter assignment and dispatches to filter-specific ZHA sub-groups.
         Lights below the off threshold receive a turn_off command.
 
-        When precomputed_purposes is provided (from pipeline), filter computation and CT
-        compensation are skipped — pre-computed brightness/should_off values are used directly.
+        precomputed_purposes (from pipeline) provides pre-computed brightness/should_off
+        values for each purpose — no filter/CT computation needed here.
         """
-        presets = glozone.get_light_filter_presets()
         off_threshold = glozone.get_off_threshold()
 
         # Build lookup for pre-computed purpose values (pipeline path)
-        _purpose_map = {}
-        if precomputed_purposes:
-            _purpose_map = {p.name: p for p in precomputed_purposes}
+        _purpose_map = {p.name: p for p in precomputed_purposes} if precomputed_purposes else {}
 
-        # Track area-level brightness (post area_factor + override + boost, pre-filter)
-        if not skip_off_threshold and base_brightness is not None:
-            if _purpose_map:
-                # Pipeline already computed area-level brightness
-                state.set_last_sent_brightness(area_id, base_brightness)
-            else:
-                area_base = base_brightness * area_factor
-                if brightness_override is not None:
-                    area_base = max(1, min(100, area_base + brightness_override))
-                if boost_brightness:
-                    area_base = min(100, area_base + boost_brightness)
-                state.set_last_sent_brightness(area_id, int(round(area_base)))
-
-        # Get rhythm bounds for curve position calculation
-        zone_cfg = glozone.get_zone_config_for_area(area_id)
-        min_bri = zone_cfg.get("min_brightness", 1)
-        max_bri = zone_cfg.get("max_brightness", 100)
+        # Track area-level brightness (pipeline already computed correctly)
+        if not skip_off_threshold and area_brightness is not None:
+            state.set_last_sent_brightness(area_id, area_brightness)
 
         # Get all lights by capability
         color_lights, ct_lights, brightness_lights, onoff_lights = (
@@ -3754,73 +3735,12 @@ class HomeAssistantWebSocketClient:
                 filt_norm = filter_name.replace(" ", "_").lower()
                 if skip_filters and filt_norm in skip_filters:
                     continue
-                preset = presets.get(filter_name, {"at_bright": 100, "at_dim": 100})
-                if filter_name in _purpose_map:
-                    _pp = _purpose_map[filter_name]
-                    filtered_bri, should_off = _pp.brightness, _pp.should_off
-                else:
-                    filtered_bri, should_off = apply_light_filter_pipeline(
-                        base_brightness,
-                        min_bri,
-                        max_bri,
-                        area_factor,
-                        preset,
-                        off_threshold,
-                        rhythm_brightness=rhythm_brightness,
-                        brightness_override=brightness_override,
-                        boost_brightness=boost_brightness,
-                    )
+                _pp = _purpose_map.get(filter_name)
+                if not _pp:
+                    continue
+                filtered_bri, should_off = _pp.brightness, _pp.should_off
                 if should_off:
-                    # Check if this purpose would be ON at the target brightness
-                    # (it's only off because we're checking at the current low brightness)
-                    if filter_name in _purpose_map:
-                        # Pipeline already determined final state — trust should_off
-                        target_bri, target_off = 0, True
-                    else:
-                        target_bri, target_off = apply_light_filter_pipeline(
-                            (
-                                base_brightness
-                                if base_brightness > 1
-                                else rhythm_brightness or base_brightness
-                            ),
-                            min_bri,
-                            max_bri,
-                            area_factor,
-                            preset,
-                            off_threshold,
-                            rhythm_brightness=rhythm_brightness,
-                            brightness_override=brightness_override,
-                            boost_brightness=boost_brightness,
-                        )
-                    if not target_off and target_bri > 0:
-                        # Will be on at target — add to 2-step with forced 1% color pre-set
-                        two_step_filters.add(filt_norm)
-                        # Build phase 1 task: 1% with target color
-                        zha_color_p1 = group_candidates.get(
-                            f"zha_group_{filt_norm}_color"
-                        )
-                        zha_ct_p1 = group_candidates.get(f"zha_group_{filt_norm}_ct")
-
-                        def _add_offpurpose_p1(entity_id, cap_type):
-                            p1 = {"transition": transition, "brightness_pct": 1}
-                            if cap_type == "color" and xy is not None:
-                                p1["xy_color"] = list(xy)
-                            elif cap_type == "ct":
-                                p1["color_temp_kelvin"] = max(2000, kelvin)
-                            phase1_tasks.append(
-                                self.call_service(
-                                    "light", "turn_on", p1, {"entity_id": entity_id}
-                                )
-                            )
-
-                        if zha_color_p1:
-                            _add_offpurpose_p1(zha_color_p1, "color")
-                        if zha_ct_p1:
-                            _add_offpurpose_p1(zha_ct_p1, "ct")
-                        if log_periodic:
-                            logger.info(
-                                f"Purpose '{filter_name}': off at check bri, forcing 1% phase1 for 2-step"
-                            )
+                    # Pipeline says this purpose should be off — skip 2-step
                     continue
 
                 # Find representative entity to check current state
@@ -3946,24 +3866,13 @@ class HomeAssistantWebSocketClient:
                 continue
             target_tasks = tasks
 
-            preset = presets.get(filter_name, {"at_bright": 100, "at_dim": 100})
-
-            # Calculate filtered brightness (or use pre-computed from pipeline)
-            if filter_name in _purpose_map:
-                _pp = _purpose_map[filter_name]
+            # Use pre-computed brightness from pipeline
+            _pp = _purpose_map.get(filter_name)
+            if _pp:
                 filtered_bri, should_off = _pp.brightness, _pp.should_off
             else:
-                filtered_bri, should_off = apply_light_filter_pipeline(
-                    base_brightness,
-                    min_bri,
-                    max_bri,
-                    area_factor,
-                    preset,
-                    off_threshold,
-                    rhythm_brightness=rhythm_brightness,
-                    brightness_override=brightness_override,
-                    boost_brightness=boost_brightness,
-                )
+                # Unlisted purpose — passthrough at area brightness
+                filtered_bri, should_off = area_brightness, False
 
             if should_off:
                 if skip_off_threshold:
@@ -4059,12 +3968,8 @@ class HomeAssistantWebSocketClient:
                         )
                 continue
 
-            # Apply CT compensation per-filter (pipeline already includes CT comp)
+            # Pipeline already includes CT compensation
             comp_brightness = filtered_bri
-            if not _purpose_map and kelvin is not None:
-                comp_brightness = self._apply_ct_brightness_compensation(
-                    filtered_bri, kelvin
-                )
 
             # Cache per-purpose last-sent values
             state.set_last_sent_purpose(
@@ -4076,20 +3981,8 @@ class HomeAssistantWebSocketClient:
             )
 
             if log_periodic:
-                curve_bri = rhythm_brightness or base_brightness
-                pre_sun = pre_sun_brightness or base_brightness
-                parts = [f"curve={curve_bri}%"]
-                if pre_sun != base_brightness:
-                    parts.append(f"sun→{base_brightness}%")
-                if area_factor != 1.0:
-                    parts.append(f"area×{area_factor:.2f}")
-                if brightness_override:
-                    parts.append(f"override={brightness_override:+.0f}")
-                if boost_brightness:
-                    parts.append(f"+boost={boost_brightness}")
+                parts = [f"area={area_brightness}%"]
                 parts.append(f"{filter_name}→{filtered_bri}%")
-                if comp_brightness != filtered_bri:
-                    parts.append(f"CT→{comp_brightness}%")
                 parts.append(f"{kelvin}K")
                 logger.info(f"[Pipeline] {area_id}: {' → '.join(parts)}")
 
@@ -4255,31 +4148,14 @@ class HomeAssistantWebSocketClient:
                     if filt_norm_p2 not in two_step_filters:
                         continue
                     try:
-                        preset = presets.get(
-                            filter_name, {"at_bright": 100, "at_dim": 100}
-                        )
-                        if filter_name in _purpose_map:
-                            _pp = _purpose_map[filter_name]
+                        _pp = _purpose_map.get(filter_name)
+                        if _pp:
                             filtered_bri, should_off = _pp.brightness, _pp.should_off
                         else:
-                            filtered_bri, should_off = apply_light_filter_pipeline(
-                                base_brightness,
-                                min_bri,
-                                max_bri,
-                                area_factor,
-                                preset,
-                                off_threshold,
-                                rhythm_brightness=rhythm_brightness,
-                                brightness_override=brightness_override,
-                                boost_brightness=boost_brightness,
-                            )
+                            continue
                         if should_off or filtered_bri <= 0:
                             continue
                         comp_bri = filtered_bri
-                        if not _purpose_map and kelvin:
-                            comp_bri = self._apply_ct_brightness_compensation(
-                                filtered_bri, kelvin
-                            )
 
                         is_dimming = filt_norm_p2 in two_step_dimming
 
