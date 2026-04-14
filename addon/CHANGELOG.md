@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.0
+- **Step/slide simplification**: Circadian stepping and sliding now use a single midpoint for both brightness and color (no more separate brightness_mid/color_mid divergence). Eliminated color_override from stepping entirely — sun color adjustment is instead linearly reduced based on how far the user steps down (shift_ratio). Deleted `circadian_adjust` P1/P2/P3 engine, `calculate_step`, `calculate_bright_step`, zone step/bright functions. Step buttons now delegate to `set_position(mode="step")`. ~1350 lines removed.
+
 ## 1.1.23
 - **Fix phase midpoint display**: Home page now shows effective wake/bed time (accounting for configured wake/bed brightness) instead of raw sigmoid midpoint. Added `midpoint_to_time()` reverse computation in brain.py.
 

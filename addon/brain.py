@@ -917,6 +917,7 @@ class CircadianLight:
         apply_solar_rules: bool = True,
         sun_times: Optional[SunTimes] = None,
         weekday: Optional[int] = None,
+        sun_color_reduction: float = 0.0,
     ) -> int:
         """Calculate color temperature at a specific hour.
 
@@ -926,6 +927,7 @@ class CircadianLight:
             state: Area runtime state
             apply_solar_rules: Whether to apply warm night/cool day rules
             sun_times: Sun position times for solar rules (if None, uses defaults)
+            sun_color_reduction: 0.0-1.0, reduces daylight color blend (from stepping)
             weekday: Python weekday (0=Mon..6=Sun), None = today
 
         Returns:
@@ -994,7 +996,8 @@ class CircadianLight:
         # Apply solar rules if enabled
         if apply_solar_rules:
             kelvin = CircadianLight._apply_solar_rules(
-                kelvin, hour, config, state, sun_times
+                kelvin, hour, config, state, sun_times,
+                sun_color_reduction=sun_color_reduction,
             )
             # Solar rules intentionally push kelvin outside the curve range:
             # warm night pulls down toward warm_night_target,
@@ -1076,6 +1079,7 @@ class CircadianLight:
         config: Config,
         state: AreaState,
         sun_times: Optional[SunTimes] = None,
+        sun_color_reduction: float = 0.0,
     ) -> float:
         """Apply warm night and daylight color blend solar rules.
 
@@ -1089,6 +1093,7 @@ class CircadianLight:
             config: Global configuration
             state: Area runtime state
             sun_times: Sun position times (if None, uses defaults)
+            sun_color_reduction: 0.0-1.0, reduces daylight blend (from stepping)
 
         Returns:
             Modified color temperature
@@ -1154,6 +1159,9 @@ class CircadianLight:
                 config.daylight_start,
                 config.daylight_end,
             )
+            # Reduce daylight blend when user steps down (shift_ratio)
+            if sun_color_reduction > 0:
+                blend *= (1.0 - sun_color_reduction)
             daylight_target = config.daylight_cct
             if state.color_override and state.color_override < 0 and not slider_color:
                 daylight_target += state.color_override
@@ -1279,6 +1287,7 @@ class CircadianLight:
         state: AreaState,
         sun_times: Optional[SunTimes] = None,
         weekday: Optional[int] = None,
+        sun_color_reduction: float = 0.0,
     ) -> LightingResult:
         """Calculate full lighting values at a specific hour.
 
@@ -1288,6 +1297,8 @@ class CircadianLight:
             state: Area runtime state
             sun_times: Sun position times for solar rules (if None, uses defaults)
             weekday: Python weekday (0=Mon..6=Sun), None = today
+            sun_color_reduction: 0.0-1.0, reduces sun (daylight) color blend strength.
+                Computed from stepping shift_ratio: how far user stepped from natural.
 
         Returns:
             LightingResult with brightness, color_temp, rgb, xy, phase
@@ -1298,7 +1309,8 @@ class CircadianLight:
             hour, config, state, weekday=weekday
         )
         color_temp = CircadianLight.calculate_color_at_hour(
-            hour, config, state, sun_times=sun_times, weekday=weekday
+            hour, config, state, sun_times=sun_times, weekday=weekday,
+            sun_color_reduction=sun_color_reduction,
         )
         rgb = CircadianLight.color_temperature_to_rgb(color_temp)
         xy = CircadianLight.color_temperature_to_xy(color_temp)
@@ -1311,473 +1323,7 @@ class CircadianLight:
             phase="ascend" if in_ascend else "descend",
         )
 
-    # ---------------------------------------------------------------------------
-    # Step calculations (brightness-primary algorithm)
-    # ---------------------------------------------------------------------------
-
-    @staticmethod
-    def calculate_step(
-        hour: float,
-        direction: str,  # "up" or "down"
-        config: Config,
-        state: AreaState,
-        sun_times: Optional[SunTimes] = None,
-        weekday: Optional[int] = None,
-    ) -> Optional[StepResult]:
-        """Calculate step up/down using brightness-primary algorithm.
-
-        Step moves both brightness and color along the diverged curve.
-        Operates within config bounds only (no pushing beyond).
-
-        Args:
-            hour: Current hour (0-24)
-            direction: "up" (brighter/cooler) or "down" (dimmer/warmer)
-            config: Global configuration
-            state: Area runtime state
-            sun_times: Sun position times for solar rules (if None, uses defaults)
-            weekday: Python weekday (0=Mon..6=Sun), None = today
-
-        Returns:
-            StepResult with new values and state updates, or None if at limit
-        """
-        in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(
-            hour, config
-        )
-        sign = 1 if direction == "up" else -1
-        steps = config.max_dim_steps or 10
-
-        # Config bounds (only use these, no runtime overrides)
-        b_min = config.min_brightness
-        b_max = config.max_brightness
-        c_min = config.min_color_temp
-        c_max = config.max_color_temp
-
-        # Step sizes based on config range
-        bri_step = (b_max - b_min) / steps
-        cct_step = (c_max - c_min) / steps
-
-        # Current values
-        current_bri = CircadianLight.calculate_brightness_at_hour(
-            hour, config, state, weekday=weekday
-        )
-        # Get the NATURAL curve color (without solar rules) for stepping
-        # Solar rules will be applied at render time
-        natural_cct = CircadianLight.calculate_color_at_hour(
-            hour, config, state, apply_solar_rules=False, weekday=weekday
-        )
-        # Also get the rendered color for limit checking (with actual sun times)
-        current_cct = CircadianLight.calculate_color_at_hour(
-            hour,
-            config,
-            state,
-            apply_solar_rules=True,
-            sun_times=sun_times,
-            weekday=weekday,
-        )
-
-        # Safe margin to avoid asymptote issues in midpoint calculation
-        safe_margin_bri = max(1.0, (b_max - b_min) * 0.01)
-        safe_margin_cct = max(10, (c_max - c_min) * 0.01)
-
-        # Check if each dimension is at its config bound (within safe margin)
-        bri_at_limit = (
-            direction == "up" and current_bri >= b_max - safe_margin_bri
-        ) or (direction == "down" and current_bri <= b_min + safe_margin_bri)
-        cct_at_limit = (
-            direction == "up" and natural_cct >= c_max - safe_margin_cct
-        ) or (direction == "down" and natural_cct <= c_min + safe_margin_cct)
-
-        # For step-down: Cool Day can boost rendered color above c_min even
-        # when natural is at its floor — override can still compensate
-        can_grow_override = (
-            direction == "down" and current_cct > c_min + safe_margin_cct
-        )
-
-        if bri_at_limit and cct_at_limit and not can_grow_override:
-            return None  # Both dimensions at limit, can't go further
-
-        # Step dimensions independently: skip ones already at limit
-        # IMPORTANT: Step the NATURAL curve color (pre-solar-rules), not the rendered color
-        # This ensures stepping respects the solar rule ceilings/floors
-        if bri_at_limit:
-            target_bri = current_bri
-        else:
-            target_bri = current_bri + sign * bri_step
-
-        if cct_at_limit:
-            target_natural_cct = natural_cct
-        else:
-            target_natural_cct = natural_cct + sign * cct_step
-
-        # Clamp to safe bounds
-        target_bri = max(
-            b_min + safe_margin_bri, min(b_max - safe_margin_bri, target_bri)
-        )
-        target_natural_cct = max(
-            c_min + safe_margin_cct, min(c_max - safe_margin_cct, target_natural_cct)
-        )
-
-        # If clamped targets are effectively unchanged for BOTH dimensions, treat as at-limit
-        bri_unchanged = abs(target_bri - current_bri) < safe_margin_bri
-        cct_unchanged = abs(target_natural_cct - natural_cct) < safe_margin_cct
-        if bri_unchanged and cct_unchanged:
-            return None
-
-        # Calculate new midpoints that produce these target values at current time
-        b_min_norm = b_min / 100.0
-        b_max_norm = b_max / 100.0
-        target_bri_norm = max(
-            b_min_norm + 0.001, min(b_max_norm - 0.001, target_bri / 100.0)
-        )
-        target_cct_norm = max(
-            0.001, min(0.999, (target_natural_cct - c_min) / (c_max - c_min))
-        )
-
-        calc_time = h48
-        if not in_ascend and h48 < t_descend:
-            calc_time = h48 + 24
-
-        new_bri_mid = inverse_midpoint(
-            calc_time, target_bri_norm, slope, b_min_norm, b_max_norm
-        )
-        new_color_mid = inverse_midpoint(calc_time, target_cct_norm, slope, 0, 1)
-
-        # Clamp midpoints to phase boundaries, then store in 0-24 range
-        if in_ascend:
-            new_bri_mid = (
-                CircadianLight.lift_midpoint_to_phase(new_bri_mid, t_ascend, t_descend)
-                % 24
-            )
-            new_color_mid = (
-                CircadianLight.lift_midpoint_to_phase(
-                    new_color_mid, t_ascend, t_descend
-                )
-                % 24
-            )
-        else:
-            descend_end = t_ascend + 24
-            new_bri_mid = (
-                CircadianLight.lift_midpoint_to_phase(
-                    new_bri_mid, t_descend, descend_end
-                )
-                % 24
-            )
-            new_color_mid = (
-                CircadianLight.lift_midpoint_to_phase(
-                    new_color_mid, t_descend, descend_end
-                )
-                % 24
-            )
-
-        # Recalculate what the curve actually produces with the new midpoints
-        # This catches curve saturation where the midpoint can't push the output higher
-        new_state = AreaState(
-            is_circadian=state.is_circadian,
-            is_on=state.is_on,
-            frozen_at=state.frozen_at,
-            brightness_mid=new_bri_mid if not bri_at_limit else state.brightness_mid,
-            color_mid=new_color_mid if not cct_at_limit else state.color_mid,
-            color_override=state.color_override,
-        )
-        actual_bri = CircadianLight.calculate_brightness_at_hour(
-            hour, config, new_state, weekday=weekday
-        )
-        actual_cct = CircadianLight.calculate_color_at_hour(
-            hour,
-            config,
-            new_state,
-            apply_solar_rules=True,
-            sun_times=sun_times,
-            weekday=weekday,
-        )
-
-        # If actual output didn't change meaningfully, treat as at-limit
-        # Uses 0.5% for brightness, 10K for color to match frontend (glo-designer.html)
-        bri_render_unchanged = abs(actual_bri - current_bri) < 0.5
-        cct_render_unchanged = abs(actual_cct - current_cct) < 10
-        if bri_render_unchanged and cct_render_unchanged and not can_grow_override:
-            return None
-
-        # Only update midpoints for dimensions that actually moved
-        state_updates: Dict[str, Any] = {}
-        if not bri_at_limit:
-            state_updates["brightness_mid"] = new_bri_mid
-        if not cct_at_limit:
-            state_updates["color_mid"] = new_color_mid
-
-        # Step = walking the curve → clear per-axis color decay (step's color_override has no decay)
-        # Brightness override is kept — it's an independent layer on top of the curve
-        state_updates["color_override_set_at"] = None
-
-        # Recalibrate color_override
-        # Principle: respect warming solar rules, override cooling ones.
-        # Step-down: if a cooling rule (Cool Day) attenuated the color change,
-        # set negative override for full rendered compensation.
-        # Step-up: only recalibrate existing overrides (respect warm night ceiling).
-        tolerance = max(5, safe_margin_cct * 0.5)
-
-        if direction == "down" and (not cct_at_limit or can_grow_override):
-            # Target the natural curve value at the new position (without solar rules).
-            # Same approach as calculate_set_position: override counteracts Cool Day
-            # so rendered output matches the natural curve target.
-            target_natural_cct = CircadianLight.calculate_color_at_hour(
-                hour,
-                config,
-                new_state,
-                apply_solar_rules=False,
-                weekday=weekday,
-            )
-
-            # Render with new midpoints, no override (shows Cool Day effect)
-            base_state = AreaState(
-                is_circadian=new_state.is_circadian,
-                is_on=new_state.is_on,
-                frozen_at=new_state.frozen_at,
-                brightness_mid=new_state.brightness_mid,
-                color_mid=new_state.color_mid,
-                color_override=None,
-            )
-            base_cct = CircadianLight.calculate_color_at_hour(
-                hour,
-                config,
-                base_state,
-                apply_solar_rules=True,
-                sun_times=sun_times,
-                weekday=weekday,
-            )
-
-            def _render_step(ovr):
-                s = AreaState(
-                    is_circadian=new_state.is_circadian,
-                    is_on=new_state.is_on,
-                    frozen_at=new_state.frozen_at,
-                    brightness_mid=new_state.brightness_mid,
-                    color_mid=new_state.color_mid,
-                    color_override=ovr,
-                )
-                return CircadianLight.calculate_color_at_hour(
-                    hour,
-                    config,
-                    s,
-                    apply_solar_rules=True,
-                    sun_times=sun_times,
-                    weekday=weekday,
-                )
-
-            if base_cct > target_natural_cct + tolerance:
-                # Cool Day is holding CCT above target — override to counteract
-                state_updates["color_override"] = _converge_override(
-                    target_natural_cct,
-                    base_cct,
-                    tolerance,
-                    _render_step,
-                )
-            elif state.color_override is not None:
-                # Recalibrate existing override (shrink or clear)
-                needed = _converge_override(
-                    target_natural_cct,
-                    base_cct,
-                    tolerance,
-                    _render_step,
-                )
-                if needed is not None and needed > 0:
-                    state_updates["color_override"] = None
-                else:
-                    state_updates["color_override"] = needed
-            else:
-                state_updates["color_override"] = None
-
-            actual_cct = _render_step(state_updates.get("color_override"))
-
-        elif state.color_override is not None:
-            # Step-up or cct-at-limit: recalibrate existing override using same
-            # approach as calculate_set_position — target natural curve value.
-            target_natural_cct = CircadianLight.calculate_color_at_hour(
-                hour,
-                config,
-                new_state,
-                apply_solar_rules=False,
-                weekday=weekday,
-            )
-            base_state = AreaState(
-                is_circadian=new_state.is_circadian,
-                is_on=new_state.is_on,
-                frozen_at=new_state.frozen_at,
-                brightness_mid=new_state.brightness_mid,
-                color_mid=new_state.color_mid,
-                color_override=None,
-            )
-            base_cct = CircadianLight.calculate_color_at_hour(
-                hour,
-                config,
-                base_state,
-                apply_solar_rules=True,
-                sun_times=sun_times,
-                weekday=weekday,
-            )
-
-            def _render_step_recal(ovr):
-                s = AreaState(
-                    is_circadian=new_state.is_circadian,
-                    is_on=new_state.is_on,
-                    frozen_at=new_state.frozen_at,
-                    brightness_mid=new_state.brightness_mid,
-                    color_mid=new_state.color_mid,
-                    color_override=ovr,
-                )
-                return CircadianLight.calculate_color_at_hour(
-                    hour,
-                    config,
-                    s,
-                    apply_solar_rules=True,
-                    sun_times=sun_times,
-                    weekday=weekday,
-                )
-
-            if base_cct > target_natural_cct + tolerance:
-                needed = _converge_override(
-                    target_natural_cct, base_cct, tolerance, _render_step_recal
-                )
-                if needed is not None and needed > 0:
-                    state_updates["color_override"] = None
-                else:
-                    state_updates["color_override"] = needed
-            elif abs(base_cct - target_natural_cct) < tolerance:
-                state_updates["color_override"] = None
-            else:
-                state_updates["color_override"] = None
-
-            actual_cct = _render_step_recal(state_updates.get("color_override"))
-
-        rgb = CircadianLight.color_temperature_to_rgb(actual_cct)
-        xy = CircadianLight.color_temperature_to_xy(actual_cct)
-
-        return StepResult(
-            brightness=int(actual_bri),
-            color_temp=actual_cct,
-            rgb=rgb,
-            xy=xy,
-            state_updates=state_updates,
-        )
-
-    @staticmethod
-    def calculate_bright_step(
-        hour: float,
-        direction: str,  # "up" or "down"
-        config: Config,
-        state: AreaState,
-        sun_times: Optional[SunTimes] = None,
-        weekday: Optional[int] = None,
-    ) -> Optional[StepResult]:
-        """Calculate brightness-only step.
-
-        Adjusts brightness midpoint only, color follows curve unchanged.
-        Operates within config bounds only (no pushing beyond).
-
-        Args:
-            hour: Current hour (0-24)
-            direction: "up" or "down"
-            config: Global configuration
-            state: Area runtime state
-            sun_times: Sun position times for solar rules (if None, uses defaults)
-            weekday: Python weekday (0=Mon..6=Sun), None = today
-
-        Returns:
-            StepResult with new values and state updates, or None if at limit
-        """
-        in_ascend, h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(
-            hour, config
-        )
-        sign = 1 if direction == "up" else -1
-        steps = config.max_dim_steps or 10
-
-        # Config bounds (only use these, no runtime overrides)
-        b_min = config.min_brightness
-        b_max = config.max_brightness
-        bri_step = (b_max - b_min) / steps
-
-        current_bri = CircadianLight.calculate_brightness_at_hour(
-            hour, config, state, weekday=weekday
-        )
-
-        # Safe margin to avoid asymptote issues in midpoint calculation
-        safe_margin = max(1.0, (b_max - b_min) * 0.01)
-
-        # Check if at config bounds (within safe margin)
-        at_max = direction == "up" and current_bri >= b_max - safe_margin
-        at_min = direction == "down" and current_bri <= b_min + safe_margin
-
-        if at_max or at_min:
-            return None  # At config bound, can't go further
-
-        target_bri = current_bri + sign * bri_step
-
-        # Clamp to safe bounds
-        target_bri = max(b_min + safe_margin, min(b_max - safe_margin, target_bri))
-
-        # If clamped target is effectively the same as current, treat as at-limit
-        if abs(target_bri - current_bri) < safe_margin:
-            return None
-
-        # Calculate new midpoint
-        b_min_norm = b_min / 100.0
-        b_max_norm = b_max / 100.0
-        target_norm = target_bri / 100.0
-
-        calc_time = h48
-        if not in_ascend and h48 < t_descend:
-            calc_time = h48 + 24
-
-        new_mid = inverse_midpoint(
-            calc_time, target_norm, slope, b_min_norm, b_max_norm
-        )
-        if in_ascend:
-            new_mid = (
-                CircadianLight.lift_midpoint_to_phase(new_mid, t_ascend, t_descend) % 24
-            )
-        else:
-            new_mid = (
-                CircadianLight.lift_midpoint_to_phase(new_mid, t_descend, t_ascend + 24)
-                % 24
-            )
-
-        # Recalculate what the curve actually produces with the new midpoint
-        new_state = AreaState(
-            is_circadian=state.is_circadian,
-            is_on=state.is_on,
-            frozen_at=state.frozen_at,
-            brightness_mid=new_mid,
-            color_mid=state.color_mid,
-        )
-        actual_bri = CircadianLight.calculate_brightness_at_hour(
-            hour, config, new_state, weekday=weekday
-        )
-
-        # If actual output didn't change meaningfully, treat as at-limit
-        if abs(actual_bri - current_bri) < 0.5:
-            return None
-
-        # Color stays unchanged - recalculate at current hour (with solar rules)
-        color_temp = CircadianLight.calculate_color_at_hour(
-            hour,
-            config,
-            state,
-            apply_solar_rules=True,
-            sun_times=sun_times,
-            weekday=weekday,
-        )
-        rgb = CircadianLight.color_temperature_to_rgb(color_temp)
-        xy = CircadianLight.color_temperature_to_xy(color_temp)
-
-        state_updates: Dict[str, Any] = {"brightness_mid": new_mid}
-
-        return StepResult(
-            brightness=int(actual_bri),
-            color_temp=color_temp,
-            rgb=rgb,
-            xy=xy,
-            state_updates=state_updates,
-        )
+    # calculate_step deleted — stepping now uses calculate_set_position(dimension="step")
 
     @staticmethod
     def calculate_color_step(
@@ -2012,153 +1558,32 @@ class CircadianLight:
 
         # Compute new midpoints based on dimension
         if dimension == "step":
-            # Compute independent midpoints for brightness and color,
-            # preserving any color divergence (like calculate_step does).
-            # Get current natural CCT to measure divergence from coupled position.
-            current_natural_cct = CircadianLight.calculate_color_at_hour(
-                hour, config, state, apply_solar_rules=False, weekday=weekday
-            )
-            current_bri = CircadianLight.calculate_brightness_at_hour(
-                hour, config, state, weekday=weekday
-            )
-            # Color divergence: difference between actual natural CCT and
-            # what it would be if coupled to brightness
-            coupled_cct_frac = (
-                (current_bri - b_min) / (b_max - b_min) if b_max > b_min else 0.5
-            )
-            coupled_cct = c_min + (c_max - c_min) * coupled_cct_frac
-            color_divergence = current_natural_cct - coupled_cct
-
-            # Apply same divergence to the new target position
-            target_natural_cct = target_natural_cct + color_divergence
-            target_natural_cct = max(
-                c_min + safe_margin_cct,
-                min(c_max - safe_margin_cct, target_natural_cct),
-            )
-            target_cct_norm = max(
-                0.001, min(0.999, (target_natural_cct - c_min) / (c_max - c_min))
-            )
-
-            new_bri_mid = inverse_midpoint(
+            # Single midpoint for both brightness and color.
+            # Sun color adjustment reduction is handled by the pipeline
+            # via shift_ratio, not by color_override.
+            new_mid = inverse_midpoint(
                 calc_time, target_bri_norm, slope, b_min_norm, b_max_norm
             )
-            new_color_mid = inverse_midpoint(calc_time, target_cct_norm, slope, 0, 1)
             if in_ascend:
-                new_bri_mid = (
+                new_mid = (
                     CircadianLight.lift_midpoint_to_phase(
-                        new_bri_mid, t_ascend, t_descend
-                    )
-                    % 24
-                )
-                new_color_mid = (
-                    CircadianLight.lift_midpoint_to_phase(
-                        new_color_mid, t_ascend, t_descend
+                        new_mid, t_ascend, t_descend
                     )
                     % 24
                 )
             else:
                 descend_end = t_ascend + 24
-                new_bri_mid = (
+                new_mid = (
                     CircadianLight.lift_midpoint_to_phase(
-                        new_bri_mid, t_descend, descend_end
+                        new_mid, t_descend, descend_end
                     )
                     % 24
                 )
-                new_color_mid = (
-                    CircadianLight.lift_midpoint_to_phase(
-                        new_color_mid, t_descend, descend_end
-                    )
-                    % 24
-                )
-            state_updates["brightness_mid"] = new_bri_mid
-            state_updates["color_mid"] = new_color_mid
-
-            # Walking the curve → clear color decay marker (step's color_override has no decay)
-            # brightness_override is kept as an independent layer through step_up/step_down
+            state_updates["brightness_mid"] = new_mid
+            state_updates["color_mid"] = new_mid
+            # Clear step-originated color_override (no longer used for stepping)
+            state_updates["color_override"] = None
             state_updates["color_override_set_at"] = None
-
-            # --- color_override for circadian (step) slider ---
-            #
-            # Directional override policy (matches calculate_step):
-            #   ONLY override COOLING solar rules (Cool Day) that prevent warming.
-            #   NEVER override WARMING solar rules (Warm Night) to push cooler.
-            #
-            # Why: At midday with Cool Day active, dragging the slider down should
-            # produce warm colors — but Cool Day holds the rendered CCT high.
-            # A negative override counteracts that cooling effect.
-            #
-            # At night with Warm Night active, the rendered CCT is already at/below
-            # the natural curve target. Creating an override here would FIGHT Warm
-            # Night and cause a jarring color jump (e.g., 87% 1900K → 86% 4000K).
-            #
-            # Detection: if rendered CCT (with solar rules, no override) is COOLER
-            # (higher K) than the target, a cooling rule is active → override.
-            # If rendered is warmer (lower K) or matches → no new override needed.
-            #
-            # Existing overrides (from a prior drag or color slider) are always
-            # recalibrated so they shrink/clear as the gap closes.
-
-            base_state = AreaState(
-                is_circadian=state.is_circadian,
-                is_on=state.is_on,
-                frozen_at=state.frozen_at,
-                brightness_mid=new_bri_mid,
-                color_mid=new_color_mid,
-                color_override=None,
-            )
-            base_cct = CircadianLight.calculate_color_at_hour(
-                hour,
-                config,
-                base_state,
-                apply_solar_rules=True,
-                sun_times=sun_times,
-                weekday=weekday,
-            )
-            tolerance = max(5, safe_margin_cct * 0.5)
-
-            def _render_step_pos(ovr):
-                s = AreaState(
-                    is_circadian=state.is_circadian,
-                    is_on=state.is_on,
-                    frozen_at=state.frozen_at,
-                    brightness_mid=new_bri_mid,
-                    color_mid=new_color_mid,
-                    color_override=ovr,
-                )
-                return CircadianLight.calculate_color_at_hour(
-                    hour,
-                    config,
-                    s,
-                    apply_solar_rules=True,
-                    sun_times=sun_times,
-                    weekday=weekday,
-                )
-
-            if base_cct > target_natural_cct + tolerance:
-                # Cooling rule (Cool Day) is holding CCT above target — override
-                state_updates["color_override"] = _converge_override(
-                    target_natural_cct,
-                    base_cct,
-                    tolerance,
-                    _render_step_pos,
-                )
-            elif state.color_override is not None:
-                # Recalibrate existing override (shrink or clear)
-                needed = _converge_override(
-                    target_natural_cct,
-                    base_cct,
-                    tolerance,
-                    _render_step_pos,
-                )
-                # Only keep negative overrides (counteracting cooling rules);
-                # positive overrides would fight warming rules (Warm Night)
-                if needed is not None and needed > 0:
-                    state_updates["color_override"] = None
-                else:
-                    state_updates["color_override"] = needed
-            else:
-                # Rendered matches or is warmer than target — no override needed
-                state_updates["color_override"] = None
 
         elif dimension == "brightness":
             # Brightness slider/buttons now use override+decay in primitives.py.
@@ -2570,7 +1995,11 @@ def calculate_dimming_step(
     max_steps: int = DEFAULT_MAX_DIM_STEPS,
     **kwargs,
 ) -> Dict[str, Any]:
-    """Backwards compatibility wrapper for step calculations."""
+    """Calculate one step along the circadian curve from default position.
+
+    Used by the light designer for step preview. Always starts from
+    default state (no midpoint shift, no overrides).
+    """
     from datetime import datetime
 
     if current_time is None:
@@ -2584,11 +2013,14 @@ def calculate_dimming_step(
     config.max_dim_steps = max_steps
     area_state = AreaState()
 
-    direction = "up" if action == "brighten" else "down"
-    result = CircadianLight.calculate_step(hour, direction, config, area_state)
+    # Current brightness at default position
+    current_bri = CircadianLight.calculate_brightness_at_hour(hour, config, area_state)
+    step_size = (config.max_brightness - config.min_brightness) / max_steps
+    sign = 1 if action == "brighten" else -1
+    target_bri = current_bri + sign * step_size
+    target_bri = max(config.min_brightness, min(config.max_brightness, target_bri))
 
-    if result is None:
-        # At limit
+    if abs(target_bri - current_bri) < 0.5:
         current = CircadianLight.calculate_lighting(hour, config, area_state)
         return {
             "brightness": current.brightness,
@@ -2597,10 +2029,20 @@ def calculate_dimming_step(
             "at_limit": True,
         }
 
+    # Convert to 0-100 position and use calculate_set_position
+    b_range = config.max_brightness - config.min_brightness
+    position = (target_bri - config.min_brightness) / b_range * 100 if b_range > 0 else 50
+    position = max(0, min(100, position))
+
+    result = CircadianLight.calculate_set_position(
+        hour=hour, position=position, dimension="step",
+        config=config, state=area_state,
+    )
+
     return {
         "brightness": result.brightness,
         "kelvin": result.color_temp,
-        "time_offset_minutes": 0,  # New system doesn't use time offsets
+        "time_offset_minutes": 0,
         "at_limit": False,
     }
 

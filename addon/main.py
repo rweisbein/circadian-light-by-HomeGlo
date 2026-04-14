@@ -5732,15 +5732,7 @@ class HomeAssistantWebSocketClient:
 
         logger.info(f"[webserver] zone {service} for zone: {zone_name}")
 
-        if service == "step_up":
-            await self.primitives.zone_step_up(zone_name, "webserver")
-        elif service == "step_down":
-            await self.primitives.zone_step_down(zone_name, "webserver")
-        elif service == "bright_up":
-            await self.primitives.zone_bright_up(zone_name, "webserver")
-        elif service == "bright_down":
-            await self.primitives.zone_bright_down(zone_name, "webserver")
-        elif service == "color_up":
+        if service == "color_up":
             await self.primitives.zone_color_up(zone_name, "webserver")
         elif service == "color_down":
             await self.primitives.zone_color_down(zone_name, "webserver")
@@ -5882,82 +5874,6 @@ class HomeAssistantWebSocketClient:
             result = CircadianLight.calculate_lighting(
                 hour, config, area_state, sun_times=sun_times
             )
-
-            # Recalibrate color_override: only for step-originated overrides (no set_at).
-            # Slider/button-originated overrides (with set_at) are handled by decay above.
-            # As the curve naturally warms, a step override may exceed what's needed.
-            if (
-                area_state.color_override is not None
-                and area_state.color_override_set_at is None
-            ):
-                # What does the curve produce without override, with solar rules?
-                base_state = AreaState(
-                    is_circadian=area_state.is_circadian,
-                    is_on=area_state.is_on,
-                    frozen_at=area_state.frozen_at,
-                    brightness_mid=area_state.brightness_mid,
-                    color_mid=area_state.color_mid,
-                    color_override=None,
-                )
-                base_cct = CircadianLight.calculate_color_at_hour(
-                    hour,
-                    config,
-                    base_state,
-                    apply_solar_rules=True,
-                    sun_times=sun_times,
-                )
-                # What does the curve want naturally (no override, no solar rules)?
-                natural_cct = CircadianLight.calculate_color_at_hour(
-                    hour,
-                    config,
-                    base_state,
-                    apply_solar_rules=False,
-                )
-                tolerance = max(
-                    5, (config.max_color_temp - config.min_color_temp) * 0.005
-                )
-                if abs(natural_cct - base_cct) < tolerance:
-                    needed_override = None
-                else:
-                    # Use _converge_override to account for attenuation
-                    # (step-originated overrides modify solar rule targets, not CCT directly)
-                    def _render_recal(ovr):
-                        s = AreaState(
-                            is_circadian=area_state.is_circadian,
-                            is_on=area_state.is_on,
-                            frozen_at=area_state.frozen_at,
-                            brightness_mid=area_state.brightness_mid,
-                            color_mid=area_state.color_mid,
-                            color_override=ovr,
-                        )
-                        return CircadianLight.calculate_color_at_hour(
-                            hour,
-                            config,
-                            s,
-                            apply_solar_rules=True,
-                            sun_times=sun_times,
-                        )
-
-                    from brain import _converge_override
-
-                    needed_override = _converge_override(
-                        natural_cct,
-                        base_cct,
-                        tolerance,
-                        _render_recal,
-                    )
-                if needed_override != area_state.color_override:
-                    old_val = area_state.color_override
-                    state.update_area(area_id, {"color_override": needed_override})
-                    area_state = AreaState.from_dict(state.get_area(area_id))
-                    # Re-render with updated override
-                    result = CircadianLight.calculate_lighting(
-                        hour, config, area_state, sun_times=sun_times
-                    )
-                    if log_periodic:
-                        logger.info(
-                            f"[Periodic] Area {area_id}: recalibrated color_override {old_val} -> {needed_override}"
-                        )
 
             # --- Compute fade factor (auto on/off gradual transitions) ---
             fade_factor = 1.0

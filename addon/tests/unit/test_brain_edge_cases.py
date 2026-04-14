@@ -143,7 +143,7 @@ class TestExtremeConfigurations:
         assert 10 <= bri <= 100
 
     def test_single_step(self):
-        """Test with max_dim_steps=1."""
+        """Test with max_dim_steps=1 via calculate_set_position."""
         config = Config(
             min_brightness=10,
             max_brightness=100,
@@ -151,9 +151,11 @@ class TestExtremeConfigurations:
         )
         state = AreaState()
 
-        result = CircadianLight.calculate_step(12.0, "down", config, state)
+        result = CircadianLight.calculate_set_position(
+            12.0, 0, "step", config, state
+        )
 
-        # Should still work, step size will be large
+        # Should still work
         assert result is not None
         # Step should produce a meaningful decrease (curve recalculates actual output)
         assert result.brightness < 100  # Decreased from max
@@ -217,44 +219,6 @@ class TestColorConversionEdgeCases:
 
 class TestStepEdgeCases:
     """Test step calculation edge cases."""
-
-    def test_step_at_absolute_max(self):
-        """Test step at absolute maximum (100%)."""
-        config = Config(max_brightness=100, max_dim_steps=10)
-        state = AreaState()
-
-        # At noon, brightness is 100%
-        result = CircadianLight.calculate_step(12.0, "up", config, state)
-
-        # Should return None (can't go higher)
-        assert result is None
-
-    def test_step_at_config_min(self):
-        """Test step at config minimum."""
-        config = Config(min_brightness=1, max_brightness=100, max_dim_steps=10)
-        state = AreaState(brightness_mid=0.0)  # Early midpoint pushes brightness down
-
-        # Force to minimum
-        result = CircadianLight.calculate_step(12.0, "down", config, state)
-
-        # Should return None when at config min, or a valid brightness otherwise
-        assert result is None or result.brightness >= config.min_brightness
-
-    def test_bright_step_preserves_color_exactly(self):
-        """Test bright step doesn't modify color at all."""
-        config = Config(
-            ascend_start=6.0,
-            descend_start=18.0,
-            wake_time=10.0,  # Late wake time so 8am isn't at max
-            max_dim_steps=10
-        )
-        state = AreaState()
-
-        color_before = CircadianLight.calculate_color_at_hour(8.0, config, state)
-        result = CircadianLight.calculate_bright_step(8.0, "up", config, state)
-
-        assert result is not None
-        assert result.color_temp == color_before
 
     def test_color_step_preserves_brightness_exactly(self):
         """Test color step doesn't modify brightness at all."""

@@ -142,17 +142,34 @@ def compute(ctx: PipelineContext) -> PipelineResult:
         phase = "precomputed"
     else:
         # Compute from scratch (periodic tick path)
+        # Compute shift_ratio for sun color reduction:
+        # How far has the user stepped from the natural (unstepped) brightness?
+        sun_color_reduction = 0.0
+        if ctx.area_state.brightness_mid is not None:
+            natural_bri = CircadianLight.calculate_brightness_at_hour(
+                ctx.hour, ctx.config,
+                AreaState(is_circadian=True, is_on=True),
+                weekday=ctx.weekday,
+            )
+            stepped_bri = CircadianLight.calculate_brightness_at_hour(
+                ctx.hour, ctx.config, ctx.area_state,
+                weekday=ctx.weekday,
+            )
+            if stepped_bri < natural_bri and natural_bri > ctx.config.min_brightness:
+                sun_color_reduction = min(1.0,
+                    (natural_bri - stepped_bri) / (natural_bri - ctx.config.min_brightness)
+                )
+
         result = CircadianLight.calculate_lighting(
             ctx.hour,
             ctx.config,
             ctx.area_state,
             sun_times=ctx.sun_times,
             weekday=ctx.weekday,
+            sun_color_reduction=sun_color_reduction,
         )
         rhythm_brightness = result.brightness
         rhythm_kelvin = result.color_temp
-        # Steps 2-4 (night color, sun color, color override) are currently
-        # handled inside calculate_lighting via solar rules + AreaState.color_override.
         kelvin = result.color_temp
         xy = result.xy
         phase = result.phase
