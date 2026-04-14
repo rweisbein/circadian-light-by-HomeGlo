@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.1.23
+- **Fix phase midpoint display**: Home page now shows effective wake/bed time (accounting for configured wake/bed brightness) instead of raw sigmoid midpoint. Added `midpoint_to_time()` reverse computation in brain.py.
+
 ## 1.1.21
 - **Remove pill containers from action buttons**: Toggle buttons (power, circadian, freeze, boost) keep dark pill background. Action buttons (reset, step up/down, glo up/down/reset, full send) rendered without pill container. Applies to home page area cards, zone headers, and area detail page.
 

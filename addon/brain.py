@@ -709,6 +709,40 @@ def compute_shifted_midpoint(
     return inverse_midpoint(target_time_h48, target_norm, slope, b_min_norm, b_max_norm)
 
 
+def midpoint_to_time(
+    midpoint_h48: float,
+    brightness_pct: int,
+    slope: float,
+    b_min_norm: float,
+    b_max_norm: float,
+) -> float:
+    """Reverse of compute_shifted_midpoint: given a midpoint, find the time
+    where brightness equals brightness_pct.
+
+    Args:
+        midpoint_h48: The sigmoid midpoint in 48h space
+        brightness_pct: Brightness percentage to solve for (10-90)
+        slope: Sigmoid slope for this phase
+        b_min_norm: Normalized min brightness (0-1)
+        b_max_norm: Normalized max brightness (0-1)
+
+    Returns:
+        Time (in 48h space) where brightness equals brightness_pct
+    """
+    if brightness_pct == 50:
+        return midpoint_h48
+
+    target_norm = b_min_norm + (b_max_norm - b_min_norm) * (brightness_pct / 100.0)
+    epsilon = 0.001
+    clamped = max(b_min_norm + epsilon, min(b_max_norm - epsilon, target_norm))
+    ratio = (clamped - b_min_norm) / (b_max_norm - b_min_norm)
+
+    try:
+        return midpoint_h48 + math.log(ratio / (1 - ratio)) / slope
+    except (ValueError, ZeroDivisionError):
+        return midpoint_h48
+
+
 # ---------------------------------------------------------------------------
 # CircadianLight Calculator
 # ---------------------------------------------------------------------------

@@ -3123,7 +3123,7 @@ class LightDesignerServer:
         brightness/kelvin from state, plus config values and runtime flags.
         """
         try:
-            from brain import AreaState, CircadianLight, Config, resolve_effective_timing
+            from brain import AreaState, CircadianLight, Config, resolve_effective_timing, midpoint_to_time, SPEED_TO_SLOPE
 
             config = await self.load_config()
             glozones = config.get("glozones", {})
@@ -3216,22 +3216,42 @@ class LightDesignerServer:
                         ),
                     }
 
-                    # Phase midpoint: determine current phase and effective midpoint
+                    # Phase midpoint: determine current phase and effective wake/bed time
                     try:
-                        in_ascend, _, _, _, _ = CircadianLight.get_phase_info(
+                        in_ascend, _, t_ascend, t_descend, _ = CircadianLight.get_phase_info(
                             current_hour, area_config
                         )
                         eff_wake, eff_bed = resolve_effective_timing(
                             area_config, current_hour, weekday
                         )
+                        b_min_n = area_config.min_brightness / 100.0
+                        b_max_n = area_config.max_brightness / 100.0
+
                         if in_ascend:
-                            mid = area_state.brightness_mid if area_state.brightness_mid is not None else eff_wake
+                            slope = SPEED_TO_SLOPE[max(1, min(10, area_config.wake_speed))]
+                            bri_pct = area_config.wake_brightness
+                            if area_state.brightness_mid is not None:
+                                # Reverse-compute: what wake time does this midpoint correspond to?
+                                mid48 = CircadianLight.lift_midpoint_to_phase(
+                                    area_state.brightness_mid, t_ascend, t_descend
+                                )
+                                effective_time = midpoint_to_time(mid48, bri_pct, slope, b_min_n, b_max_n) % 24
+                            else:
+                                effective_time = eff_wake
                             area_status[area_id]["phase"] = "wake"
-                            area_status[area_id]["phase_midpoint"] = round(mid, 2)
+                            area_status[area_id]["phase_midpoint"] = round(effective_time, 2)
                         else:
-                            mid = area_state.brightness_mid if area_state.brightness_mid is not None else eff_bed
+                            slope = -SPEED_TO_SLOPE[max(1, min(10, area_config.bed_speed))]
+                            bri_pct = area_config.bed_brightness
+                            if area_state.brightness_mid is not None:
+                                mid48 = CircadianLight.lift_midpoint_to_phase(
+                                    area_state.brightness_mid, t_descend, t_ascend + 24
+                                )
+                                effective_time = midpoint_to_time(mid48, bri_pct, slope, b_min_n, b_max_n) % 24
+                            else:
+                                effective_time = eff_bed
                             area_status[area_id]["phase"] = "bed"
-                            area_status[area_id]["phase_midpoint"] = round(mid, 2)
+                            area_status[area_id]["phase_midpoint"] = round(effective_time, 2)
                     except Exception:
                         pass
 
