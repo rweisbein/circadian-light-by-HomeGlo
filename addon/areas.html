@@ -606,9 +606,18 @@
       border-radius: 8px 8px 0 8px;
       user-select: none;
       transition: background 0.15s;
-      position: sticky;
+      position: relative;
+      z-index: 2;
+    }
+
+    .zone-header-sticky {
+      position: fixed;
       top: 0;
-      z-index: 10;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      pointer-events: auto;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
     }
 
     .zone-header::before {
@@ -2406,6 +2415,60 @@
       initRowSliders();
       updateAllSliderFills();
       updateHomeTimers();
+      initStickyHeaders();
+    }
+
+    let _stickyClone = null;
+    let _stickyZone = null;
+    function initStickyHeaders() {
+      // Use scroll listener on the nearest scrollable ancestor (works in ingress iframe)
+      const scrollEl = document.scrollingElement || document.documentElement;
+      // Debounce: only attach once
+      if (!window._stickyScrollAttached) {
+        window.addEventListener('scroll', updateStickyHeader, { passive: true });
+        window._stickyScrollAttached = true;
+      }
+      updateStickyHeader();
+    }
+
+    function updateStickyHeader() {
+      const groups = document.querySelectorAll('.zone-group');
+      let activeHeader = null;
+      let activeZone = null;
+
+      for (const group of groups) {
+        const header = group.querySelector('.zone-header');
+        const content = group.querySelector('.zone-content');
+        if (!header || !content) continue;
+        if (content.classList.contains('hidden')) continue;
+
+        const groupRect = group.getBoundingClientRect();
+        const headerRect = header.getBoundingClientRect();
+
+        // Zone group is partially scrolled past the top and still visible
+        if (groupRect.top < 0 && groupRect.bottom > headerRect.offsetHeight) {
+          activeHeader = header;
+          activeZone = header.getAttribute('data-zone');
+        }
+      }
+
+      if (activeHeader && activeZone !== _stickyZone) {
+        // Remove old clone
+        if (_stickyClone) _stickyClone.remove();
+        // Clone the header
+        _stickyClone = activeHeader.cloneNode(true);
+        _stickyClone.classList.add('zone-header-sticky');
+        // Match width to the original
+        const origRect = activeHeader.getBoundingClientRect();
+        _stickyClone.style.width = origRect.width + 'px';
+        _stickyClone.style.left = origRect.left + 'px';
+        document.body.appendChild(_stickyClone);
+        _stickyZone = activeZone;
+      } else if (!activeHeader && _stickyClone) {
+        _stickyClone.remove();
+        _stickyClone = null;
+        _stickyZone = null;
+      }
     }
 
     function renderAreaRow(area) {
