@@ -2694,6 +2694,7 @@ class LightDesignerServer:
             "time": time_str,
             "day": day_label,
             "offset": display_offset,
+            "fire_offset": fire_offset,
             "day_abbr": day_abbrs[fire_day],
             "decimal_hour": round(fire_time, 2),
         }

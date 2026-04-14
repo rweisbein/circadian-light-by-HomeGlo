@@ -338,7 +338,7 @@
       --row-fill: 0;
       display: flex;
       align-items: center;
-      padding: 4px 8px 0 8px;
+      padding: 2px 8px 0 8px;
       gap: 8px;
       background: var(--row-bg);
       color: var(--row-text);
@@ -420,13 +420,14 @@
       white-space: nowrap;
       flex-shrink: 0;
       margin-left: auto;
+      margin-right: 16px;
     }
 
     .row-status-row {
       display: flex;
       align-items: center;
       gap: 4px;
-      padding: 0 0 4px 0;
+      padding: 0 0 3px 0;
     }
     .row-status-row:empty { display: none; }
 
@@ -637,10 +638,10 @@
       min-width: 0;
     }
     .zone-label-sub {
-      font-size: 0.55rem;
+      font-size: 0.6rem;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      opacity: 0.35;
+      opacity: 0.45;
       margin-top: 2px;
     }
     .zone-rhythm-link {
@@ -1400,9 +1401,9 @@
         const nxtOn = fadeDir ? null : status.next_auto_on;
         const nxtOff = fadeDir ? null : status.next_auto_off;
         if (nxtOn && nxtOff) {
-          // Compare chronologically: offset * 24 + decimal_hour
-          const onAt = (nxtOn.offset ?? 999) * 24 + (nxtOn.decimal_hour ?? 0);
-          const offAt = (nxtOff.offset ?? 999) * 24 + (nxtOff.decimal_hour ?? 0);
+          // Compare chronologically: fire_offset * 24 + decimal_hour
+          const onAt = (nxtOn.fire_offset ?? nxtOn.offset ?? 999) * 24 + (nxtOn.decimal_hour ?? 0);
+          const offAt = (nxtOff.fire_offset ?? nxtOff.offset ?? 999) * 24 + (nxtOff.decimal_hour ?? 0);
           const onOff = onAt <= offAt ? ['on', nxtOn] : ['off', nxtOff];
           parts.push(formatAutoSchedulePill(onOff[1], onOff[0]));
         } else if (nxtOn) {
@@ -1436,10 +1437,13 @@
         }
 
         el.innerHTML = parts.join('<span class="timer-sep">|</span>');
-        // Toggle parent status row visibility
+        // Toggle status row visibility + adjust bottom spacing
         const statusRow = el.closest('.row-status-row');
         if (statusRow) {
-          statusRow.style.display = parts.length > 0 ? '' : 'none';
+          const hasContent = parts.length > 0;
+          statusRow.style.display = hasContent ? '' : 'none';
+          const rowMiddle = statusRow.closest('.row-middle');
+          if (rowMiddle) rowMiddle.style.paddingBottom = hasContent ? '0' : '2px';
         }
       });
     }
@@ -2295,7 +2299,7 @@
               ${zonePowerBtn}
               <div class="zone-name-group" style="color: ${zoneTextColor};">
                 <a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" style="color: ${zoneTextColor};">${zoneName}</a>
-                <span class="zone-label-sub">rhythm zone${getZonePhaseMidpoint(zoneName, sorted)}</span>
+                <span class="zone-label-sub">${getZonePhaseMidpoint(zoneName, sorted) || 'rhythm zone'}</span>
               </div>
               ${zoneFrozenIndicator}
               ${zoneMismatchDot}
@@ -2503,7 +2507,7 @@
       if (mid == null) return '';
       const label = phase === 'wake' ? 'Wake' : 'Bed';
       const time = formatDecimalHour(mid);
-      return ` · ${label} ${time}`;
+      return `${label} ${time}`;
     }
 
     function formatDecimalHour(h) {

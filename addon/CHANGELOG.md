@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.1.12
+- **Card polish**: Fix auto-schedule showing wrong next event (display_offset vs fire_offset comparison bug). Remove "rhythm zone" text from zone header — show phase midpoint (Wake/Bed) instead with slightly more prominence. Phase midpoint on area cards aligns with slider end. Compact row padding (2px top/bottom).
+
 ## 1.1.11
 - **Home page area card redesign**: Phase midpoint (Wake/Bed time) shown on zone headers and area cards (areas only show when they differ from zone default). Status indicators (auto schedule, motion, boost, freeze, fade) moved to dedicated 3rd row that hides when empty. Up/down buttons enlarged (28×28). Auto schedule icon changed to ⏰▲/⏰▼ to differentiate from fade arrows.
 - **2-step phase 1+2 detailed logging**: Both phases now log target entity, brightness, kelvin, and direction. Phase 2 skip cases log reason. All gated behind log_periodic.
