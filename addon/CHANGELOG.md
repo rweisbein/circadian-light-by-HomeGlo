@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.1.14
+- **Diagnostic**: Mismatch dot console logging — prints field name and both values when red dot appears on an on area.
+
 ## 1.1.13
 - **Sticky zone headers**: Zone headers stick to top of viewport while scrolling through their areas.
 - **Simplified sorting**: Replaced three-option sort (on/off, your order, a-z) with a single `on · off` toggle pill. Toggle on = group by on/off, toggle off = user's zone ordering. Removed a-z sort.
