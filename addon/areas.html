@@ -338,7 +338,7 @@
       --row-fill: 0;
       display: flex;
       align-items: center;
-      padding: 2px 8px 0 8px;
+      padding: 2px 8px 2px 8px;
       gap: 8px;
       background: var(--row-bg);
       color: var(--row-text);
@@ -2420,15 +2420,22 @@
 
     let _stickyClone = null;
     let _stickyZone = null;
+    let _stickyObserver = null;
     function initStickyHeaders() {
-      // Use scroll listener on the nearest scrollable ancestor (works in ingress iframe)
-      const scrollEl = document.scrollingElement || document.documentElement;
-      // Debounce: only attach once
-      if (!window._stickyScrollAttached) {
-        window.addEventListener('scroll', updateStickyHeader, { passive: true });
-        window._stickyScrollAttached = true;
+      // Clean up previous observer
+      if (_stickyObserver) _stickyObserver.disconnect();
+      if (_stickyClone) { _stickyClone.remove(); _stickyClone = null; _stickyZone = null; }
+
+      // Use polling with rAF — works reliably in ingress iframes where
+      // scroll events and IntersectionObserver may not fire
+      if (!window._stickyRafRunning) {
+        window._stickyRafRunning = true;
+        function stickyLoop() {
+          updateStickyHeader();
+          requestAnimationFrame(stickyLoop);
+        }
+        requestAnimationFrame(stickyLoop);
       }
-      updateStickyHeader();
     }
 
     function updateStickyHeader() {
@@ -2443,27 +2450,29 @@
         if (content.classList.contains('hidden')) continue;
 
         const groupRect = group.getBoundingClientRect();
-        const headerRect = header.getBoundingClientRect();
+        const headerH = header.offsetHeight;
 
         // Zone group is partially scrolled past the top and still visible
-        if (groupRect.top < 0 && groupRect.bottom > headerRect.offsetHeight) {
+        if (groupRect.top < 0 && groupRect.bottom > headerH) {
           activeHeader = header;
           activeZone = header.getAttribute('data-zone');
         }
       }
 
       if (activeHeader && activeZone !== _stickyZone) {
-        // Remove old clone
         if (_stickyClone) _stickyClone.remove();
-        // Clone the header
         _stickyClone = activeHeader.cloneNode(true);
         _stickyClone.classList.add('zone-header-sticky');
-        // Match width to the original
         const origRect = activeHeader.getBoundingClientRect();
         _stickyClone.style.width = origRect.width + 'px';
         _stickyClone.style.left = origRect.left + 'px';
         document.body.appendChild(_stickyClone);
         _stickyZone = activeZone;
+      } else if (activeHeader && activeZone === _stickyZone && _stickyClone) {
+        // Update position/width in case of resize
+        const origRect = activeHeader.getBoundingClientRect();
+        _stickyClone.style.width = origRect.width + 'px';
+        _stickyClone.style.left = origRect.left + 'px';
       } else if (!activeHeader && _stickyClone) {
         _stickyClone.remove();
         _stickyClone = null;
