@@ -1,7 +1,7 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
-## 1.1.14
-- **Diagnostic**: Mismatch dot console logging — prints field name and both values when red dot appears on an on area.
+## 1.1.17
+- **Fix mismatch dot false positives**: Per-field tolerances (mid/frozen: 0.05, brightness_override: 1, color_override: 10). Fixes red dots from color_override recalibration drift. Zone mismatch dot moved next to zone name. Removed diagnostic logging. Fixed sticky zone headers (removed position:relative on zone-group).
 
 ## 1.1.13
 - **Sticky zone headers**: Zone headers stick to top of viewport while scrolling through their areas.

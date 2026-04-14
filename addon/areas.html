@@ -590,8 +590,6 @@
     /* Zone group headers */
     .zone-group {
       margin-bottom: 16px;
-      position: relative;
-      z-index: 1;
     }
 
     .zone-group:last-child {
@@ -2096,16 +2094,18 @@
       function isAreaMismatched(area) {
         if (!area.zone_name || !zoneStates[area.zone_name]) return false;
         const rs = zoneStates[area.zone_name].runtime_state || {};
-        const tol = 0.1;
-        const differs = (a, b) => {
+        const differs = (a, b, tol) => {
           if (a == null && b == null) return false;
           if (a == null || b == null) return true;
           return Math.abs(a - b) >= tol;
         };
-        const fields = ['brightness_mid','color_mid','frozen_at','color_override','brightness_override','brightness_override_set_at','color_override_set_at'];
-        const bad = fields.filter(k => differs(area[k], rs[k]));
-        if (bad.length > 0) console.log(`[dot] ${area.area_id} (on=${area.is_on}):`, bad.map(k => `${k}=${area[k]}|${rs[k]}`).join(', '));
-        return bad.length > 0;
+        return differs(area.brightness_mid, rs.brightness_mid, 0.05) ||
+               differs(area.color_mid, rs.color_mid, 0.05) ||
+               differs(area.frozen_at, rs.frozen_at, 0.05) ||
+               differs(area.color_override, rs.color_override, 10) ||
+               differs(area.brightness_override, rs.brightness_override, 1) ||
+               differs(area.brightness_override_set_at, rs.brightness_override_set_at, 0.1) ||
+               differs(area.color_override_set_at, rs.color_override_set_at, 0.1);
       }
 
       const filtered = mergedAreas;
@@ -2287,11 +2287,10 @@
               <span class="zone-chevron-tap" onclick="toggleZone('${escapedZoneName}', this)">${chevronIcon}</span>
               ${zonePowerBtn}
               <div class="zone-name-group" style="color: ${zoneTextColor};">
-                <a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" style="color: ${zoneTextColor};">${zoneName}</a>
+                <a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" style="color: ${zoneTextColor};">${zoneName}</a>${zoneMismatchDot}
                 <span class="zone-label-sub">${getZonePhaseMidpoint(zoneName, sorted) || 'rhythm zone'}</span>
               </div>
               ${zoneFrozenIndicator}
-              ${zoneMismatchDot}
               <div class="row-controls">
                 <button class="row-btn" onclick="event.stopPropagation(); glozoneResetFull('${escapedZoneName}')" title="Reset all areas in rhythm zone">${glozoneResetIcon}</button>
               </div>
@@ -2466,16 +2465,18 @@
     function getMismatchDot(area) {
       if (area.zone_name && zoneStates[area.zone_name]) {
         const rs = zoneStates[area.zone_name].runtime_state || {};
-        const tol = 0.1;
-        const differs = (a, b) => {
+        const differs = (a, b, tol) => {
           if (a == null && b == null) return false;
           if (a == null || b == null) return true;
           return Math.abs(a - b) >= tol;
         };
-        const fields = ['brightness_mid','color_mid','frozen_at','color_override','brightness_override','brightness_override_set_at','color_override_set_at'];
-        const bad = fields.filter(k => differs(area[k], rs[k]));
-        if (bad.length > 0) {
-          console.log(`[dot] ${area.area_id}:`, bad.map(k => `${k}=${area[k]}|${rs[k]}`).join(', '));
+        if (differs(area.brightness_mid, rs.brightness_mid, 0.05) ||
+            differs(area.color_mid, rs.color_mid, 0.05) ||
+            differs(area.frozen_at, rs.frozen_at, 0.05) ||
+            differs(area.color_override, rs.color_override, 10) ||
+            differs(area.brightness_override, rs.brightness_override, 1) ||
+            differs(area.brightness_override_set_at, rs.brightness_override_set_at, 0.1) ||
+            differs(area.color_override_set_at, rs.color_override_set_at, 0.1)) {
           return '<span class="mismatch-dot-area"></span>';
         }
       }
