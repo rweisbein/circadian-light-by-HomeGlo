@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.1.13
+- **Sticky zone headers**: Zone headers stick to top of viewport while scrolling through their areas.
+- **Simplified sorting**: Replaced three-option sort (on/off, your order, a-z) with a single `on · off` toggle pill. Toggle on = group by on/off, toggle off = user's zone ordering. Removed a-z sort.
+- **Zone header style**: Phase midpoint (Wake/Bed) now title case, larger, more prominent — matches area card styling.
+
 ## 1.1.12
 - **Card polish**: Fix auto-schedule showing wrong next event (display_offset vs fire_offset comparison bug). Remove "rhythm zone" text from zone header — show phase midpoint (Wake/Bed) instead with slightly more prominence. Phase midpoint on area cards aligns with slider end. Compact row padding (2px top/bottom).
 

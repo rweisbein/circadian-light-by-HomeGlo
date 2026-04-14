@@ -442,6 +442,7 @@
       flex-direction: column;
       gap: 2px;
       min-width: 0;
+      padding-bottom: 2px;
     }
 
     .row-middle-top {
@@ -607,8 +608,9 @@
       border-radius: 8px 8px 0 8px;
       user-select: none;
       transition: background 0.15s;
-      position: relative;
-      z-index: 2;
+      position: sticky;
+      top: 0;
+      z-index: 10;
     }
 
     .zone-header::before {
@@ -638,11 +640,10 @@
       min-width: 0;
     }
     .zone-label-sub {
-      font-size: 0.6rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      opacity: 0.45;
-      margin-top: 2px;
+      font-size: 0.75rem;
+      letter-spacing: 0.02em;
+      opacity: 0.6;
+      margin-top: 1px;
     }
     .zone-rhythm-link {
       font-size: 1.35rem;
@@ -848,18 +849,19 @@
     .nav-overflow-item.active { color: var(--text); }
 
     /* View mode links */
-    .view-links { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; }
-    .view-link {
+    .view-toggle {
+      font-size: 0.7rem;
       color: var(--muted);
-      background: none;
-      border: none;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 4px;
       cursor: pointer;
-      transition: color 0.15s;
-      padding: 0;
+      transition: all 0.15s;
+      padding: 2px 8px;
+      white-space: nowrap;
     }
-    .view-link:hover { color: var(--text); }
-    .view-link.active { color: var(--accent); }
-    .view-sep { color: var(--muted2); }
+    .view-toggle:hover { border-color: rgba(255,255,255,0.25); }
+    .view-toggle.active { color: var(--accent); border-color: var(--accent); background: rgba(254,172,96,0.08); }
 
     /* Edit mode styles */
     .edit-toolbar { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
@@ -1316,7 +1318,8 @@
         if (configRes.ok) {
           cachedConfig = await configRes.json();
           const prefs = cachedConfig.areas_ui || {};
-          viewMode = prefs.view_mode || prefs.sort_mode || 'custom';
+          const savedMode = prefs.view_mode || prefs.sort_mode || 'custom';
+          viewMode = savedMode === 'onoff' ? 'onoff' : 'custom';
 
           // Compute sun times client-side from config lat/lon
           const lat = cachedConfig.latitude || 35.0;
@@ -1365,7 +1368,7 @@
       }
       const text = day ? t + ' ' + day : t;
       const arrow = type === 'on' ? '\u25B2' : '\u25BC';
-      return `<span class="timer-alarm">\u23F0${arrow} ${text}</span>`;
+      return `<span class="timer-alarm">\u23F0 ${text} ${arrow}</span>`;
     }
 
     function updateHomeTimers() {
@@ -1443,7 +1446,7 @@
           const hasContent = parts.length > 0;
           statusRow.style.display = hasContent ? '' : 'none';
           const rowMiddle = statusRow.closest('.row-middle');
-          if (rowMiddle) rowMiddle.style.paddingBottom = hasContent ? '0' : '2px';
+          if (rowMiddle) rowMiddle.style.paddingBottom = hasContent ? '0' : '';
         }
       });
     }
@@ -2088,12 +2091,7 @@
       });
 
       // Sort areas within each zone group
-      const sortAreas = (list) => {
-        if (viewMode === 'custom' || viewMode === 'onoff') return list; // preserve API order
-        return [...list].sort((a, b) => {
-          return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
-        });
-      };
+      const sortAreas = (list) => list; // preserve API order (user's zone ordering)
 
       function isAreaMismatched(area) {
         if (!area.zone_name || !zoneStates[area.zone_name]) return false;
@@ -2160,13 +2158,7 @@
         html = `
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
             <span class="home-name-heading">${homeName || ''}</span>
-            <div class="view-links" style="margin-left: 8px;">
-              <button class="view-link ${viewMode === 'onoff' ? 'active' : ''}" data-view="onoff">on/off</button>
-              <span class="view-sep">·</span>
-              <button class="view-link ${viewMode === 'custom' ? 'active' : ''}" data-view="custom">your order</button>
-              <span class="view-sep">·</span>
-              <button class="view-link ${viewMode === 'alpha' ? 'active' : ''}" data-view="alpha">a–z</button>
-            </div>
+            <button class="view-toggle ${viewMode === 'onoff' ? 'active' : ''}" data-view-toggle>on · off</button>
             <span style="flex: 1;"></span>
             <div class="toolbar-menu" style="padding-left: 8px;">
               <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">⋮</button>
@@ -2650,14 +2642,13 @@
         if (e.target.id === 'add-zone-link') { e.preventDefault(); createZoneFromEdit(); }
       });
 
-      // View mode pill clicks
+      // View mode toggle click
       document.getElementById('areas-container').addEventListener('click', (e) => {
-        if (e.target.classList.contains('view-link') && !e.target.classList.contains('active')) {
-          if (e.target.dataset.view) {
-            viewMode = e.target.dataset.view;
-            savePreferences();
-            renderAreas();
-          }
+        if (e.target.hasAttribute('data-view-toggle')) {
+          viewMode = viewMode === 'onoff' ? 'custom' : 'onoff';
+          e.target.classList.toggle('active', viewMode === 'onoff');
+          savePreferences();
+          renderAreas();
         }
       });
 
