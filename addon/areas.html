@@ -414,6 +414,22 @@
       cursor: pointer;
     }
 
+    .phase-midpoint {
+      font-size: 0.75rem;
+      opacity: 0.6;
+      white-space: nowrap;
+      flex-shrink: 0;
+      margin-left: auto;
+    }
+
+    .row-status-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0 0 4px 0;
+    }
+    .row-status-row:empty { display: none; }
+
     .row-timer { font-size: 0.7rem; color: #e2e8f0; white-space: nowrap; background: rgba(0,0,0,0.5); border-radius: 3px; padding: 0 4px; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
     .row-timer:empty { display: none; }
     .row-timer .timer-sep { opacity: 0.3; }
@@ -513,13 +529,13 @@
 
     .row-step-stack .row-btn {
       width: 28px;
-      height: 20px;
+      height: 28px;
       border-radius: 3px;
     }
 
     .row-step-stack .row-btn svg {
       width: 16px;
-      height: 12px;
+      height: 14px;
     }
 
     .row-controls-left {
@@ -1347,8 +1363,8 @@
         else day = (nxt.date_short || '').replace(' ', '');
       }
       const text = day ? t + ' ' + day : t;
-      const icon = type === 'on' ? '\u25B2' : '\u25BC';
-      return `<span class="timer-alarm">${icon} ${text}</span>`;
+      const arrow = type === 'on' ? '\u25B2' : '\u25BC';
+      return `<span class="timer-alarm">\u23F0${arrow} ${text}</span>`;
     }
 
     function updateHomeTimers() {
@@ -1420,6 +1436,11 @@
         }
 
         el.innerHTML = parts.join('<span class="timer-sep">|</span>');
+        // Toggle parent status row visibility
+        const statusRow = el.closest('.row-status-row');
+        if (statusRow) {
+          statusRow.style.display = parts.length > 0 ? '' : 'none';
+        }
       });
     }
 
@@ -2274,7 +2295,7 @@
               ${zonePowerBtn}
               <div class="zone-name-group" style="color: ${zoneTextColor};">
                 <a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" style="color: ${zoneTextColor};">${zoneName}</a>
-                <span class="zone-label-sub">rhythm zone</span>
+                <span class="zone-label-sub">rhythm zone${getZonePhaseMidpoint(zoneName, sorted)}</span>
               </div>
               ${zoneFrozenIndicator}
               ${zoneMismatchDot}
@@ -2414,6 +2435,7 @@
       const { leftControls, rightControls } = getRowControls(area);
       const sliderPct = getSliderPct(area.brightness || 0, area);
       const mismatchDot = getMismatchDot(area);
+      const phaseMidpoint = getPhaseMidpoint(area);
 
 
       return `
@@ -2422,12 +2444,15 @@
           <div class="row-middle">
             <div class="row-middle-top">
               <span class="area-row-name" onclick="openAreaModal('${area.area_id}')">${area.name}</span>
-              <span class="row-timer" data-area-timer="${area.area_id}" data-zone-name="${area.zone_name || ''}"></span>
               ${mismatchDot}
+              ${phaseMidpoint}
             </div>
             <div class="row-slider-track" data-area-id="${area.area_id}" data-bmin="${area.min_brightness ?? 1}" data-bmax="${area.max_brightness ?? 100}" data-cmin="${area.min_color_temp ?? 2200}" data-cmax="${area.max_color_temp ?? 6500}">
               <div class="row-slider-fill"></div>
               <div class="row-slider-thumb" style="left: ${sliderPct.toFixed(1)}%"></div>
+            </div>
+            <div class="row-status-row">
+              <span class="row-timer" data-area-timer="${area.area_id}" data-zone-name="${area.zone_name || ''}"></span>
             </div>
           </div>
           ${rightControls}
@@ -2465,6 +2490,51 @@
         }
       }
       return '';
+    }
+
+    function getZonePhaseMidpoint(zoneName, areasInZone) {
+      // Get phase from any area in the zone
+      const anyArea = areasInZone.find(a => areaStatus[a.area_id]?.phase);
+      if (!anyArea) return '';
+      const phase = areaStatus[anyArea.area_id].phase;
+      const zc = cachedGlozones?.zones?.[zoneName];
+      if (!zc) return '';
+      const mid = phase === 'wake' ? zc.wake_time : zc.bed_time;
+      if (mid == null) return '';
+      const label = phase === 'wake' ? 'Wake' : 'Bed';
+      const time = formatDecimalHour(mid);
+      return ` · ${label} ${time}`;
+    }
+
+    function formatDecimalHour(h) {
+      if (h == null) return '';
+      let hr = Math.floor(h) % 24;
+      const min = Math.round((h % 1) * 60);
+      const suffix = hr < 12 ? 'a' : 'p';
+      if (hr === 0) hr = 12;
+      else if (hr > 12) hr -= 12;
+      return min === 0 ? `${hr}${suffix}` : `${hr}:${String(min).padStart(2, '0')}${suffix}`;
+    }
+
+    function getPhaseMidpoint(area) {
+      const status = areaStatus[area.area_id] || {};
+      const phase = status.phase;
+      const midpoint = status.phase_midpoint;
+      if (!phase || midpoint == null) return '';
+
+      // Compare to zone default — only show if different
+      const zoneName = area.zone_name || status.zone_name;
+      if (zoneName && cachedGlozones?.zones?.[zoneName]) {
+        const zc = cachedGlozones.zones[zoneName];
+        const zoneDefault = phase === 'wake' ? zc.wake_time : zc.bed_time;
+        if (zoneDefault != null && Math.abs(midpoint - zoneDefault) < 0.05) {
+          return ''; // matches zone default, don't show
+        }
+      }
+
+      const label = phase === 'wake' ? 'Wake' : 'Bed';
+      const time = formatDecimalHour(midpoint);
+      return `<span class="phase-midpoint">${label} ${time}</span>`;
     }
 
     function getSliderPct(brightness, area) {

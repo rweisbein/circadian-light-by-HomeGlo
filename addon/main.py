@@ -3814,24 +3814,12 @@ class HomeAssistantWebSocketClient:
                         )
 
                     if zha_color:
-                        logger.info(
-                            f"Purpose 2-step ({filter_name}): phase 1 color ZHA {zha_color}, bri={phase1_bri}%"
-                        )
                         _add_p1_brighten(zha_color, "color")
                     elif lights_by_cap["color"]:
-                        logger.info(
-                            f"Purpose 2-step ({filter_name}): phase 1 color {len(lights_by_cap['color'])} lights, bri={phase1_bri}%"
-                        )
                         _add_p1_brighten(lights_by_cap["color"], "color")
                     if zha_ct:
-                        logger.info(
-                            f"Purpose 2-step ({filter_name}): phase 1 CT ZHA {zha_ct}, bri={phase1_bri}%"
-                        )
                         _add_p1_brighten(zha_ct, "ct")
                     elif lights_by_cap["ct"]:
-                        logger.info(
-                            f"Purpose 2-step ({filter_name}): phase 1 CT {len(lights_by_cap['ct'])} lights, bri={phase1_bri}%"
-                        )
                         _add_p1_brighten(lights_by_cap["ct"], "ct")
                 else:
                     # Dimming: phase 1 = dim to target brightness (keep OLD color)
@@ -3859,8 +3847,11 @@ class HomeAssistantWebSocketClient:
                     )
                     delta_str = f"{ct_diff}K" if ct_diff is not None else "?K"
                     mode = "brighten" if brightening else "dim"
+                    p1_target = zha_color or zha_ct or f"{len(lights_by_cap['color'] + lights_by_cap['ct'])} lights"
+                    p1_bri = phase1_bri if brightening or is_off else filtered_bri
                     logger.info(
-                        f"Purpose 2-step ({filter_name}): phase 1 {mode} ({reason}, CT Δ{delta_str})"
+                        f"Purpose 2-step ({filter_name}): phase 1 {mode} ({reason}, CT Δ{delta_str}), "
+                        f"target={p1_target}, bri={p1_bri}%, {kelvin}K"
                     )
 
         for filter_name, lights_by_cap in filter_groups.items():
@@ -4166,14 +4157,14 @@ class HomeAssistantWebSocketClient:
                         else:
                             continue
                         if should_off or filtered_bri <= 0:
-                            logger.info(
-                                f"Purpose 2-step ({filter_name}): phase 2 skipped (should_off={should_off}, bri={filtered_bri})"
-                            )
+                            if log_periodic:
+                                logger.info(
+                                    f"Purpose 2-step ({filter_name}): phase 2 skipped (should_off={should_off}, bri={filtered_bri})"
+                                )
                             continue
                         comp_bri = filtered_bri
 
                         is_dimming = filt_norm_p2 in two_step_dimming
-                        mode_p2 = "dim" if is_dimming else "brighten"
 
                         # Color lights
                         sdata = {"transition": transition}
@@ -4187,16 +4178,10 @@ class HomeAssistantWebSocketClient:
                             f"zha_group_{filt_norm_p2}_color"
                         )
                         if zha_group:
-                            logger.info(
-                                f"Purpose 2-step ({filter_name}): phase 2 {mode_p2} color ZHA {zha_group}, bri={comp_bri}%"
-                            )
                             await self.call_service(
                                 "light", "turn_on", sdata, {"entity_id": zha_group}
                             )
                         elif lights_by_cap["color"]:
-                            logger.info(
-                                f"Purpose 2-step ({filter_name}): phase 2 {mode_p2} color {len(lights_by_cap['color'])} lights, bri={comp_bri}%"
-                            )
                             await self.call_service(
                                 "light",
                                 "turn_on",
@@ -4211,21 +4196,23 @@ class HomeAssistantWebSocketClient:
                         if include_color and kelvin:
                             ct_data["color_temp_kelvin"] = max(2000, kelvin)
                         if zha_ct:
-                            logger.info(
-                                f"Purpose 2-step ({filter_name}): phase 2 {mode_p2} CT ZHA {zha_ct}, bri={comp_bri}%"
-                            )
                             await self.call_service(
                                 "light", "turn_on", ct_data, {"entity_id": zha_ct}
                             )
                         elif lights_by_cap["ct"]:
-                            logger.info(
-                                f"Purpose 2-step ({filter_name}): phase 2 {mode_p2} CT {len(lights_by_cap['ct'])} lights, bri={comp_bri}%"
-                            )
                             await self.call_service(
                                 "light",
                                 "turn_on",
                                 ct_data,
                                 {"entity_id": lights_by_cap["ct"]},
+                            )
+
+                        if log_periodic:
+                            mode_p2 = "dim" if is_dimming else "brighten"
+                            p2_target = zha_group or zha_ct or f"{len(lights_by_cap['color'] + lights_by_cap['ct'])} lights"
+                            logger.info(
+                                f"Purpose 2-step ({filter_name}): phase 2 {mode_p2}, "
+                                f"target={p2_target}, bri={comp_bri}%, {kelvin}K"
                             )
                     except Exception as e:
                         logger.error(

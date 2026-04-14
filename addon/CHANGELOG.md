@@ -1,7 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
-## 1.1.10
-- **Add 2-step phase 1+2 detailed logging**: Phase 1 now logs target entity (ZHA group vs individual lights) and brightness. Phase 2 logs brighten/dim mode, entity target, and brightness. Skip cases log reason (should_off, bri). Helps diagnose individual-light 2-step issues (e.g., Nightlight purpose not getting color in phase 1).
+## 1.1.11
+- **Home page area card redesign**: Phase midpoint (Wake/Bed time) shown on zone headers and area cards (areas only show when they differ from zone default). Status indicators (auto schedule, motion, boost, freeze, fade) moved to dedicated 3rd row that hides when empty. Up/down buttons enlarged (28×28). Auto schedule icon changed to ⏰▲/⏰▼ to differentiate from fade arrows.
+- **2-step phase 1+2 detailed logging**: Both phases now log target entity, brightness, kelvin, and direction. Phase 2 skip cases log reason. All gated behind log_periodic.
 
 ## 1.1.9
 - **Consolidate brightness/color button and slider paths**: `brightness_up`/`brightness_down` and `color_up`/`color_down` now compute a target value and delegate to `set_position`, sharing the same override logic as sliders. Deleted dead midpoint-based `bright_up`/`bright_down` methods (~210 lines removed). Four independent override implementations reduced to two (`set_position` brightness + color). `set_position` gains `_send_command` parameter for reach batching.

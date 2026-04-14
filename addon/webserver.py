@@ -3122,12 +3122,14 @@ class LightDesignerServer:
         brightness/kelvin from state, plus config values and runtime flags.
         """
         try:
-            from brain import AreaState, Config
+            from brain import AreaState, CircadianLight, Config, resolve_effective_timing
 
             config = await self.load_config()
             glozones = config.get("glozones", {})
             area_settings = config.get("area_settings", {})
             _sunrise_h, _sunset_h = self._get_sun_hours()
+            current_hour = get_current_hour()
+            weekday = datetime.now().weekday()
 
             filter_area_id = request.query.get("area_id")
             area_status = {}
@@ -3212,6 +3214,25 @@ class LightDesignerServer:
                             "auto_off", _sunrise_h, _sunset_h,
                         ),
                     }
+
+                    # Phase midpoint: determine current phase and effective midpoint
+                    try:
+                        in_ascend, _, _, _, _ = CircadianLight.get_phase_info(
+                            current_hour, area_config
+                        )
+                        eff_wake, eff_bed = resolve_effective_timing(
+                            area_config, current_hour, weekday
+                        )
+                        if in_ascend:
+                            mid = area_state.brightness_mid if area_state.brightness_mid is not None else eff_wake
+                            area_status[area_id]["phase"] = "wake"
+                            area_status[area_id]["phase_midpoint"] = round(mid, 2)
+                        else:
+                            mid = area_state.brightness_mid if area_state.brightness_mid is not None else eff_bed
+                            area_status[area_id]["phase"] = "bed"
+                            area_status[area_id]["phase_midpoint"] = round(mid, 2)
+                    except Exception:
+                        pass
 
             return web.json_response(area_status)
 
