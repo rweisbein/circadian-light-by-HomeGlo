@@ -2104,7 +2104,7 @@
         };
         const fields = ['brightness_mid','color_mid','frozen_at','color_override','brightness_override','brightness_override_set_at','color_override_set_at'];
         const bad = fields.filter(k => differs(area[k], rs[k]));
-        if (bad.length > 0 && area.is_on) console.log(`[dot] ${area.area_id}:`, bad.map(k => `${k}=${area[k]}|${rs[k]}`).join(', '));
+        if (bad.length > 0) console.log(`[dot] ${area.area_id} (on=${area.is_on}):`, bad.map(k => `${k}=${area[k]}|${rs[k]}`).join(', '));
         return bad.length > 0;
       }
 
