@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.1.21
+- **Remove pill containers from action buttons**: Toggle buttons (power, circadian, freeze, boost) keep dark pill background. Action buttons (reset, step up/down, glo up/down/reset, full send) rendered without pill container. Applies to home page area cards, zone headers, and area detail page.
+
 ## 1.1.20
 - **Sticky zone headers via JS**: Scroll listener clones active zone header to fixed position at top. Works in HA ingress iframe where CSS sticky fails. Reverted CSS sticky and html overflow-y.
 
