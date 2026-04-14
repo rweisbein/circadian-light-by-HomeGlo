@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.1.18
+- **Fix zone dot placement**: Dot now inline with zone name (not below it). Fix sticky headers: explicit html overflow-y for ingress iframe context.
+
 ## 1.1.17
 - **Fix mismatch dot false positives**: Per-field tolerances (mid/frozen: 0.05, brightness_override: 1, color_override: 10). Fixes red dots from color_override recalibration drift. Zone mismatch dot moved next to zone name. Removed diagnostic logging. Fixed sticky zone headers (removed position:relative on zone-group).
 
