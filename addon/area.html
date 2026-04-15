@@ -392,9 +392,12 @@
       cursor: pointer;
       padding: 2px 0;
       letter-spacing: 0.02em;
+      opacity: 0.8;
+      transition: color 0.15s, opacity 0.15s;
     }
     .slider-extreme:hover {
-      color: var(--text);
+      color: var(--accent);
+      opacity: 1;
     }
     /* Top extreme (before track): extra space below for thumb */
     .slider-column > .slider-extreme:nth-child(2) {
