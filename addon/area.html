@@ -312,6 +312,8 @@
       display: flex;
       align-items: center;
       gap: 6px;
+      flex: 1;
+      min-width: 0;
     }
     .step-buttons { display: flex; flex-direction: column; gap: 6px; align-self: center; }
     .step-btn { width: 28px; height: 28px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(30,30,30,0.9); color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; padding: 0; }
@@ -323,6 +325,8 @@
       flex-direction: column;
       align-items: center;
       gap: 2px;
+      flex: 1;
+      min-width: 0;
     }
     .slider-label {
       font-size: 0.85rem;
@@ -330,6 +334,13 @@
       color: var(--text);
       text-transform: uppercase;
       letter-spacing: 0.04em;
+    }
+    .slider-section-label {
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted2);
+      text-align: center;
     }
     .slider-hero {
       font-size: 1.4rem;
@@ -743,6 +754,7 @@
       <div class="adjust-slider-row">
         <div class="slider-group">
           <div class="slider-column">
+            <div class="slider-section-label">Circadian</div>
             <div class="slider-label slider-hero" id="slider-hero-circadian">Bed 10p</div>
             <div class="slider-extreme" id="circ-max" onclick="executeSetPosition(100,'step')">britelite</div>
             <div class="slider-track" data-mode="step">
@@ -762,6 +774,7 @@
         </div>
         <div class="slider-group">
           <div class="slider-column">
+            <div class="slider-section-label">Bright</div>
             <div class="slider-label slider-hero" id="slider-hero-brightness">78%</div>
             <div class="slider-extreme" id="bright-max" onclick="executeSetPosition(100,'brightness')">brightest</div>
             <div class="slider-track" data-mode="brightness">
@@ -781,6 +794,7 @@
         </div>
         <div class="slider-group">
           <div class="slider-column">
+            <div class="slider-section-label">Color</div>
             <div class="slider-label slider-hero" id="slider-hero-color">2910K</div>
             <div class="slider-extreme" id="color-max" onclick="executeSetPosition(100,'color')">coolest</div>
             <div class="slider-track" data-mode="color">
@@ -1656,40 +1670,23 @@
         });
       }
 
-      // Tier 1: Wake/bed labels (keep color always for symmetry with adjusted * line)
+      // Tier 1: Wake/bed labels — move to adjusted position when shifted
+      const effectiveWake = hasAdjWake ? wrap24(adjustedTimes.wake) : wakeTime;
+      const effectiveBed = hasAdjBed ? wrap24(adjustedTimes.bed) : bedTime;
       annotations.push({
-        x: wakeTime, y: -0.33, xref: 'x', yref: 'paper',
-        text: 'wake', showarrow: false,
+        x: effectiveWake, y: -0.33, xref: 'x', yref: 'paper',
+        text: hasAdjWake ? 'wake*' : 'wake', showarrow: false,
         font: { size: 11, color: '#5cb3ff' },
-        hovertext: formatHourLabel(wakeTime),
+        hovertext: formatHourLabel(effectiveWake),
         hoverlabel: { bgcolor: '#7fc7ff', bordercolor: '#7fc7ff', font: { color: '#000', size: 12 } }
       });
       annotations.push({
-        x: bedTime, y: -0.33, xref: 'x', yref: 'paper',
-        text: 'bed', showarrow: false,
+        x: effectiveBed, y: -0.33, xref: 'x', yref: 'paper',
+        text: hasAdjBed ? 'bed*' : 'bed', showarrow: false,
         font: { size: 11, color: '#ffe680' },
-        hovertext: formatHourLabel(bedTime),
+        hovertext: formatHourLabel(effectiveBed),
         hoverlabel: { bgcolor: '#ffe680', bordercolor: '#ffe680', font: { color: '#000', size: 12 } }
       });
-      // Adjusted wake/bed labels — asterisk above line top
-      if (hasAdjWake) {
-        annotations.push({
-          x: wrap24(adjustedTimes.wake), y: 1.05, xref: 'x', yref: 'paper',
-          text: '*', showarrow: false,
-          font: { size: 13, color: '#5cb3ff' },
-          hovertext: 'adjusted wake: ' + formatHourLabel(wrap24(adjustedTimes.wake)),
-          hoverlabel: { bgcolor: '#7fc7ff', bordercolor: '#7fc7ff', font: { color: '#000', size: 12 } }
-        });
-      }
-      if (hasAdjBed) {
-        annotations.push({
-          x: wrap24(adjustedTimes.bed), y: 1.05, xref: 'x', yref: 'paper',
-          text: '*', showarrow: false,
-          font: { size: 13, color: '#ffe680' },
-          hovertext: 'adjusted bed: ' + formatHourLabel(wrap24(adjustedTimes.bed)),
-          hoverlabel: { bgcolor: '#ffe680', bordercolor: '#ffe680', font: { color: '#000', size: 12 } }
-        });
-      }
 
       // Tier 2: Sunrise/sunset labels (46px below plot)
       if (Number.isFinite(sunrise)) {
@@ -2165,15 +2162,10 @@
 
       const effRange = getEffectiveColorRange(cfg, currentHour, areaState.color_override);
 
-      document.querySelectorAll('.slider-track').forEach(t => {
-        const m = t.dataset.mode;
-        t.style.background = buildTrackGradient(m, cfg, previewBri, previewCCT, effRange);
-        const pct = m === 'step' ? gloFrac : m === 'brightness' ? briFrac : cctFrac;
-        applyOneSlider(t, pct, previewBri, previewCCT, m);
-      });
-
-      // Also update banner slider
-      updateBannerSlider(gloFrac, cfg, previewCCT);
+      // Only update the dragged slider during preview (prevent cross-talk)
+      const pct = dragMode === 'step' ? gloFrac : dragMode === 'brightness' ? briFrac : cctFrac;
+      track.style.background = buildTrackGradient(dragMode, cfg, previewBri, previewCCT, effRange);
+      applyOneSlider(track, pct, previewBri, previewCCT, dragMode);
     }
 
     // ============================================================
