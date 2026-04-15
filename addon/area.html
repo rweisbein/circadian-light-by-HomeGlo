@@ -1978,7 +1978,18 @@
           track.classList.remove('dragging');
           sliderInteracting = false;
           if (lastPos !== null) {
-            executeSetPosition(Math.round(lastPos), mode);
+            let sendPos = lastPos;
+            if (mode === 'step') {
+              // Circadian slider shows actual brightness (post-pipeline),
+              // but set_position expects curve-space position. Convert by
+              // undoing pipeline factors (sun_bright × area_factor).
+              const status = areaStatus[selectedArea?.area_id] || {};
+              const sunFactor = status.sun_bright_factor ?? 1.0;
+              const areaFactor = status.area_factor ?? 1.0;
+              const denom = Math.max(0.01, sunFactor * areaFactor);
+              sendPos = Math.min(100, lastPos / denom);
+            }
+            executeSetPosition(Math.round(sendPos), mode);
           }
         }
 

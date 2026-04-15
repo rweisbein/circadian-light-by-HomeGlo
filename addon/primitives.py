@@ -2858,12 +2858,18 @@ class CircadianLightPrimitives:
                 # Otherwise just enable circadian at current curve position.
                 if brightness is not None:
                     config = self._get_config(area_id)
+                    # brightness is actual (post-pipeline); convert to curve space
+                    sun_bright_factor = self._compute_sun_bright_factor(area_id)
+                    area_factor = glozone.get_area_brightness_factor(area_id)
+                    denom = max(0.01, sun_bright_factor * area_factor)
+                    curve_bri = brightness / denom
+                    curve_bri = max(config.min_brightness, min(config.max_brightness, curve_bri))
                     b_range = config.max_brightness - config.min_brightness
-                    position = (brightness - config.min_brightness) / b_range * 100 if b_range > 0 else 50
+                    position = (curve_bri - config.min_brightness) / b_range * 100 if b_range > 0 else 50
                     position = max(0, min(100, round(position, 1)))
                     logger.info(
                         f"[{source}] Set {area_id} to circadian preset "
-                        f"(brightness={brightness}, pos={position})"
+                        f"(actual={brightness}, curve={curve_bri:.0f}, pos={position})"
                     )
                     await self.set_position(
                         area_id, position, mode="step", source=source,

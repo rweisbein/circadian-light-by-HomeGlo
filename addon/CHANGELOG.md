@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.1
+- **Fix circadian slider space mismatch**: Circadian slider thumb shows actual brightness (post-pipeline) but was sending values in curve space, causing large jumps when area_factor or sun_bright reduce brightness. Now converts actual-brightness position to curve position by undoing pipeline factors before sending. Fixes both area detail page slider and home page set_circadian.
+
 ## 1.2.0
 - **Step/slide simplification**: Circadian stepping and sliding now use a single midpoint for both brightness and color (no more separate brightness_mid/color_mid divergence). Eliminated color_override from stepping entirely — sun color adjustment is instead linearly reduced based on how far the user steps down (shift_ratio). Deleted `circadian_adjust` P1/P2/P3 engine, `calculate_step`, `calculate_bright_step`, zone step/bright functions. Step buttons now delegate to `set_position(mode="step")`. ~1350 lines removed.
 
