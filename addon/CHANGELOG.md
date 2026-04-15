@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.2
+- **All delivery through pipeline**: Replaced all `_send_light_add_override_boost` calls with `update_lights_in_circadian_mode` (full pipeline). Fixes CT brightness compensation not applying when color slider changes kelvin. Deleted `_send_light_add_override_boost`. Every light delivery now goes through the pipeline consistently.
+
 ## 1.2.1
 - **Fix circadian slider space mismatch**: Circadian slider thumb shows actual brightness (post-pipeline) but was sending values in curve space, causing large jumps when area_factor or sun_bright reduce brightness. Now converts actual-brightness position to curve position by undoing pipeline factors before sending. Fixes both area detail page slider and home page set_circadian.
 

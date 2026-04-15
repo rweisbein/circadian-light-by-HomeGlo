@@ -868,15 +868,13 @@ class CircadianLightPrimitives:
             self._update_area_state(area_id, updates)
 
             if _send_command and area_state.is_on:
-                await self._send_light_add_override_boost(
-                    area_id, result.brightness, result.color_temp
-                )
+                await self.client.update_lights_in_circadian_mode(area_id, log_periodic=True)
                 logger.info(
-                    f"set_position color applied: {result.brightness}%, {result.color_temp}K"
+                    f"set_position color applied: {result.color_temp}K"
                 )
             elif not area_state.is_on:
                 logger.info(
-                    f"set_position color state updated (lights off): {result.brightness}%, {result.color_temp}K"
+                    f"set_position color state updated (lights off): {result.color_temp}K"
                 )
             return
 
@@ -896,9 +894,7 @@ class CircadianLightPrimitives:
         self._update_area_state(area_id, result.state_updates)
 
         if _send_command and area_state.is_on:
-            await self._send_light_add_override_boost(
-                area_id, result.brightness, result.color_temp
-            )
+            await self.client.update_lights_in_circadian_mode(area_id, log_periodic=True)
             logger.info(
                 f"set_position applied: {result.brightness}%, {result.color_temp}K"
             )
@@ -2672,21 +2668,7 @@ class CircadianLightPrimitives:
                     and state.get_is_on(area_id)
                     and send_command
                 ):
-                    area_state = self._get_area_state(area_id)
-                    hour = (
-                        area_state.frozen_at
-                        if area_state.frozen_at is not None
-                        else current_hour
-                    )
-                    sun_times = (
-                        self.client._get_sun_times()
-                        if hasattr(self.client, "_get_sun_times")
-                        else None
-                    )
-                    result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
-                    await self._send_light_add_override_boost(
-                        area_id, result.brightness, result.color_temp
-                    )
+                    await self.client.update_lights_in_circadian_mode(area_id, log_periodic=True)
                 elif take_control and is_on == False and send_command:
                     transition = self._get_turn_off_transition()
                     await self._turn_off_area(area_id, transition=transition)
@@ -2705,13 +2687,7 @@ class CircadianLightPrimitives:
                 and state.get_is_on(area_id)
                 and send_command
             ):
-                area_state = self._get_area_state(area_id)
-                result = CircadianLight.calculate_lighting(
-                    frozen_at, config, area_state
-                )
-                await self._send_light_add_override_boost(
-                    area_id, result.brightness, result.color_temp
-                )
+                await self.client.update_lights_in_circadian_mode(area_id, log_periodic=True)
             elif take_control and is_on == False and send_command:
                 transition = self._get_turn_off_transition()
                 await self._turn_off_area(area_id, transition=transition)
@@ -2909,14 +2885,10 @@ class CircadianLightPrimitives:
                     if hasattr(self.client, "_get_sun_times")
                     else None
                 )
-                result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
-                logger.info(
-                    f"[{source}] Preset calculated: brightness={result.brightness}%, color_temp={result.color_temp}K at hour={hour}"
-                )
-                # Use turn_on_transition for presets (they're typically turn-on actions), boost-aware
+                # Use turn_on_transition for presets (they're typically turn-on actions)
                 transition = self._get_turn_on_transition()
-                await self._send_light_add_override_boost(
-                    area_id, result.brightness, result.color_temp, transition=transition
+                await self.client.update_lights_in_circadian_mode(
+                    area_id, log_periodic=True, periodic_transition=transition
                 )
                 # Also turn on any switch entities when preset turns lights on
                 if take_control and is_on:
@@ -3142,16 +3114,10 @@ class CircadianLightPrimitives:
                 if hasattr(self.client, "_get_sun_times")
                 else None
             )
-            result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
             if send_command:
-                await self._send_light_add_override_boost(
-                    area_id, result.brightness, result.color_temp
-                )
+                await self.client.update_lights_in_circadian_mode(area_id, log_periodic=True)
 
-            logger.info(
-                f"glo_reset complete for area {area_id}: "
-                f"{result.brightness}%, {result.color_temp}K"
-            )
+            logger.info(f"glo_reset complete for area {area_id}")
         else:
             logger.info(
                 f"glo_reset complete for area {area_id} (not circadian or lights off, no lighting change)"
@@ -3583,54 +3549,6 @@ class CircadianLightPrimitives:
             include_color=include_color,
         )
 
-    async def _send_light_add_override_boost(
-        self,
-        area_id: str,
-        brightness: int,
-        color_temp: int,
-        include_color: bool = True,
-        transition: float = 0.4,
-    ):
-        """Apply circadian lighting with boost awareness and full pipeline context.
-
-        This is a wrapper around _send_light that automatically adds boost
-        brightness if the area is boosted, and passes rhythm_brightness and
-        brightness_override so the filter pipeline computes correct curve position
-        and applies the override post-sun-bright (matching the periodic update path).
-
-        Use _send_light directly when you've already calculated the final
-        brightness (e.g., motion sensor boost functions).
-
-        Args:
-            area_id: The area ID
-            brightness: Base circadian brightness percentage (0-100)
-            color_temp: Color temperature in Kelvin
-            include_color: Whether to include color in the command
-            transition: Transition time in seconds
-        """
-        # brightness parameter IS the rhythm brightness (pre-boost, pre-sun-bright)
-        rhythm_brightness = brightness
-
-        # Fetch brightness_override from state (same as periodic path)
-        brightness_override = self._get_decayed_brightness_override(area_id)
-
-        # Check boost state
-        boost_brightness = None
-        if state.is_boosted(area_id):
-            boost_state = state.get_boost_state(area_id)
-            boost_brightness = boost_state.get("boost_brightness") or None
-
-        await self._send_light(
-            area_id,
-            brightness,
-            color_temp,
-            include_color,
-            transition,
-            rhythm_brightness=rhythm_brightness,
-            brightness_override=brightness_override,
-            boost_brightness=boost_brightness,
-        )
-
     async def _send_via_reach(
         self,
         area_ids: List[str],
@@ -3892,8 +3810,8 @@ class CircadianLightPrimitives:
         from cached state, applies bounce delta, sends directly to lights
         via call_service (bypasses pipeline to avoid override interference).
 
-        Phase 2 (restore) goes through the full pipeline via
-        _send_light_add_override_boost (boost, sun bright, filters).
+        Phase 2 (restore) sends the original visible brightness back via
+        call_service (same direct path as phase 1).
 
         Args:
             area_id: The area ID
