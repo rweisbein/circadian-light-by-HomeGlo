@@ -3307,7 +3307,7 @@
 
       // -- CT compensation factor (computed from actual delivered kelvin) --
       // Use api_kelvin which includes solar rules + color_override
-      const adjustedK = areaState.api_kelvin ?? ts.baseKelvin;
+      const adjustedK = selectedArea?.kelvin ?? ts.baseKelvin;
       let ctFactor = 1.0;
       if (ts.ctEnabled && adjustedK != null) {
         if (adjustedK <= ts.ctBegin) ctFactor = ts.ctMax;
