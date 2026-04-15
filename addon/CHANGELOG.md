@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.12
+- **Auto On/Off spacing fixes**: Days left-aligned under radios (not centered), more vertical space between radios and days, reduced excess spacing below days/offset. Label vertical alignment tuned.
+
 ## 1.2.11
 - **Auto On/Off layout overhaul**: All fields (Light, Time, Fade, Trigger, Override, Untouched) use unified left-aligned label rows at same hierarchy. Time section has inline radios with shared day buttons that stay in place across source changes. Offset and custom time input swap in the same position. Schedule 2 has "- remove schedule" link. Override moved to bottom.
 
