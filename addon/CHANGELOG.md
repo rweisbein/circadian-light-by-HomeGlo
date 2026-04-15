@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.11
+- **Auto On/Off layout overhaul**: All fields (Light, Time, Fade, Trigger, Override, Untouched) use unified left-aligned label rows at same hierarchy. Time section has inline radios with shared day buttons that stay in place across source changes. Offset and custom time input swap in the same position. Schedule 2 has "- remove schedule" link. Override moved to bottom.
+
 ## 1.2.10
 - **Fix color slider not updating chart/sliders**: Frontend `applySolarRule` now matches backend — slider-originated color overrides are applied as direct additive CCT shift instead of incorrectly adjusting solar rule targets.
 - **Auto On/Off redesign**: Light preset selector (Circadian/Nitelite/Britelite) at top of Auto On. Renamed "Source" to "Time". Override link moved below time, hidden when auto is off. Custom schedules show single schedule with "+ add schedule" link for second. Default fade changed to 5 min.
