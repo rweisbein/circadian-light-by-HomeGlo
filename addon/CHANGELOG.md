@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.13
+- **Fix toggle-on ignoring brightness_sensitivity**: `send_light` dict path used `get_zone_config_for_area` (rhythm-only) instead of `get_effective_config_for_area` (includes globals like brightness_sensitivity). Lights turned on dimmer than periodic tick would correct to.
+
 ## 1.2.12
 - **Auto On/Off spacing fixes**: Days left-aligned under radios (not centered), more vertical space between radios and days, reduced excess spacing below days/offset. Label vertical alignment tuned.
 
