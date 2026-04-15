@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.6
+- **Fix chart override decay**: Override now correctly shows decay within the phase it was set, and 0 for hours beyond the phase boundary. Fixes override appearing only in current phase.
+- **Fix adjusted wake/bed lines on chart**: Uses `midpoint_to_time` for accurate time calculation (matching lite API). Lines shift correctly when midpoint is stepped.
+- **Remove sun_bright from chart**: Graph shows total room light (curve × area_factor + overrides), not dimmed artificial light.
+
 ## 1.2.3
 - **Area detail page redesign**: Three unified vertical sliders (Circadian/Brightness/Color) with hero value headers (Bed/Wake time, brightness %, kelvin K). Removed horizontal banner slider and brightness/kelvin from header. Circadian slider has step up/down buttons + britelite/nitelite links.
 - **CT compensation fix**: Uses actual delivered kelvin (api_kelvin) instead of reconstructed value. Applied per-purpose after filter multiplier, matching backend pipeline order.

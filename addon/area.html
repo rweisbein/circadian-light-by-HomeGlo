@@ -1369,11 +1369,13 @@
       const briOverride = state.brightness_override;
       const briSetAt = state.brightness_override_set_at;
       if (briOverride != null && briSetAt != null) {
-        const nextPhase = inAscend ? tDescend : tAscend + 24;
+        // Determine which phase the override was set in and its expiry
         const setAt48 = briSetAt < tAscend ? briSetAt + 24 : briSetAt;
-        const total = nextPhase - setAt48;
-        if (total > 0) {
-          const remaining = nextPhase - h48;
+        const setInAscend = setAt48 >= tAscend && setAt48 < tDescend;
+        const expiresAt = setInAscend ? tDescend : tAscend + 24;
+        const total = expiresAt - setAt48;
+        if (total > 0 && h48 < expiresAt) {
+          const remaining = expiresAt - h48;
           const decay = Math.max(0, Math.min(1, remaining / total));
           curveBri += (briOverride / 100) * decay;
         }
@@ -1458,16 +1460,17 @@
       const colorOverride = state.color_override;
       const colorSetAt = state.color_override_set_at;
       if (colorOverride != null && colorSetAt != null) {
-        const nextPhase = inAscend ? tDescend : tAscend + 24;
         const setAt48 = colorSetAt < tAscend ? colorSetAt + 24 : colorSetAt;
-        const total = nextPhase - setAt48;
-        if (total > 0) {
-          const remaining = nextPhase - h48;
+        const setInAscend = setAt48 >= tAscend && setAt48 < tDescend;
+        const expiresAt = setInAscend ? tDescend : tAscend + 24;
+        const total = expiresAt - setAt48;
+        if (total > 0 && h48 < expiresAt) {
+          const remaining = expiresAt - h48;
           const decay = Math.max(0, Math.min(1, remaining / total));
           effectiveColorOverride = colorOverride * decay;
         }
       } else if (colorOverride != null) {
-        effectiveColorOverride = colorOverride; // no decay (step-originated, shouldn't exist post-simplification but handle gracefully)
+        effectiveColorOverride = colorOverride;
       }
 
       let cct = cLow + (cHigh - cLow) * normalized;

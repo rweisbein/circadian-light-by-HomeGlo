@@ -3002,10 +3002,24 @@ class LightDesignerServer:
 
                         mid_shift = area_state.brightness_mid - default_mid
                         if abs(mid_shift) > 0.01:
+                            b_min_n2 = area_config.min_brightness / 100.0
+                            b_max_n2 = area_config.max_brightness / 100.0
                             if in_ascend_adj:
-                                adjusted_wake_time = eff_wake + mid_shift
+                                mid48_stepped = CircadianLight.lift_midpoint_to_phase(
+                                    area_state.brightness_mid, t_asc_adj, t_desc_adj
+                                )
+                                adjusted_wake_time = midpoint_to_time(
+                                    mid48_stepped, area_config.wake_brightness,
+                                    slope_adj, b_min_n2, b_max_n2
+                                ) % 24
                             else:
-                                adjusted_bed_time = eff_bed + mid_shift
+                                mid48_stepped = CircadianLight.lift_midpoint_to_phase(
+                                    area_state.brightness_mid, t_desc_adj, t_asc_adj + 24
+                                )
+                                adjusted_bed_time = midpoint_to_time(
+                                    mid48_stepped, area_config.bed_brightness,
+                                    slope_adj, b_min_n2, b_max_n2
+                                ) % 24
 
                     area_status[area_id] = {
                         "is_circadian": area_state.is_circadian,
