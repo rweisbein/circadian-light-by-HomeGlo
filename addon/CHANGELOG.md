@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.14
+- **Fix toggle-on ignoring brightness_sensitivity (complete)**: Both `send_light` dict path AND `_compute_pipeline_for_area` (used by toggle-on reach dispatch) were using `get_zone_config_for_area` (rhythm-only, missing globals). Now both use `get_effective_config_for_area`. v1.2.13 only fixed `send_light` but toggle goes through `_compute_pipeline_for_area`.
+
 ## 1.2.13
 - **Fix toggle-on ignoring brightness_sensitivity**: `send_light` dict path used `get_zone_config_for_area` (rhythm-only) instead of `get_effective_config_for_area` (includes globals like brightness_sensitivity). Lights turned on dimmer than periodic tick would correct to.
 

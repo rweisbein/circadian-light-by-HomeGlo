@@ -665,7 +665,7 @@ class CircadianLightPrimitives:
 
         raw_config = glozone.load_config_from_files()
         outdoor_norm = lux_tracker.get_outdoor_normalized()
-        zone_cfg = glozone.get_zone_config_for_area(area_id)
+        zone_cfg = glozone.get_effective_config_for_area(area_id)
 
         ctx = PipelineContext(
             area_id=area_id,
