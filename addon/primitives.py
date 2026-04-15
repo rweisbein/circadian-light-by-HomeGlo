@@ -2257,17 +2257,24 @@ class CircadianLightPrimitives:
 
                         if not skip:
                             fade_minutes = settings.get("auto_on_fade", 0)
+                            light_preset = settings.get("auto_on_light", "circadian")
                             if fade_minutes > 0:
                                 # Reset state without sending light command —
                                 # periodic tick will apply fade from near-zero
-                                await self.glo_reset(area_id, source="auto_on", send_command=False)
+                                if light_preset in ("nitelite", "britelite"):
+                                    await self.set(area_id, source="auto_on", preset=light_preset, is_on=True, send_command=False)
+                                else:
+                                    await self.glo_reset(area_id, source="auto_on", send_command=False)
                                 state.enable_circadian_and_set_on(area_id, True)
                                 state.set_fade(area_id, "in", fade_minutes * 60)
-                                logger.info(f"[auto_on] Starting {fade_minutes}min fade-in for {area_id}")
+                                logger.info(f"[auto_on] Starting {fade_minutes}min fade-in for {area_id} ({light_preset})")
                             else:
-                                await self.glo_reset(area_id, source="auto_on")
-                                await self.lights_on(area_id, source="auto_on")
-                                logger.info(f"[auto_on] Fired for {area_id}")
+                                if light_preset in ("nitelite", "britelite"):
+                                    await self.set(area_id, source="auto_on", preset=light_preset, is_on=True)
+                                else:
+                                    await self.glo_reset(area_id, source="auto_on")
+                                    await self.lights_on(area_id, source="auto_on")
+                                logger.info(f"[auto_on] Fired for {area_id} ({light_preset})")
 
                         # Mark as fired (even if skipped)
                         if area_id not in self._auto_fired:

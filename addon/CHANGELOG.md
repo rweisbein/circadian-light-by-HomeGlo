@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.10
+- **Fix color slider not updating chart/sliders**: Frontend `applySolarRule` now matches backend — slider-originated color overrides are applied as direct additive CCT shift instead of incorrectly adjusting solar rule targets.
+- **Auto On/Off redesign**: Light preset selector (Circadian/Nitelite/Britelite) at top of Auto On. Renamed "Source" to "Time". Override link moved below time, hidden when auto is off. Custom schedules show single schedule with "+ add schedule" link for second. Default fade changed to 5 min.
+
 ## 1.2.6
 - **Fix chart override decay**: Override now correctly shows decay within the phase it was set, and 0 for hours beyond the phase boundary. Fixes override appearing only in current phase.
 - **Fix adjusted wake/bed lines on chart**: Uses `midpoint_to_time` for accurate time calculation (matching lite API). Lines shift correctly when midpoint is stepped.

@@ -504,6 +504,17 @@
     .auto-sched-skip-row { display: flex; align-items: center; gap: 6px; padding: 4px 14px 2px 30px; font-size: 0.78rem; color: var(--muted); cursor: pointer; }
     .auto-sched-skip-row input { accent-color: var(--muted); margin: 0; cursor: pointer; }
 
+    .auto-sched-light-row { display: flex; align-items: center; gap: 8px; padding: 6px 14px 6px 30px; }
+    .auto-sched-light-label { font-size: 0.78rem; color: var(--muted); }
+    .auto-sched-light-pills { display: flex; gap: 4px; }
+    .auto-sched-light-pill { padding: 3px 10px; border-radius: 12px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 0.72rem; cursor: pointer; transition: all 0.15s; }
+    .auto-sched-light-pill:hover { border-color: var(--text); color: var(--text); }
+    .auto-sched-light-pill.active { background: #eef1f5; border-color: #eef1f5; color: #000; }
+    .auto-sched-add-schedule { font-size: 0.72rem; color: var(--muted2); text-decoration: underline; cursor: pointer; text-align: center; padding: 2px 0 4px; }
+    .auto-sched-add-schedule:hover { color: var(--text); }
+    .auto-sched-override-row { padding: 4px 14px 2px 30px; }
+    .auto-sched-override-row a { font-size: 0.75rem; color: var(--muted2); text-decoration: underline; }
+
     /* Temp override popover (auto schedule) */
     .auto-override-popover { position: fixed; z-index: 200; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 0; min-width: 260px; max-width: 320px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); overflow: hidden; }
     .auto-override-popover .aop-title { font-weight: 600; font-size: 0.9rem; padding: 10px 14px 4px; }
@@ -852,13 +863,20 @@
         </div>
         <div class="auto-sched-body" id="auto-on-body">
          <div class="auto-sched-body-inner">
-          <div class="tune-group-label" style="padding-top:4px; margin-bottom:6px;">Source</div>
+          <div class="auto-sched-light-row">
+            <span class="auto-sched-light-label">Light</span>
+            <div class="auto-sched-light-pills" id="auto-on-light-pills">
+              <button class="auto-sched-light-pill active" data-light="circadian" onclick="setAutoLight('on','circadian')">Circadian</button>
+              <button class="auto-sched-light-pill" data-light="nitelite" onclick="setAutoLight('on','nitelite')">Nitelite</button>
+              <button class="auto-sched-light-pill" data-light="britelite" onclick="setAutoLight('on','britelite')">Britelite</button>
+            </div>
+          </div>
+          <div class="tune-group-label" style="padding-top:4px; margin-bottom:6px;">Time</div>
           <div class="auto-sched-layout">
             <div class="auto-sched-radios">
               <label onclick="setAutoSource('on','sunrise')"><input type="radio" name="auto-on-source" id="auto-on-src-sunrise"> Sunrise</label>
               <label onclick="setAutoSource('on','sunset')"><input type="radio" name="auto-on-source" id="auto-on-src-sunset"> Sunset</label>
               <label onclick="setAutoSource('on','custom')"><input type="radio" name="auto-on-source" id="auto-on-src-custom"> Custom</label>
-              <a id="auto-on-override-link" href="#" onclick="event.preventDefault(); event.stopPropagation(); openAutoOverridePopup('on', this);" style="display:none; font-size:0.75rem; color:var(--muted2); text-decoration:underline;">override</a>
             </div>
             <div class="auto-sched-content">
               <div id="auto-on-sun-controls">
@@ -880,8 +898,7 @@
                 </div>
               </div>
               <div id="auto-on-custom-controls" style="display:none;">
-                <div class="auto-sched-custom-group">
-                  <div class="auto-sched-custom-label">Schedule 1</div>
+                <div class="auto-sched-custom-group" id="auto-on-sched-1">
                   <div class="auto-sched-row">
                     <input type="time" class="auto-sched-time-input" id="auto-on-time-1" value="07:00" oninput="onAutoFieldChanged('on')" onchange="onAutoFieldChanged('on')">
                   </div>
@@ -895,7 +912,7 @@
                     <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="6" onclick="toggleAutoCustomDay('on',1,this)">Su</button></div>
                   </div>
                 </div>
-                <div class="auto-sched-custom-group">
+                <div class="auto-sched-custom-group" id="auto-on-sched-2" style="display:none;">
                   <div class="auto-sched-custom-label">Schedule 2</div>
                   <div class="auto-sched-row">
                     <input type="time" class="auto-sched-time-input" id="auto-on-time-2" value="09:00" oninput="onAutoFieldChanged('on')" onchange="onAutoFieldChanged('on')">
@@ -910,13 +927,17 @@
                     <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="6" onclick="toggleAutoCustomDay('on',2,this)">Su</button></div>
                   </div>
                 </div>
+                <div class="auto-sched-add-schedule" id="auto-on-add-sched" onclick="showAutoSchedule2('on')">+ add schedule</div>
               </div>
             </div>
           </div>
+          <div class="auto-sched-override-row" id="auto-on-override-row" style="display:none;">
+            <a id="auto-on-override-link" href="#" onclick="event.preventDefault(); event.stopPropagation(); openAutoOverridePopup('on', this);">override</a>
+          </div>
           <div class="auto-sched-fade-row">
             <span class="auto-sched-fade-label">Fade in</span>
-            <input type="range" class="auto-sched-fade-slider" id="auto-on-fade" min="0" max="7" step="1" value="0" oninput="onAutoFieldChanged('on'); updateAutoFadeDisplay('on')">
-            <span class="auto-sched-fade-val" id="auto-on-fade-val">0 min</span>
+            <input type="range" class="auto-sched-fade-slider" id="auto-on-fade" min="0" max="7" step="1" value="4" oninput="onAutoFieldChanged('on'); updateAutoFadeDisplay('on')">
+            <span class="auto-sched-fade-val" id="auto-on-fade-val">5 min</span>
           </div>
           <div class="auto-sched-skip-row" id="auto-on-skip-row">
             <span>Trigger:</span>
@@ -949,13 +970,12 @@
         </div>
         <div class="auto-sched-body" id="auto-off-body">
          <div class="auto-sched-body-inner">
-          <div class="tune-group-label" style="padding-top:4px; margin-bottom:6px;">Source</div>
+          <div class="tune-group-label" style="padding-top:4px; margin-bottom:6px;">Time</div>
           <div class="auto-sched-layout">
             <div class="auto-sched-radios">
               <label onclick="setAutoSource('off','sunrise')"><input type="radio" name="auto-off-source" id="auto-off-src-sunrise"> Sunrise</label>
               <label onclick="setAutoSource('off','sunset')"><input type="radio" name="auto-off-source" id="auto-off-src-sunset"> Sunset</label>
               <label onclick="setAutoSource('off','custom')"><input type="radio" name="auto-off-source" id="auto-off-src-custom"> Custom</label>
-              <a id="auto-off-override-link" href="#" onclick="event.preventDefault(); event.stopPropagation(); openAutoOverridePopup('off', this);" style="display:none; font-size:0.75rem; color:var(--muted2); text-decoration:underline;">override</a>
             </div>
             <div class="auto-sched-content">
               <div id="auto-off-sun-controls">
@@ -977,8 +997,7 @@
                 </div>
               </div>
               <div id="auto-off-custom-controls" style="display:none;">
-                <div class="auto-sched-custom-group">
-                  <div class="auto-sched-custom-label">Schedule 1</div>
+                <div class="auto-sched-custom-group" id="auto-off-sched-1">
                   <div class="auto-sched-row">
                     <input type="time" class="auto-sched-time-input" id="auto-off-time-1" value="22:00" oninput="onAutoFieldChanged('off')" onchange="onAutoFieldChanged('off')">
                   </div>
@@ -992,7 +1011,7 @@
                     <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="6" onclick="toggleAutoCustomDay('off',1,this)">Su</button></div>
                   </div>
                 </div>
-                <div class="auto-sched-custom-group">
+                <div class="auto-sched-custom-group" id="auto-off-sched-2" style="display:none;">
                   <div class="auto-sched-custom-label">Schedule 2</div>
                   <div class="auto-sched-row">
                     <input type="time" class="auto-sched-time-input" id="auto-off-time-2" value="23:00" oninput="onAutoFieldChanged('off')" onchange="onAutoFieldChanged('off')">
@@ -1007,13 +1026,17 @@
                     <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="6" onclick="toggleAutoCustomDay('off',2,this)">Su</button></div>
                   </div>
                 </div>
+                <div class="auto-sched-add-schedule" id="auto-off-add-sched" onclick="showAutoSchedule2('off')">+ add schedule</div>
               </div>
             </div>
           </div>
+          <div class="auto-sched-override-row" id="auto-off-override-row" style="display:none;">
+            <a id="auto-off-override-link" href="#" onclick="event.preventDefault(); event.stopPropagation(); openAutoOverridePopup('off', this);">override</a>
+          </div>
           <div class="auto-sched-fade-row">
             <span class="auto-sched-fade-label">Fade out</span>
-            <input type="range" class="auto-sched-fade-slider" id="auto-off-fade" min="0" max="7" step="1" value="0" oninput="onAutoFieldChanged('off'); updateAutoFadeDisplay('off')">
-            <span class="auto-sched-fade-val" id="auto-off-fade-val">0 min</span>
+            <input type="range" class="auto-sched-fade-slider" id="auto-off-fade" min="0" max="7" step="1" value="4" oninput="onAutoFieldChanged('off'); updateAutoFadeDisplay('off')">
+            <span class="auto-sched-fade-val" id="auto-off-fade-val">5 min</span>
           </div>
           <label class="auto-sched-skip-row" id="auto-off-untouched-row">
             <input type="checkbox" id="auto-off-untouched" onchange="onAutoFieldChanged('off')">
@@ -1184,7 +1207,7 @@
       return Math.max(phaseStart + margin, Math.min(phaseEnd - margin, mid));
     }
 
-    function applySolarRule(baseCCT, hour, cfg, sunTimes, colorOverride, sunColorReduction) {
+    function applySolarRule(baseCCT, hour, cfg, sunTimes, colorOverride, sunColorReduction, sliderColor) {
       if (!sunTimes) return baseCCT;
 
       let cct = baseCCT;
@@ -1194,7 +1217,7 @@
       // Warm night — ceiling
       if (cfg.warm_night_enabled) {
         let warmTarget = cfg.warm_night_target;
-        if (colorOverride && colorOverride > 0) {
+        if (colorOverride && colorOverride > 0 && !sliderColor) {
           warmTarget += colorOverride;
         }
 
@@ -1244,12 +1267,17 @@
         // Reduce daylight blend when user steps down (shift_ratio)
         if (sunColorReduction > 0) blend *= (1.0 - sunColorReduction);
         let daylightTarget = daylightCct;
-        if (colorOverride && colorOverride < 0) {
+        if (colorOverride && colorOverride < 0 && !sliderColor) {
           daylightTarget += colorOverride;
         }
         if (daylightTarget > cct && blend > 0) {
           cct += (daylightTarget - cct) * blend;
         }
+      }
+
+      // Direct additive for slider-originated color override
+      if (sliderColor && colorOverride) {
+        cct += colorOverride;
       }
 
       return cct;
@@ -1491,7 +1519,8 @@
       }
 
       let cct = cLow + (cHigh - cLow) * normalized;
-      cct = applySolarRule(cct, hour, cfg, sunTimes, effectiveColorOverride, sunColorReduction);
+      const sliderColor = colorSetAt != null;
+      cct = applySolarRule(cct, hour, cfg, sunTimes, effectiveColorOverride, sunColorReduction, sliderColor);
 
       return cct;
     }
@@ -2951,6 +2980,7 @@
         fade: parseInt(document.getElementById('auto-' + type + '-fade')?.value || '0'),
         triggerMode: type === 'on' ? (document.getElementById('auto-on-trigger-mode')?.value || 'always') : 'always',
         untouched: type === 'off' ? (document.getElementById('auto-off-untouched')?.checked || false) : false,
+        light: type === 'on' ? (s.light || 'circadian') : undefined,
         headerText: document.getElementById('auto-' + type + '-next')?.textContent || '',
       };
     }
@@ -2979,6 +3009,7 @@
       if (!s.snapshot) return false;
       if (s.source !== s.snapshot.source) return true;
       if (s.offset !== s.snapshot.offset) return true;
+      if (type === 'on' && (s.light || 'circadian') !== (s.snapshot.light || 'circadian')) return true;
       const getDays = () => { const d = []; document.querySelectorAll('#auto-' + type + '-days .auto-sched-day-btn.active').forEach(b => d.push(parseInt(b.dataset.day))); d.sort(); return d; };
       if (JSON.stringify(getDays()) !== JSON.stringify(s.snapshot.days)) return true;
       if ((document.getElementById('auto-' + type + '-time-1')?.value || '') !== s.snapshot.time1) return true;
@@ -3100,6 +3131,10 @@
       if (!s.snapshot) return;
       s.source = s.snapshot.source;
       s.offset = s.snapshot.offset;
+      if (type === 'on') {
+        s.light = s.snapshot.light || 'circadian';
+        setAutoLightUI('on', s.light);
+      }
       setAutoSourceUI(type, s.source);
       document.getElementById('auto-' + type + '-offset-val').textContent = formatOffset(s.offset);
       document.querySelectorAll('#auto-' + type + '-days .auto-sched-day-btn').forEach(btn => {
@@ -3129,6 +3164,8 @@
         const untEl = document.getElementById('auto-off-untouched');
         if (untEl) untEl.checked = s.snapshot.untouched || false;
       }
+      // Restore schedule 2 visibility
+      updateAutoSchedule2Visibility(type);
       // Restore header text from snapshot
       const nextEl = document.getElementById('auto-' + type + '-next');
       if (nextEl && s.snapshot.headerText !== undefined) nextEl.textContent = s.snapshot.headerText;
@@ -3143,6 +3180,7 @@
         body: JSON.stringify({ ['auto_' + type + '_enabled']: enabled })
       });
       fetchNextAutoSchedule(type);
+      updateAutoOverrideIndicator(type);
       captureAutoSnapshot(type);
     }
 
@@ -3858,7 +3896,7 @@
     // Auto Schedule (On / Off)
     // ============================================================
     const autoState = {
-      on:  { source: 'sunrise', offset: 0, days: [0,1,2,3,4,5,6], days1: [], days2: [], snapshot: null },
+      on:  { source: 'sunrise', offset: 0, days: [0,1,2,3,4,5,6], days1: [], days2: [], light: 'circadian', snapshot: null },
       off: { source: 'sunset',  offset: 0, days: [0,1,2,3,4,5,6], days1: [], days2: [], snapshot: null },
     };
 
@@ -3896,6 +3934,12 @@
           // Always start closed
           const card = document.getElementById('auto-' + type + '-card');
           card?.classList.remove('is-open');
+
+          // Light preset (on only)
+          if (type === 'on') {
+            s.light = settings.auto_on_light || 'circadian';
+            setAutoLightUI('on', s.light);
+          }
 
           // Source
           s.source = settings[prefix + '_source'] || (type === 'on' ? 'sunset' : 'sunrise');
@@ -3938,6 +3982,9 @@
           document.querySelectorAll('#auto-' + type + '-days-2 .auto-sched-day-btn').forEach(btn => {
             btn.classList.toggle('active', s.days2.includes(parseInt(btn.dataset.day)));
           });
+
+          // Schedule 2 visibility
+          updateAutoSchedule2Visibility(type);
 
           // Fade (stored as minutes, slider uses index)
           const fadeEl = document.getElementById('auto-' + type + '-fade');
@@ -4002,11 +4049,13 @@
     function updateAutoOverrideIndicator(type, hasOverride) {
       // If hasOverride not passed, check from settings cache
       if (hasOverride === undefined) hasOverride = false;
+      const enabled = document.getElementById('auto-' + type + '-enabled')?.checked;
       const clearEl = document.getElementById('auto-' + type + '-override-clear');
-      const overrideLink = document.getElementById('auto-' + type + '-override-link');
+      const overrideRow = document.getElementById('auto-' + type + '-override-row');
       const bodyVisible = document.getElementById('auto-' + type + '-card')?.classList.contains('is-open');
       if (clearEl) clearEl.style.display = hasOverride ? '' : 'none';
-      if (overrideLink) overrideLink.style.display = (!hasOverride && bodyVisible) ? '' : 'none';
+      // Suppress override link when auto is off
+      if (overrideRow) overrideRow.style.display = (!hasOverride && bodyVisible && enabled) ? '' : 'none';
     }
 
     async function saveAutoScheduleSettings(type) {
@@ -4051,6 +4100,7 @@
         payload.auto_on_trigger_mode = mode;
         // Keep backward-compat field
         payload.auto_on_skip_if_brighter = (mode === 'skip_brighter');
+        payload.auto_on_light = autoState.on.light || 'circadian';
       }
       if (type === 'off') {
         payload.auto_off_only_untouched = document.getElementById('auto-off-untouched')?.checked || false;
@@ -4101,6 +4151,34 @@
       if (otherBtn) otherBtn.classList.remove('active');
       btn.classList.toggle('active');
       onAutoFieldChanged(type);
+    }
+
+    function setAutoLight(type, light) {
+      autoState[type].light = light;
+      setAutoLightUI(type, light);
+      onAutoFieldChanged(type);
+    }
+
+    function setAutoLightUI(type, light) {
+      document.querySelectorAll('#auto-' + type + '-light-pills .auto-sched-light-pill').forEach(pill => {
+        pill.classList.toggle('active', pill.dataset.light === light);
+      });
+    }
+
+    function showAutoSchedule2(type) {
+      const sched2 = document.getElementById('auto-' + type + '-sched-2');
+      const addLink = document.getElementById('auto-' + type + '-add-sched');
+      if (sched2) sched2.style.display = '';
+      if (addLink) addLink.style.display = 'none';
+    }
+
+    function updateAutoSchedule2Visibility(type) {
+      const sched2 = document.getElementById('auto-' + type + '-sched-2');
+      const addLink = document.getElementById('auto-' + type + '-add-sched');
+      // Show schedule 2 if it has any active days
+      const hasDays2 = document.querySelectorAll('#auto-' + type + '-days-2 .auto-sched-day-btn.active').length > 0;
+      if (sched2) sched2.style.display = hasDays2 ? '' : 'none';
+      if (addLink) addLink.style.display = hasDays2 ? 'none' : '';
     }
 
     function formatOffset(minutes) {
