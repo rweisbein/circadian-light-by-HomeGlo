@@ -1360,20 +1360,7 @@
       }
       let curveBri = Math.max(bMin, Math.min(bMax, value));
 
-      // --- Pipeline factors ---
-      // Sun bright reduction (estimated for each hour using sun angle + current conditions)
-      const lat = cachedConfig?.latitude || 35.0;
-      const lon = cachedConfig?.longitude || -78.6;
-      const exposure = state.sun_exposure || 0;
-      const sensitivity = state.brightness_sensitivity || 5.0;
-      if (exposure > 0) {
-        const clearSky = elevationToOutdoorNorm(getSunElevationAtHour(hour, lat, lon));
-        const condMult = state.outdoor_condition_mult ?? 1.0;
-        const outdoorAtHour = Math.min(1.0, clearSky * condMult);
-        const sunFactor = Math.max(0, 1.0 - exposure * outdoorAtHour * sensitivity);
-        curveBri = Math.max(0.01, curveBri * sunFactor);
-      }
-
+      // --- Pipeline factors (excludes sun_bright — graph shows total room light) ---
       // Area factor
       const areaFactor = state.area_factor ?? 1.0;
       curveBri *= areaFactor;
