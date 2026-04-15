@@ -331,6 +331,11 @@
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
+    .slider-hero {
+      font-size: 1.4rem;
+      text-transform: none;
+      letter-spacing: 0;
+    }
     .slider-track {
       position: relative;
       width: 14px;
@@ -733,20 +738,31 @@
       </div>
     </div>
 
-    <div class="row-slider-section">
-      <div class="row-slider-track" id="area-banner-slider" data-mode="step">
-        <div class="row-slider-fill"></div>
-        <div class="row-slider-thumb"></div>
-      </div>
-      <div id="adjusted-schedule-label" class="adjusted-schedule-label" style="display:none;"></div>
-    </div>
-
     <div id="circadian-content-wrap" style="position: relative;">
     <div class="adjust-section">
       <div class="adjust-slider-row">
         <div class="slider-group">
           <div class="slider-column">
-            <div class="slider-label">Bright</div>
+            <div class="slider-label slider-hero" id="slider-hero-circadian">Bed 10p</div>
+            <div class="slider-extreme" id="circ-max" onclick="executeSetPosition(100,'step')">britelite</div>
+            <div class="slider-track" data-mode="step">
+              <div class="slider-fill"></div>
+              <div class="slider-thumb"></div>
+            </div>
+            <div class="slider-extreme" id="circ-min" onclick="executeSetPosition(0,'step')">nitelite</div>
+          </div>
+          <div class="step-buttons">
+            <button class="step-btn" onclick="executeAction('step_up')" title="Step up">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
+            </button>
+            <button class="step-btn" onclick="executeAction('step_down')" title="Step down">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="slider-group">
+          <div class="slider-column">
+            <div class="slider-label slider-hero" id="slider-hero-brightness">78%</div>
             <div class="slider-extreme" id="bright-max" onclick="executeSetPosition(100,'brightness')">brightest</div>
             <div class="slider-track" data-mode="brightness">
               <div class="slider-fill"></div>
@@ -765,7 +781,7 @@
         </div>
         <div class="slider-group">
           <div class="slider-column">
-            <div class="slider-label">Color</div>
+            <div class="slider-label slider-hero" id="slider-hero-color">2910K</div>
             <div class="slider-extreme" id="color-max" onclick="executeSetPosition(100,'color')">coolest</div>
             <div class="slider-track" data-mode="color">
               <div class="slider-fill"></div>
@@ -1151,7 +1167,7 @@
       return Math.max(phaseStart + margin, Math.min(phaseEnd - margin, mid));
     }
 
-    function applySolarRule(baseCCT, hour, cfg, sunTimes, colorOverride) {
+    function applySolarRule(baseCCT, hour, cfg, sunTimes, colorOverride, sunColorReduction) {
       if (!sunTimes) return baseCCT;
 
       let cct = baseCCT;
@@ -1208,6 +1224,8 @@
         const de = wrap24(sunset + endOffsetHrs);
         const dw = getWindowWeight(hour, ds, de, fadeHrs);
         blend *= dw.weight;
+        // Reduce daylight blend when user steps down (shift_ratio)
+        if (sunColorReduction > 0) blend *= (1.0 - sunColorReduction);
         let daylightTarget = daylightCct;
         if (colorOverride && colorOverride < 0) {
           daylightTarget += colorOverride;
@@ -1340,8 +1358,41 @@
         const hDescend48 = (h48 < tDescend) ? h48 + 24 : h48;
         value = logistic(hDescend48, mid48, -kDescend, bMin, bMax);
       }
+      let curveBri = Math.max(bMin, Math.min(bMax, value));
 
-      return Math.max(bMin, Math.min(bMax, value));
+      // --- Pipeline factors ---
+      // Sun bright reduction (estimated for each hour using sun angle + current conditions)
+      const lat = cachedConfig?.latitude || 35.0;
+      const lon = cachedConfig?.longitude || -78.6;
+      const exposure = state.sun_exposure || 0;
+      const sensitivity = state.brightness_sensitivity || 5.0;
+      if (exposure > 0) {
+        const clearSky = elevationToOutdoorNorm(getSunElevationAtHour(hour, lat, lon));
+        const condMult = state.outdoor_condition_mult ?? 1.0;
+        const outdoorAtHour = Math.min(1.0, clearSky * condMult);
+        const sunFactor = Math.max(0, 1.0 - exposure * outdoorAtHour * sensitivity);
+        curveBri = Math.max(0.01, curveBri * sunFactor);
+      }
+
+      // Area factor
+      const areaFactor = state.area_factor ?? 1.0;
+      curveBri *= areaFactor;
+
+      // Brightness override with decay projection
+      const briOverride = state.brightness_override;
+      const briSetAt = state.brightness_override_set_at;
+      if (briOverride != null && briSetAt != null) {
+        const nextPhase = inAscend ? tDescend : tAscend + 24;
+        const setAt48 = briSetAt < tAscend ? briSetAt + 24 : briSetAt;
+        const total = nextPhase - setAt48;
+        if (total > 0) {
+          const remaining = nextPhase - h48;
+          const decay = Math.max(0, Math.min(1, remaining / total));
+          curveBri += (briOverride / 100) * decay;
+        }
+      }
+
+      return Math.max(0, Math.min(1, curveBri));
     }
 
     function calcMiniColor(hour, cfg, state, sunTimes, currentHour) {
@@ -1359,12 +1410,12 @@
       const cursorH48 = currentHour < tAscend ? currentHour + 24 : currentHour;
       const cursorInAscend = cursorH48 >= tAscend && cursorH48 < tDescend;
 
-      let colorWakeMid = cursorInAscend ? (state.color_mid ?? cfg.wake_time) : cfg.wake_time;
-      let colorBedMid = !cursorInAscend ? (state.color_mid ?? cfg.bed_time) : cfg.bed_time;
+      // Color uses same midpoint as brightness (single midpoint design)
+      let colorWakeMid = cursorInAscend ? (state.brightness_mid ?? cfg.wake_time) : cfg.wake_time;
+      let colorBedMid = !cursorInAscend ? (state.brightness_mid ?? cfg.bed_time) : cfg.bed_time;
 
-      // Apply brightness target shift for color — shift both midpoints
-      // so the full 24h chart is correct regardless of current phase.
-      if (state.color_mid == null) {
+      // Apply brightness target shift for color
+      if (state.brightness_mid == null) {
         const wakeBrightPct = cfg.wake_brightness || 50;
         if (wakeBrightPct !== 50) {
           let cMid48 = colorWakeMid;
@@ -1397,8 +1448,43 @@
       }
       normalized = Math.max(0, Math.min(1, normalized));
 
+      // Compute sun_color_reduction (shift_ratio) for this hour
+      // Natural brightness = curve with no midpoint shift
+      let sunColorReduction = 0;
+      if (state.brightness_mid != null) {
+        const defaultWakeMid48 = liftMidpointToPhase(cfg.wake_time, tAscend, tDescend);
+        const defaultBedMid48 = liftMidpointToPhase(cfg.bed_time, tDescend, tDescend + 24);
+        const defaultMid48 = inAscend ? defaultWakeMid48 : defaultBedMid48;
+        const defaultSlope = inAscend ? kAscend : -kDescend;
+        const calcH = inAscend ? h48 : ((h48 < tDescend) ? h48 + 24 : h48);
+        const naturalBri = logistic(calcH, defaultMid48, defaultSlope, bMin, bMax);
+        const steppedBri = Math.max(bMin, Math.min(bMax, inAscend
+          ? logistic(h48, mid48, kAscend, bMin, bMax)
+          : logistic(calcH, mid48, -kDescend, bMin, bMax)));
+        if (steppedBri < naturalBri && naturalBri > bMin) {
+          sunColorReduction = Math.min(1.0, (naturalBri - steppedBri) / (naturalBri - bMin));
+        }
+      }
+
+      // Compute effective color override with decay projection
+      let effectiveColorOverride = null;
+      const colorOverride = state.color_override;
+      const colorSetAt = state.color_override_set_at;
+      if (colorOverride != null && colorSetAt != null) {
+        const nextPhase = inAscend ? tDescend : tAscend + 24;
+        const setAt48 = colorSetAt < tAscend ? colorSetAt + 24 : colorSetAt;
+        const total = nextPhase - setAt48;
+        if (total > 0) {
+          const remaining = nextPhase - h48;
+          const decay = Math.max(0, Math.min(1, remaining / total));
+          effectiveColorOverride = colorOverride * decay;
+        }
+      } else if (colorOverride != null) {
+        effectiveColorOverride = colorOverride; // no decay (step-originated, shouldn't exist post-simplification but handle gracefully)
+      }
+
       let cct = cLow + (cHigh - cLow) * normalized;
-      cct = applySolarRule(cct, hour, cfg, sunTimes, state.color_override);
+      cct = applySolarRule(cct, hour, cfg, sunTimes, effectiveColorOverride, sunColorReduction);
 
       return cct;
     }
@@ -1785,13 +1871,27 @@
         applyOneSlider(track, pct, thumbBri, thumbCCT, mode);
       });
 
-      // Banner slider — shows actual brightness, uses current kelvin for gradient
-      const actualBri = areaState.actual_brightness != null ? areaState.actual_brightness : curveFrac;
-      const bannerPct = bMax > bMin ? Math.max(0, Math.min(100, (actualBri - bMin) / (bMax - bMin) * 100)) : 50;
-      updateBannerSlider(bannerPct, cfg, currentCCT);
+      // Update hero values on slider headers
+      const heroBri = document.getElementById('slider-hero-brightness');
+      if (heroBri) heroBri.textContent = Math.round(areaState.actual_brightness ?? currentBri) + '%';
 
-      // Schedule label (bed/wake time, asterisk if adjusted)
-      updateAdjustedScheduleLabel(areaState, cfg);
+      const heroColor = document.getElementById('slider-hero-color');
+      if (heroColor) heroColor.textContent = Math.round(effectiveCCT) + 'K';
+
+      const heroCirc = document.getElementById('slider-hero-circadian');
+      if (heroCirc) {
+        const status = areaStatus[selectedArea?.area_id] || {};
+        const phase = status.phase;
+        const midpoint = status.phase_midpoint;
+        if (phase && midpoint != null) {
+          let hr = Math.floor(midpoint) % 24;
+          const min = Math.round((midpoint % 1) * 60);
+          const suffix = hr < 12 ? 'a' : 'p';
+          if (hr === 0) hr = 12; else if (hr > 12) hr -= 12;
+          const timeStr = min === 0 ? `${hr}${suffix}` : `${hr}:${String(min).padStart(2,'0')}${suffix}`;
+          heroCirc.textContent = `${phase === 'wake' ? 'Wake' : 'Bed'} ${timeStr}`;
+        }
+      }
     }
 
     function formatHourToTime(h) {
@@ -2264,6 +2364,7 @@
                 tuneState.boostBrightness = _as.boost_brightness || 0;
                 tuneState.briOverride = _as.effective_bri_override || 0;
                 tuneState.fadeDirection = _as.fade_direction || null;
+                tuneState.dimFactor = _as.dim_factor ?? 1.0;
                 tuneState.fadeProgress = _as.fade_progress ?? null;
                 tuneState.actualBrightness = _as.actual_brightness ?? null;
 
@@ -2357,7 +2458,7 @@
       } else {
         valuesEl.style.color = 'var(--muted)';
       }
-      valuesEl.textContent = `${Math.round(selectedArea.actual_brightness)}% • ${Math.round(selectedArea.kelvin)}K`;
+      valuesEl.textContent = ''; // Brightness and color now shown on slider heroes
 
       // Header meta: zone link + "Rhythm zone" label
       const metaZone = document.getElementById('header-meta-zone');
@@ -2509,7 +2610,15 @@
         brightness_mid: status.brightness_mid ?? null,
         color_mid: status.color_mid ?? null,
         color_override: status.color_override ?? null,
-        frozen_at: status.frozen_at ?? null
+        color_override_set_at: status.color_override_set_at ?? null,
+        brightness_override: status.brightness_override ?? null,
+        brightness_override_set_at: status.brightness_override_set_at ?? null,
+        frozen_at: status.frozen_at ?? null,
+        // Pipeline factors for chart
+        area_factor: status.area_factor ?? 1.0,
+        sun_exposure: status.natural_light_exposure ?? 0,
+        brightness_sensitivity: status.brightness_sensitivity ?? 5.0,
+        outdoor_condition_mult: cachedSunTimes.conditionMultiplier ?? 1.0,
       };
 
       let currentHour;
@@ -2598,6 +2707,7 @@
                 tuneState.boostBrightness = _as.boost_brightness || 0;
                 tuneState.briOverride = _as.effective_bri_override || 0;
                 tuneState.fadeDirection = _as.fade_direction || null;
+                tuneState.dimFactor = _as.dim_factor ?? 1.0;
                 tuneState.fadeProgress = _as.fade_progress ?? null;
                 tuneState.actualBrightness = _as.actual_brightness ?? null;
                 const elDetBase = document.getElementById('tune-det-base-total');
@@ -2690,6 +2800,7 @@
                 tuneState.boostBrightness = _as.boost_brightness || 0;
                 tuneState.briOverride = _as.effective_bri_override || 0;
                 tuneState.fadeDirection = _as.fade_direction || null;
+                tuneState.dimFactor = _as.dim_factor ?? 1.0;
                 tuneState.fadeProgress = _as.fade_progress ?? null;
                 tuneState.actualBrightness = _as.actual_brightness ?? null;
                 const elDetBase = document.getElementById('tune-det-base-total');
@@ -3177,6 +3288,15 @@
       const afterBoost = Math.round(running * 100);
       const boostImpact = afterBoost - beforeBoost;
 
+      // Motion warning dim (multiplicative, from pipeline dim_factor)
+      const dimFactor = ts.dimFactor ?? 1.0;
+      const beforeDim = Math.round(running * 100);
+      if (dimFactor < 1.0) {
+        running = Math.max(0.01, running * dimFactor);
+      }
+      const afterDim = Math.round(running * 100);
+      const dimImpact = afterDim - beforeDim;
+
       // Fade (uses actual_brightness from API to compute delta)
       const unfadedBri = Math.round(running * 100);
       let fadeDelta = 0;
@@ -3185,30 +3305,17 @@
         running = ts.actualBrightness / 100;
       }
 
-      // -- Compute adjusted color temp (needed for CT compensation) --
-      let adjustedK = ts.baseKelvin;
-      const sb = ts.solarBreakdown;
-      if (sb) {
-        adjustedK += (sb.daylight_shift || 0);
-        if (sb.warm_night_enabled) adjustedK -= (sb.night_shift || 0);
-      }
-
-      // Color temp adjustment — use rendered kelvin (after solar rules)
+      // -- CT compensation factor (computed from actual delivered kelvin) --
+      // Use api_kelvin which includes solar rules + color_override
+      const adjustedK = areaState.api_kelvin ?? ts.baseKelvin;
       let ctFactor = 1.0;
       if (ts.ctEnabled && adjustedK != null) {
         if (adjustedK <= ts.ctBegin) ctFactor = ts.ctMax;
         else if (adjustedK < ts.ctEnd) ctFactor = 1.0 + ((ts.ctEnd - adjustedK) / (ts.ctEnd - ts.ctBegin)) * (ts.ctMax - 1.0);
       }
-      const ctFactorPct = Math.round(ctFactor * 100);
-      const beforeCt = Math.round(running * 100);
-      running *= ctFactor;
-      const afterCt = Math.round(running * 100);
-      const ctImpactAbs = afterCt - beforeCt;
 
-      // Area brightness final (before CT — CT is per-light, shown in Light brightness)
-      const areaBri = Math.round(running / ctFactor * 100);
-      // Adjusted brightness including CT (used for per-light calculations)
-      const adjustedBri = Math.round(running * 100);
+      // Area brightness (no CT — CT is per-light, applied after filter multiplier)
+      const areaBri = Math.round(running * 100);
       const netImpact = areaBri - baseBriPct;
 
       // -- Brightness card: slider word labels --
@@ -3243,11 +3350,12 @@
         const atBright = preset.at_bright ?? 100;
         const offThresh = preset.off_threshold ?? ts.globalOffThreshold;
         const filterMult = (atDim + (atBright - atDim) * curvePos) / 100;
-        const nowPct = Math.round(filterMult * 100);
-        const rawFinal = running * 100 * filterMult;
-        const isOff = rawFinal < offThresh;
-        const wasCapped = rawFinal > 100;
-        const finalVal = isOff ? 0 : Math.min(100, Math.round(rawFinal));
+        // Pipeline order: area_brightness × filter → CT comp
+        const afterFilter = areaBri * filterMult;
+        const afterCt = afterFilter * ctFactor;
+        const isOff = afterFilter < offThresh;
+        const wasCapped = afterCt > 100;
+        const finalVal = isOff ? 0 : Math.min(100, Math.round(afterCt));
         if (wasCapped && finalVal === 100) anyCapped = true;
 
         const elBri = document.getElementById('tune-light-bri-' + light.idx);
@@ -3261,7 +3369,7 @@
         }
         const elImpact = document.getElementById('tune-light-impact-' + light.idx);
         if (elImpact) {
-          const behavImpact = Math.round(rawFinal) - adjustedBri;
+          const behavImpact = Math.round(afterFilter) - areaBri;
           elImpact.textContent = formatImpact(behavImpact) + '%';
         }
         const elCt = document.getElementById('tune-light-ct-' + light.idx);
@@ -3269,8 +3377,7 @@
           if (!ts.ctEnabled || ctFactor === 1.0) {
             elCt.textContent = '0%';
           } else {
-            const rawWithoutCt = rawFinal / ctFactor;
-            const ctImpact = Math.round(rawFinal) - Math.round(rawWithoutCt);
+            const ctImpact = Math.round(afterCt) - Math.round(afterFilter);
             elCt.textContent = formatImpact(ctImpact) + '%';
           }
         }
@@ -3311,6 +3418,12 @@
         if (elOverrideLabel) elOverrideLabel.textContent = rounded < 0 ? 'User dimmed' : 'User brightened';
         if (elOverrideVal) elOverrideVal.textContent = formatImpact(rounded) + '%';
       }
+
+      // Dim row (motion warning)
+      const elDimRow = document.getElementById('tune-det-dim-row');
+      const elDimVal = document.getElementById('tune-det-dim-val');
+      // Dimming row always visible
+      if (elDimVal) elDimVal.textContent = formatImpact(dimImpact) + '%';
 
       // Fade row
       const elFadeLabel = document.getElementById('tune-det-fade-label');
@@ -3467,6 +3580,7 @@
         backendSunBrightFactor: liveStatus.sun_bright_factor ?? null,
         brightnessFadeWeight: liveStatus.brightness_fade_weight ?? null,
         solarBreakdown: liveStatus.solar_breakdown ?? null,
+        dimFactor: status.dim_factor ?? 1.0,
         areaFactor: LUMEN_STEPS[lumenStep].factor,
         lumenStep: lumenStep,
         solarStep: solarStep,
@@ -3590,6 +3704,8 @@
         + '<span class="tune-bk-total" id="tune-det-override-val">0%</span></div>';
       bhtml += '<div class="tune-bk-row"><span class="tune-bk-label">Boost</span>'
         + '<span class="tune-bk-total" id="tune-det-boost-val">0%</span></div>';
+      bhtml += '<div class="tune-bk-row" id="tune-det-dim-row"><span class="tune-bk-label">Dimming</span>'
+        + '<span class="tune-bk-total" id="tune-det-dim-val">0%</span></div>';
       bhtml += '<div class="tune-bk-row"><span class="tune-bk-label" id="tune-det-fade-label">Auto-on fade</span>'
         + '<span class="tune-bk-total" id="tune-det-fade-val">0%</span></div>';
       bhtml += '<div class="tune-area-total"><div class="tune-bk-row" style="padding-left:14px;"><span class="tune-bk-label primary">Final</span>'

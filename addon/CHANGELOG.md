@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.3
+- **Area detail page redesign**: Three unified vertical sliders (Circadian/Brightness/Color) with hero value headers (Bed/Wake time, brightness %, kelvin K). Removed horizontal banner slider and brightness/kelvin from header. Circadian slider has step up/down buttons + britelite/nitelite links.
+- **CT compensation fix**: Uses actual delivered kelvin (api_kelvin) instead of reconstructed value. Applied per-purpose after filter multiplier, matching backend pipeline order.
+- **Dimming row**: Added dim_factor to API and brightness cascade display as "Dimming" (always visible).
+- **Chart shows actual conditions**: Brightness now includes sun_bright reduction (estimated per hour from sun angle + current weather), area_factor, and brightness override with decay projection. Color includes sun_color_reduction (shift_ratio) and color override with decay.
+
 ## 1.2.2
 - **All delivery through pipeline**: Replaced all `_send_light_add_override_boost` calls with `update_lights_in_circadian_mode` (full pipeline). Fixes CT brightness compensation not applying when color slider changes kelvin. Deleted `_send_light_add_override_boost`. Every light delivery now goes through the pipeline consistently.
 

@@ -2727,11 +2727,13 @@ class LightDesignerServer:
         try:
             from brain import (
                 SunTimes,
+                SPEED_TO_SLOPE,
                 calculate_sun_times,
                 calculate_natural_light_factor,
                 compute_daylight_fade_weight,
                 compute_override_decay,
                 compute_shifted_midpoint,
+                midpoint_to_time,
                 resolve_effective_timing,
                 DEFAULT_DAYLIGHT_FADE,
             )
@@ -2963,6 +2965,9 @@ class LightDesignerServer:
                     eff_wake, eff_bed = resolve_effective_timing(
                         area_config, calc_hour, weekday
                     )
+                    _in_ascend_phase, _, _t_asc, _t_desc, _ = CircadianLight.get_phase_info(
+                        calc_hour, area_config
+                    )
                     adjusted_wake_time = None
                     adjusted_bed_time = None
                     if area_state.brightness_mid is not None:
@@ -3028,6 +3033,7 @@ class LightDesignerServer:
                         ),
                         "motion_expires_at": motion_expires_at,
                         "motion_warning_active": motion_warning_active,
+                        "dim_factor": state.get_dim_factor(area_id),
                         "fade_direction": (
                             state.get_fade_state(area_id).get("fade_direction")
                             if state.is_fading(area_id)
@@ -3065,6 +3071,13 @@ class LightDesignerServer:
                         "eff_bed_time": eff_bed,
                         "adjusted_wake_time": adjusted_wake_time,
                         "adjusted_bed_time": adjusted_bed_time,
+                        "phase": "wake" if _in_ascend_phase else "bed",
+                        "phase_midpoint": round(
+                            (adjusted_wake_time if adjusted_wake_time is not None else eff_wake)
+                            if _in_ascend_phase else
+                            (adjusted_bed_time if adjusted_bed_time is not None else eff_bed),
+                            2
+                        ),
                         # Solar / natural light
                         "sun_elevation": round(lux_tracker.compute_sun_elevation(), 1),
                         "natural_light_exposure": area_sun_exposure,
@@ -3199,6 +3212,7 @@ class LightDesignerServer:
                         "max_brightness": area_config.max_brightness,
                         "min_color_temp": area_config.min_color_temp,
                         "max_color_temp": area_config.max_color_temp,
+                        "dim_factor": state.get_dim_factor(area_id),
                         # Raw state for mismatch detection
                         "brightness_mid": area_state.brightness_mid,
                         "color_mid": area_state.color_mid,
