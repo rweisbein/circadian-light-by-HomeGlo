@@ -1722,42 +1722,16 @@ class HomeAssistantWebSocketClient:
                 )
             return
 
-        sun_times = self._get_sun_times()
         transition = self.primitives._get_turn_on_transition()
 
-        # Build pipeline results for valid areas
+        # Build pipeline results for valid areas via shared builder
+        # (applies sun_cooling_strength, brightness_sensitivity, etc.)
         area_pipeline_results = {}
         for area_id, result in zip(areas, results):
             if result is None or not state.get_is_on(area_id):
                 continue
-
-            # For step results, use the result's values; for bright results, re-compute
-            if hasattr(result, "brightness") and hasattr(result, "color_temp"):
-                bri, ct = result.brightness, result.color_temp
-            else:
-                area_state = AreaState.from_dict(state.get_area(area_id))
-                config = Config.from_dict(glozone.get_effective_config_for_area(area_id))
-                hour = (
-                    area_state.frozen_at
-                    if area_state.frozen_at is not None
-                    else get_current_hour()
-                )
-                lighting = CircadianLight.calculate_lighting(
-                    hour, config, area_state, sun_times=sun_times
-                )
-                bri, ct = lighting.brightness, lighting.color_temp
-
-            override = self.primitives._get_decayed_brightness_override(area_id)
-            boost = None
-            if state.is_boosted(area_id):
-                bs = state.get_boost_state(area_id)
-                boost = bs.get("boost_brightness") or None
-
-            area_pipeline_results[area_id] = self.primitives._compute_pipeline_for_area(
-                area_id, bri, ct,
-                rhythm_brightness=bri,
-                brightness_override=override,
-                boost_brightness=boost,
+            area_pipeline_results[area_id] = self.primitives.compute_pipeline_for_area(
+                area_id, transition=transition,
             )
 
         if not area_pipeline_results:
@@ -5856,28 +5830,12 @@ class HomeAssistantWebSocketClient:
                         f"[Periodic] Area {area_id} has stepped state: brightness_mid={area_state.brightness_mid}, color_mid={area_state.color_mid}"
                     )
 
-            # Get zone-aware config for this area
-            config_dict = glozone.get_effective_config_for_area(area_id)
-            config = Config.from_dict(config_dict)
-
-            # Use frozen_at if set, otherwise current time
-            if area_state.frozen_at is not None:
-                hour = area_state.frozen_at
-                logger.debug(f"Area {area_id} is frozen at hour {hour:.2f}")
-            else:
-                hour = get_current_hour()
-
-            # Get actual sun times for solar rules
-            sun_times = self._get_sun_times()
-
-            # Calculate lighting using area state (respects stepped values)
-            result = CircadianLight.calculate_lighting(
-                hour, config, area_state, sun_times=sun_times
-            )
-
             # --- Compute fade factor (auto on/off gradual transitions) ---
+            # Fade-in: simple multiplier passed to pipeline.
+            # Fade-out: needs a snapshot brightness, applied as post-pipeline override.
             fade_factor = 1.0
-            _fade_out_target = None
+            fade_out_progress = None
+            fade_out_start_bri = None
             fade_note = ""
             if state.is_fading(area_id):
                 progress = state.get_fade_progress(area_id)
@@ -5887,131 +5845,40 @@ class HomeAssistantWebSocketClient:
                         fade_factor = progress
                         fade_note = f" (fade-in {progress:.0%})"
                     elif fade_state and fade_state["fade_direction"] == "out":
-                        start_bri = (
-                            fade_state.get("fade_start_brightness") or result.brightness
-                        )
-                        _fade_out_target = max(
-                            1, int(round(start_bri * (1.0 - progress)))
-                        )
+                        fade_out_progress = progress
+                        fade_out_start_bri = fade_state.get("fade_start_brightness")
                         fade_note = f" (fade-out {1.0 - progress:.0%})"
 
-            # --- Check if area is boosted ---
+            # --- Boost note (builder reads state itself) ---
             boost_note = ""
-            boost_amount = 0
-            is_boosted = state.is_boosted(area_id)
-            if is_boosted:
+            if state.is_boosted(area_id):
                 boost_state = state.get_boost_state(area_id)
                 boost_amount = boost_state.get("boost_brightness") or 0
                 boost_note = f" (boosted +{boost_amount}%)"
 
-            # --- Compute decayed brightness_override ---
-            effective_bri_override = None
-            if area_state.brightness_override is not None:
-                in_ascend, h48, t_ascend, t_descend, _ = CircadianLight.get_phase_info(
-                    hour, config
-                )
-                next_phase = t_descend if in_ascend else t_ascend + 24
-                bri_decay = compute_override_decay(
-                    area_state.brightness_override_set_at,
-                    h48,
-                    next_phase,
-                    t_ascend=t_ascend,
-                )
-                effective_bri_override = area_state.brightness_override * bri_decay
-                if bri_decay <= 0:
-                    # Decay complete — clear override from state
-                    state.update_area(
-                        area_id,
-                        {
-                            "brightness_override": None,
-                            "brightness_override_set_at": None,
-                        },
-                    )
-                    effective_bri_override = None
-                elif log_periodic:
-                    logger.info(
-                        f"[Periodic] Area {area_id}: brightness_override={area_state.brightness_override:.1f} "
-                        f"× decay={bri_decay:.2f} = {effective_bri_override:.1f}"
-                    )
-
-            # --- Compute decayed color_override (slider/button origin only) ---
-            if (
-                area_state.color_override is not None
-                and area_state.color_override_set_at is not None
-            ):
-                in_ascend, h48, t_ascend, t_descend, _ = CircadianLight.get_phase_info(
-                    hour, config
-                )
-                next_phase = t_descend if in_ascend else t_ascend + 24
-                color_decay = compute_override_decay(
-                    area_state.color_override_set_at, h48, next_phase, t_ascend=t_ascend
-                )
-                if color_decay <= 0:
-                    state.update_area(
-                        area_id,
-                        {
-                            "color_override": None,
-                            "color_override_set_at": None,
-                        },
-                    )
-                    area_state = AreaState.from_dict(state.get_area(area_id))
-                elif color_decay < 1.0:
-                    # Build decayed area_state for pipeline
-                    area_state = AreaState(
-                        is_circadian=area_state.is_circadian,
-                        is_on=area_state.is_on,
-                        frozen_at=area_state.frozen_at,
-                        brightness_mid=area_state.brightness_mid,
-                        color_mid=area_state.color_mid,
-                        color_override=area_state.color_override * color_decay,
-                        color_override_set_at=area_state.color_override_set_at,
-                    )
-                    if log_periodic:
-                        logger.info(
-                            f"[Periodic] Area {area_id}: color_override={area_state.color_override:.1f}K "
-                            f"× decay={color_decay:.2f}"
-                        )
-
-            # --- Build PipelineContext and compute ---
-            from pipeline import PipelineContext
-            import pipeline as pipeline_mod
-
-            raw_config = glozone.load_config_from_files()
-            outdoor_norm = lux_tracker.get_outdoor_normalized()
-
-            ctx = PipelineContext(
-                area_id=area_id,
-                hour=hour,
-                config=config,
-                area_state=area_state,
-                sun_times=sun_times,
-                area_factor=glozone.get_area_brightness_factor(area_id),
-                area_filters=glozone.get_area_light_filters(area_id),
-                filter_presets=glozone.get_light_filter_presets(),
-                off_threshold=glozone.get_off_threshold(),
-                sun_exposure=glozone.get_area_natural_light_exposure(area_id),
-                sun_intensity=outdoor_norm if outdoor_norm is not None else 0.0,
-                brightness_override=effective_bri_override,
-                boost_brightness=boost_amount if boost_amount > 0 else None,
-                ct_comp_enabled=raw_config.get("ct_comp_enabled", False),
-                ct_comp_begin=raw_config.get("ct_comp_begin", 1650),
-                ct_comp_end=raw_config.get("ct_comp_end", 2250),
-                ct_comp_factor=raw_config.get("ct_comp_factor", 1.7),
-                transition=periodic_transition,
+            # --- Build context via shared builder + compute pipeline ---
+            ctx = self.primitives.build_pipeline_context_for_area(
+                area_id,
                 fade_factor=fade_factor,
                 dim_factor=dim_factor,
+                transition=periodic_transition,
+                log_decay=log_periodic,
             )
+            import pipeline as pipeline_mod
             pipeline_result = pipeline_mod.compute(ctx)
 
-            # Apply fade-out override (not a simple multiplier — uses start_bri snapshot)
-            if _fade_out_target is not None:
+            # Apply fade-out override (uses snapshot brightness, not a simple multiplier)
+            if fade_out_progress is not None:
+                start_bri = fade_out_start_bri or pipeline_result.area_brightness
+                fade_out_target = max(1, int(round(start_bri * (1.0 - fade_out_progress))))
                 for p in pipeline_result.purposes:
-                    p.brightness = _fade_out_target
-                pipeline_result.area_brightness = _fade_out_target
+                    p.brightness = fade_out_target
+                pipeline_result.area_brightness = fade_out_target
 
             # Log the calculation
+            hour = ctx.hour
             frozen_note = (
-                f" (frozen at {hour:.1f}h)" if area_state.frozen_at is not None else ""
+                f" (frozen at {hour:.1f}h)" if ctx.area_state.frozen_at is not None else ""
             )
             if log_periodic:
                 logger.info(

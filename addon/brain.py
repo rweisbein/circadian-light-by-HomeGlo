@@ -917,7 +917,7 @@ class CircadianLight:
         apply_solar_rules: bool = True,
         sun_times: Optional[SunTimes] = None,
         weekday: Optional[int] = None,
-        sun_color_reduction: float = 0.0,
+        sun_cooling_strength: float = 1.0,
     ) -> int:
         """Calculate color temperature at a specific hour.
 
@@ -925,9 +925,11 @@ class CircadianLight:
             hour: Hour (0-24)
             config: Global configuration
             state: Area runtime state
-            apply_solar_rules: Whether to apply warm night/cool day rules
+            apply_solar_rules: Whether to apply warm night/sun cooling rules
             sun_times: Sun position times for solar rules (if None, uses defaults)
-            sun_color_reduction: 0.0-1.0, reduces daylight color blend (from stepping)
+            sun_cooling_strength: 0.0-1.0 modifier on sun cooling effect.
+                1.0 = full sun cooling (default), 0.0 = sun cooling fully overridden
+                by user step-down. Decreases as user steps below natural curve.
             weekday: Python weekday (0=Mon..6=Sun), None = today
 
         Returns:
@@ -997,7 +999,7 @@ class CircadianLight:
         if apply_solar_rules:
             kelvin = CircadianLight._apply_solar_rules(
                 kelvin, hour, config, state, sun_times,
-                sun_color_reduction=sun_color_reduction,
+                sun_cooling_strength=sun_cooling_strength,
             )
             # Solar rules intentionally push kelvin outside the curve range:
             # warm night pulls down toward warm_night_target,
@@ -1079,13 +1081,13 @@ class CircadianLight:
         config: Config,
         state: AreaState,
         sun_times: Optional[SunTimes] = None,
-        sun_color_reduction: float = 0.0,
+        sun_cooling_strength: float = 1.0,
     ) -> float:
-        """Apply warm night and daylight color blend solar rules.
+        """Apply warm night and sun cooling solar rules.
 
         Warm night pulls color down toward a warm target during nighttime.
-        Daylight blend pushes color up toward daylight_cct based on outdoor
-        intensity (replaces the old time-window cool_day system).
+        Sun cooling pushes color up toward daylight_cct based on outdoor
+        intensity.
 
         Args:
             kelvin: Base color temperature from curve
@@ -1093,7 +1095,9 @@ class CircadianLight:
             config: Global configuration
             state: Area runtime state
             sun_times: Sun position times (if None, uses defaults)
-            sun_color_reduction: 0.0-1.0, reduces daylight blend (from stepping)
+            sun_cooling_strength: 0.0-1.0 modifier on sun cooling effect.
+                1.0 = full sun cooling (default), 0.0 = sun cooling fully overridden
+                by user step-down.
 
         Returns:
             Modified color temperature
@@ -1159,9 +1163,9 @@ class CircadianLight:
                 config.daylight_start,
                 config.daylight_end,
             )
-            # Reduce daylight blend when user steps down (shift_ratio)
-            if sun_color_reduction > 0:
-                blend *= (1.0 - sun_color_reduction)
+            # Sun cooling strength: 1.0 = full effect, < 1.0 when user has
+            # stepped down (allows curve's natural warmth to come through).
+            blend *= sun_cooling_strength
             daylight_target = config.daylight_cct
             if state.color_override and state.color_override < 0 and not slider_color:
                 daylight_target += state.color_override
@@ -1287,7 +1291,7 @@ class CircadianLight:
         state: AreaState,
         sun_times: Optional[SunTimes] = None,
         weekday: Optional[int] = None,
-        sun_color_reduction: float = 0.0,
+        sun_cooling_strength: float = 1.0,
     ) -> LightingResult:
         """Calculate full lighting values at a specific hour.
 
@@ -1297,8 +1301,9 @@ class CircadianLight:
             state: Area runtime state
             sun_times: Sun position times for solar rules (if None, uses defaults)
             weekday: Python weekday (0=Mon..6=Sun), None = today
-            sun_color_reduction: 0.0-1.0, reduces sun (daylight) color blend strength.
-                Computed from stepping shift_ratio: how far user stepped from natural.
+            sun_cooling_strength: 0.0-1.0 modifier on sun cooling effect.
+                1.0 = full effect (default), 0.0 = sun cooling fully overridden by
+                user step-down. Computed from how far user stepped from natural.
 
         Returns:
             LightingResult with brightness, color_temp, rgb, xy, phase
@@ -1310,7 +1315,7 @@ class CircadianLight:
         )
         color_temp = CircadianLight.calculate_color_at_hour(
             hour, config, state, sun_times=sun_times, weekday=weekday,
-            sun_color_reduction=sun_color_reduction,
+            sun_cooling_strength=sun_cooling_strength,
         )
         rgb = CircadianLight.color_temperature_to_rgb(color_temp)
         xy = CircadianLight.color_temperature_to_xy(color_temp)
@@ -1559,8 +1564,8 @@ class CircadianLight:
         # Compute new midpoints based on dimension
         if dimension == "step":
             # Single midpoint for both brightness and color.
-            # Sun color adjustment reduction is handled by the pipeline
-            # via shift_ratio, not by color_override.
+            # Sun cooling reduction is handled by the pipeline via
+            # sun_cooling_strength, not by color_override.
             new_mid = inverse_midpoint(
                 calc_time, target_bri_norm, slope, b_min_norm, b_max_norm
             )

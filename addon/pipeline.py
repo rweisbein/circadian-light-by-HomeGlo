@@ -6,7 +6,7 @@ All entry points funnel through `compute()` which returns a `PipelineResult`.
 Pipeline steps (in order):
   1. Base curve (time + midpoint → rhythm_brightness, rhythm_kelvin)
   2. Night color adjustment (ceiling toward warm target)
-  3. Sun color adjustment (blend toward daylight_cct)
+  3. Sun cooling (blend toward daylight_cct, modulated by sun_cooling_strength)
   4. Color override applied (additive on post-solar kelvin)
   5. Sun bright adjustment (multiplicative: intensity × sensitivity × exposure)
   --- Area-level brightness (steps 6-8) ---
@@ -141,10 +141,11 @@ def compute(ctx: PipelineContext) -> PipelineResult:
         xy = ctx.precomputed_xy or CircadianLight.color_temperature_to_xy(kelvin)
         phase = "precomputed"
     else:
-        # Compute from scratch (periodic tick path)
-        # Compute shift_ratio for sun color reduction:
-        # How far has the user stepped from the natural (unstepped) brightness?
-        sun_color_reduction = 0.0
+        # Compute from scratch (periodic tick / step / toggle paths)
+        # sun_cooling_strength: 0-1 modifier on sun cooling effect.
+        # 1.0 = full sun cooling; decreases as user steps below natural curve
+        # (allows curve's natural warmth to come through when user dims).
+        sun_cooling_strength = 1.0
         if ctx.area_state.brightness_mid is not None:
             natural_bri = CircadianLight.calculate_brightness_at_hour(
                 ctx.hour, ctx.config,
@@ -156,9 +157,10 @@ def compute(ctx: PipelineContext) -> PipelineResult:
                 weekday=ctx.weekday,
             )
             if stepped_bri < natural_bri and natural_bri > ctx.config.min_brightness:
-                sun_color_reduction = min(1.0,
-                    (natural_bri - stepped_bri) / (natural_bri - ctx.config.min_brightness)
+                step_below = (natural_bri - stepped_bri) / (
+                    natural_bri - ctx.config.min_brightness
                 )
+                sun_cooling_strength = max(0.0, 1.0 - step_below)
 
         result = CircadianLight.calculate_lighting(
             ctx.hour,
@@ -166,7 +168,7 @@ def compute(ctx: PipelineContext) -> PipelineResult:
             ctx.area_state,
             sun_times=ctx.sun_times,
             weekday=ctx.weekday,
-            sun_color_reduction=sun_color_reduction,
+            sun_cooling_strength=sun_cooling_strength,
         )
         rhythm_brightness = result.brightness
         rhythm_kelvin = result.color_temp

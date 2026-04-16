@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.15
+- **Fix step_down sun cooling not yielding (multi-area reach path)**: `_compute_pipeline_for_area` (used by reach dispatch in `lights_toggle_multiple` and `_send_via_reach_or_fallback`) used pipeline's precomputed branch, which silently skipped `sun_color_reduction`. Multi-area step-down kept full daylight cooling applied, so lights stayed cold during the day even after stepping down.
+- **A+C refactor**: Introduced single `build_pipeline_context_for_area` builder in primitives.py — one source of truth for constructing PipelineContext from area state. Replaced inline context building in `update_lights_in_circadian_mode`, `lights_toggle_multiple`, and `_send_via_reach_or_fallback`. Future pipeline factors only need to be added in one place.
+- **Rename `sun_color_reduction` → `sun_cooling_strength`** (semantic flip: 1.0 = full sun cooling, 0.0 = fully overridden by user step-down). Variable renamed in pipeline.py, brain.py (`_apply_solar_rules`, `calculate_color_at_hour`, `calculate_lighting`), and area.html. Cleaned up residual `shift_ratio` comments.
+
 ## 1.2.14
 - **Fix toggle-on ignoring brightness_sensitivity (complete)**: Both `send_light` dict path AND `_compute_pipeline_for_area` (used by toggle-on reach dispatch) were using `get_zone_config_for_area` (rhythm-only, missing globals). Now both use `get_effective_config_for_area`. v1.2.13 only fixed `send_light` but toggle goes through `_compute_pipeline_for_area`.
 

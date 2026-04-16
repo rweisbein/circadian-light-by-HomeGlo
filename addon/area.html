@@ -1196,7 +1196,7 @@
       return Math.max(phaseStart + margin, Math.min(phaseEnd - margin, mid));
     }
 
-    function applySolarRule(baseCCT, hour, cfg, sunTimes, colorOverride, sunColorReduction, sliderColor) {
+    function applySolarRule(baseCCT, hour, cfg, sunTimes, colorOverride, sunCoolingStrength, sliderColor) {
       if (!sunTimes) return baseCCT;
 
       let cct = baseCCT;
@@ -1253,8 +1253,8 @@
         const de = wrap24(sunset + endOffsetHrs);
         const dw = getWindowWeight(hour, ds, de, fadeHrs);
         blend *= dw.weight;
-        // Reduce daylight blend when user steps down (shift_ratio)
-        if (sunColorReduction > 0) blend *= (1.0 - sunColorReduction);
+        // Sun cooling strength: 1.0 = full, < 1.0 when user has stepped down
+        blend *= sunCoolingStrength;
         let daylightTarget = daylightCct;
         if (colorOverride && colorOverride < 0 && !sliderColor) {
           daylightTarget += colorOverride;
@@ -1471,9 +1471,9 @@
       }
       normalized = Math.max(0, Math.min(1, normalized));
 
-      // Compute sun_color_reduction (shift_ratio) for this hour
-      // Natural brightness = curve with no midpoint shift
-      let sunColorReduction = 0;
+      // Compute sun_cooling_strength for this hour.
+      // 1.0 = full sun cooling; decreases as user steps below natural curve.
+      let sunCoolingStrength = 1.0;
       if (state.brightness_mid != null) {
         const defaultWakeMid48 = liftMidpointToPhase(cfg.wake_time, tAscend, tDescend);
         const defaultBedMid48 = liftMidpointToPhase(cfg.bed_time, tDescend, tDescend + 24);
@@ -1485,7 +1485,8 @@
           ? logistic(h48, mid48, kAscend, bMin, bMax)
           : logistic(calcH, mid48, -kDescend, bMin, bMax)));
         if (steppedBri < naturalBri && naturalBri > bMin) {
-          sunColorReduction = Math.min(1.0, (naturalBri - steppedBri) / (naturalBri - bMin));
+          const stepBelow = (naturalBri - steppedBri) / (naturalBri - bMin);
+          sunCoolingStrength = Math.max(0.0, 1.0 - stepBelow);
         }
       }
 
@@ -1509,7 +1510,7 @@
 
       let cct = cLow + (cHigh - cLow) * normalized;
       const sliderColor = colorSetAt != null;
-      cct = applySolarRule(cct, hour, cfg, sunTimes, effectiveColorOverride, sunColorReduction, sliderColor);
+      cct = applySolarRule(cct, hour, cfg, sunTimes, effectiveColorOverride, sunCoolingStrength, sliderColor);
 
       return cct;
     }

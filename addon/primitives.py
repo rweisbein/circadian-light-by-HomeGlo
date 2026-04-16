@@ -648,47 +648,177 @@ class CircadianLightPrimitives:
             natural_exposure, outdoor_norm, sensitivity
         )
 
-    def _compute_pipeline_for_area(
-        self, area_id: str, brightness: int, color_temp: int,
-        rhythm_brightness: int = None, brightness_override: float = None,
-        boost_brightness: int = None,
+    def build_pipeline_context_for_area(
+        self,
+        area_id: str,
+        *,
+        fade_factor: float = 1.0,
+        dim_factor: float = 1.0,
+        transition: float = 0.5,
+        weekday: Optional[int] = None,
+        log_decay: bool = False,
     ):
-        """Compute a PipelineResult for an area with precomputed curve values.
+        """Build a PipelineContext for an area from current state.
 
-        Used by reach dispatch and other multi-area coordinators that already
-        have base curve values and need pipeline to apply sun bright, filters,
-        CT comp, etc.
+        Single source of truth — always reads from area_state and computes
+        the curve from scratch. NEVER use precomputed_* for curve-driven
+        delivery; that path silently bypasses sun_cooling_strength and other
+        curve-stage factors.
+
+        Side effects: clears expired brightness_override / color_override
+        from state when their decay reaches 0.
+
+        Args:
+            area_id: The area ID
+            fade_factor: Multiplicative fade (auto on/off transitions)
+            dim_factor: Multiplicative warning dim (motion warning)
+            transition: Light command transition time
+            weekday: Optional weekday override (None = today)
+            log_decay: Whether to log override decay calculations
+
+        Returns:
+            PipelineContext ready for pipeline.compute(). Never None
+            (caller is responsible for skipping if area shouldn't be processed).
         """
         import lux_tracker
         from pipeline import PipelineContext
-        import pipeline as pipeline_mod
 
-        raw_config = glozone.load_config_from_files()
+        # Config (effective = rhythm + globals like brightness_sensitivity)
+        config_dict = glozone.get_effective_config_for_area(area_id)
+        config = Config.from_dict(config_dict)
+
+        # Area state (includes stepped midpoints, overrides, frozen_at)
+        area_state = self._get_area_state(area_id)
+
+        # Hour (frozen_at if set, else current)
+        hour = (
+            area_state.frozen_at
+            if area_state.frozen_at is not None
+            else get_current_hour()
+        )
+
+        # Sun times for solar rules
+        sun_times = (
+            self.client._get_sun_times()
+            if hasattr(self.client, "_get_sun_times")
+            else None
+        ) or SunTimes()
+
+        # Decayed brightness override
+        effective_bri_override = None
+        if area_state.brightness_override is not None:
+            in_ascend, h48, t_ascend, t_descend, _ = CircadianLight.get_phase_info(
+                hour, config
+            )
+            next_phase = t_descend if in_ascend else t_ascend + 24
+            bri_decay = compute_override_decay(
+                area_state.brightness_override_set_at,
+                h48,
+                next_phase,
+                t_ascend=t_ascend,
+            )
+            effective_bri_override = area_state.brightness_override * bri_decay
+            if bri_decay <= 0:
+                state.update_area(
+                    area_id,
+                    {
+                        "brightness_override": None,
+                        "brightness_override_set_at": None,
+                    },
+                )
+                effective_bri_override = None
+            elif log_decay:
+                logger.info(
+                    f"[Pipeline] Area {area_id}: brightness_override="
+                    f"{area_state.brightness_override:.1f} × decay={bri_decay:.2f} "
+                    f"= {effective_bri_override:.1f}"
+                )
+
+        # Decayed color override (and adjust area_state if decayed)
+        if (
+            area_state.color_override is not None
+            and area_state.color_override_set_at is not None
+        ):
+            in_ascend, h48, t_ascend, t_descend, _ = CircadianLight.get_phase_info(
+                hour, config
+            )
+            next_phase = t_descend if in_ascend else t_ascend + 24
+            color_decay = compute_override_decay(
+                area_state.color_override_set_at,
+                h48,
+                next_phase,
+                t_ascend=t_ascend,
+            )
+            if color_decay <= 0:
+                state.update_area(
+                    area_id,
+                    {
+                        "color_override": None,
+                        "color_override_set_at": None,
+                    },
+                )
+                area_state = self._get_area_state(area_id)
+            elif color_decay < 1.0:
+                area_state = AreaState(
+                    is_circadian=area_state.is_circadian,
+                    is_on=area_state.is_on,
+                    frozen_at=area_state.frozen_at,
+                    brightness_mid=area_state.brightness_mid,
+                    color_mid=area_state.color_mid,
+                    color_override=area_state.color_override * color_decay,
+                    color_override_set_at=area_state.color_override_set_at,
+                )
+                if log_decay:
+                    logger.info(
+                        f"[Pipeline] Area {area_id}: color_override="
+                        f"{area_state.color_override:.1f}K × decay={color_decay:.2f}"
+                    )
+
+        # Boost
+        boost_amount = 0
+        if state.is_boosted(area_id):
+            boost_state = state.get_boost_state(area_id)
+            boost_amount = boost_state.get("boost_brightness") or 0
+
+        # Sun intensity
         outdoor_norm = lux_tracker.get_outdoor_normalized()
-        zone_cfg = glozone.get_effective_config_for_area(area_id)
 
-        ctx = PipelineContext(
+        # Raw config for CT comp
+        raw_config = glozone.load_config_from_files()
+
+        return PipelineContext(
             area_id=area_id,
-            hour=0.0,
-            config=Config.from_dict(zone_cfg),
-            area_state=AreaState(is_circadian=True, is_on=True),
-            sun_times=SunTimes(),
+            hour=hour,
+            config=config,
+            area_state=area_state,
+            sun_times=sun_times,
             area_factor=glozone.get_area_brightness_factor(area_id),
             area_filters=glozone.get_area_light_filters(area_id),
             filter_presets=glozone.get_light_filter_presets(),
             off_threshold=glozone.get_off_threshold(),
             sun_exposure=glozone.get_area_natural_light_exposure(area_id),
             sun_intensity=outdoor_norm if outdoor_norm is not None else 0.0,
-            brightness_override=brightness_override,
-            boost_brightness=boost_brightness,
+            brightness_override=effective_bri_override,
+            boost_brightness=boost_amount if boost_amount > 0 else None,
             ct_comp_enabled=raw_config.get("ct_comp_enabled", False),
             ct_comp_begin=raw_config.get("ct_comp_begin", 1650),
             ct_comp_end=raw_config.get("ct_comp_end", 2250),
             ct_comp_factor=raw_config.get("ct_comp_factor", 1.7),
-            precomputed_brightness=brightness,
-            precomputed_kelvin=color_temp,
-            precomputed_rhythm_brightness=rhythm_brightness or brightness,
+            transition=transition,
+            weekday=weekday,
+            fade_factor=fade_factor,
+            dim_factor=dim_factor,
         )
+
+    def compute_pipeline_for_area(self, area_id: str, **builder_kwargs):
+        """Build context and compute pipeline result for an area.
+
+        Convenience wrapper for callers that just need a PipelineResult.
+        See build_pipeline_context_for_area for kwargs.
+        """
+        import pipeline as pipeline_mod
+
+        ctx = self.build_pipeline_context_for_area(area_id, **builder_kwargs)
         return pipeline_mod.compute(ctx)
 
     def _compute_current_actual(self, area_id: str) -> float:
@@ -1498,7 +1628,8 @@ class CircadianLightPrimitives:
                 self.cancel_fade(area_id, source=source or "toggle_on")
                 state.mark_user_action(area_id)
 
-            # Compute pipeline results for all areas
+            # Compute pipeline results for all areas via shared builder
+            # (applies sun_cooling_strength, brightness_sensitivity, etc.)
             area_pipeline_results = {}
             for area_id in area_ids:
                 if not glozone.is_area_in_any_zone(area_id):
@@ -1506,29 +1637,8 @@ class CircadianLightPrimitives:
                     logger.info(f"Added area {area_id} to default zone")
 
                 state.enable_circadian_and_set_on(area_id, True)
-
-                config = self._get_config(area_id)
-                area_state = self._get_area_state(area_id)
-                hour = (
-                    area_state.frozen_at
-                    if area_state.frozen_at is not None
-                    else get_current_hour()
-                )
-
-                result = CircadianLight.calculate_lighting(
-                    hour, config, area_state, sun_times=sun_times
-                )
-                effective_override = self._get_decayed_brightness_override(area_id)
-                boost = None
-                if state.is_boosted(area_id):
-                    boost_st = state.get_boost_state(area_id)
-                    boost = boost_st.get("boost_brightness") or None
-
-                area_pipeline_results[area_id] = self._compute_pipeline_for_area(
-                    area_id, result.brightness, result.color_temp,
-                    rhythm_brightness=result.brightness,
-                    brightness_override=effective_override,
-                    boost_brightness=boost,
+                area_pipeline_results[area_id] = self.compute_pipeline_for_area(
+                    area_id, transition=transition,
                 )
 
             # Try reach groups (greedy largest-first)
