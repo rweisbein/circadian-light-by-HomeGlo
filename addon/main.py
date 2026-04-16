@@ -2985,7 +2985,11 @@ class HomeAssistantWebSocketClient:
                     switches.stop_hold(switch_id)
                     return
 
-                # Then repeat at interval (with safety timeout)
+                # Then repeat at interval (with safety timeout).
+                # Interval = time between step starts, not between step ends.
+                # Sleep accounts for delivery time so steps fire at consistent rate.
+                interval_s = interval_ms / 1000.0
+                next_sleep = interval_s
                 while switches.is_holding(switch_id):
                     if time.time() - start_time > max_hold_seconds:
                         logger.warning(
@@ -2993,9 +2997,12 @@ class HomeAssistantWebSocketClient:
                         )
                         switches.stop_hold(switch_id)
                         break
-                    await asyncio.sleep(interval_ms / 1000.0)
+                    await asyncio.sleep(next_sleep)
                     if switches.is_holding(switch_id):
+                        exec_start = time.time()
                         result = await self._coalesced_execute(switch_id, action)
+                        exec_time = time.time() - exec_start
+                        next_sleep = max(0, interval_s - exec_time)
                         if result == "at_limit":
                             switches.stop_hold(switch_id)
                             break

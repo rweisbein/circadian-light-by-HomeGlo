@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.17
+- **Fix long-press repeat interval**: Interval now measures step-to-step (not end-to-start). Subtracts delivery time from next sleep so steps fire at the configured rate regardless of how long ZHA delivery takes.
+
 ## 1.2.16
 - **Fix Hue dimmer zombie repeats after release**: Cluster 8 "stop" (release signal) was being filtered by the Hue duplicate-press filter. Dimming continued 3-4s after button release until the slower cluster 64512 long_release arrived. Now "stop" events pass through the filter.
 - **Coalesce rapid switch actions**: Per-switch depth-1 queue with cumulative steps. When ZHA delivery is slow and actions queue up, intermediate actions are merged into one delivery with accumulated step count. Works for step_up/down, bright_up/down, color_up/down, and rapid short presses.
