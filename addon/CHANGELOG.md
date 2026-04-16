@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.16
+- **Fix Hue dimmer zombie repeats after release**: Cluster 8 "stop" (release signal) was being filtered by the Hue duplicate-press filter. Dimming continued 3-4s after button release until the slower cluster 64512 long_release arrived. Now "stop" events pass through the filter.
+- **Coalesce rapid switch actions**: Per-switch depth-1 queue with cumulative steps. When ZHA delivery is slow and actions queue up, intermediate actions are merged into one delivery with accumulated step count. Works for step_up/down, bright_up/down, color_up/down, and rapid short presses.
+- **Skip identical user-action deliveries**: When pipeline output matches last-sent values (e.g., at curve limit), skip ZHA delivery for user actions. Periodic tick (30s + 3s catch-up) always sends to catch missed calls.
+
 ## 1.2.15
 - **Fix step_down sun cooling not yielding (multi-area reach path)**: `_compute_pipeline_for_area` (used by reach dispatch in `lights_toggle_multiple` and `_send_via_reach_or_fallback`) used pipeline's precomputed branch, which silently skipped `sun_color_reduction`. Multi-area step-down kept full daylight cooling applied, so lights stayed cold during the day even after stepping down.
 - **A+C refactor**: Introduced single `build_pipeline_context_for_area` builder in primitives.py — one source of truth for constructing PipelineContext from area state. Replaced inline context building in `update_lights_in_circadian_mode`, `lights_toggle_multiple`, and `_send_via_reach_or_fallback`. Future pipeline factors only need to be added in one place.

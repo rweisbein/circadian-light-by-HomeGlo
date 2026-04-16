@@ -171,6 +171,11 @@ class HomeAssistantWebSocketClient:
         # Hold repeat task for ramping
         self._hold_repeat_task: Optional[asyncio.Task] = None
 
+        # Coalesce queue: when a switch action fires while the previous is
+        # still delivering to ZHA, accumulate pending steps instead of queuing.
+        self._switch_executing: Dict[str, bool] = {}  # switch_id -> True
+        self._switch_pending: Dict[str, Dict[str, Any]] = {}  # switch_id -> {action, steps}
+
         # Multi-click detection state for Hue Hub switches
         # Key: (switch_id, button) -> {"count": int, "timer": Optional[asyncio.Task]}
         self._multi_click_state: Dict[tuple, Dict[str, Any]] = {}
@@ -1133,17 +1138,23 @@ class HomeAssistantWebSocketClient:
         # - Cluster 6 (On/Off) for ON/OFF buttons
         # - Cluster 8 (Level Control) for UP/DOWN buttons
         # - Cluster 64512 (Hue proprietary) for ALL buttons with detailed info
-        # We only want to handle cluster 64512 to avoid double-firing
+        # We only want to handle cluster 64512 to avoid double-firing.
+        # Exception: cluster 8 "stop" (release after long-press) must get through
+        # because cluster 64512's long_release can arrive 3-4s late.
+        command_lower = (command or "").lower()
         if switch_config.type in (
             "hue_dimmer",
             "hue_4button_v1",
             "hue_4button_v2",
             "hue_smart_button",
         ) and cluster_id in (5, 6, 8):
-            logger.debug(
-                f"Ignoring cluster {cluster_id} event for Hue dimmer (will use cluster 64512)"
-            )
-            return
+            if cluster_id == 8 and command_lower in ("stop", "stop_with_on_off"):
+                pass  # Let stop through — it's the prompt release signal
+            else:
+                logger.debug(
+                    f"Ignoring cluster {cluster_id} event for Hue dimmer (will use cluster 64512)"
+                )
+                return
 
         # Handle dial/rotary devices (e.g., Lutron Aurora) — relative mode
         # The dial reports absolute 0-255 positions, but we convert to relative
@@ -1233,10 +1244,10 @@ class HomeAssistantWebSocketClient:
 
             if was_holding:
                 if action:
-                    await self._execute_switch_action(device_ieee, action)
+                    await self._coalesced_execute(device_ieee, action)
             elif "_short_release" in button_event:
                 if action:
-                    await self._execute_switch_action(device_ieee, action)
+                    await self._coalesced_execute(device_ieee, action)
             return
 
         if action is None:
@@ -1375,7 +1386,7 @@ class HomeAssistantWebSocketClient:
             was_holding = switches.is_holding(switch_config.id)
             await self._stop_hold_repeat(switch_config.id)
             if action:
-                await self._execute_switch_action(switch_config.id, action)
+                await self._coalesced_execute(switch_config.id, action)
             return
 
         if action is None:
@@ -1413,7 +1424,7 @@ class HomeAssistantWebSocketClient:
                 await self._stop_hold_repeat(switch_config.id)
                 # Execute the release action if any
                 if action:
-                    await self._execute_switch_action(switch_config.id, action)
+                    await self._coalesced_execute(switch_config.id, action)
             elif self._is_multi_click_enabled():
                 # Multi-click detection enabled - track clicks and wait
                 button_map = {1: "on", 2: "up", 3: "down", 4: "off"}
@@ -1758,18 +1769,21 @@ class HomeAssistantWebSocketClient:
                     continue  # Fully handled by reach
             tasks.append(
                 self.send_light(
-                    area_id, transition=transition, pipeline_result=pipe_result
+                    area_id, transition=transition, pipeline_result=pipe_result,
+                    skip_if_identical=True,
                 )
             )
         if tasks:
             await asyncio.gather(*tasks)
 
-    async def _execute_switch_action(self, switch_id: str, action) -> str:
+    async def _execute_switch_action(self, switch_id: str, action, *, steps_override: int = None) -> str:
         """Execute a switch action.
 
         Args:
             switch_id: The switch IEEE address
             action: The action to execute - string or {action, when_off} dict
+            steps_override: If set, overrides the step count extracted from
+                the action name. Used by coalesce queue to accumulate steps.
 
         Returns:
             "at_limit" if the action hit a brightness/step limit, "ok" otherwise.
@@ -1845,7 +1859,7 @@ class HomeAssistantWebSocketClient:
 
         elif main_action in ("step_up", "step_up_2", "step_up_3"):
             # Step up only if lights are on AND in circadian mode
-            step_count = (
+            step_count = steps_override or (
                 int(main_action.split("_")[-1]) if main_action[-1].isdigit() else 1
             )
             any_on_circadian = any(
@@ -1893,7 +1907,7 @@ class HomeAssistantWebSocketClient:
 
         elif main_action in ("step_down", "step_down_2", "step_down_3"):
             # Step down only if lights are on AND in circadian mode
-            step_count = (
+            step_count = steps_override or (
                 int(main_action.split("_")[-1]) if main_action[-1].isdigit() else 1
             )
             any_on_circadian = any(
@@ -1947,7 +1961,7 @@ class HomeAssistantWebSocketClient:
             "bright_up_5",
         ):
             # Bright up only if lights are on AND in circadian mode
-            step_count = (
+            step_count = steps_override or (
                 int(main_action.split("_")[-1]) if main_action[-1].isdigit() else 1
             )
             any_on_circadian = any(
@@ -2002,7 +2016,7 @@ class HomeAssistantWebSocketClient:
             "bright_down_5",
         ):
             # Bright down only if lights are on AND in circadian mode
-            step_count = (
+            step_count = steps_override or (
                 int(main_action.split("_")[-1]) if main_action[-1].isdigit() else 1
             )
             any_on_circadian = any(
@@ -2051,6 +2065,7 @@ class HomeAssistantWebSocketClient:
 
         elif main_action == "color_up":
             # Color up only if lights are on AND in circadian mode
+            color_steps = steps_override or 1
             any_on_circadian = any(
                 state.is_circadian(area) and state.get_is_on(area) for area in areas
             )
@@ -2058,7 +2073,7 @@ class HomeAssistantWebSocketClient:
                 if self._can_use_reach(areas):
                     await asyncio.gather(
                         *[
-                            self.primitives.color_up(a, "switch", send_command=False)
+                            self.primitives.color_up(a, "switch", steps=color_steps, send_command=False)
                             for a in areas
                         ]
                     )
@@ -2069,7 +2084,7 @@ class HomeAssistantWebSocketClient:
                     multi = len(areas) > 1
                     results = await asyncio.gather(
                         *[
-                            self.primitives.color_up(area, "switch", skip_bounce=multi)
+                            self.primitives.color_up(area, "switch", steps=color_steps, skip_bounce=multi)
                             for area in areas
                         ]
                     )
@@ -2092,6 +2107,7 @@ class HomeAssistantWebSocketClient:
 
         elif main_action == "color_down":
             # Color down only if lights are on AND in circadian mode
+            color_steps = steps_override or 1
             any_on_circadian = any(
                 state.is_circadian(area) and state.get_is_on(area) for area in areas
             )
@@ -2099,7 +2115,7 @@ class HomeAssistantWebSocketClient:
                 if self._can_use_reach(areas):
                     await asyncio.gather(
                         *[
-                            self.primitives.color_down(a, "switch", send_command=False)
+                            self.primitives.color_down(a, "switch", steps=color_steps, send_command=False)
                             for a in areas
                         ]
                     )
@@ -2111,7 +2127,7 @@ class HomeAssistantWebSocketClient:
                     results = await asyncio.gather(
                         *[
                             self.primitives.color_down(
-                                area, "switch", skip_bounce=multi
+                                area, "switch", steps=color_steps, skip_bounce=multi
                             )
                             for area in areas
                         ]
@@ -2875,8 +2891,69 @@ class HomeAssistantWebSocketClient:
         except Exception as e:
             logger.error(f"Error in dial debounce: {e}", exc_info=True)
 
+    async def _coalesced_execute(self, switch_id: str, action, steps: int = 1) -> str:
+        """Execute a switch action with coalescing.
+
+        If the switch is already executing an adjustment action (step/bright/color),
+        accumulates the new action as pending instead of queuing. When the current
+        execution finishes, processes the pending action with cumulative steps.
+
+        This prevents:
+        - Zombie dimming after button release (commands drain faster)
+        - Redundant multi-area ZHA deliveries (one delivery per coalesced batch)
+        - Slow response to rapid short presses (5× bright_up → 1 + 4 steps)
+
+        Non-adjustment actions (toggle, set_nitelite, etc.) bypass coalescing.
+        """
+        main_action = action
+        if isinstance(action, dict):
+            main_action = action.get("action")
+
+        is_coalescable = main_action in switches.ADJUSTMENT_ACTIONS
+
+        if is_coalescable and switch_id in self._switch_executing:
+            # Already executing — coalesce into pending
+            pending = self._switch_pending.get(switch_id)
+            if pending and pending.get("action_key") == main_action:
+                pending["steps"] += steps
+            else:
+                self._switch_pending[switch_id] = {
+                    "action": action,
+                    "action_key": main_action,
+                    "steps": steps,
+                }
+            logger.debug(
+                f"Coalesced {main_action} for {switch_id} "
+                f"(pending steps={self._switch_pending[switch_id]['steps']})"
+            )
+            return "coalesced"
+
+        # Execute now
+        self._switch_executing[switch_id] = True
+        try:
+            result = await self._execute_switch_action(
+                switch_id, action,
+                steps_override=steps if steps > 1 else None,
+            )
+
+            # Drain pending (at most one batch)
+            while switch_id in self._switch_pending:
+                pending = self._switch_pending.pop(switch_id)
+                result = await self._execute_switch_action(
+                    switch_id,
+                    pending["action"],
+                    steps_override=pending["steps"],
+                )
+        finally:
+            self._switch_executing.pop(switch_id, None)
+
+        return result
+
     async def _start_hold_repeat(self, switch_id: str, action: str) -> None:
         """Start repeating an action while button is held.
+
+        Uses coalesced execution: if ZHA delivery is slow, intermediate
+        repeats are accumulated and processed as one cumulative step.
 
         Args:
             switch_id: The switch IEEE address
@@ -2903,7 +2980,7 @@ class HomeAssistantWebSocketClient:
             try:
                 start_time = time.time()
                 # Execute immediately first
-                result = await self._execute_switch_action(switch_id, action)
+                result = await self._coalesced_execute(switch_id, action)
                 if result == "at_limit":
                     switches.stop_hold(switch_id)
                     return
@@ -2918,7 +2995,7 @@ class HomeAssistantWebSocketClient:
                         break
                     await asyncio.sleep(interval_ms / 1000.0)
                     if switches.is_holding(switch_id):
-                        result = await self._execute_switch_action(switch_id, action)
+                        result = await self._coalesced_execute(switch_id, action)
                         if result == "at_limit":
                             switches.stop_hold(switch_id)
                             break
@@ -3218,6 +3295,7 @@ class HomeAssistantWebSocketClient:
         xy: tuple = None,
         log_periodic: bool = True,
         pipeline_result=None,
+        skip_if_identical: bool = False,
     ) -> None:
         """Turn on lights with circadian values - the single source of truth for light control.
 
@@ -3243,6 +3321,10 @@ class HomeAssistantWebSocketClient:
             color_temp: Color temperature in Kelvin (alternative to dict)
             xy: Pre-computed CIE xy coordinates (optional, computed from color_temp if not provided)
             pipeline_result: Pre-computed PipelineResult — bypasses all inline computation
+            skip_if_identical: If True, skip ZHA delivery when area_brightness and
+                area_kelvin match last-sent values. Used for user actions (step/bright/color)
+                where the periodic tick will catch any missed deliveries within ~3s.
+                NEVER set for periodic tick calls.
         """
         # Record non-periodic light action for defer + refresh
         if not self._in_periodic_tick:
@@ -3250,6 +3332,22 @@ class HomeAssistantWebSocketClient:
 
         # --- Pipeline-driven path: all computation already done ---
         if pipeline_result is not None:
+            # Skip delivery if values haven't changed (e.g., at curve limit)
+            if skip_if_identical:
+                last_bri = state.get_last_sent_brightness(area_id)
+                last_kelvin = state.get_last_sent_kelvin(area_id)
+                if (
+                    last_bri is not None
+                    and last_kelvin is not None
+                    and last_bri == pipeline_result.area_brightness
+                    and last_kelvin == pipeline_result.area_kelvin
+                ):
+                    logger.debug(
+                        f"Skipping identical delivery for {area_id}: "
+                        f"{last_bri}%, {last_kelvin}K (periodic tick will catch up)"
+                    )
+                    return
+
             _prev_kelvin = state.get_last_sent_kelvin(area_id)
             if pipeline_result.area_kelvin is not None:
                 state.set_last_sent_kelvin(area_id, pipeline_result.area_kelvin)
