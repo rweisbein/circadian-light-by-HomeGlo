@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.22
+- **Fix fade target using stale frozen hour**: `compute_fade_target` used the actual area's frozen_at hour for the pipeline context, even for unfrozen targets like circadian. When fading from nitelite (frozen at 3am), the circadian target was computed at 3am (curve minimum) instead of current time — producing the same values as the start. Now uses current time for unfrozen targets.
+
 ## 1.2.21
 - **Fix auto-on/off firing on save**: `clear_auto_fired_for` now re-marks as fired if trigger time already passed today (uses same `_resolve_auto_time` as the scheduler). Removed redundant mark logic from webserver save handler. Prevents catch-up fire when configuring schedules.
 - **Home page zone/area styling**: Zone phase label aligned with area slider right edge. Reduced bed/wake text size (zone 0.9rem, area 0.82rem) — color/opacity provides prominence. Status row left-aligned with slider.

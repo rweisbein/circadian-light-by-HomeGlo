@@ -857,13 +857,17 @@ class CircadianLightPrimitives:
             # circadian: default curve, no midpoints, no overrides
             synthetic_state = AreaState(is_circadian=True, is_on=True)
 
-        # Build context with synthetic state
+        # Build context with synthetic state.
+        # IMPORTANT: override BOTH area_state AND hour. The builder reads
+        # hour from actual area_state.frozen_at, which may be stale (e.g.,
+        # area is frozen at nitelite's ascend_start). The target should use
+        # either the synthetic frozen_at or the current time.
         ctx = self.build_pipeline_context_for_area(area_id)
-        # Override the area_state with our synthetic one
         ctx.area_state = synthetic_state
-        # For frozen presets, override the hour too
         if synthetic_state.frozen_at is not None:
             ctx.hour = synthetic_state.frozen_at
+        else:
+            ctx.hour = get_current_hour()
 
         result = pipeline_mod.compute(ctx)
         return (result.area_brightness, result.area_kelvin)
