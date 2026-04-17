@@ -2554,12 +2554,44 @@ class CircadianLightPrimitives:
         self._save_auto_fired()
 
     def clear_auto_fired_for(self, area_id: str, prefix: str):
-        """Clear fired state for a specific area/prefix (called when settings change)."""
+        """Clear fired state for a specific area/prefix, then re-mark if
+        trigger time already passed today.
+
+        Called when settings change (save handler, enable toggle). Uses the
+        same _resolve_auto_time logic as check_auto_schedules to ensure
+        consistent behavior.
+        """
+        from datetime import date as date_cls
+
         area_fired = self._auto_fired.get(area_id)
         if area_fired and prefix in area_fired:
             del area_fired[prefix]
-            self._save_auto_fired()
-            logger.info(f"[auto] Cleared {prefix} fired state for {area_id}")
+
+        # Re-mark if trigger time already passed today — prevents catch-up fire
+        # when user is configuring the schedule
+        try:
+            config = glozone.get_config()
+            settings = config.get("area_settings", {}).get(area_id, {})
+            if settings.get(f"{prefix}_enabled"):
+                now = datetime.now()
+                current_hour = now.hour + now.minute / 60.0 + now.second / 3600.0
+                current_weekday = now.weekday()
+                trigger_time = self._resolve_auto_time(
+                    settings, prefix, current_weekday
+                )
+                if trigger_time is not None and current_hour >= trigger_time:
+                    self._auto_fired.setdefault(area_id, {})[prefix] = {
+                        "date": date_cls.today().isoformat(),
+                        "time": trigger_time,
+                    }
+                    logger.info(
+                        f"[auto] Re-marked {prefix} as fired for {area_id} "
+                        f"(trigger {trigger_time:.2f} already passed)"
+                    )
+        except Exception as e:
+            logger.warning(f"[auto] Error re-marking fired state: {e}")
+
+        self._save_auto_fired()
 
     def _get_auto_fired_file(self) -> str:
         data_dir = os.environ.get("CIRCADIAN_DATA_DIR", "/config/circadian-light")
