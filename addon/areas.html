@@ -2565,6 +2565,17 @@
       return '';
     }
 
+    function resolveEffectiveTime(zc, phase) {
+      // Resolve effective wake/bed time considering alt days
+      const wd = (new Date().getDay() + 6) % 7; // JS Sun=0 → Python Mon=0
+      const altDays = phase === 'wake' ? (zc.wake_alt_days || []) : (zc.bed_alt_days || []);
+      const altTime = phase === 'wake' ? zc.wake_alt_time : zc.bed_alt_time;
+      if (altTime != null && altDays.includes(wd)) {
+        return altTime;
+      }
+      return phase === 'wake' ? zc.wake_time : zc.bed_time;
+    }
+
     function getZonePhaseMidpoint(zoneName, areasInZone) {
       // Get phase from any area in the zone
       const anyArea = areasInZone.find(a => areaStatus[a.area_id]?.phase);
@@ -2572,7 +2583,7 @@
       const phase = areaStatus[anyArea.area_id].phase;
       const zc = cachedGlozones?.zones?.[zoneName];
       if (!zc) return '';
-      const mid = phase === 'wake' ? zc.wake_time : zc.bed_time;
+      const mid = resolveEffectiveTime(zc, phase);
       if (mid == null) return '';
       const label = phase === 'wake' ? 'Wake' : 'Bed';
       const time = formatDecimalHour(mid);
@@ -2595,11 +2606,11 @@
       const midpoint = status.phase_midpoint;
       if (!phase || midpoint == null) return '';
 
-      // Compare to zone default — only show if different
+      // Compare to zone default (alt-day aware) — only show if different
       const zoneName = area.zone_name || status.zone_name;
       if (zoneName && cachedGlozones?.zones?.[zoneName]) {
         const zc = cachedGlozones.zones[zoneName];
-        const zoneDefault = phase === 'wake' ? zc.wake_time : zc.bed_time;
+        const zoneDefault = resolveEffectiveTime(zc, phase);
         if (zoneDefault != null && Math.abs(midpoint - zoneDefault) < 0.05) {
           return ''; // matches zone default, don't show
         }
