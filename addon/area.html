@@ -3620,6 +3620,55 @@
         boostBrightness: status.boost_brightness || 0,
       });
 
+      // ── Brightness & Lights card ──
+      const brightnessCard = document.getElementById('tune-brightness-card');
+      const briExpanded = false; // always start collapsed
+      let bhtml = '<div class="tune-brightness-header" onclick="toggleBrightnessBody()">';
+      bhtml += '<span class="tune-brightness-chevron" id="tune-brightness-chevron">&#x203A;</span>';
+      bhtml += '<span class="tune-brightness-title">Brightness & Lights</span>';
+      bhtml += '<span class="tune-brightness-val" id="tune-brightness-header-val">--</span>';
+      bhtml += '</div>';
+      bhtml += '<div class="tune-brightness-body" id="tune-brightness-body">';
+      bhtml += '<div class="tune-bk-row" style="padding-left:14px;"><span class="tune-bk-label">Curve</span>'
+        + '<span class="tune-bk-total" id="tune-det-base-total">' + baseBri + '%</span></div>';
+      bhtml += '<div class="tune-group-label">Area Adjustments</div>';
+      // Solar exposure with inline slider
+      bhtml += '<div class="tune-control-row"><span class="tune-control-left"><span class="tune-control-label">Solar exposure</span>'
+        + '<span class="tune-control-reset" id="tune-reset-solar">reset</span></span>'
+        + '<span class="tune-control-impact" id="tune-det-solar-val"></span></div>';
+      bhtml += '<div class="tune-source-info" id="tune-source-info"></div>';
+      bhtml += '<div class="tune-slider-row">'
+        + '<input type="range" class="tune-inline-slider tune-inline-slider--sun" id="tune-slider-solar" min="0" max="9" step="1" value="' + solarStep + '">'
+        + '<span class="tune-slider-word" id="tune-solar-word"><span>' + SOLAR_STEPS[solarStep].label + '</span></span></div>';
+      // Room Balance with inline slider
+      bhtml += '<div class="tune-control-row"><span class="tune-control-left"><span class="tune-control-label">Room balance</span>'
+        + '<span class="tune-control-reset" id="tune-reset-lumen">reset</span></span>'
+        + '<span class="tune-control-impact" id="tune-det-lumen-val"></span></div>';
+      bhtml += '<div class="tune-slider-row">'
+        + '<input type="range" class="tune-inline-slider tune-inline-slider--light" id="tune-slider-lumen" min="0" max="8" step="1" value="' + lumenStep + '">'
+        + '<span class="tune-slider-word" id="tune-lumen-word">' + LUMEN_STEPS[lumenStep].label + (function(f){ if(Math.abs(f-1)<0.005) return ''; var p=Math.round((f-1)*100); return (p>0?' +':' ')+p+'%'; })(factor) + '</span></div>';
+      bhtml += '<div class="tune-bk-row" id="tune-det-override-row"><span class="tune-bk-label" id="tune-det-override-label">User brightened</span>'
+        + '<span class="tune-bk-total" id="tune-det-override-val">0%</span></div>';
+      bhtml += '<div class="tune-bk-row"><span class="tune-bk-label">Boost</span>'
+        + '<span class="tune-bk-total" id="tune-det-boost-val">0%</span></div>';
+      bhtml += '<div class="tune-bk-row" id="tune-det-dim-row"><span class="tune-bk-label">Dimming</span>'
+        + '<span class="tune-bk-total" id="tune-det-dim-val">0%</span></div>';
+      bhtml += '<div class="tune-bk-row"><span class="tune-bk-label" id="tune-det-fade-label">Auto-on fade</span>'
+        + '<span class="tune-bk-total" id="tune-det-fade-val">0%</span></div>';
+      bhtml += '<div class="tune-area-total"><div class="tune-bk-row" style="padding-left:14px;"><span class="tune-bk-label primary">Area Brightness</span>'
+        + '<span class="tune-bk-total final" id="tune-det-final-val">--</span></div></div>';
+      bhtml += '<div class="section-action-bar" id="tune-action-bar" style="display:none;">';
+      bhtml += '<button class="section-cancel-btn" onclick="cancelBrightnessChanges()">Cancel</button>';
+      bhtml += '<button class="section-save-btn" onclick="saveBrightnessChanges()">Save</button>';
+      bhtml += '</div>';
+      // Per-Light sub-section (merged from separate Lights card)
+      bhtml += '<div id="tune-lights-inline"></div>';
+      bhtml += '</div>';
+      brightnessCard.innerHTML = bhtml;
+
+      // Set initial expanded state
+      if (briExpanded) brightnessCard.classList.add('is-open');
+
       // ── Per-Light sub-section (inside Brightness & Lights card) ──
       const lightsCard = document.getElementById('tune-lights-inline');
       let lhtml = '<div class="tune-group-label" style="margin-top:8px;">Per-Light</div>';
@@ -3691,55 +3740,6 @@
       // Hide the separate lights card (content is now inside brightness card)
       const separateLightsCard = document.getElementById('tune-lights-card');
       if (separateLightsCard) separateLightsCard.style.display = 'none';
-
-      // ── Brightness card (merged) ──
-      const brightnessCard = document.getElementById('tune-brightness-card');
-      const briExpanded = false; // always start collapsed
-      let bhtml = '<div class="tune-brightness-header" onclick="toggleBrightnessBody()">';
-      bhtml += '<span class="tune-brightness-chevron" id="tune-brightness-chevron">&#x203A;</span>';
-      bhtml += '<span class="tune-brightness-title">Brightness & Lights</span>';
-      bhtml += '<span class="tune-brightness-val" id="tune-brightness-header-val">--</span>';
-      bhtml += '</div>';
-      bhtml += '<div class="tune-brightness-body" id="tune-brightness-body">';
-      bhtml += '<div class="tune-bk-row" style="padding-left:14px;"><span class="tune-bk-label">Curve</span>'
-        + '<span class="tune-bk-total" id="tune-det-base-total">' + baseBri + '%</span></div>';
-      bhtml += '<div class="tune-group-label">Area Adjustments</div>';
-      // Solar exposure with inline slider
-      bhtml += '<div class="tune-control-row"><span class="tune-control-left"><span class="tune-control-label">Solar exposure</span>'
-        + '<span class="tune-control-reset" id="tune-reset-solar">reset</span></span>'
-        + '<span class="tune-control-impact" id="tune-det-solar-val"></span></div>';
-      bhtml += '<div class="tune-source-info" id="tune-source-info"></div>';
-      bhtml += '<div class="tune-slider-row">'
-        + '<input type="range" class="tune-inline-slider tune-inline-slider--sun" id="tune-slider-solar" min="0" max="9" step="1" value="' + solarStep + '">'
-        + '<span class="tune-slider-word" id="tune-solar-word"><span>' + SOLAR_STEPS[solarStep].label + '</span></span></div>';
-      // Room Balance with inline slider
-      bhtml += '<div class="tune-control-row"><span class="tune-control-left"><span class="tune-control-label">Room balance</span>'
-        + '<span class="tune-control-reset" id="tune-reset-lumen">reset</span></span>'
-        + '<span class="tune-control-impact" id="tune-det-lumen-val"></span></div>';
-      bhtml += '<div class="tune-slider-row">'
-        + '<input type="range" class="tune-inline-slider tune-inline-slider--light" id="tune-slider-lumen" min="0" max="8" step="1" value="' + lumenStep + '">'
-        + '<span class="tune-slider-word" id="tune-lumen-word">' + LUMEN_STEPS[lumenStep].label + (function(f){ if(Math.abs(f-1)<0.005) return ''; var p=Math.round((f-1)*100); return (p>0?' +':' ')+p+'%'; })(factor) + '</span></div>';
-      bhtml += '<div class="tune-bk-row" id="tune-det-override-row"><span class="tune-bk-label" id="tune-det-override-label">User brightened</span>'
-        + '<span class="tune-bk-total" id="tune-det-override-val">0%</span></div>';
-      bhtml += '<div class="tune-bk-row"><span class="tune-bk-label">Boost</span>'
-        + '<span class="tune-bk-total" id="tune-det-boost-val">0%</span></div>';
-      bhtml += '<div class="tune-bk-row" id="tune-det-dim-row"><span class="tune-bk-label">Dimming</span>'
-        + '<span class="tune-bk-total" id="tune-det-dim-val">0%</span></div>';
-      bhtml += '<div class="tune-bk-row"><span class="tune-bk-label" id="tune-det-fade-label">Auto-on fade</span>'
-        + '<span class="tune-bk-total" id="tune-det-fade-val">0%</span></div>';
-      bhtml += '<div class="tune-area-total"><div class="tune-bk-row" style="padding-left:14px;"><span class="tune-bk-label primary">Area Brightness</span>'
-        + '<span class="tune-bk-total final" id="tune-det-final-val">--</span></div></div>';
-      bhtml += '<div class="section-action-bar" id="tune-action-bar" style="display:none;">';
-      bhtml += '<button class="section-cancel-btn" onclick="cancelBrightnessChanges()">Cancel</button>';
-      bhtml += '<button class="section-save-btn" onclick="saveBrightnessChanges()">Save</button>';
-      bhtml += '</div>';
-      // Per-Light sub-section (merged from separate Lights card)
-      bhtml += '<div id="tune-lights-inline"></div>';
-      bhtml += '</div>';
-      brightnessCard.innerHTML = bhtml;
-
-      // Set initial expanded state
-      if (briExpanded) brightnessCard.classList.add('is-open');
 
       // ── Wire events ──
 
