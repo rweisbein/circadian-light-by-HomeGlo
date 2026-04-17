@@ -6168,20 +6168,28 @@ class HomeAssistantWebSocketClient:
                 # Smooth fades need frequent updates; the normal circadian tick
                 # is too slow (20s default).
                 now = time.time()
-                for area_id in list(state.get_all_areas().keys()):
-                    if not state.is_fading(area_id):
-                        _fade_last_update.pop(area_id, None)
-                        continue
+                fading_areas = [
+                    aid for aid in state.get_all_areas().keys()
+                    if state.is_fading(aid)
+                ]
+                for area_id in fading_areas:
                     if not state.is_circadian(area_id) or not state.get_is_on(area_id):
+                        logger.debug(f"[fade_tick] {area_id}: skipping (circadian={state.is_circadian(area_id)}, on={state.get_is_on(area_id)})")
                         continue
                     last = _fade_last_update.get(area_id, 0)
                     if now - last >= FADE_TICK_INTERVAL:
+                        progress = state.get_fade_progress(area_id)
+                        logger.info(f"[fade_tick] {area_id}: progress={progress:.2f}, sending update")
                         _fade_last_update[area_id] = now
                         await self.update_lights_in_circadian_mode(
                             area_id,
-                            log_periodic=log_periodic,
+                            log_periodic=True,
                             periodic_transition=FADE_TICK_INTERVAL,
                         )
+                # Clean up stale entries
+                for aid in list(_fade_last_update.keys()):
+                    if aid not in fading_areas:
+                        _fade_last_update.pop(aid, None)
 
             except asyncio.CancelledError:
                 raise

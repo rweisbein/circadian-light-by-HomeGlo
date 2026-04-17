@@ -2416,9 +2416,15 @@ class CircadianLightPrimitives:
                             fade_minutes = settings.get("auto_on_fade", 0)
                             light_preset = settings.get("auto_on_light", "circadian")
                             if fade_minutes > 0:
-                                # Capture current state BEFORE any changes
-                                start_bri = state.get_last_sent_brightness(area_id) or 0
-                                start_kelvin = state.get_last_sent_kelvin(area_id) or 2000
+                                # Capture current state BEFORE any changes.
+                                # If lights are off, start from 0/warm (not stale last_sent).
+                                is_currently_on = state.is_circadian(area_id) and state.get_is_on(area_id)
+                                if is_currently_on:
+                                    start_bri = state.get_last_sent_brightness(area_id) or 0
+                                    start_kelvin = state.get_last_sent_kelvin(area_id) or 2000
+                                else:
+                                    start_bri = 0
+                                    start_kelvin = 2000
                                 # Enable circadian + is_on (but DON'T set target preset state
                                 # — that happens at fade completion for clean cancel behavior)
                                 state.enable_circadian_and_set_on(area_id, True)
