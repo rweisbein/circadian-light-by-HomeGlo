@@ -2703,6 +2703,20 @@
         });
 
         if (response.ok) {
+          // Check for hints from the server
+          try {
+            const result = await response.clone().json();
+            if (result.hint) {
+              const existing = document.getElementById('action-hint-toast');
+              if (existing) existing.remove();
+              const toast = document.createElement('div');
+              toast.id = 'action-hint-toast';
+              toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(30,30,30,0.95);color:var(--text);padding:10px 16px;border-radius:8px;font-size:0.82rem;z-index:300;border:1px solid var(--line);max-width:90%;text-align:center;';
+              toast.textContent = result.hint;
+              document.body.appendChild(toast);
+              setTimeout(() => toast.remove(), 4000);
+            }
+          } catch (e) {}
           // Optimistic UI: toggle button state immediately
           if (action === 'lights_toggle') {
             selectedArea.is_on = !selectedArea.is_on;

@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.28
+- **Sun dimming hint on step_up bounce**: When step_up hits the circadian curve ceiling AND sun dimming is active, shows a toast hint: "Circadian curve at max — use bright up to override sun dimming". Only fires when all three conditions are true (at limit, trying up, sun_bright_factor < 1.0). Switch handler logs the hint. Area detail page shows a 4-second toast.
+
 ## 1.2.25
 - **Area detail slider hero values**: Reduced from 1.4rem to 1.1rem (prevents Wake wrapping on mobile). Section labels and hero values now span full column width (slider + buttons). Fixed upper extreme labels ("britelite", "brightest", "coolest") getting covered by thumb — broken CSS selector from earlier refactor.
 - **Merge Lights into Brightness section**: Section renamed to "Brightness & Lights". Cascade renamed: "Circadian" → "Curve" (demoted from primary), "Adjustments" → "Area Adjustments", "Final" → "Area Brightness" (stays primary). Lights content (feedback light + per-light filters) moved into brightness card under "Per-Light" sub-header. Separate Lights card removed.

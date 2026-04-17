@@ -1723,12 +1723,19 @@ class HomeAssistantWebSocketClient:
         """
         # Check if ALL on-areas are at limit
         on_areas = [a for a in areas if state.get_is_on(a)]
-        at_limit = [a for a, r in zip(areas, results) if r is None and a in on_areas]
+        at_limit = [
+            a for a, r in zip(areas, results)
+            if (r is None or r == "sun_dimming_limit") and a in on_areas
+        ]
         if on_areas and len(at_limit) == len(on_areas):
+            sun_dimming = any(
+                r == "sun_dimming_limit" for a, r in zip(areas, results) if a in on_areas
+            )
             if switch_id:
                 asyncio.create_task(
                     self._feedback_cue(
-                        switch_id, "bounce", direction=direction, bounce_type=bounce_type
+                        switch_id, "bounce", direction=direction,
+                        bounce_type=bounce_type, sun_dimming_hint=sun_dimming,
                     )
                 )
             return
@@ -1889,9 +1896,15 @@ class HomeAssistantWebSocketClient:
                     )
                     on_areas = [a for a in areas if state.get_is_on(a)]
                     at_limit = on_areas and all(
-                        r is None for a, r in zip(areas, results) if a in on_areas
+                        r is None or r == "sun_dimming_limit"
+                        for a, r in zip(areas, results) if a in on_areas
                     )
                     if at_limit:
+                        # Check if any area hit the sun dimming limit
+                        sun_dimming = any(
+                            r == "sun_dimming_limit"
+                            for a, r in zip(areas, results) if a in on_areas
+                        )
                         if switch_id:
                             asyncio.create_task(
                                 self._feedback_cue(
@@ -1899,6 +1912,7 @@ class HomeAssistantWebSocketClient:
                                     "bounce",
                                     direction="up",
                                     bounce_type="step",
+                                    sun_dimming_hint=sun_dimming,
                                 )
                             )
                         return "at_limit"
@@ -2541,6 +2555,7 @@ class HomeAssistantWebSocketClient:
         direction: str = "up",
         bounce_type: str = "step",
         scope_number: int = 1,
+        sun_dimming_hint: bool = False,
     ) -> None:
         """Unified feedback cue — always 2 Zigbee calls to one entity.
 
@@ -2553,7 +2568,13 @@ class HomeAssistantWebSocketClient:
             direction: "up" or "down" (for bounce cue)
             bounce_type: "step", "bright", or "color" (for bounce cue)
             scope_number: 1-5 (for reach cue — number of flashes)
+            sun_dimming_hint: If True, log hint that user should use bright_up
         """
+        if sun_dimming_hint:
+            logger.info(
+                f"[hint] Circadian curve at max — use bright up to override sun dimming "
+                f"(switch {switch_id})"
+            )
         target = self._resolve_feedback_target(switch_id)
         if not target:
             logger.debug(f"No feedback target for switch {switch_id}")
@@ -5664,7 +5685,8 @@ class HomeAssistantWebSocketClient:
         elif service == "circadian_off":
             await self.primitives.circadian_off(area_id, "webserver")
         elif service == "step_up":
-            await self.primitives.step_up(area_id, "webserver")
+            result = await self.primitives.step_up(area_id, "webserver")
+            return result
         elif service == "step_down":
             await self.primitives.step_down(area_id, "webserver")
         elif service == "bright_up":

@@ -4752,11 +4752,13 @@ class LightDesignerServer:
                     extra_kwargs["brightness"] = float(value)
 
             if self.client:
-                await self.client.handle_service_event(action, area_id, **extra_kwargs)
+                result = await self.client.handle_service_event(action, area_id, **extra_kwargs)
                 logger.info(f"Executed {action} for area {area_id}")
-                return web.json_response(
-                    {"status": "ok", "action": action, "area_id": area_id}
-                )
+                resp = {"status": "ok", "action": action, "area_id": area_id}
+                # Check for sun dimming hint on step_up
+                if action == "step_up" and result == "sun_dimming_limit":
+                    resp["hint"] = "Circadian curve at max — use bright up to override sun dimming"
+                return web.json_response(resp)
             return web.json_response({"error": "Client not connected"}, status=503)
 
         except json.JSONDecodeError:

@@ -535,9 +535,20 @@ class CircadianLightPrimitives:
 
         # At limit — bounce
         if abs(target_bri - current_bri) < 0.5:
-            logger.info(
-                f"step_{direction} at limit for {area_id} (bri={current_bri:.0f}%)"
-            )
+            # Check if sun dimming is why user can't go higher
+            sun_dimming_hint = False
+            if direction == "up":
+                sun_bright_factor = self._compute_sun_bright_factor(area_id)
+                if sun_bright_factor < 1.0:
+                    sun_dimming_hint = True
+                    logger.info(
+                        f"step_up at limit for {area_id} (bri={current_bri:.0f}%, "
+                        f"sun_bright_factor={sun_bright_factor:.2f}) — hint: use bright_up"
+                    )
+            if not sun_dimming_hint:
+                logger.info(
+                    f"step_{direction} at limit for {area_id} (bri={current_bri:.0f}%)"
+                )
             if send_command and not skip_bounce and area_state.is_on:
                 sun_times = (
                     self.client._get_sun_times()
@@ -552,7 +563,7 @@ class CircadianLightPrimitives:
                     area_id, current_bri, current_cct,
                     direction=direction, bounce_type="step",
                 )
-            return None
+            return "sun_dimming_limit" if sun_dimming_hint else None
 
         # Convert target brightness to 0-100 position on curve
         b_range = config.max_brightness - config.min_brightness
