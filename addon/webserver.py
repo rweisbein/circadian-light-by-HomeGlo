@@ -2709,6 +2709,48 @@ class LightDesignerServer:
             )
         return result
 
+    def _compute_next_auto_off_with_untouched(
+        self, area_id, settings, sunrise_hour, sunset_hour
+    ):
+        """Compute next auto-off time, suppressing if untouched guard would block.
+
+        When auto_off_only_untouched is enabled and the user has interacted
+        since auto-on fired, auto-off will be skipped — so don't show it
+        as the next scheduled time.
+        """
+        result = self._compute_next_auto_time(
+            settings, "auto_off", sunrise_hour, sunset_hour
+        )
+        if not result or not settings.get("auto_off_only_untouched", False):
+            return result
+
+        # Check if user touched since auto-on fired
+        last_action = state.get_last_user_action(area_id)
+        if not last_action:
+            return result  # No user action recorded — untouched
+
+        prims = self.client.primitives
+        auto_on_fired = prims._auto_fired.get(area_id, {}).get("auto_on", {})
+        auto_on_date = auto_on_fired.get("date")
+        auto_on_time = auto_on_fired.get("time")
+        if not auto_on_date or auto_on_time is None:
+            return result  # No auto-on record — can't determine, show it
+
+        try:
+            action_dt = datetime.fromisoformat(last_action)
+            auto_on_h = int(auto_on_time)
+            auto_on_m = int((auto_on_time - auto_on_h) * 60)
+            auto_on_dt = datetime.fromisoformat(
+                f"{auto_on_date}T{auto_on_h:02d}:{auto_on_m:02d}:00"
+            )
+            if action_dt > auto_on_dt:
+                # User touched since auto-on — auto-off will be skipped
+                return None
+        except Exception:
+            pass
+
+        return result
+
     async def get_area_status(self, request: Request) -> Response:
         """Get status for areas using Circadian Light state.
 
@@ -3131,9 +3173,10 @@ class LightDesignerServer:
                             config.get("area_settings", {}).get(area_id, {}),
                             "auto_on", sun_times.sunrise, sun_times.sunset,
                         ),
-                        "next_auto_off": self._compute_next_auto_time(
+                        "next_auto_off": self._compute_next_auto_off_with_untouched(
+                            area_id,
                             config.get("area_settings", {}).get(area_id, {}),
-                            "auto_off", sun_times.sunrise, sun_times.sunset,
+                            sun_times.sunrise, sun_times.sunset,
                         ),
                     }
 
@@ -3238,9 +3281,10 @@ class LightDesignerServer:
                             area_settings.get(area_id, {}),
                             "auto_on", _sunrise_h, _sunset_h,
                         ),
-                        "next_auto_off": self._compute_next_auto_time(
+                        "next_auto_off": self._compute_next_auto_off_with_untouched(
+                            area_id,
                             area_settings.get(area_id, {}),
-                            "auto_off", _sunrise_h, _sunset_h,
+                            _sunrise_h, _sunset_h,
                         ),
                     }
 

@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.24
+- **Suppress auto-off timer when untouched guard would block**: When `auto_off_only_untouched` is enabled and the user has interacted since auto-on fired, `next_auto_off` returns null in the API. Home page and area detail page no longer show a countdown for an auto-off that won't fire.
+
 ## 1.2.23
 - **Fix fade completion brightness snap**: Fade lerp was using purpose ratios from the actual area state (e.g., nitelite's amplified filter ratios) instead of the target preset's ratios. At completion, ratios snapped to the target's natural ratios causing a visible brightness dip. Now uses target pipeline's purpose ratios throughout the fade for seamless handoff.
 
