@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.19
+- **Fade redesign**: Smooth lerp between any two lighting states (off/circadian/nitelite/britelite). Fast tick drives fade updates every 5s with transition=5s for visually continuous fades. Captures start brightness + kelvin at fade start. Target computed synthetically each tick (circadian tracks live curve). Cancel bakes in current position via set_position so user actions work from there. Fade-out lerps to 0 then turns off.
+- **Home page bed/wake prominence**: Zone and area phase labels (Wake/Bed time) made more prominent (~1.0rem, higher opacity). Zone phase label moved from centered-under-name to right-aligned matching area slider position. Zone labels slightly larger than area labels for hierarchy.
+- **Home page status row**: Left-aligned with slider (16px indent) instead of area name.
+
 ## 1.2.17
 - **Fix long-press repeat interval**: Interval now measures step-to-step (not end-to-start). Subtracts delivery time from next sleep so steps fire at the configured rate regardless of how long ZHA delivery takes.
 

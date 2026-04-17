@@ -821,6 +821,53 @@ class CircadianLightPrimitives:
         ctx = self.build_pipeline_context_for_area(area_id, **builder_kwargs)
         return pipeline_mod.compute(ctx)
 
+    def compute_fade_target(self, area_id: str, target_preset: str):
+        """Compute what the pipeline would produce for a target preset.
+
+        Builds a synthetic AreaState for the target preset without modifying
+        actual area state. Used during fade to compute the lerp target each tick.
+
+        Args:
+            area_id: The area ID
+            target_preset: "circadian", "nitelite", "britelite", or "off"
+
+        Returns:
+            (brightness, kelvin) tuple. For "off": (0, start_kelvin_not_needed).
+        """
+        import pipeline as pipeline_mod
+
+        if target_preset == "off":
+            # Fade-out target: brightness 0, kelvin doesn't matter
+            return (0, state.get_last_sent_kelvin(area_id) or 2700)
+
+        config = self._get_config(area_id)
+
+        # Build synthetic AreaState for the target preset
+        if target_preset == "nitelite":
+            synthetic_state = AreaState(
+                is_circadian=True, is_on=True,
+                frozen_at=config.ascend_start,
+            )
+        elif target_preset == "britelite":
+            synthetic_state = AreaState(
+                is_circadian=True, is_on=True,
+                frozen_at=config.descend_start,
+            )
+        else:
+            # circadian: default curve, no midpoints, no overrides
+            synthetic_state = AreaState(is_circadian=True, is_on=True)
+
+        # Build context with synthetic state
+        ctx = self.build_pipeline_context_for_area(area_id)
+        # Override the area_state with our synthetic one
+        ctx.area_state = synthetic_state
+        # For frozen presets, override the hour too
+        if synthetic_state.frozen_at is not None:
+            ctx.hour = synthetic_state.frozen_at
+
+        result = pipeline_mod.compute(ctx)
+        return (result.area_brightness, result.area_kelvin)
+
     def _compute_current_actual(self, area_id: str) -> float:
         """Get current area brightness — from cache, falling back to pipeline.
 
@@ -2369,14 +2416,22 @@ class CircadianLightPrimitives:
                             fade_minutes = settings.get("auto_on_fade", 0)
                             light_preset = settings.get("auto_on_light", "circadian")
                             if fade_minutes > 0:
-                                # Reset state without sending light command —
-                                # periodic tick will apply fade from near-zero
-                                if light_preset in ("nitelite", "britelite"):
-                                    await self.set(area_id, source="auto_on", preset=light_preset, is_on=True, send_command=False)
-                                else:
-                                    await self.glo_reset(area_id, source="auto_on", send_command=False)
+                                # Capture current state BEFORE any changes
+                                start_bri = state.get_last_sent_brightness(area_id) or 0
+                                start_kelvin = state.get_last_sent_kelvin(area_id) or 2000
+                                # Enable circadian + is_on (but DON'T set target preset state
+                                # — that happens at fade completion for clean cancel behavior)
                                 state.enable_circadian_and_set_on(area_id, True)
-                                state.set_fade(area_id, "in", fade_minutes * 60)
+                                state.set_fade(
+                                    area_id, "in", fade_minutes * 60,
+                                    target_preset=light_preset,
+                                    start_brightness=start_bri,
+                                    start_kelvin=start_kelvin,
+                                )
+                                # Send initial fade command immediately (don't wait for tick)
+                                await self.client.update_lights_in_circadian_mode(
+                                    area_id, log_periodic=True, periodic_transition=5.0,
+                                )
                                 logger.info(f"[auto_on] Starting {fade_minutes}min fade-in for {area_id} ({light_preset})")
                             else:
                                 if light_preset in ("nitelite", "britelite"):
@@ -2431,8 +2486,18 @@ class CircadianLightPrimitives:
 
                         fade_minutes = settings.get("auto_off_fade", 0)
                         if fade_minutes > 0:
-                            current_bri = state.get_area(area_id).get("last_sent_brightness") or 50
-                            state.set_fade(area_id, "out", fade_minutes * 60, start_brightness=current_bri)
+                            start_bri = state.get_last_sent_brightness(area_id) or 50
+                            start_kelvin = state.get_last_sent_kelvin(area_id) or 2700
+                            state.set_fade(
+                                area_id, "out", fade_minutes * 60,
+                                target_preset="off",
+                                start_brightness=start_bri,
+                                start_kelvin=start_kelvin,
+                            )
+                            # Send initial fade command immediately
+                            await self.client.update_lights_in_circadian_mode(
+                                area_id, log_periodic=True, periodic_transition=5.0,
+                            )
                             logger.info(f"[auto_off] Starting {fade_minutes}min fade-out for {area_id}")
                         else:
                             await self.lights_off(area_id, source="auto_off")
@@ -2527,12 +2592,84 @@ class CircadianLightPrimitives:
     # -------------------------------------------------------------------------
 
     def cancel_fade(self, area_id: str, source: str = ""):
-        """Cancel any active fade for an area (called on user actions)."""
-        if state.clear_fade(area_id):
-            logger.info(f"[{source}] Cancelled active fade for area {area_id}")
+        """Cancel any active fade for an area (called on user actions).
+
+        Bakes in the current fade position: applies target preset state,
+        then sets a midpoint shift so the pipeline naturally produces the
+        current lerped brightness. User's next action works from there.
+        """
+        if not state.is_fading(area_id):
+            return
+
+        fade = state.get_fade_state(area_id)
+        progress = state.get_fade_progress(area_id) or 0.0
+        target_preset = fade.get("fade_target_preset", "circadian")
+        start_bri = fade.get("fade_start_brightness") or 0
+        start_kelvin = fade.get("fade_start_kelvin") or 2000
+
+        # Compute current lerped brightness
+        if target_preset == "off":
+            lerped_bri = max(1, round(start_bri * (1.0 - progress)))
+        else:
+            target_bri, _ = self.compute_fade_target(area_id, target_preset)
+            lerped_bri = max(1, round(start_bri + (target_bri - start_bri) * progress))
+
+        # Clear fade FIRST (before applying preset, which may trigger state changes)
+        state.clear_fade(area_id)
+
+        # Apply target preset state (circadian/nitelite/britelite)
+        if target_preset == "off":
+            # Cancel during fade-out: stay in circadian mode at current brightness
+            pass  # state is already circadian
+        elif target_preset in ("nitelite", "britelite"):
+            config = self._get_config(area_id)
+            frozen_hour = config.ascend_start if target_preset == "nitelite" else config.descend_start
+            state.update_area(area_id, {
+                "brightness_mid": None, "color_mid": None,
+                "brightness_override": None, "brightness_override_set_at": None,
+                "color_override": None, "color_override_set_at": None,
+            })
+            state.set_frozen_at(area_id, frozen_hour)
+        else:
+            # circadian: reset midpoints (glo_reset equivalent)
+            state.reset_area(area_id)
+
+        # Bake in current brightness via set_position (sets midpoint so pipeline
+        # produces ~lerped_bri). Skip for nitelite/britelite (frozen, no midpoint).
+        if target_preset not in ("nitelite", "britelite"):
+            config = self._get_config(area_id)
+            b_range = config.max_brightness - config.min_brightness
+            if b_range > 0:
+                position = (lerped_bri - config.min_brightness) / b_range * 100
+                position = max(0, min(100, round(position, 1)))
+                area_state = self._get_area_state(area_id)
+                sun_times = (
+                    self.client._get_sun_times()
+                    if hasattr(self.client, "_get_sun_times")
+                    else None
+                )
+                result = CircadianLight.calculate_set_position(
+                    hour=get_current_hour(),
+                    position=position,
+                    dimension="step",
+                    config=config,
+                    state=area_state,
+                    sun_times=sun_times,
+                )
+                self._update_area_state(area_id, result.state_updates)
+
+        logger.info(
+            f"[{source}] Cancelled fade for {area_id}: baked in at {lerped_bri}% "
+            f"(progress={progress:.0%}, target={target_preset})"
+        )
 
     async def check_fade_completions(self):
-        """Check for completed fades and finalize them."""
+        """Check for completed fades and finalize them.
+
+        On completion, applies the target preset state for real (the fade
+        was running with synthetic target computation, not modifying actual
+        state). This is the atomic state transition.
+        """
         for area_id in list(state.get_all_areas().keys()):
             if not state.is_fading(area_id):
                 continue
@@ -2540,13 +2677,25 @@ class CircadianLightPrimitives:
             if progress is None or progress < 1.0:
                 continue
             fade = state.get_fade_state(area_id)
-            direction = fade["fade_direction"]
+            target_preset = fade.get("fade_target_preset", "circadian")
+
+            # Clear fade FIRST
             state.clear_fade(area_id)
-            if direction == "out":
-                await self.lights_off(area_id, source="auto_off")
-                logger.info(f"[auto_off] Fade-out complete for {area_id}, lights off")
+
+            # Apply target preset state
+            if target_preset == "off":
+                await self.lights_off(area_id, source="auto_off_fade_complete")
+                logger.info(f"[fade] Complete for {area_id}: off")
+            elif target_preset in ("nitelite", "britelite"):
+                await self.set(
+                    area_id, source="fade_complete",
+                    preset=target_preset, is_on=True,
+                )
+                logger.info(f"[fade] Complete for {area_id}: {target_preset}")
             else:
-                logger.info(f"[auto_on] Fade-in complete for {area_id}, normal circadian")
+                # circadian: reset to default curve
+                await self.glo_reset(area_id, source="fade_complete")
+                logger.info(f"[fade] Complete for {area_id}: circadian")
 
     # -------------------------------------------------------------------------
     # Motion Warning

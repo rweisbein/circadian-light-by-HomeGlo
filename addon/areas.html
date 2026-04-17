@@ -415,8 +415,8 @@
     }
 
     .phase-midpoint {
-      font-size: 0.75rem;
-      opacity: 0.6;
+      font-size: 0.95rem;
+      opacity: 0.8;
       white-space: nowrap;
       flex-shrink: 0;
       margin-left: auto;
@@ -427,7 +427,7 @@
       display: flex;
       align-items: center;
       gap: 4px;
-      padding: 0 0 3px 0;
+      padding: 0 0 3px 16px;
     }
     .row-status-row:empty { display: none; }
 
@@ -647,10 +647,20 @@
       min-width: 0;
     }
     .zone-label-sub {
-      font-size: 0.75rem;
+      font-size: 1.05rem;
+      font-weight: 500;
       letter-spacing: 0.02em;
-      opacity: 0.6;
+      opacity: 0.85;
       margin-top: 1px;
+    }
+    .zone-phase-label {
+      font-size: 1.05rem;
+      font-weight: 500;
+      opacity: 0.85;
+      white-space: nowrap;
+      flex-shrink: 0;
+      margin-left: auto;
+      margin-right: 16px;
     }
     .zone-rhythm-link {
       font-size: 1.35rem;
@@ -2296,10 +2306,10 @@
               <span class="zone-chevron-tap" onclick="toggleZone('${escapedZoneName}', this)">${chevronIcon}</span>
               ${zonePowerBtn}
               <div class="zone-name-group" style="color: ${zoneTextColor};">
-                <span style="display: inline-flex; align-items: center; gap: 3px; justify-content: center;"><a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" style="color: ${zoneTextColor};">${zoneName}</a>${zoneMismatchDot}</span>
-                <span class="zone-label-sub">${getZonePhaseMidpoint(zoneName, sorted) || 'rhythm zone'}</span>
+                <span style="display: inline-flex; align-items: center; gap: 3px;"><a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" style="color: ${zoneTextColor};">${zoneName}</a>${zoneMismatchDot}</span>
               </div>
               ${zoneFrozenIndicator}
+              <span class="zone-phase-label" style="color: ${zoneTextColor};">${getZonePhaseMidpoint(zoneName, sorted) || ''}</span>
               <div class="row-controls">
                 <button class="row-btn" onclick="event.stopPropagation(); glozoneResetFull('${escapedZoneName}')" title="Reset all areas in rhythm zone">${glozoneResetIcon}</button>
               </div>

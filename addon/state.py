@@ -60,11 +60,13 @@ def _get_default_area_state() -> Dict[str, Any]:
         # Off enforcement (periodic loop optimization)
         "off_enforced": False,  # True once we've verified all lights are off; skip re-sending off commands
         "off_confirm_count": 0,  # Counter for consecutive off confirmations before setting off_enforced
-        # Fade state (auto on/off gradual transitions)
+        # Fade state (smooth transitions between any lighting states)
         "fade_start": None,  # ISO timestamp when fade began
         "fade_duration": None,  # Duration in seconds
         "fade_direction": None,  # "in" or "out"
-        "fade_start_brightness": None,  # For fade-out: brightness % at start
+        "fade_target_preset": None,  # "circadian", "nitelite", "britelite", or "off"
+        "fade_start_brightness": None,  # Brightness % at fade start (0 if off)
+        "fade_start_kelvin": None,  # Kelvin at fade start (warm default if off)
         # User interaction tracking (for auto-off "only if untouched" guard)
         "last_user_action_at": None,  # ISO timestamp of last user-initiated action
     }
@@ -813,14 +815,22 @@ def get_areas_needing_warning(warning_seconds: int) -> List[str]:
 # ============================================================================
 
 def set_fade(area_id: str, direction: str, duration_seconds: int,
-             start_brightness: int = None) -> None:
+             target_preset: str = None,
+             start_brightness: int = None,
+             start_kelvin: int = None) -> None:
     """Start a fade for an area.
+
+    Captures current lighting state as the fade start point. Target is
+    computed synthetically each tick (not stored) so circadian targets
+    track the live curve.
 
     Args:
         area_id: The area ID
-        direction: "in" (0→circadian) or "out" (current→0)
+        direction: "in" (toward target preset) or "out" (toward off)
         duration_seconds: Fade duration in seconds
-        start_brightness: For fade-out, the brightness at start
+        target_preset: "circadian", "nitelite", "britelite", or "off"
+        start_brightness: Brightness % at fade start (0 if lights are off)
+        start_kelvin: Kelvin at fade start (warm default if lights are off)
     """
     from datetime import datetime
 
@@ -828,10 +838,14 @@ def set_fade(area_id: str, direction: str, duration_seconds: int,
         "fade_start": datetime.now().isoformat(),
         "fade_duration": duration_seconds,
         "fade_direction": direction,
-        "fade_start_brightness": start_brightness,
+        "fade_target_preset": target_preset or ("off" if direction == "out" else "circadian"),
+        "fade_start_brightness": start_brightness or 0,
+        "fade_start_kelvin": start_kelvin or 2000,
     })
     logger.info(
-        f"Fade {direction} started for area {area_id} ({duration_seconds}s)"
+        f"Fade {direction} started for area {area_id}: "
+        f"{start_brightness or 0}%/{start_kelvin or 2000}K → {target_preset or 'off'} "
+        f"({duration_seconds}s)"
     )
 
 
@@ -844,7 +858,9 @@ def clear_fade(area_id: str) -> bool:
         "fade_start": None,
         "fade_duration": None,
         "fade_direction": None,
+        "fade_target_preset": None,
         "fade_start_brightness": None,
+        "fade_start_kelvin": None,
     })
     return True
 
@@ -877,7 +893,9 @@ def get_fade_state(area_id: str) -> Optional[Dict[str, Any]]:
         "fade_start": area["fade_start"],
         "fade_duration": area.get("fade_duration"),
         "fade_direction": area.get("fade_direction"),
+        "fade_target_preset": area.get("fade_target_preset"),
         "fade_start_brightness": area.get("fade_start_brightness"),
+        "fade_start_kelvin": area.get("fade_start_kelvin"),
     }
 
 

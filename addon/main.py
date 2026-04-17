@@ -5935,36 +5935,16 @@ class HomeAssistantWebSocketClient:
                         f"[Periodic] Area {area_id} has stepped state: brightness_mid={area_state.brightness_mid}, color_mid={area_state.color_mid}"
                     )
 
-            # --- Compute fade factor (auto on/off gradual transitions) ---
-            # Fade-in: simple multiplier passed to pipeline.
-            # Fade-out: needs a snapshot brightness, applied as post-pipeline override.
-            fade_factor = 1.0
-            fade_out_progress = None
-            fade_out_start_bri = None
-            fade_note = ""
-            if state.is_fading(area_id):
-                progress = state.get_fade_progress(area_id)
-                if progress is not None:
-                    fade_state = state.get_fade_state(area_id)
-                    if fade_state and fade_state["fade_direction"] == "in":
-                        fade_factor = progress
-                        fade_note = f" (fade-in {progress:.0%})"
-                    elif fade_state and fade_state["fade_direction"] == "out":
-                        fade_out_progress = progress
-                        fade_out_start_bri = fade_state.get("fade_start_brightness")
-                        fade_note = f" (fade-out {1.0 - progress:.0%})"
-
             # --- Boost note (builder reads state itself) ---
             boost_note = ""
             if state.is_boosted(area_id):
-                boost_state = state.get_boost_state(area_id)
-                boost_amount = boost_state.get("boost_brightness") or 0
+                boost_state_info = state.get_boost_state(area_id)
+                boost_amount = boost_state_info.get("boost_brightness") or 0
                 boost_note = f" (boosted +{boost_amount}%)"
 
             # --- Build context via shared builder + compute pipeline ---
             ctx = self.primitives.build_pipeline_context_for_area(
                 area_id,
-                fade_factor=fade_factor,
                 dim_factor=dim_factor,
                 transition=periodic_transition,
                 log_decay=log_periodic,
@@ -5972,13 +5952,49 @@ class HomeAssistantWebSocketClient:
             import pipeline as pipeline_mod
             pipeline_result = pipeline_mod.compute(ctx)
 
-            # Apply fade-out override (uses snapshot brightness, not a simple multiplier)
-            if fade_out_progress is not None:
-                start_bri = fade_out_start_bri or pipeline_result.area_brightness
-                fade_out_target = max(1, int(round(start_bri * (1.0 - fade_out_progress))))
-                for p in pipeline_result.purposes:
-                    p.brightness = fade_out_target
-                pipeline_result.area_brightness = fade_out_target
+            # --- Fade: lerp between captured start state and live target ---
+            fade_note = ""
+            if state.is_fading(area_id):
+                progress = state.get_fade_progress(area_id)
+                fade_state = state.get_fade_state(area_id)
+                if progress is not None and fade_state:
+                    target_preset = fade_state.get("fade_target_preset", "circadian")
+                    start_bri = fade_state.get("fade_start_brightness") or 0
+                    start_kelvin = fade_state.get("fade_start_kelvin") or 2000
+                    direction = fade_state.get("fade_direction", "in")
+
+                    # Compute target brightness + kelvin for the target preset
+                    target_bri, target_kelvin = self.primitives.compute_fade_target(
+                        area_id, target_preset
+                    )
+
+                    # Lerp brightness and kelvin
+                    lerped_bri = max(1, round(start_bri + (target_bri - start_bri) * progress))
+                    lerped_kelvin = round(start_kelvin + (target_kelvin - start_kelvin) * progress)
+                    if target_preset == "off":
+                        lerped_bri = max(1, round(start_bri * (1.0 - progress)))
+                        lerped_kelvin = start_kelvin
+                    lerped_xy = CircadianLight.color_temperature_to_xy(lerped_kelvin)
+
+                    # Override pipeline result with lerped values
+                    # Scale purposes proportionally from area brightness
+                    if pipeline_result.area_brightness > 0:
+                        for p in pipeline_result.purposes:
+                            ratio = p.brightness / pipeline_result.area_brightness
+                            p.brightness = max(1, round(lerped_bri * ratio))
+                            p.kelvin = lerped_kelvin
+                            p.xy = lerped_xy
+                    else:
+                        for p in pipeline_result.purposes:
+                            p.brightness = lerped_bri
+                            p.kelvin = lerped_kelvin
+                            p.xy = lerped_xy
+                    pipeline_result.area_brightness = lerped_bri
+                    pipeline_result.area_kelvin = lerped_kelvin
+                    pipeline_result.area_xy = lerped_xy
+
+                    remaining = max(0, (fade_state.get("fade_duration") or 0) * (1 - progress))
+                    fade_note = f" (fade {'↑' if direction == 'in' else '↓'} → {target_preset} {remaining:.0f}s)"
 
             # Log the calculation
             hour = ctx.hour
@@ -6108,8 +6124,13 @@ class HomeAssistantWebSocketClient:
 
         All operations here are in-memory (microseconds, zero API calls)
         unless something actually expires and needs action.
+
+        Exception: during active fades, sends light updates every 5 seconds
+        for smooth transitions.
         """
         last_phase_check = None
+        _fade_last_update: Dict[str, float] = {}  # area_id -> last update timestamp
+        FADE_TICK_INTERVAL = 5.0  # seconds between fade light updates
 
         while True:
             try:
@@ -6142,6 +6163,25 @@ class HomeAssistantWebSocketClient:
 
                 # Check for completed fades
                 await self.primitives.check_fade_completions()
+
+                # Drive fade updates every FADE_TICK_INTERVAL seconds
+                # Smooth fades need frequent updates; the normal circadian tick
+                # is too slow (20s default).
+                now = time.time()
+                for area_id in list(state.get_all_areas().keys()):
+                    if not state.is_fading(area_id):
+                        _fade_last_update.pop(area_id, None)
+                        continue
+                    if not state.is_circadian(area_id) or not state.get_is_on(area_id):
+                        continue
+                    last = _fade_last_update.get(area_id, 0)
+                    if now - last >= FADE_TICK_INTERVAL:
+                        _fade_last_update[area_id] = now
+                        await self.update_lights_in_circadian_mode(
+                            area_id,
+                            log_periodic=log_periodic,
+                            periodic_transition=FADE_TICK_INTERVAL,
+                        )
 
             except asyncio.CancelledError:
                 raise
