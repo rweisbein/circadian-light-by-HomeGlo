@@ -832,13 +832,13 @@ class CircadianLightPrimitives:
             target_preset: "circadian", "nitelite", "britelite", or "off"
 
         Returns:
-            (brightness, kelvin) tuple. For "off": (0, start_kelvin_not_needed).
+            PipelineResult for the target preset (includes per-purpose
+            brightnesses with correct filter ratios). For "off": returns None.
         """
         import pipeline as pipeline_mod
 
         if target_preset == "off":
-            # Fade-out target: brightness 0, kelvin doesn't matter
-            return (0, state.get_last_sent_kelvin(area_id) or 2700)
+            return None
 
         config = self._get_config(area_id)
 
@@ -869,8 +869,7 @@ class CircadianLightPrimitives:
         else:
             ctx.hour = get_current_hour()
 
-        result = pipeline_mod.compute(ctx)
-        return (result.area_brightness, result.area_kelvin)
+        return pipeline_mod.compute(ctx)
 
     def _compute_current_actual(self, area_id: str) -> float:
         """Get current area brightness — from cache, falling back to pipeline.
@@ -2653,7 +2652,8 @@ class CircadianLightPrimitives:
         if target_preset == "off":
             lerped_bri = max(1, round(start_bri * (1.0 - progress)))
         else:
-            target_bri, _ = self.compute_fade_target(area_id, target_preset)
+            target_result = self.compute_fade_target(area_id, target_preset)
+            target_bri = target_result.area_brightness if target_result else 0
             lerped_bri = max(1, round(start_bri + (target_bri - start_bri) * progress))
 
         # Clear fade FIRST (before applying preset, which may trigger state changes)

@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.23
+- **Fix fade completion brightness snap**: Fade lerp was using purpose ratios from the actual area state (e.g., nitelite's amplified filter ratios) instead of the target preset's ratios. At completion, ratios snapped to the target's natural ratios causing a visible brightness dip. Now uses target pipeline's purpose ratios throughout the fade for seamless handoff.
+
 ## 1.2.22
 - **Fix fade target using stale frozen hour**: `compute_fade_target` used the actual area's frozen_at hour for the pipeline context, even for unfrozen targets like circadian. When fading from nitelite (frozen at 3am), the circadian target was computed at 3am (curve minimum) instead of current time — producing the same values as the start. Now uses current time for unfrozen targets.
 

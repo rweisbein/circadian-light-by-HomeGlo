@@ -5963,30 +5963,44 @@ class HomeAssistantWebSocketClient:
                     start_kelvin = fade_state.get("fade_start_kelvin") or 2000
                     direction = fade_state.get("fade_direction", "in")
 
-                    # Compute target brightness + kelvin for the target preset
-                    target_bri, target_kelvin = self.primitives.compute_fade_target(
+                    # Compute target pipeline result for the target preset
+                    target_result = self.primitives.compute_fade_target(
                         area_id, target_preset
                     )
 
+                    if target_result is not None:
+                        target_bri = target_result.area_brightness
+                        target_kelvin = target_result.area_kelvin
+                    else:
+                        # fade-out: target is off
+                        target_bri = 0
+                        target_kelvin = start_kelvin
+
                     # Lerp brightness and kelvin
-                    lerped_bri = max(1, round(start_bri + (target_bri - start_bri) * progress))
-                    lerped_kelvin = round(start_kelvin + (target_kelvin - start_kelvin) * progress)
                     if target_preset == "off":
                         lerped_bri = max(1, round(start_bri * (1.0 - progress)))
                         lerped_kelvin = start_kelvin
+                    else:
+                        lerped_bri = max(1, round(start_bri + (target_bri - start_bri) * progress))
+                        lerped_kelvin = round(start_kelvin + (target_kelvin - start_kelvin) * progress)
                     lerped_xy = CircadianLight.color_temperature_to_xy(lerped_kelvin)
 
-                    # Override pipeline result with lerped values
-                    # Scale purposes proportionally from area brightness
-                    if pipeline_result.area_brightness > 0:
+                    # Override pipeline result with lerped values.
+                    # Use TARGET purpose ratios so there's no snap at completion.
+                    if target_result is not None and target_result.area_brightness > 0:
                         for p in pipeline_result.purposes:
-                            ratio = p.brightness / pipeline_result.area_brightness
+                            # Find matching target purpose for ratio
+                            tp = next((t for t in target_result.purposes if t.name == p.name), None)
+                            if tp and target_result.area_brightness > 0:
+                                ratio = tp.brightness / target_result.area_brightness
+                            else:
+                                ratio = 1.0
                             p.brightness = max(1, round(lerped_bri * ratio))
                             p.kelvin = lerped_kelvin
                             p.xy = lerped_xy
                     else:
                         for p in pipeline_result.purposes:
-                            p.brightness = lerped_bri
+                            p.brightness = max(1, round(lerped_bri)) if lerped_bri > 0 else 1
                             p.kelvin = lerped_kelvin
                             p.xy = lerped_xy
                     pipeline_result.area_brightness = lerped_bri
