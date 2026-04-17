@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.25
+- **Area detail slider hero values**: Reduced from 1.4rem to 1.1rem (prevents Wake wrapping on mobile). Section labels and hero values now span full column width (slider + buttons). Fixed upper extreme labels ("britelite", "brightest", "coolest") getting covered by thumb — broken CSS selector from earlier refactor.
+- **Merge Lights into Brightness section**: Section renamed to "Brightness & Lights". Cascade renamed: "Circadian" → "Curve" (demoted from primary), "Adjustments" → "Area Adjustments", "Final" → "Area Brightness" (stays primary). Lights content (feedback light + per-light filters) moved into brightness card under "Per-Light" sub-header. Separate Lights card removed.
+
 ## 1.2.24
 - **Suppress auto-off timer when untouched guard would block**: When `auto_off_only_untouched` is enabled and the user has interacted since auto-on fired, `next_auto_off` returns null in the API. Home page and area detail page no longer show a countdown for an auto-off that won't fire.
 

@@ -310,10 +310,16 @@
     }
     .slider-group {
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 6px;
+      gap: 2px;
       flex: 1;
       min-width: 0;
+    }
+    .slider-group-inner {
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
     .step-buttons { display: flex; flex-direction: column; gap: 6px; align-self: center; }
     .step-btn { width: 28px; height: 28px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(30,30,30,0.9); color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; padding: 0; }
@@ -343,7 +349,7 @@
       text-align: center;
     }
     .slider-hero {
-      font-size: 1.4rem;
+      font-size: 1.1rem;
       text-transform: none;
       letter-spacing: 0;
     }
@@ -400,7 +406,10 @@
       opacity: 1;
     }
     /* Top extreme (before track): extra space below for thumb */
-    .slider-column > .slider-extreme:nth-child(2) {
+    .slider-extreme + .slider-track {
+      margin-top: 0;
+    }
+    .slider-column > .slider-extreme:first-child {
       padding-bottom: 11px;
       margin-top: 3px;
     }
@@ -763,63 +772,69 @@
     <div class="adjust-section">
       <div class="adjust-slider-row">
         <div class="slider-group">
-          <div class="slider-column">
-            <div class="slider-section-label">Circadian</div>
-            <div class="slider-label slider-hero" id="slider-hero-circadian">Bed 10p</div>
-            <div class="slider-extreme" id="circ-max" onclick="executeSetPosition(100,'step')">britelite</div>
-            <div class="slider-track" data-mode="step">
-              <div class="slider-fill"></div>
-              <div class="slider-thumb"></div>
+          <div class="slider-section-label">Circadian</div>
+          <div class="slider-label slider-hero" id="slider-hero-circadian">Bed 10p</div>
+          <div class="slider-group-inner">
+            <div class="slider-column">
+              <div class="slider-extreme" id="circ-max" onclick="executeSetPosition(100,'step')">britelite</div>
+              <div class="slider-track" data-mode="step">
+                <div class="slider-fill"></div>
+                <div class="slider-thumb"></div>
+              </div>
+              <div class="slider-extreme" id="circ-min" onclick="executeSetPosition(0,'step')">nitelite</div>
             </div>
-            <div class="slider-extreme" id="circ-min" onclick="executeSetPosition(0,'step')">nitelite</div>
-          </div>
-          <div class="step-buttons">
-            <button class="step-btn" onclick="executeAction('step_up')" title="Step up">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
-            </button>
-            <button class="step-btn" onclick="executeAction('step_down')" title="Step down">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
+            <div class="step-buttons">
+              <button class="step-btn" onclick="executeAction('step_up')" title="Step up">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
+              </button>
+              <button class="step-btn" onclick="executeAction('step_down')" title="Step down">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+            </div>
           </div>
         </div>
         <div class="slider-group">
-          <div class="slider-column">
-            <div class="slider-section-label">Bright</div>
-            <div class="slider-label slider-hero" id="slider-hero-brightness">78%</div>
-            <div class="slider-extreme" id="bright-max" onclick="executeSetPosition(100,'brightness')">brightest</div>
-            <div class="slider-track" data-mode="brightness">
-              <div class="slider-fill"></div>
-              <div class="slider-thumb"></div>
+          <div class="slider-section-label">Bright</div>
+          <div class="slider-label slider-hero" id="slider-hero-brightness">78%</div>
+          <div class="slider-group-inner">
+            <div class="slider-column">
+              <div class="slider-extreme" id="bright-max" onclick="executeSetPosition(100,'brightness')">brightest</div>
+              <div class="slider-track" data-mode="brightness">
+                <div class="slider-fill"></div>
+                <div class="slider-thumb"></div>
+              </div>
+              <div class="slider-extreme" id="bright-min" onclick="executeSetPosition(0,'brightness')">dimmest</div>
             </div>
-            <div class="slider-extreme" id="bright-min" onclick="executeSetPosition(0,'brightness')">dimmest</div>
-          </div>
-          <div class="step-buttons">
-            <button class="step-btn" onclick="executeAction('bright_up')" title="Brighten">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
-            </button>
-            <button class="step-btn" onclick="executeAction('bright_down')" title="Dim">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
+            <div class="step-buttons">
+              <button class="step-btn" onclick="executeAction('bright_up')" title="Brighten">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
+              </button>
+              <button class="step-btn" onclick="executeAction('bright_down')" title="Dim">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+            </div>
           </div>
         </div>
         <div class="slider-group">
-          <div class="slider-column">
-            <div class="slider-section-label">Color</div>
-            <div class="slider-label slider-hero" id="slider-hero-color">2910K</div>
-            <div class="slider-extreme" id="color-max" onclick="executeSetPosition(100,'color')">coolest</div>
-            <div class="slider-track" data-mode="color">
-              <div class="slider-fill"></div>
-              <div class="slider-thumb"></div>
+          <div class="slider-section-label">Color</div>
+          <div class="slider-label slider-hero" id="slider-hero-color">2910K</div>
+          <div class="slider-group-inner">
+            <div class="slider-column">
+              <div class="slider-extreme" id="color-max" onclick="executeSetPosition(100,'color')">coolest</div>
+              <div class="slider-track" data-mode="color">
+                <div class="slider-fill"></div>
+                <div class="slider-thumb"></div>
+              </div>
+              <div class="slider-extreme" id="color-min" onclick="executeSetPosition(0,'color')">warmest</div>
             </div>
-            <div class="slider-extreme" id="color-min" onclick="executeSetPosition(0,'color')">warmest</div>
-          </div>
-          <div class="step-buttons">
-            <button class="step-btn" onclick="executeAction('color_up')" title="Cooler">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
-            </button>
-            <button class="step-btn" onclick="executeAction('color_down')" title="Warmer">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
+            <div class="step-buttons">
+              <button class="step-btn" onclick="executeAction('color_up')" title="Cooler">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
+              </button>
+              <button class="step-btn" onclick="executeAction('color_down')" title="Warmer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -3498,7 +3513,7 @@
       items.forEach(item => list.appendChild(item));
 
       // Update active-sort class on headers
-      const card = list.closest('.tune-lights-card') || list.closest('.tune-lights-body')?.parentElement;
+      const card = list.closest('.tune-lights-card') || list.closest('#tune-lights-inline') || list.closest('.tune-lights-body')?.parentElement;
       if (card) {
         card.querySelectorAll('.tune-light-sort').forEach(h => {
           h.classList.toggle('active-sort', h.dataset.sort === lightSortOrder);
@@ -3605,14 +3620,9 @@
         boostBrightness: status.boost_brightness || 0,
       });
 
-      // ── Card 3: Lights ──
-      const lightsCard = document.getElementById('tune-lights-card');
-      const lightsExpanded = localStorage.getItem('tune_lights_expanded') !== 'false';
-      let lhtml = '<div class="tune-lights-header" onclick="toggleLightsBody()">';
-      lhtml += '<span class="tune-lights-chevron" id="tune-lights-chevron">&#x203A;</span>';
-      lhtml += '<span class="tune-lights-title">Lights</span>';
-      lhtml += '</div>';
-      lhtml += '<div class="tune-lights-body" id="tune-lights-body">';
+      // ── Per-Light sub-section (inside Brightness & Lights card) ──
+      const lightsCard = document.getElementById('tune-lights-inline');
+      let lhtml = '<div class="tune-group-label" style="margin-top:8px;">Per-Light</div>';
 
       // Feedback target selector
       const currentFeedback = areaInfo.feedback_target || null;
@@ -3677,22 +3687,23 @@
       lhtml += '<button class="section-cancel-btn" onclick="cancelLightsChanges()">Cancel</button>';
       lhtml += '<button class="section-save-btn" onclick="saveLightsChanges()">Save</button>';
       lhtml += '</div>';
-      lhtml += '</div>'; // close tune-lights-body
       lightsCard.innerHTML = lhtml;
-      if (lightsExpanded) lightsCard.classList.add('is-open');
+      // Hide the separate lights card (content is now inside brightness card)
+      const separateLightsCard = document.getElementById('tune-lights-card');
+      if (separateLightsCard) separateLightsCard.style.display = 'none';
 
       // ── Brightness card (merged) ──
       const brightnessCard = document.getElementById('tune-brightness-card');
       const briExpanded = false; // always start collapsed
       let bhtml = '<div class="tune-brightness-header" onclick="toggleBrightnessBody()">';
       bhtml += '<span class="tune-brightness-chevron" id="tune-brightness-chevron">&#x203A;</span>';
-      bhtml += '<span class="tune-brightness-title">Brightness</span>';
+      bhtml += '<span class="tune-brightness-title">Brightness & Lights</span>';
       bhtml += '<span class="tune-brightness-val" id="tune-brightness-header-val">--</span>';
       bhtml += '</div>';
       bhtml += '<div class="tune-brightness-body" id="tune-brightness-body">';
-      bhtml += '<div class="tune-bk-row" style="padding-left:14px;"><span class="tune-bk-label primary">Circadian</span>'
+      bhtml += '<div class="tune-bk-row" style="padding-left:14px;"><span class="tune-bk-label">Curve</span>'
         + '<span class="tune-bk-total" id="tune-det-base-total">' + baseBri + '%</span></div>';
-      bhtml += '<div class="tune-group-label">Adjustments</div>';
+      bhtml += '<div class="tune-group-label">Area Adjustments</div>';
       // Solar exposure with inline slider
       bhtml += '<div class="tune-control-row"><span class="tune-control-left"><span class="tune-control-label">Solar exposure</span>'
         + '<span class="tune-control-reset" id="tune-reset-solar">reset</span></span>'
@@ -3716,12 +3727,14 @@
         + '<span class="tune-bk-total" id="tune-det-dim-val">0%</span></div>';
       bhtml += '<div class="tune-bk-row"><span class="tune-bk-label" id="tune-det-fade-label">Auto-on fade</span>'
         + '<span class="tune-bk-total" id="tune-det-fade-val">0%</span></div>';
-      bhtml += '<div class="tune-area-total"><div class="tune-bk-row" style="padding-left:14px;"><span class="tune-bk-label primary">Final</span>'
+      bhtml += '<div class="tune-area-total"><div class="tune-bk-row" style="padding-left:14px;"><span class="tune-bk-label primary">Area Brightness</span>'
         + '<span class="tune-bk-total final" id="tune-det-final-val">--</span></div></div>';
       bhtml += '<div class="section-action-bar" id="tune-action-bar" style="display:none;">';
       bhtml += '<button class="section-cancel-btn" onclick="cancelBrightnessChanges()">Cancel</button>';
       bhtml += '<button class="section-save-btn" onclick="saveBrightnessChanges()">Save</button>';
       bhtml += '</div>';
+      // Per-Light sub-section (merged from separate Lights card)
+      bhtml += '<div id="tune-lights-inline"></div>';
       bhtml += '</div>';
       brightnessCard.innerHTML = bhtml;
 
@@ -3817,7 +3830,7 @@
       }
 
       // Light column sort headers
-      const lightsCardEl = document.getElementById('tune-lights-card');
+      const lightsCardEl = document.getElementById('tune-lights-inline') || document.getElementById('tune-lights-card');
       if (lightsCardEl) {
         lightsCardEl.querySelectorAll('.tune-light-sort').forEach(h => {
           h.addEventListener('click', () => {
