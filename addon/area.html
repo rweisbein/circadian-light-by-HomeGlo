@@ -319,8 +319,7 @@
     .slider-group-inner {
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 6px;
+      gap: 2px;
       width: 100%;
     }
     .step-buttons { display: flex; flex-direction: column; gap: 6px; align-self: center; }
@@ -638,6 +637,8 @@
     .tune-brightness-title { font-size: 1.0rem; font-weight: 600; color: var(--text); }
     .tune-brightness-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
     .tune-brightness-card.is-open .tune-brightness-chevron { transform: rotate(90deg); }
+    .tune-controls-card.is-open .tune-brightness-chevron { transform: rotate(90deg); }
+    .tune-controls-card.is-open .tune-brightness-body { max-height: 500px; opacity: 1; padding-bottom: 8px; }
     .tune-brightness-val { margin-left: auto; font-size: 1.1rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; transition: opacity 0.25s; }
     .tune-brightness-card.is-open .tune-brightness-val { opacity: 0; }
     .tune-brightness-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; padding-bottom: 0; }
@@ -1060,6 +1061,14 @@
         <!-- Tune Section -->
     <div id="area-tune-section" style="display:none; margin: 0 0 16px;">
       <div class="tune-card tune-brightness-card" id="tune-brightness-card"></div>
+      <div class="tune-card tune-controls-card" id="tune-controls-card" style="display:none;">
+        <div class="tune-brightness-header" onclick="toggleControlsBody()">
+          <span class="tune-brightness-chevron" id="tune-controls-chevron">&#x203A;</span>
+          <span class="tune-brightness-title">Controls</span>
+        </div>
+        <div class="tune-brightness-body" id="tune-controls-body">
+        </div>
+      </div>
       <div class="tune-card tune-lights-card" id="tune-lights-card"></div>
       <div class="tune-save-status" id="tune-save-status">Saved</div>
     </div>
@@ -3480,6 +3489,11 @@
       const elFinalVal = document.getElementById('tune-det-final-val');
       if (elFinalVal) elFinalVal.textContent = areaBri + '%';
 
+      // Net adjustment row
+      const netAdj = areaBri - baseBriPct;
+      const elAdjNet = document.getElementById('tune-det-adj-net');
+      if (elAdjNet) elAdjNet.textContent = formatImpact(netAdj) + '%';
+
       // -- Solar source info (above slider) --
       const sourceInfo = document.getElementById('tune-source-info');
       if (sourceInfo) {
@@ -3636,18 +3650,23 @@
         boostBrightness: status.boost_brightness || 0,
       });
 
-      // ── Brightness & Lights card ──
+      // ── Brightness card ──
       const brightnessCard = document.getElementById('tune-brightness-card');
       const briExpanded = false; // always start collapsed
       let bhtml = '<div class="tune-brightness-header" onclick="toggleBrightnessBody()">';
       bhtml += '<span class="tune-brightness-chevron" id="tune-brightness-chevron">&#x203A;</span>';
-      bhtml += '<span class="tune-brightness-title">Brightness & Lights</span>';
+      bhtml += '<span class="tune-brightness-title">Brightness</span>';
       bhtml += '<span class="tune-brightness-val" id="tune-brightness-header-val">--</span>';
       bhtml += '</div>';
       bhtml += '<div class="tune-brightness-body" id="tune-brightness-body">';
-      bhtml += '<div class="tune-bk-row" style="padding-left:14px;"><span class="tune-bk-label">Curve</span>'
+      bhtml += '<div class="tune-bk-row" style="padding-left:14px;"><span class="tune-bk-label">Circadian curve</span>'
         + '<span class="tune-bk-total" id="tune-det-base-total">' + baseBri + '%</span></div>';
-      bhtml += '<div class="tune-group-label">Area Adjustments</div>';
+      // Adjustments summary row (clickable to expand details)
+      bhtml += '<div class="tune-bk-row" style="padding-left:14px;cursor:pointer;" onclick="toggleAdjustmentDetails()">'
+        + '<span class="tune-bk-label">Adjustments <span id="tune-adj-chevron" style="font-size:0.8rem;">&#x203A;</span></span>'
+        + '<span class="tune-bk-total" id="tune-det-adj-net">0%</span></div>';
+      // Collapsible detail rows
+      bhtml += '<div id="tune-adj-details" style="display:none;">';
       // Solar exposure with inline slider
       bhtml += '<div class="tune-control-row"><span class="tune-control-left"><span class="tune-control-label">Solar exposure</span>'
         + '<span class="tune-control-reset" id="tune-reset-solar">reset</span></span>'
@@ -3671,6 +3690,7 @@
         + '<span class="tune-bk-total" id="tune-det-dim-val">0%</span></div>';
       bhtml += '<div class="tune-bk-row"><span class="tune-bk-label" id="tune-det-fade-label">Auto-on fade</span>'
         + '<span class="tune-bk-total" id="tune-det-fade-val">0%</span></div>';
+      bhtml += '</div>'; // end tune-adj-details
       bhtml += '<div class="tune-area-total"><div class="tune-bk-row" style="padding-left:14px;"><span class="tune-bk-label primary">Area Brightness</span>'
         + '<span class="tune-bk-total final" id="tune-det-final-val">--</span></div></div>';
       bhtml += '<div class="section-action-bar" id="tune-action-bar" style="display:none;">';
@@ -3685,11 +3705,11 @@
       // Set initial expanded state
       if (briExpanded) brightnessCard.classList.add('is-open');
 
-      // ── Per-Light sub-section (inside Brightness & Lights card) ──
+      // ── Per-Light sub-section (inside Brightness card) ──
       const lightsCard = document.getElementById('tune-lights-inline');
-      let lhtml = '<div class="tune-group-label" style="margin-top:8px;">Per-Light</div>';
+      let lhtml = '<div class="tune-group-label" style="margin-top:8px;">Lights</div>';
 
-      // Feedback target selector
+      // Feedback target selector — goes into Controls card
       const currentFeedback = areaInfo.feedback_target || null;
       const purposeCounts = {};
       for (const light of lightsArr) {
@@ -3698,22 +3718,26 @@
       const mostPopular = Object.keys(purposeCounts).sort((a, b) => purposeCounts[b] - purposeCounts[a])[0] || 'Standard';
       const purposes = [...new Set(lightsArr.map(l => l.filterName))].sort();
 
-      lhtml += '<div style="display:flex;align-items:center;gap:6px;padding:6px 14px;font-size:0.78rem;color:var(--muted);">';
-      lhtml += '<span>Feedback light:</span>';
-      lhtml += '<select id="tune-feedback-target" onchange="saveFeedbackTarget()" style="background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:2px 4px;font-size:0.78rem;">';
-      lhtml += '<option value=""' + (!currentFeedback ? ' selected' : '') + '>Auto (' + mostPopular + ')</option>';
-      lhtml += '<optgroup label="Purposes">';
+      let fbhtml = '<div style="display:flex;align-items:center;gap:6px;padding:6px 14px;font-size:0.78rem;color:var(--muted);">';
+      fbhtml += '<span>Feedback light:</span>';
+      fbhtml += '<select id="tune-feedback-target" onchange="saveFeedbackTarget()" style="background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:2px 4px;font-size:0.78rem;">';
+      fbhtml += '<option value=""' + (!currentFeedback ? ' selected' : '') + '>Auto (' + mostPopular + ')</option>';
+      fbhtml += '<optgroup label="Purposes">';
       for (const p of purposes) {
-        lhtml += '<option value="' + p + '"' + (currentFeedback === p ? ' selected' : '') + '>' + p + '</option>';
+        fbhtml += '<option value="' + p + '"' + (currentFeedback === p ? ' selected' : '') + '>' + p + '</option>';
       }
-      lhtml += '</optgroup>';
-      lhtml += '<optgroup label="Individual lights">';
+      fbhtml += '</optgroup>';
+      fbhtml += '<optgroup label="Individual lights">';
       for (const light of lightsArr) {
         const isSelected = currentFeedback === light.entity_id;
-        lhtml += '<option value="' + light.entity_id + '"' + (isSelected ? ' selected' : '') + '>' + light.name + '</option>';
+        fbhtml += '<option value="' + light.entity_id + '"' + (isSelected ? ' selected' : '') + '>' + light.name + '</option>';
       }
-      lhtml += '</optgroup>';
-      lhtml += '</select></div>';
+      fbhtml += '</optgroup>';
+      fbhtml += '</select></div>';
+      const controlsBody = document.getElementById('tune-controls-body');
+      if (controlsBody) controlsBody.innerHTML = fbhtml;
+      const controlsCard = document.getElementById('tune-controls-card');
+      if (controlsCard) controlsCard.style.display = '';
 
       lhtml += '<div id="tune-lights-list">';
       if (sortedLights.length === 0) {
@@ -3895,6 +3919,21 @@
       if (!card) return;
       const isOpen = card.classList.toggle('is-open');
       localStorage.setItem('tune_details_expanded', isOpen ? 'true' : 'false');
+    }
+
+    function toggleAdjustmentDetails() {
+      const details = document.getElementById('tune-adj-details');
+      const chevron = document.getElementById('tune-adj-chevron');
+      if (!details) return;
+      const isHidden = details.style.display === 'none';
+      details.style.display = isHidden ? '' : 'none';
+      if (chevron) chevron.style.transform = isHidden ? 'rotate(90deg)' : '';
+    }
+
+    function toggleControlsBody() {
+      const card = document.querySelector('.tune-controls-card');
+      if (!card) return;
+      card.classList.toggle('is-open');
     }
 
     function toggleLightsBody() {

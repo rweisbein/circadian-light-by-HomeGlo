@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.30
+- **Area detail UI overhaul**: Slider up/down buttons closer to track (gap 6px → 2px). Section renamed to "Brightness" (was "Brightness & Lights"). "Curve" → "Circadian curve". "Per-Light" → "Lights". Brightness cascade simplified: shows Circadian curve, Adjustments (net, expandable), Area Brightness. Detail rows collapse by default. New "Controls" section with Feedback light dropdown moved from Lights.
+
 ## 1.2.29
 - **Auto on/off UI polish**: Reduced days-to-offset/time vertical spacing. Schedule 2 header left-aligned with closer spacing to its time box. Override link text "set override" → "set". Remove link "- remove schedule" → "- remove schedule 2". Auto-off next time shows tomorrow's schedule when today is suppressed by untouched guard (instead of blank).
 
