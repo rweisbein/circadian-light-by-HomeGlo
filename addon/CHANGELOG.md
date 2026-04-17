@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.29
+- **Auto on/off UI polish**: Reduced days-to-offset/time vertical spacing. Schedule 2 header left-aligned with closer spacing to its time box. Override link text "set override" → "set". Remove link "- remove schedule" → "- remove schedule 2". Auto-off next time shows tomorrow's schedule when today is suppressed by untouched guard (instead of blank).
+
 ## 1.2.28
 - **Sun dimming hint on step_up bounce**: When step_up hits the circadian curve ceiling AND sun dimming is active, shows a toast hint: "Circadian curve at max — use bright up to override sun dimming". Only fires when all three conditions are true (at limit, trying up, sun_bright_factor < 1.0). Switch handler logs the hint. Area detail page shows a 4-second toast.
 

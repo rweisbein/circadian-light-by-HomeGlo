@@ -481,8 +481,8 @@
     .auto-sched-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; }
     .auto-sched-card.is-open .auto-sched-body { max-height: 600px; opacity: 1; }
     .auto-sched-body-inner { padding: 4px 0 14px 0; }
-    .auto-sched-row { display: flex; align-items: center; margin-bottom: 8px; }
-    .auto-sched-days { display: flex; gap: 6px; margin-bottom: 8px; }
+    .auto-sched-row { display: flex; align-items: center; margin-bottom: 4px; }
+    .auto-sched-days { display: flex; gap: 6px; margin-bottom: 4px; }
     .auto-sched-day-col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
     .auto-sched-day-btn { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; color: var(--muted); font-size: 0.55rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; transition: all 0.15s; }
     .auto-sched-day-btn:hover { border-color: var(--text); color: var(--text); }
@@ -507,8 +507,8 @@
     .auto-sched-radios label { display: flex; align-items: center; gap: 4px; font-size: 0.78rem; color: var(--muted); cursor: pointer; white-space: nowrap; }
     .auto-sched-radios input[type="radio"] { accent-color: var(--muted); margin: 0; cursor: pointer; }
 
-    .auto-sched-custom-group { margin-bottom: 8px; }
-    .auto-sched-custom-label { font-size: 0.7rem; font-weight: 500; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; text-align: center; }
+    .auto-sched-custom-group { margin-bottom: 4px; margin-top: 10px; }
+    .auto-sched-custom-label { font-size: 0.7rem; font-weight: 500; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
 
     .auto-sched-fade-slider { flex: 1; }
     .auto-sched-fade-val { font-size: 0.78rem; color: var(--muted); min-width: 3em; text-align: right; font-variant-numeric: tabular-nums; }
@@ -928,7 +928,7 @@
                     <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="5" onclick="toggleAutoCustomDay('on',2,this)">Sa</button></div>
                     <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="6" onclick="toggleAutoCustomDay('on',2,this)">Su</button></div>
                   </div>
-                  <div class="auto-sched-add-schedule" onclick="removeAutoSchedule2('on')">- remove schedule</div>
+                  <div class="auto-sched-add-schedule" onclick="removeAutoSchedule2('on')">- remove schedule 2</div>
                 </div>
                 <div class="auto-sched-add-schedule" id="auto-on-add-sched" onclick="showAutoSchedule2('on')">+ add schedule</div>
               </div>
@@ -954,7 +954,7 @@
           <div class="auto-sched-field" id="auto-on-override-row" style="display:none; align-items:center;">
             <span class="auto-sched-field-label">Override</span>
             <div class="auto-sched-field-content">
-              <a id="auto-on-override-link" class="auto-sched-override-link" href="#" onclick="event.preventDefault(); event.stopPropagation(); openAutoOverridePopup('on', this);">set override</a>
+              <a id="auto-on-override-link" class="auto-sched-override-link" href="#" onclick="event.preventDefault(); event.stopPropagation(); openAutoOverridePopup('on', this);">set</a>
             </div>
           </div>
           <div class="section-action-bar" id="auto-on-action-bar" style="display:none;">
@@ -1022,7 +1022,7 @@
                     <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="5" onclick="toggleAutoCustomDay('off',2,this)">Sa</button></div>
                     <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="6" onclick="toggleAutoCustomDay('off',2,this)">Su</button></div>
                   </div>
-                  <div class="auto-sched-add-schedule" onclick="removeAutoSchedule2('off')">- remove schedule</div>
+                  <div class="auto-sched-add-schedule" onclick="removeAutoSchedule2('off')">- remove schedule 2</div>
                 </div>
                 <div class="auto-sched-add-schedule" id="auto-off-add-sched" onclick="showAutoSchedule2('off')">+ add schedule</div>
               </div>
@@ -1045,7 +1045,7 @@
           <div class="auto-sched-field" id="auto-off-override-row" style="display:none; align-items:center;">
             <span class="auto-sched-field-label">Override</span>
             <div class="auto-sched-field-content">
-              <a id="auto-off-override-link" class="auto-sched-override-link" href="#" onclick="event.preventDefault(); event.stopPropagation(); openAutoOverridePopup('off', this);">set override</a>
+              <a id="auto-off-override-link" class="auto-sched-override-link" href="#" onclick="event.preventDefault(); event.stopPropagation(); openAutoOverridePopup('off', this);">set</a>
             </div>
           </div>
           <div class="section-action-bar" id="auto-off-action-bar" style="display:none;">

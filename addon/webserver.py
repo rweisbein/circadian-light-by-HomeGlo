@@ -2744,8 +2744,62 @@ class LightDesignerServer:
                 f"{auto_on_date}T{auto_on_h:02d}:{auto_on_m:02d}:00"
             )
             if action_dt > auto_on_dt:
-                # User touched since auto-on — auto-off will be skipped
-                return None
+                # User touched since auto-on — today's auto-off will be
+                # skipped. Show the NEXT future scheduled time instead.
+                if result and result.get("offset", 0) == 0:
+                    # Today's time would fire but will be skipped.
+                    # Find tomorrow's time by scanning from offset 1.
+                    from datetime import timedelta
+                    from zoneinfo import ZoneInfo
+                    timezone = os.getenv("HASS_TIME_ZONE", "US/Eastern")
+                    try:
+                        tzinfo = ZoneInfo(timezone)
+                    except Exception:
+                        tzinfo = None
+                    now = datetime.now(tzinfo)
+                    today_wd = now.weekday()
+                    source = settings.get("auto_off_source", "sunrise")
+                    today_date = now.date()
+                    for i in range(1, 14):
+                        py_day = (today_wd + i) % 7
+                        if source in ("sunrise", "sunset"):
+                            active_days = settings.get("auto_off_days", [0,1,2,3,4,5,6])
+                            if py_day not in active_days:
+                                continue
+                            fire_date = today_date + timedelta(days=i)
+                            try:
+                                sr_h, ss_h = LightDesignerServer._get_sun_hours_for_date(fire_date.isoformat())
+                            except Exception:
+                                sr_h, ss_h = sunrise_hour, sunset_hour
+                            base = sr_h if source == "sunrise" else ss_h
+                            offset_min = settings.get("auto_off_offset", 0)
+                            at = base + offset_min / 60.0
+                        elif source == "custom":
+                            days_1 = settings.get("auto_off_days_1", [])
+                            days_2 = settings.get("auto_off_days_2", [])
+                            if py_day in days_1:
+                                at = settings.get("auto_off_time_1")
+                            elif py_day in days_2:
+                                at = settings.get("auto_off_time_2")
+                            else:
+                                continue
+                            if at is None:
+                                continue
+                        else:
+                            continue
+                        # Found next day
+                        day_abbrs = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+                        h_raw = int(at % 24)
+                        m_raw = round((at - int(at)) * 60)
+                        suffix = "a" if h_raw < 12 else "p"
+                        h_d = h_raw if h_raw == 0 else (h_raw - 12 if h_raw > 12 else h_raw)
+                        if h_d == 0: h_d = 12
+                        time_str = f"{h_d}:{m_raw:02d}{suffix}"
+                        day_label = f"tom ({day_abbrs[py_day]})" if i == 1 else day_abbrs[py_day]
+                        return {"time": time_str, "day": day_label, "offset": i}
+                    return None  # No future schedule found
+                # Result is already a future day — show it
+                return result
         except Exception:
             pass
 
