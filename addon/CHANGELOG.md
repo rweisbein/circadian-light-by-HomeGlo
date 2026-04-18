@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.42
+- **Fix batch group creation**: Groups are now created per-reach (areas must share balance AND appear in the same reach), not globally pooled. Prevents creating groups for areas that never get commanded together. Deduplicates across reaches when the same area subset appears in multiple scopes. Batch group log now includes area list.
+- **Wire glozone_down/full_send/glozone_reset_full for batch dispatch**: These zone-level primitives now use batch groups when available. `glozone_down` accepts `send_command=False` and returns affected areas for batch dispatch.
+
 ## 1.2.41
 - **Balance-based batch groups**: Redesigned ZHA multi-area group creation. Instead of creating groups per exact switch scope, pools all areas from all reaches and groups by shared balance (area_factor). Creates more useful subset groups (e.g., 2 areas with same balance get a group even if no switch targets exactly those two), eliminates useless mixed-balance groups. Dispatch simplified: removes factor_key from matching, compares only computed brightness+kelvin values. Logs per-light group membership count for ZHA limit monitoring. Legacy `Circadian_Reach_*` groups auto-cleaned on first sync.
 

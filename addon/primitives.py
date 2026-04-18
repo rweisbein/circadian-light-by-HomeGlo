@@ -3770,7 +3770,12 @@ class CircadianLightPrimitives:
             f"glozone_reset complete: zone '{zone_name}' reset to Daily Rhythm defaults"
         )
 
-    async def glozone_down(self, zone_name: str, source: str = "service_call"):
+    async def glozone_down(
+        self,
+        zone_name: str,
+        source: str = "service_call",
+        send_command: bool = True,
+    ) -> List[str]:
         """Push GloZone settings to all areas in the zone.
 
         Copies the zone's runtime state to all member areas and applies lighting.
@@ -3778,6 +3783,10 @@ class CircadianLightPrimitives:
         Args:
             zone_name: The zone name
             source: Source of the action
+            send_command: Whether to send light commands (False for batch dispatch)
+
+        Returns:
+            List of area IDs that are circadian and on (candidates for light commands)
         """
         logger.info(f"[{source}] glozone_down for zone '{zone_name}'")
 
@@ -3802,6 +3811,7 @@ class CircadianLightPrimitives:
         logger.info(f"Zone '{zone_name}' has {len(zone_areas)} area(s): {zone_areas}")
 
         # Propagate to all areas in the zone
+        affected_areas = []
         for target_area_id in zone_areas:
             # Clear boost state if boosted (zone push overrides boost)
             if state.is_boosted(target_area_id):
@@ -3814,12 +3824,15 @@ class CircadianLightPrimitives:
 
             # Apply lighting if the target area is circadian and is_on
             if state.is_circadian(target_area_id) and state.get_is_on(target_area_id):
-                await self.client.update_lights_in_circadian_mode(target_area_id)
-                logger.debug(f"Triggered lighting update for {target_area_id}")
+                affected_areas.append(target_area_id)
+                if send_command:
+                    await self.client.update_lights_in_circadian_mode(target_area_id)
+                    logger.debug(f"Triggered lighting update for {target_area_id}")
 
         logger.info(
             f"glozone_down complete: synced {len(zone_areas)} area(s) in zone '{zone_name}'"
         )
+        return affected_areas
 
     async def full_send(self, area_id: str, source: str = "service_call"):
         """Push area settings to GloZone, then to all areas in zone.

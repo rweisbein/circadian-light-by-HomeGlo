@@ -10,7 +10,7 @@ import random
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any, Set, Union
 
 logger = logging.getLogger(__name__)
 
@@ -1238,15 +1238,9 @@ class ZigBeeController(LightController):
         area_factors = area_factors or {}
 
         try:
-            # Pool all areas from all reaches
-            all_areas = set()
-            for area_ids in reaches.values():
-                all_areas.update(area_ids)
+            import switches as _switches
 
-            logger.info(
-                f"Syncing batch groups: {len(all_areas)} areas from "
-                f"{len(reaches)} reach(es)..."
-            )
+            logger.info(f"Syncing batch groups from {len(reaches)} reach(es)...")
 
             # Ensure Circadian_Zigbee_Groups area exists
             circadian_area_id = await self.ensure_circadian_area_exists()
@@ -1258,120 +1252,138 @@ class ZigBeeController(LightController):
             # Get light color modes from the main client
             light_color_modes = getattr(self.ws_client, "light_color_modes", {})
 
-            # Step 1: Group areas by balance
-            balance_groups: Dict[float, List[str]] = {}
-            for area_id in all_areas:
-                factor = area_factors.get(area_id, 1.0)
-                factor_key = round(factor, 3)
-                balance_groups.setdefault(factor_key, []).append(area_id)
-
-            logger.debug(f"Balance groups: {dict(balance_groups)}")
-
             batch_groups: List[BatchGroup] = []
             expected_group_names = set()
             # Track per-light group membership for limit monitoring
             light_membership_count: Dict[str, int] = {}  # ieee -> count
 
-            for factor_key, balance_area_ids in balance_groups.items():
-                if len(balance_area_ids) < 2:
-                    continue  # Single area — use area group
+            # Deduplicate: track which (sorted area set, purpose, cap) combos
+            # we've already created so overlapping reaches don't create duplicates
+            created_combos: Set[tuple] = set()
 
-                # Step 2: Collect ZHA lights, sub-group by (purpose, cap)
-                purpose_groups: Dict[tuple, Dict] = {}
+            # Step 1: For each reach, group areas by balance, then by purpose+cap
+            for reach_key, reach_area_ids in reaches.items():
+                if len(reach_area_ids) < 2:
+                    continue
 
-                for area_id in balance_area_ids:
-                    area_info = areas_data.get(area_id, {})
-                    if not area_info:
-                        continue
-                    zha_lights = area_info.get("zha_lights", [])
-                    area_filter_map = filter_config.get(area_id, {})
+                # Group this reach's areas by balance
+                balance_groups: Dict[float, List[str]] = {}
+                for area_id in reach_area_ids:
+                    factor = area_factors.get(area_id, 1.0)
+                    factor_key = round(factor, 3)
+                    balance_groups.setdefault(factor_key, []).append(area_id)
 
-                    for light in zha_lights:
-                        ieee = light.get("ieee")
-                        endpoint_id = light.get("endpoint_id", 11)
-                        entity_id = light.get("entity_id")
+                for factor_key, balance_area_ids in balance_groups.items():
+                    if len(balance_area_ids) < 2:
+                        continue  # Only 1 area at this balance in this reach
 
-                        if not ieee:
+                    # Step 2: Collect ZHA lights, sub-group by (purpose, cap)
+                    purpose_groups: Dict[tuple, Dict] = {}
+
+                    for area_id in balance_area_ids:
+                        area_info = areas_data.get(area_id, {})
+                        if not area_info:
                             continue
+                        zha_lights = area_info.get("zha_lights", [])
+                        area_filter_map = filter_config.get(area_id, {})
 
-                        member_entry = {
-                            "ieee": ieee.lower(),
-                            "endpoint_id": endpoint_id,
-                        }
+                        for light in zha_lights:
+                            ieee = light.get("ieee")
+                            endpoint_id = light.get("endpoint_id", 11)
+                            entity_id = light.get("entity_id")
 
-                        # Determine purpose for this light
-                        filter_name = area_filter_map.get(entity_id, "Standard")
-                        purpose_norm = filter_name.replace(" ", "_").lower()
+                            if not ieee:
+                                continue
 
-                        # Determine capability
-                        modes = light_color_modes.get(entity_id, {"color_temp"})
-                        if "xy" in modes or "rgb" in modes or "hs" in modes:
-                            cap = "color"
-                        elif "color_temp" in modes:
-                            cap = "ct"
-                        else:
-                            continue  # brightness-only skipped
-
-                        key = (purpose_norm, cap)
-                        if key not in purpose_groups:
-                            purpose_groups[key] = {
-                                "members": [],
-                                "areas": set(),
+                            member_entry = {
+                                "ieee": ieee.lower(),
+                                "endpoint_id": endpoint_id,
                             }
 
-                        # Avoid duplicates
-                        grp = purpose_groups[key]
-                        if not any(
-                            m["ieee"] == member_entry["ieee"] for m in grp["members"]
-                        ):
-                            grp["members"].append(member_entry)
-                            grp["areas"].add(area_id)
+                            # Determine purpose for this light
+                            filter_name = area_filter_map.get(entity_id, "Standard")
+                            purpose_norm = filter_name.replace(" ", "_").lower()
 
-                # Step 3: Create batch groups for combos with 2+ areas contributing
-                for (purpose_norm, cap), grp in purpose_groups.items():
-                    members = grp["members"]
-                    contributing_areas = sorted(grp["areas"])
+                            # Determine capability
+                            modes = light_color_modes.get(entity_id, {"color_temp"})
+                            if "xy" in modes or "rgb" in modes or "hs" in modes:
+                                cap = "color"
+                            elif "color_temp" in modes:
+                                cap = "ct"
+                            else:
+                                continue  # brightness-only skipped
 
-                    if len(contributing_areas) < 2:
-                        continue
+                            key = (purpose_norm, cap)
+                            if key not in purpose_groups:
+                                purpose_groups[key] = {
+                                    "members": [],
+                                    "areas": set(),
+                                }
 
-                    import switches as _switches
+                            # Avoid duplicates
+                            grp = purpose_groups[key]
+                            if not any(
+                                m["ieee"] == member_entry["ieee"]
+                                for m in grp["members"]
+                            ):
+                                grp["members"].append(member_entry)
+                                grp["areas"].add(area_id)
 
-                    area_hash = _switches.get_reach_key(contributing_areas)
-                    group_name = f"Circadian_Batch_{purpose_norm}_{cap}_{area_hash}"
-                    expected_group_names.add(group_name)
-                    logger.info(
-                        f"  {purpose_norm} {cap} batch '{group_name}': "
-                        f"{len(members)} lights from {len(contributing_areas)} areas "
-                        f"(balance={factor_key})"
-                    )
-                    actual_entity_id = await self._sync_single_group(
-                        group_name,
-                        members,
-                        existing_groups_by_name,
-                        circadian_area_id,
-                    )
+                    # Step 3: Create batch groups for combos with 2+ areas
+                    for (purpose_norm, cap), grp in purpose_groups.items():
+                        members = grp["members"]
+                        contributing_areas = sorted(grp["areas"])
 
-                    entity_id = actual_entity_id or f"light.{group_name.lower()}"
+                        if len(contributing_areas) < 2:
+                            continue
 
-                    # Find or create BatchGroup for these areas
-                    batch_group = None
-                    for bg in batch_groups:
-                        if sorted(bg.areas) == contributing_areas:
-                            batch_group = bg
-                            break
-                    if batch_group is None:
-                        batch_group = BatchGroup(areas=contributing_areas)
-                        batch_groups.append(batch_group)
-
-                    batch_group.filter_groups[(purpose_norm, cap)] = entity_id
-
-                    # Track membership count per light
-                    for m in members:
-                        ieee = m["ieee"]
-                        light_membership_count[ieee] = (
-                            light_membership_count.get(ieee, 0) + 1
+                        # Deduplicate across reaches (same areas+purpose+cap)
+                        combo_key = (
+                            tuple(contributing_areas),
+                            purpose_norm,
+                            cap,
                         )
+                        if combo_key in created_combos:
+                            continue
+                        created_combos.add(combo_key)
+
+                        area_hash = _switches.get_reach_key(contributing_areas)
+                        group_name = f"Circadian_Batch_{purpose_norm}_{cap}_{area_hash}"
+                        expected_group_names.add(group_name)
+                        logger.info(
+                            f"  {purpose_norm} {cap} batch '{group_name}': "
+                            f"{len(members)} lights from "
+                            f"{len(contributing_areas)} areas "
+                            f"(balance={factor_key}, "
+                            f"areas={contributing_areas})"
+                        )
+                        actual_entity_id = await self._sync_single_group(
+                            group_name,
+                            members,
+                            existing_groups_by_name,
+                            circadian_area_id,
+                        )
+
+                        entity_id = actual_entity_id or f"light.{group_name.lower()}"
+
+                        # Find or create BatchGroup for these areas
+                        batch_group = None
+                        for bg in batch_groups:
+                            if sorted(bg.areas) == contributing_areas:
+                                batch_group = bg
+                                break
+                        if batch_group is None:
+                            batch_group = BatchGroup(areas=contributing_areas)
+                            batch_groups.append(batch_group)
+
+                        batch_group.filter_groups[(purpose_norm, cap)] = entity_id
+
+                        # Track membership count per light
+                        for m in members:
+                            ieee = m["ieee"]
+                            light_membership_count[ieee] = (
+                                light_membership_count.get(ieee, 0) + 1
+                            )
 
             # Log membership counts for limit monitoring
             if light_membership_count:

@@ -2240,28 +2240,58 @@ class HomeAssistantWebSocketClient:
         elif main_action == "glozone_down":
             # Push GloZone settings to all areas in zone
             glozone.reload()
+            all_affected = []
             zones_done = set()
             for area in areas:
                 zone_name = glozone.get_zone_for_area(area)
                 if zone_name and zone_name not in zones_done:
-                    await self.primitives.glozone_down(zone_name, "switch")
+                    affected = await self.primitives.glozone_down(
+                        zone_name, "switch", send_command=False
+                    )
+                    all_affected.extend(affected)
                     zones_done.add(zone_name)
+            if all_affected:
+                await self._send_via_batch_or_fallback(
+                    all_affected, [True for _ in all_affected]
+                )
 
         elif main_action == "full_send":
             # Compound: glo_up + glozone_down (push area to zone, then zone to all)
+            glozone.reload()
+            all_affected = []
+            zones_done = set()
             for area in areas:
-                await self.primitives.full_send(area, "switch")
+                zone_name = glozone.get_zone_for_area(area)
+                if zone_name and zone_name not in zones_done:
+                    await self.primitives.glo_up(area, "switch")
+                    affected = await self.primitives.glozone_down(
+                        zone_name, "switch", send_command=False
+                    )
+                    all_affected.extend(affected)
+                    zones_done.add(zone_name)
+            if all_affected:
+                await self._send_via_batch_or_fallback(
+                    all_affected, [True for _ in all_affected]
+                )
 
         elif main_action == "glozone_reset_full":
             # Compound: glozone_reset + glozone_down (reset zone, then push to all)
             glozone.reload()
+            all_affected = []
             zones_done = set()
             for area in areas:
                 zone_name = glozone.get_zone_for_area(area)
                 if zone_name and zone_name not in zones_done:
                     await self.primitives.glozone_reset(zone_name, "switch")
-                    await self.primitives.glozone_down(zone_name, "switch")
+                    affected = await self.primitives.glozone_down(
+                        zone_name, "switch", send_command=False
+                    )
+                    all_affected.extend(affected)
                     zones_done.add(zone_name)
+            if all_affected:
+                await self._send_via_batch_or_fallback(
+                    all_affected, [True for _ in all_affected]
+                )
 
         elif main_action == "set_britelite":
             # Freeze at descend_start (max brightness/coolest color on curve)
