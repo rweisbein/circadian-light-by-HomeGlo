@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.41
+- **Balance-based batch groups**: Redesigned ZHA multi-area group creation. Instead of creating groups per exact switch scope, pools all areas from all reaches and groups by shared balance (area_factor). Creates more useful subset groups (e.g., 2 areas with same balance get a group even if no switch targets exactly those two), eliminates useless mixed-balance groups. Dispatch simplified: removes factor_key from matching, compares only computed brightness+kelvin values. Logs per-light group membership count for ZHA limit monitoring. Legacy `Circadian_Reach_*` groups auto-cleaned on first sync.
+
 ## 1.2.33
 - **Fix fade completion brightness jump**: `compute_fade_target` now clears brightness_override, boost_brightness, and color_override from the synthetic context so the target matches what completion will actually produce.
 - **Fix auto_on_light not persisting**: `auto_on_light` was missing from webserver defaults and save handler field list. Britelite/nitelite selection now saves and loads correctly.

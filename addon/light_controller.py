@@ -62,24 +62,18 @@ class RegistryData:
 
 
 @dataclass
-class ReachGroup:
-    """ZHA group for a multi-area reach combination.
+class BatchGroup:
+    """ZHA group for balance-matched areas across all reaches.
 
-    When a switch controls multiple areas, we create dedicated ZHA groups
-    containing lights from all those areas so we can control them atomically
-    with a single command (synchronized color/brightness changes).
+    Areas that share the same brightness balance (area_factor) are grouped
+    together so they can be controlled atomically with a single ZHA command
+    when their computed brightness+kelvin values match at dispatch time.
 
-    Filter-aware: groups are per (filter, area_factor). The filter_groups dict
-    maps (filter_norm, factor, cap) -> entity_id for runtime lookup.
+    filter_groups maps (purpose_norm, cap) -> entity_id for runtime lookup.
     """
 
-    key: str  # Hash of sorted areas (from get_reach_key)
-    areas: List[str]  # Areas in this reach
-    group_id_color: Optional[int] = None  # Legacy flat group ID
-    group_id_ct: Optional[int] = None  # Legacy flat group ID
-    entity_id_color: Optional[str] = None  # Legacy flat entity (backward compat)
-    entity_id_ct: Optional[str] = None  # Legacy flat entity (backward compat)
-    # Per-filter groups: (filter_norm, factor_key, cap) -> entity_id
+    areas: List[str]  # Areas in this group (all share same balance)
+    # Per-purpose groups: (purpose_norm, cap) -> entity_id
     filter_groups: Dict[tuple, str] = None
 
     def __post_init__(self):
@@ -995,7 +989,12 @@ class ZigBeeController(LightController):
 
                     filt = area_filters.get(entity_id, "Standard")
                     if filt not in filter_groups:
-                        filter_groups[filt] = {"color": [], "ct": [], "color_entities": [], "ct_entities": []}
+                        filter_groups[filt] = {
+                            "color": [],
+                            "ct": [],
+                            "color_entities": [],
+                            "ct_entities": [],
+                        }
                     filter_groups[filt][cap].append(member_entry)
                     filter_groups[filt][f"{cap}_entities"].append(entity_id)
                     logger.debug(
@@ -1006,16 +1005,26 @@ class ZigBeeController(LightController):
                 for filt_name, caps in filter_groups.items():
                     filt_normalized = filt_name.replace(" ", "_")
                     if caps["color"]:
-                        gname = f"Circadian_{area_name_normalized}_{filt_normalized}_color"
-                        capability_groups.append((gname, caps["color"], "color", caps["color_entities"]))
+                        gname = (
+                            f"Circadian_{area_name_normalized}_{filt_normalized}_color"
+                        )
+                        capability_groups.append(
+                            (gname, caps["color"], "color", caps["color_entities"])
+                        )
                         group_name_mapping[gname] = {
-                            "area": area_name, "filter": filt_name, "cap": "color",
+                            "area": area_name,
+                            "filter": filt_name,
+                            "cap": "color",
                         }
                     if caps["ct"]:
                         gname = f"Circadian_{area_name_normalized}_{filt_normalized}_ct"
-                        capability_groups.append((gname, caps["ct"], "ct", caps["ct_entities"]))
+                        capability_groups.append(
+                            (gname, caps["ct"], "ct", caps["ct_entities"])
+                        )
                         group_name_mapping[gname] = {
-                            "area": area_name, "filter": filt_name, "cap": "ct",
+                            "area": area_name,
+                            "filter": filt_name,
+                            "cap": "ct",
                         }
 
                 if not capability_groups:
@@ -1198,20 +1207,19 @@ class ZigBeeController(LightController):
                 return False
         return True
 
-    async def sync_reach_groups(
+    async def sync_batch_groups(
         self,
         reaches: Dict[str, List[str]],
         areas_data: Dict[str, Dict[str, Any]],
         filter_config: Dict[str, Dict[str, str]] = None,
         area_factors: Dict[str, float] = None,
-    ) -> Dict[str, ReachGroup]:
-        """Synchronize ZHA groups for multi-area reach combinations.
+    ) -> List[BatchGroup]:
+        """Synchronize ZHA groups for balance-matched areas across all reaches.
 
-        Creates per-filter reach groups that combine areas with the same filter
-        AND same area_factor. This allows a single ZigBee command per filter
-        across multiple areas when a switch is pressed.
-
-        Only creates groups with 2+ members (1-member groups offer no benefit).
+        Pools all areas from all reaches, groups them by shared balance
+        (area_factor), then creates per-purpose ZHA groups for each balance
+        group. This creates groups that are more likely to be usable at
+        dispatch time than per-reach groups.
 
         Args:
             reaches: Dict of reach_key -> list of area IDs
@@ -1220,52 +1228,63 @@ class ZigBeeController(LightController):
             area_factors: Dict of area_id -> brightness_factor (default 1.0)
 
         Returns:
-            Dict of reach_key -> ReachGroup with per-filter group mappings
+            List of BatchGroup objects with per-purpose group mappings
         """
         if not reaches:
             logger.debug("No multi-area reaches to sync")
-            return {}
+            return []
 
         filter_config = filter_config or {}
         area_factors = area_factors or {}
 
         try:
+            # Pool all areas from all reaches
+            all_areas = set()
+            for area_ids in reaches.values():
+                all_areas.update(area_ids)
+
             logger.info(
-                f"Syncing reach groups for {len(reaches)} multi-area reach(es)..."
+                f"Syncing batch groups: {len(all_areas)} areas from "
+                f"{len(reaches)} reach(es)..."
             )
 
             # Ensure Circadian_Zigbee_Groups area exists
             circadian_area_id = await self.ensure_circadian_area_exists()
 
-            # Get existing ZHA groups (fresh fetch since area group sync may have changed them)
+            # Get existing ZHA groups
             existing_groups = await self.list_zha_groups()
             existing_groups_by_name = {g.get("name"): g for g in existing_groups}
 
             # Get light color modes from the main client
             light_color_modes = getattr(self.ws_client, "light_color_modes", {})
 
-            reach_groups: Dict[str, ReachGroup] = {}
+            # Step 1: Group areas by balance
+            balance_groups: Dict[float, List[str]] = {}
+            for area_id in all_areas:
+                factor = area_factors.get(area_id, 1.0)
+                factor_key = round(factor, 3)
+                balance_groups.setdefault(factor_key, []).append(area_id)
+
+            logger.debug(f"Balance groups: {dict(balance_groups)}")
+
+            batch_groups: List[BatchGroup] = []
             expected_group_names = set()
-            logger.debug(f"Reach sync area_factors: {area_factors}")
-            logger.debug(f"Reach sync filter_config keys: {list(filter_config.keys())}")
+            # Track per-light group membership for limit monitoring
+            light_membership_count: Dict[str, int] = {}  # ieee -> count
 
-            for reach_key, area_ids in reaches.items():
-                logger.info(f"Processing reach {reach_key}: areas={area_ids}")
+            for factor_key, balance_area_ids in balance_groups.items():
+                if len(balance_area_ids) < 2:
+                    continue  # Single area — use area group
 
-                # Group lights by (filter_name, area_factor, capability)
-                # Key: (filter_norm, factor_key, cap) -> {members: [], areas: set()}
-                filter_factor_groups: Dict[tuple, Dict] = {}
+                # Step 2: Collect ZHA lights, sub-group by (purpose, cap)
+                purpose_groups: Dict[tuple, Dict] = {}
 
-                for area_id in area_ids:
+                for area_id in balance_area_ids:
                     area_info = areas_data.get(area_id, {})
                     if not area_info:
-                        logger.debug(f"  Area {area_id} not found in areas_data")
                         continue
                     zha_lights = area_info.get("zha_lights", [])
                     area_filter_map = filter_config.get(area_id, {})
-                    factor = area_factors.get(area_id, 1.0)
-                    # Round factor to avoid floating point grouping issues
-                    factor_key = round(factor, 3)
 
                     for light in zha_lights:
                         ieee = light.get("ieee")
@@ -1280,9 +1299,9 @@ class ZigBeeController(LightController):
                             "endpoint_id": endpoint_id,
                         }
 
-                        # Determine filter for this light
+                        # Determine purpose for this light
                         filter_name = area_filter_map.get(entity_id, "Standard")
-                        filter_norm = filter_name.replace(" ", "_").lower()
+                        purpose_norm = filter_name.replace(" ", "_").lower()
 
                         # Determine capability
                         modes = light_color_modes.get(entity_id, {"color_temp"})
@@ -1293,44 +1312,38 @@ class ZigBeeController(LightController):
                         else:
                             continue  # brightness-only skipped
 
-                        key = (filter_norm, factor_key, cap)
-                        if key not in filter_factor_groups:
-                            filter_factor_groups[key] = {
+                        key = (purpose_norm, cap)
+                        if key not in purpose_groups:
+                            purpose_groups[key] = {
                                 "members": [],
                                 "areas": set(),
                             }
 
                         # Avoid duplicates
-                        grp = filter_factor_groups[key]
+                        grp = purpose_groups[key]
                         if not any(
                             m["ieee"] == member_entry["ieee"] for m in grp["members"]
                         ):
                             grp["members"].append(member_entry)
                             grp["areas"].add(area_id)
 
-                # Create reach groups for combos with 2+ members from 2+ areas
-                reach_group = ReachGroup(key=reach_key, areas=area_ids)
-                color_groups_created = []
-                ct_groups_created = []
-
-                for (filter_norm, factor_key, cap), grp in filter_factor_groups.items():
+                # Step 3: Create batch groups for combos with 2+ areas contributing
+                for (purpose_norm, cap), grp in purpose_groups.items():
                     members = grp["members"]
-                    contributing_areas = grp["areas"]
+                    contributing_areas = sorted(grp["areas"])
 
                     if len(contributing_areas) < 2:
-                        # Only one area contributes — use area group instead
                         continue
 
-                    if len(members) < 2:
-                        # Single light — direct control
-                        continue
+                    import switches as _switches
 
-                    group_name = f"Circadian_Reach_{reach_key}_{filter_norm}_{cap}"
+                    area_hash = _switches.get_reach_key(contributing_areas)
+                    group_name = f"Circadian_Batch_{purpose_norm}_{cap}_{area_hash}"
                     expected_group_names.add(group_name)
                     logger.info(
-                        f"  {filter_norm} {cap} group '{group_name}': "
+                        f"  {purpose_norm} {cap} batch '{group_name}': "
                         f"{len(members)} lights from {len(contributing_areas)} areas "
-                        f"(factor={factor_key})"
+                        f"(balance={factor_key})"
                     )
                     actual_entity_id = await self._sync_single_group(
                         group_name,
@@ -1340,30 +1353,50 @@ class ZigBeeController(LightController):
                     )
 
                     entity_id = actual_entity_id or f"light.{group_name.lower()}"
-                    reach_group.filter_groups[(filter_norm, factor_key, cap)] = (
-                        entity_id
+
+                    # Find or create BatchGroup for these areas
+                    batch_group = None
+                    for bg in batch_groups:
+                        if sorted(bg.areas) == contributing_areas:
+                            batch_group = bg
+                            break
+                    if batch_group is None:
+                        batch_group = BatchGroup(areas=contributing_areas)
+                        batch_groups.append(batch_group)
+
+                    batch_group.filter_groups[(purpose_norm, cap)] = entity_id
+
+                    # Track membership count per light
+                    for m in members:
+                        ieee = m["ieee"]
+                        light_membership_count[ieee] = (
+                            light_membership_count.get(ieee, 0) + 1
+                        )
+
+            # Log membership counts for limit monitoring
+            if light_membership_count:
+                max_ieee = max(light_membership_count, key=light_membership_count.get)
+                max_count = light_membership_count[max_ieee]
+                logger.info(
+                    f"Batch group membership: max={max_count} groups "
+                    f"(ieee={max_ieee}), "
+                    f"avg={sum(light_membership_count.values()) / len(light_membership_count):.1f}"
+                )
+                if max_count > 12:
+                    logger.warning(
+                        f"Light {max_ieee} is in {max_count} batch groups "
+                        f"(approaching ZHA ~16 group limit)"
                     )
-                    if cap == "color":
-                        color_groups_created.append(entity_id)
-                    elif cap == "ct":
-                        ct_groups_created.append(entity_id)
 
-                # Backward compat: populate entity_id_color/ct for simple reaches
-                # (single color/ct group per reach — used by runtime _send_via_reach)
-                if len(color_groups_created) == 1:
-                    reach_group.entity_id_color = color_groups_created[0]
-                if len(ct_groups_created) == 1:
-                    reach_group.entity_id_ct = ct_groups_created[0]
-
-                reach_groups[reach_key] = reach_group
-
-            # Delete obsolete reach groups
+            # Delete obsolete batch groups AND legacy reach groups
             for group_name, group in existing_groups_by_name.items():
-                if (
-                    group_name.startswith("Circadian_Reach_")
+                is_obsolete_batch = (
+                    group_name.startswith("Circadian_Batch_")
                     and group_name not in expected_group_names
-                ):
-                    logger.info(f"Removing obsolete reach group '{group_name}'")
+                )
+                is_legacy_reach = group_name.startswith("Circadian_Reach_")
+                if is_obsolete_batch or is_legacy_reach:
+                    logger.info(f"Removing obsolete group '{group_name}'")
                     await self.manage_group(
                         GroupCommand(
                             name=group_name,
@@ -1373,13 +1406,13 @@ class ZigBeeController(LightController):
                     )
 
             logger.info(
-                f"Reach group sync completed: {len(reach_groups)} reach(es) with groups"
+                f"Batch group sync completed: {len(batch_groups)} batch group(s)"
             )
-            return reach_groups
+            return batch_groups
 
         except Exception as e:
-            logger.error(f"Failed to sync reach groups: {e}")
-            return {}
+            logger.error(f"Failed to sync batch groups: {e}")
+            return []
 
     async def _sync_single_group(
         self,

@@ -627,9 +627,7 @@ class LightDesignerServer:
             "/{path:.*}/api/controls/refresh",
             self.get_controls_refresh,
         )
-        self.app.router.add_get(
-            "/api/controls/refresh", self.get_controls_refresh
-        )
+        self.app.router.add_get("/api/controls/refresh", self.get_controls_refresh)
         self.app.router.add_get("/api/area-lights", self.get_area_lights)
         self.app.router.add_route(
             "POST", "/{path:.*}/api/flash-light", self.flash_light
@@ -1025,12 +1023,16 @@ class LightDesignerServer:
                                 area_id
                             ),
                             "light_filters": glozone.get_area_light_filters(area_id),
-                            "feedback_target": glozone.get_area_feedback_target(area_id),
+                            "feedback_target": glozone.get_area_feedback_target(
+                                area_id
+                            ),
                             "is_on": state.get_is_on(area_id),
                             "last_sent_kelvin": state.get_last_sent_kelvin(area_id),
                             "color_mid": area_st.get("color_mid"),
                             "color_override": area_st.get("color_override"),
-                            "color_override_set_at": area_st.get("color_override_set_at"),
+                            "color_override_set_at": area_st.get(
+                                "color_override_set_at"
+                            ),
                             "boosted": is_boosted,
                             "boost_brightness": boost_brightness or 0,
                             "bri_override": effective_bri_override,
@@ -1121,8 +1123,8 @@ class LightDesignerServer:
 
             if self.client:
                 await self.client.handle_config_refresh()
-                # Re-sync reach groups — area_factor change affects group membership
-                await self.client.sync_reach_groups()
+                # Re-sync batch groups — area_factor change affects group membership
+                await self.client.sync_batch_groups()
 
             return web.json_response({"status": "ok"})
         except Exception as e:
@@ -2124,8 +2126,13 @@ class LightDesignerServer:
             config["home_refresh_interval"] = 3
 
         # Migrate renamed settings
-        if "motion_warning_blink_threshold" in config and "motion_blink_threshold" not in config:
-            config["motion_blink_threshold"] = config.pop("motion_warning_blink_threshold")
+        if (
+            "motion_warning_blink_threshold" in config
+            and "motion_blink_threshold" not in config
+        ):
+            config["motion_blink_threshold"] = config.pop(
+                "motion_warning_blink_threshold"
+            )
         elif "motion_warning_blink_threshold" in config:
             del config["motion_warning_blink_threshold"]
         if "reach_dip_percent" in config and "reach_daytime_threshold" not in config:
@@ -2396,22 +2403,22 @@ class LightDesignerServer:
 
         return None, None, None
 
-    async def _trigger_reach_group_sync(self) -> bool:
-        """Trigger reach group sync via direct client call.
+    async def _trigger_batch_group_sync(self) -> bool:
+        """Trigger batch group sync via direct client call.
 
         Returns:
             True if sync was triggered successfully
         """
         if self.client:
-            await self.client.sync_reach_groups()
+            await self.client.sync_batch_groups()
             return True
         return False
 
-    async def _trigger_reach_group_sync_if_needed(self, scopes: list) -> bool:
-        """Trigger reach group sync if any scope has multiple areas.
+    async def _trigger_batch_group_sync_if_needed(self, scopes: list) -> bool:
+        """Trigger batch group sync if any scope has multiple areas.
 
         Only fires the sync event if there's a multi-area scope that would
-        benefit from reach group optimization.
+        benefit from batch group optimization.
 
         Args:
             scopes: List of SwitchScope objects
@@ -2422,8 +2429,8 @@ class LightDesignerServer:
         # Check if any scope has multiple areas
         has_multi_area_scope = any(len(scope.areas) >= 2 for scope in scopes)
         if has_multi_area_scope:
-            logger.info("Multi-area scope detected, triggering reach group sync")
-            return await self._trigger_reach_group_sync()
+            logger.info("Multi-area scope detected, triggering batch group sync")
+            return await self._trigger_batch_group_sync()
         return False
 
     async def get_areas(self, request: Request) -> Response:
@@ -2595,9 +2602,10 @@ class LightDesignerServer:
             if not expired:
                 if mode == "pause":
                     override_is_pause = True
-                    if not override_until_date or (
-                        override_until_date - today_date
-                    ).days > 365:
+                    if (
+                        not override_until_date
+                        or (override_until_date - today_date).days > 365
+                    ):
                         return {"time": "paused", "day": "", "offset": -1}
                 else:
                     override_time = override.get("time")
@@ -2609,9 +2617,7 @@ class LightDesignerServer:
         def get_normal_time(py_day):
             """Get trigger time from normal schedule (no override)."""
             if source in ("sunrise", "sunset"):
-                active_days = settings.get(
-                    f"{prefix}_days", [0, 1, 2, 3, 4, 5, 6]
-                )
+                active_days = settings.get(f"{prefix}_days", [0, 1, 2, 3, 4, 5, 6])
                 if py_day not in active_days:
                     return None
                 base = sunrise_hour if source == "sunrise" else sunset_hour
@@ -2692,8 +2698,18 @@ class LightDesignerServer:
         elif fire_offset > 5:
             fire_date = today_date + timedelta(days=fire_offset)
             month_abbrs = [
-                "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+                "Jan",
+                "Feb",
+                "Mar",
+                "Apr",
+                "May",
+                "Jun",
+                "Jul",
+                "Aug",
+                "Sep",
+                "Oct",
+                "Nov",
+                "Dec",
             ]
             day_label = (
                 f"{day_abbrs[fire_day]} "
@@ -2713,8 +2729,18 @@ class LightDesignerServer:
         if fire_offset > 6:
             fire_date_r = today_date + timedelta(days=fire_offset)
             month_abbrs = [
-                "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+                "Jan",
+                "Feb",
+                "Mar",
+                "Apr",
+                "May",
+                "Jun",
+                "Jul",
+                "Aug",
+                "Sep",
+                "Oct",
+                "Nov",
+                "Dec",
             ]
             result["date_short"] = (
                 f"{month_abbrs[fire_date_r.month - 1]} {fire_date_r.day}"
@@ -2763,6 +2789,7 @@ class LightDesignerServer:
                     # Find tomorrow's time by scanning from offset 1.
                     from datetime import timedelta
                     from zoneinfo import ZoneInfo
+
                     timezone = os.getenv("HASS_TIME_ZONE", "US/Eastern")
                     try:
                         tzinfo = ZoneInfo(timezone)
@@ -2775,12 +2802,18 @@ class LightDesignerServer:
                     for i in range(1, 14):
                         py_day = (today_wd + i) % 7
                         if source in ("sunrise", "sunset"):
-                            active_days = settings.get("auto_off_days", [0,1,2,3,4,5,6])
+                            active_days = settings.get(
+                                "auto_off_days", [0, 1, 2, 3, 4, 5, 6]
+                            )
                             if py_day not in active_days:
                                 continue
                             fire_date = today_date + timedelta(days=i)
                             try:
-                                sr_h, ss_h = LightDesignerServer._get_sun_hours_for_date(fire_date.isoformat())
+                                sr_h, ss_h = (
+                                    LightDesignerServer._get_sun_hours_for_date(
+                                        fire_date.isoformat()
+                                    )
+                                )
                             except Exception:
                                 sr_h, ss_h = sunrise_hour, sunset_hour
                             base = sr_h if source == "sunrise" else ss_h
@@ -2800,14 +2833,23 @@ class LightDesignerServer:
                         else:
                             continue
                         # Found next day
-                        day_abbrs = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+                        day_abbrs = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
                         h_raw = int(at % 24)
                         m_raw = round((at - int(at)) * 60)
                         suffix = "a" if h_raw < 12 else "p"
-                        h_d = h_raw if h_raw == 0 else (h_raw - 12 if h_raw > 12 else h_raw)
-                        if h_d == 0: h_d = 12
+                        h_d = (
+                            h_raw
+                            if h_raw == 0
+                            else (h_raw - 12 if h_raw > 12 else h_raw)
+                        )
+                        if h_d == 0:
+                            h_d = 12
                         time_str = f"{h_d}:{m_raw:02d}{suffix}"
-                        day_label = f"tom ({day_abbrs[py_day]})" if i == 1 else day_abbrs[py_day]
+                        day_label = (
+                            f"tom ({day_abbrs[py_day]})"
+                            if i == 1
+                            else day_abbrs[py_day]
+                        )
                         return {"time": time_str, "day": day_label, "offset": i}
                     return None  # No future schedule found
                 # Result is already a future day — show it
@@ -3060,12 +3102,22 @@ class LightDesignerServer:
                     # Use cached last-sent brightness — always matches what
                     # pipeline computed and delivered to lights
                     last_bri = state.get_last_sent_brightness(area_id)
-                    actual_brightness = last_bri if last_bri is not None else int(
-                        min(100, max(0, round(
-                            brightness * area_factor
-                            + effective_bri_override
-                            + boost_amount
-                        )))
+                    actual_brightness = (
+                        last_bri
+                        if last_bri is not None
+                        else int(
+                            min(
+                                100,
+                                max(
+                                    0,
+                                    round(
+                                        brightness * area_factor
+                                        + effective_bri_override
+                                        + boost_amount
+                                    ),
+                                ),
+                            )
+                        )
                     )
 
                     # --- Adjusted bed/wake time from midpoint shift ---
@@ -3073,8 +3125,8 @@ class LightDesignerServer:
                     eff_wake, eff_bed = resolve_effective_timing(
                         area_config, calc_hour, weekday
                     )
-                    _in_ascend_phase, _, _t_asc, _t_desc, _ = CircadianLight.get_phase_info(
-                        calc_hour, area_config
+                    _in_ascend_phase, _, _t_asc, _t_desc, _ = (
+                        CircadianLight.get_phase_info(calc_hour, area_config)
                     )
                     adjusted_wake_time = None
                     adjusted_bed_time = None
@@ -3116,18 +3168,32 @@ class LightDesignerServer:
                                 mid48_stepped = CircadianLight.lift_midpoint_to_phase(
                                     area_state.brightness_mid, t_asc_adj, t_desc_adj
                                 )
-                                adjusted_wake_time = midpoint_to_time(
-                                    mid48_stepped, area_config.wake_brightness,
-                                    slope_adj, b_min_n2, b_max_n2
-                                ) % 24
+                                adjusted_wake_time = (
+                                    midpoint_to_time(
+                                        mid48_stepped,
+                                        area_config.wake_brightness,
+                                        slope_adj,
+                                        b_min_n2,
+                                        b_max_n2,
+                                    )
+                                    % 24
+                                )
                             else:
                                 mid48_stepped = CircadianLight.lift_midpoint_to_phase(
-                                    area_state.brightness_mid, t_desc_adj, t_asc_adj + 24
+                                    area_state.brightness_mid,
+                                    t_desc_adj,
+                                    t_asc_adj + 24,
                                 )
-                                adjusted_bed_time = midpoint_to_time(
-                                    mid48_stepped, area_config.bed_brightness,
-                                    slope_adj, b_min_n2, b_max_n2
-                                ) % 24
+                                adjusted_bed_time = (
+                                    midpoint_to_time(
+                                        mid48_stepped,
+                                        area_config.bed_brightness,
+                                        slope_adj,
+                                        b_min_n2,
+                                        b_max_n2,
+                                    )
+                                    % 24
+                                )
 
                     area_status[area_id] = {
                         "is_circadian": area_state.is_circadian,
@@ -3186,10 +3252,20 @@ class LightDesignerServer:
                         "adjusted_bed_time": adjusted_bed_time,
                         "phase": "wake" if _in_ascend_phase else "bed",
                         "phase_midpoint": round(
-                            (adjusted_wake_time if adjusted_wake_time is not None else eff_wake)
-                            if _in_ascend_phase else
-                            (adjusted_bed_time if adjusted_bed_time is not None else eff_bed),
-                            2
+                            (
+                                (
+                                    adjusted_wake_time
+                                    if adjusted_wake_time is not None
+                                    else eff_wake
+                                )
+                                if _in_ascend_phase
+                                else (
+                                    adjusted_bed_time
+                                    if adjusted_bed_time is not None
+                                    else eff_bed
+                                )
+                            ),
+                            2,
                         ),
                         # Solar / natural light
                         "sun_elevation": round(lux_tracker.compute_sun_elevation(), 1),
@@ -3228,12 +3304,15 @@ class LightDesignerServer:
                         "weather_condition": lux_tracker._weather_condition,
                         "next_auto_on": self._compute_next_auto_time(
                             config.get("area_settings", {}).get(area_id, {}),
-                            "auto_on", sun_times.sunrise, sun_times.sunset,
+                            "auto_on",
+                            sun_times.sunrise,
+                            sun_times.sunset,
                         ),
                         "next_auto_off": self._compute_next_auto_off_with_untouched(
                             area_id,
                             config.get("area_settings", {}).get(area_id, {}),
-                            sun_times.sunrise, sun_times.sunset,
+                            sun_times.sunrise,
+                            sun_times.sunset,
                         ),
                     }
 
@@ -3250,7 +3329,14 @@ class LightDesignerServer:
         brightness/kelvin from state, plus config values and runtime flags.
         """
         try:
-            from brain import AreaState, CircadianLight, Config, resolve_effective_timing, midpoint_to_time, SPEED_TO_SLOPE
+            from brain import (
+                AreaState,
+                CircadianLight,
+                Config,
+                resolve_effective_timing,
+                midpoint_to_time,
+                SPEED_TO_SLOPE,
+            )
 
             config = await self.load_config()
             glozones = config.get("glozones", {})
@@ -3322,19 +3408,22 @@ class LightDesignerServer:
                         "color_override_set_at": area_state.color_override_set_at,
                         "next_auto_on": self._compute_next_auto_time(
                             area_settings.get(area_id, {}),
-                            "auto_on", _sunrise_h, _sunset_h,
+                            "auto_on",
+                            _sunrise_h,
+                            _sunset_h,
                         ),
                         "next_auto_off": self._compute_next_auto_off_with_untouched(
                             area_id,
                             area_settings.get(area_id, {}),
-                            _sunrise_h, _sunset_h,
+                            _sunrise_h,
+                            _sunset_h,
                         ),
                     }
 
                     # Phase midpoint: determine current phase and effective wake/bed time
                     try:
-                        in_ascend, _, t_ascend, t_descend, _ = CircadianLight.get_phase_info(
-                            current_hour, area_config
+                        in_ascend, _, t_ascend, t_descend, _ = (
+                            CircadianLight.get_phase_info(current_hour, area_config)
                         )
                         eff_wake, eff_bed = resolve_effective_timing(
                             area_config, current_hour, weekday
@@ -3343,30 +3432,48 @@ class LightDesignerServer:
                         b_max_n = area_config.max_brightness / 100.0
 
                         if in_ascend:
-                            slope = SPEED_TO_SLOPE[max(1, min(10, area_config.wake_speed))]
+                            slope = SPEED_TO_SLOPE[
+                                max(1, min(10, area_config.wake_speed))
+                            ]
                             bri_pct = area_config.wake_brightness
                             if area_state.brightness_mid is not None:
                                 # Reverse-compute: what wake time does this midpoint correspond to?
                                 mid48 = CircadianLight.lift_midpoint_to_phase(
                                     area_state.brightness_mid, t_ascend, t_descend
                                 )
-                                effective_time = midpoint_to_time(mid48, bri_pct, slope, b_min_n, b_max_n) % 24
+                                effective_time = (
+                                    midpoint_to_time(
+                                        mid48, bri_pct, slope, b_min_n, b_max_n
+                                    )
+                                    % 24
+                                )
                             else:
                                 effective_time = eff_wake
                             area_status[area_id]["phase"] = "wake"
-                            area_status[area_id]["phase_midpoint"] = round(effective_time, 2)
+                            area_status[area_id]["phase_midpoint"] = round(
+                                effective_time, 2
+                            )
                         else:
-                            slope = -SPEED_TO_SLOPE[max(1, min(10, area_config.bed_speed))]
+                            slope = -SPEED_TO_SLOPE[
+                                max(1, min(10, area_config.bed_speed))
+                            ]
                             bri_pct = area_config.bed_brightness
                             if area_state.brightness_mid is not None:
                                 mid48 = CircadianLight.lift_midpoint_to_phase(
                                     area_state.brightness_mid, t_descend, t_ascend + 24
                                 )
-                                effective_time = midpoint_to_time(mid48, bri_pct, slope, b_min_n, b_max_n) % 24
+                                effective_time = (
+                                    midpoint_to_time(
+                                        mid48, bri_pct, slope, b_min_n, b_max_n
+                                    )
+                                    % 24
+                                )
                             else:
                                 effective_time = eff_bed
                             area_status[area_id]["phase"] = "bed"
-                            area_status[area_id]["phase_midpoint"] = round(effective_time, 2)
+                            area_status[area_id]["phase_midpoint"] = round(
+                                effective_time, 2
+                            )
                     except Exception:
                         pass
 
@@ -3586,8 +3693,11 @@ class LightDesignerServer:
                 )
         # Clean up old keys
         for old_key in (
-            "wake_alarm", "wake_alarm_mode", "wake_alarm_offset",
-            "wake_alarm_time", "wake_alarm_days",
+            "wake_alarm",
+            "wake_alarm_mode",
+            "wake_alarm_offset",
+            "wake_alarm_time",
+            "wake_alarm_days",
         ):
             settings.pop(old_key, None)
 
@@ -4394,7 +4504,9 @@ class LightDesignerServer:
                     parts.append(f"{controls_cleaned} control config(s)")
                 logger.info(f"Purged area {area_id} from {', '.join(parts)}")
             elif controls_cleaned:
-                logger.info(f"Purged area {area_id} from {controls_cleaned} control config(s)")
+                logger.info(
+                    f"Purged area {area_id} from {controls_cleaned} control config(s)"
+                )
 
             if self.client:
                 await self.client.handle_service_event("purge_area", area_id)
@@ -4796,12 +4908,16 @@ class LightDesignerServer:
                     extra_kwargs["brightness"] = float(value)
 
             if self.client:
-                result = await self.client.handle_service_event(action, area_id, **extra_kwargs)
+                result = await self.client.handle_service_event(
+                    action, area_id, **extra_kwargs
+                )
                 logger.info(f"Executed {action} for area {area_id}")
                 resp = {"status": "ok", "action": action, "area_id": area_id}
                 # Check for sun dimming hint on step_up
                 if action == "step_up" and result == "sun_dimming_limit":
-                    resp["hint"] = "Circadian curve at max — use bright up to override sun dimming"
+                    resp["hint"] = (
+                        "Circadian curve at max — use bright up to override sun dimming"
+                    )
                 return web.json_response(resp)
             return web.json_response({"error": "Client not connected"}, status=503)
 
@@ -5675,9 +5791,7 @@ class LightDesignerServer:
                 "angle_factor": round(lux_tracker.get_angle_factor(), 3),
                 "sun_saturation": lux_tracker._sun_saturation,
                 "sun_saturation_ramp": lux_tracker._sun_saturation_ramp,
-                "max_summer_elevation": round(
-                    lux_tracker._max_summer_elevation, 1
-                ),
+                "max_summer_elevation": round(lux_tracker._max_summer_elevation, 1),
             }
         )
 
@@ -6032,7 +6146,9 @@ class LightDesignerServer:
                 if category in ("motion_sensor", "contact_sensor"):
                     control_data["areas"] = config.get("areas", [])
                     control_data["cooldown"] = config.get("cooldown", 0)
-                    control_data["trigger_entities"] = config.get("trigger_entities", [])
+                    control_data["trigger_entities"] = config.get(
+                        "trigger_entities", []
+                    )
                     if "binary_sensors" not in control_data:
                         control_data["binary_sensors"] = ctrl.get("binary_sensors", [])
                 else:
@@ -6212,11 +6328,15 @@ class LightDesignerServer:
                     if not dc:
                         s = self.client.cached_states.get(entity_id, {})
                         dc = s.get("attributes", {}).get("device_class", "")
-                    device_entities[device_id]["binary_sensors"].append({
-                        "entity_id": entity_id,
-                        "device_class": dc,
-                        "name": entity.get("name") or entity.get("original_name") or entity_id.split(".")[-1].replace("_", " ").title(),
-                    })
+                    device_entities[device_id]["binary_sensors"].append(
+                        {
+                            "entity_id": entity_id,
+                            "device_class": dc,
+                            "name": entity.get("name")
+                            or entity.get("original_name")
+                            or entity_id.split(".")[-1].replace("_", " ").title(),
+                        }
+                    )
                 elif entity_id.startswith("sensor."):
                     dc = (
                         entity.get("device_class")
@@ -6295,7 +6415,9 @@ class LightDesignerServer:
                 batt_entity = entities.get("battery_entity")
                 batt_info = None
                 if batt_entity:
-                    raw_batt = self.client.cached_states.get(batt_entity, {}).get("state")
+                    raw_batt = self.client.cached_states.get(batt_entity, {}).get(
+                        "state"
+                    )
                     try:
                         batt_val = (
                             round(float(raw_batt))
@@ -6366,11 +6488,13 @@ class LightDesignerServer:
                     or entity.get("original_name")
                     or entity_id.split(".")[-1].replace("_", " ").title()
                 )
-                device_sensors[device_id].append({
-                    "entity_id": entity_id,
-                    "device_class": dc,
-                    "name": name,
-                })
+                device_sensors[device_id].append(
+                    {
+                        "entity_id": entity_id,
+                        "device_class": dc,
+                        "name": name,
+                    }
+                )
 
             for device_id, sensors in device_sensors.items():
                 if device_id in configured_device_ids:
@@ -6382,15 +6506,17 @@ class LightDesignerServer:
                 if query and query not in dev_name.lower():
                     continue
                 area_id = device.get("area_id")
-                results.append({
-                    "device_id": device_id,
-                    "name": dev_name,
-                    "manufacturer": device.get("manufacturer"),
-                    "model": device.get("model_id") or device.get("model"),
-                    "area_id": area_id,
-                    "area_name": self.client.area_id_to_name.get(area_id),
-                    "binary_sensors": sensors,
-                })
+                results.append(
+                    {
+                        "device_id": device_id,
+                        "name": dev_name,
+                        "manufacturer": device.get("manufacturer"),
+                        "model": device.get("model_id") or device.get("model"),
+                        "area_id": area_id,
+                        "area_name": self.client.area_id_to_name.get(area_id),
+                        "binary_sensors": sensors,
+                    }
+                )
 
             return web.json_response(results)
         except Exception as e:
@@ -6410,9 +6536,7 @@ class LightDesignerServer:
             trigger_entities = data.get("trigger_entities", [])
 
             if not device_id:
-                return web.json_response(
-                    {"error": "device_id required"}, status=400
-                )
+                return web.json_response({"error": "device_id required"}, status=400)
 
             # Check if already exists
             existing = switches.get_motion_sensor_by_device_id(device_id)
@@ -6456,10 +6580,12 @@ class LightDesignerServer:
         try:
             all_actions = switches.get_all_last_actions()
             pause_states = switches.get_all_pause_states()
-            return web.json_response({
-                "last_actions": all_actions,
-                "pause_states": pause_states,
-            })
+            return web.json_response(
+                {
+                    "last_actions": all_actions,
+                    "pause_states": pause_states,
+                }
+            )
         except Exception:
             return web.json_response({"last_actions": {}, "pause_states": {}})
 
@@ -6624,9 +6750,11 @@ class LightDesignerServer:
                 for scope_data in scopes_data:
                     scope_areas = scope_data.get("areas", [])
                     feedback_area = scope_data.get("feedback_area")
-                    scopes.append(switches.SwitchScope(
-                        areas=scope_areas, feedback_area=feedback_area
-                    ))
+                    scopes.append(
+                        switches.SwitchScope(
+                            areas=scope_areas, feedback_area=feedback_area
+                        )
+                    )
 
                 if not scopes:
                     scopes = [switches.SwitchScope(areas=[])]
@@ -6932,7 +7060,7 @@ class LightDesignerServer:
             switches.add_switch(switch_config)
 
             # Trigger reach group sync if any scope has multiple areas
-            await self._trigger_reach_group_sync_if_needed(switch_config.scopes)
+            await self._trigger_batch_group_sync_if_needed(switch_config.scopes)
 
             return web.json_response(
                 {"status": "ok", "switch": switch_config.to_dict()}
@@ -7000,7 +7128,7 @@ class LightDesignerServer:
 
             # Trigger reach group sync if scopes changed and any has multiple areas
             if "scopes" in data:
-                await self._trigger_reach_group_sync_if_needed(scopes)
+                await self._trigger_batch_group_sync_if_needed(scopes)
 
             return web.json_response(
                 {"status": "ok", "switch": switch_config.to_dict()}
@@ -7021,7 +7149,7 @@ class LightDesignerServer:
 
             if switches.remove_switch(switch_id):
                 # Trigger reach group sync to clean up any orphaned reach groups
-                await self._trigger_reach_group_sync()
+                await self._trigger_batch_group_sync()
                 return web.json_response({"status": "ok", "deleted": switch_id})
             else:
                 return web.json_response({"error": "Switch not found"}, status=404)

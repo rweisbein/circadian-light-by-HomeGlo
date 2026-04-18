@@ -56,7 +56,9 @@ class CircadianLightPrimitives:
         """
         self.client = websocket_client
         self._config_loader = config_loader
-        self._auto_fired: dict = {}  # area_id -> {auto_on: {date, time}, auto_off: {date, time}}
+        self._auto_fired: dict = (
+            {}
+        )  # area_id -> {auto_on: {date, time}, auto_off: {date, time}}
         self._load_auto_fired()
 
     def _get_config(self, area_id: Optional[str] = None) -> Config:
@@ -556,18 +558,26 @@ class CircadianLightPrimitives:
                     else None
                 )
                 current_cct = CircadianLight.calculate_color_at_hour(
-                    hour, config, area_state,
-                    apply_solar_rules=True, sun_times=sun_times,
+                    hour,
+                    config,
+                    area_state,
+                    apply_solar_rules=True,
+                    sun_times=sun_times,
                 )
                 await self._bounce_at_limit(
-                    area_id, current_bri, current_cct,
-                    direction=direction, bounce_type="step",
+                    area_id,
+                    current_bri,
+                    current_cct,
+                    direction=direction,
+                    bounce_type="step",
                 )
             return "sun_dimming_limit" if sun_dimming_hint else None
 
         # Convert target brightness to 0-100 position on curve
         b_range = config.max_brightness - config.min_brightness
-        position = (target_bri - config.min_brightness) / b_range * 100 if b_range > 0 else 50
+        position = (
+            (target_bri - config.min_brightness) / b_range * 100 if b_range > 0 else 50
+        )
         position = max(0, min(100, round(position, 1)))
 
         logger.info(
@@ -575,7 +585,10 @@ class CircadianLightPrimitives:
             f"bri {current_bri:.0f}→{target_bri:.0f}%, pos={position:.0f}"
         )
         await self.set_position(
-            area_id, position, mode="step", source=source,
+            area_id,
+            position,
+            mode="step",
+            source=source,
             _send_command=send_command,
         )
         return True
@@ -602,11 +615,20 @@ class CircadianLightPrimitives:
         Returns:
             The last result applied, or None if at limit / not circadian.
         """
-        if source not in ("auto_on", "auto_off", "auto_off_fade_complete", "wake_alarm"):
+        if source not in (
+            "auto_on",
+            "auto_off",
+            "auto_off_fade_complete",
+            "wake_alarm",
+        ):
             self.cancel_fade(area_id, source=source or "unknown")
             state.mark_user_action(area_id)
         return await self._step_circadian(
-            area_id, "up", source=source, steps=steps, send_command=send_command,
+            area_id,
+            "up",
+            source=source,
+            steps=steps,
+            send_command=send_command,
             skip_bounce=skip_bounce,
         )
 
@@ -632,11 +654,20 @@ class CircadianLightPrimitives:
         Returns:
             The last result applied, or None if at limit / not circadian.
         """
-        if source not in ("auto_on", "auto_off", "auto_off_fade_complete", "wake_alarm"):
+        if source not in (
+            "auto_on",
+            "auto_off",
+            "auto_off_fade_complete",
+            "wake_alarm",
+        ):
             self.cancel_fade(area_id, source=source or "unknown")
             state.mark_user_action(area_id)
         return await self._step_circadian(
-            area_id, "down", source=source, steps=steps, send_command=send_command,
+            area_id,
+            "down",
+            source=source,
+            steps=steps,
+            send_command=send_command,
             skip_bounce=skip_bounce,
         )
 
@@ -856,12 +887,14 @@ class CircadianLightPrimitives:
         # Build synthetic AreaState for the target preset
         if target_preset == "nitelite":
             synthetic_state = AreaState(
-                is_circadian=True, is_on=True,
+                is_circadian=True,
+                is_on=True,
                 frozen_at=config.ascend_start,
             )
         elif target_preset == "britelite":
             synthetic_state = AreaState(
-                is_circadian=True, is_on=True,
+                is_circadian=True,
+                is_on=True,
                 frozen_at=config.descend_start,
             )
         else:
@@ -1043,7 +1076,9 @@ class CircadianLightPrimitives:
                 f"target={target_actual}, current={current_actual}, delta={delta}, override={new_override}"
             )
             if _send_command and area_state.is_on:
-                await self.client.update_lights_in_circadian_mode(area_id, log_periodic=True)
+                await self.client.update_lights_in_circadian_mode(
+                    area_id, log_periodic=True
+                )
             return
 
         if mode == "color":
@@ -1064,10 +1099,10 @@ class CircadianLightPrimitives:
             self._update_area_state(area_id, updates)
 
             if _send_command and area_state.is_on:
-                await self.client.update_lights_in_circadian_mode(area_id, log_periodic=True)
-                logger.info(
-                    f"set_position color applied: {result.color_temp}K"
+                await self.client.update_lights_in_circadian_mode(
+                    area_id, log_periodic=True
                 )
+                logger.info(f"set_position color applied: {result.color_temp}K")
             elif not area_state.is_on:
                 logger.info(
                     f"set_position color state updated (lights off): {result.color_temp}K"
@@ -1090,7 +1125,9 @@ class CircadianLightPrimitives:
         self._update_area_state(area_id, result.state_updates)
 
         if _send_command and area_state.is_on:
-            await self.client.update_lights_in_circadian_mode(area_id, log_periodic=True)
+            await self.client.update_lights_in_circadian_mode(
+                area_id, log_periodic=True
+            )
             logger.info(
                 f"set_position applied: {result.brightness}%, {result.color_temp}K"
             )
@@ -1113,7 +1150,12 @@ class CircadianLightPrimitives:
     ):
         """Increase brightness by N steps. Delegates to set_position."""
         return await self._brightness_button(
-            area_id, "up", source, steps, send_command, skip_bounce,
+            area_id,
+            "up",
+            source,
+            steps,
+            send_command,
+            skip_bounce,
         )
 
     async def brightness_down(
@@ -1126,7 +1168,12 @@ class CircadianLightPrimitives:
     ):
         """Decrease brightness by N steps. Delegates to set_position."""
         return await self._brightness_button(
-            area_id, "down", source, steps, send_command, skip_bounce,
+            area_id,
+            "down",
+            source,
+            steps,
+            send_command,
+            skip_bounce,
         )
 
     async def _brightness_button(
@@ -1180,12 +1227,18 @@ class CircadianLightPrimitives:
                     else None
                 )
                 current_cct = CircadianLight.calculate_color_at_hour(
-                    hour, config, area_state,
-                    apply_solar_rules=True, sun_times=sun_times,
+                    hour,
+                    config,
+                    area_state,
+                    apply_solar_rules=True,
+                    sun_times=sun_times,
                 )
                 await self._bounce_at_limit(
-                    area_id, current, current_cct,
-                    direction=direction, bounce_type="bright",
+                    area_id,
+                    current,
+                    current_cct,
+                    direction=direction,
+                    bounce_type="bright",
                 )
             return None
 
@@ -1194,34 +1247,60 @@ class CircadianLightPrimitives:
             f"current={current}, target={target} ({steps} step{'s' if steps > 1 else ''})"
         )
         await self.set_position(
-            area_id, target, mode="brightness", source=source,
+            area_id,
+            target,
+            mode="brightness",
+            source=source,
             _send_command=send_command,
         )
         return True
 
     async def color_up(
-        self, area_id: str, source: str = "service_call", steps: int = 1,
-        send_command: bool = True, skip_bounce: bool = False,
+        self,
+        area_id: str,
+        source: str = "service_call",
+        steps: int = 1,
+        send_command: bool = True,
+        skip_bounce: bool = False,
     ):
         """Increase color temp (cooler) by N steps. Delegates to set_position."""
         state.mark_user_action(area_id)
         await self._color_button(
-            area_id, "up", source, steps, send_command, skip_bounce,
+            area_id,
+            "up",
+            source,
+            steps,
+            send_command,
+            skip_bounce,
         )
 
     async def color_down(
-        self, area_id: str, source: str = "service_call", steps: int = 1,
-        send_command: bool = True, skip_bounce: bool = False,
+        self,
+        area_id: str,
+        source: str = "service_call",
+        steps: int = 1,
+        send_command: bool = True,
+        skip_bounce: bool = False,
     ):
         """Decrease color temp (warmer) by N steps. Delegates to set_position."""
         state.mark_user_action(area_id)
         await self._color_button(
-            area_id, "down", source, steps, send_command, skip_bounce,
+            area_id,
+            "down",
+            source,
+            steps,
+            send_command,
+            skip_bounce,
         )
 
     async def _color_button(
-        self, area_id: str, direction: str, source: str, steps: int = 1,
-        send_command: bool = True, skip_bounce: bool = False,
+        self,
+        area_id: str,
+        direction: str,
+        source: str,
+        steps: int = 1,
+        send_command: bool = True,
+        skip_bounce: bool = False,
     ):
         """Compute target color slider position from current + N steps, delegate to set_position.
 
@@ -1245,8 +1324,11 @@ class CircadianLightPrimitives:
 
         # Get current effective kelvin (base + decayed override)
         current_cct = CircadianLight.calculate_color_at_hour(
-            hour, config, area_state,
-            apply_solar_rules=True, sun_times=sun_times,
+            hour,
+            config,
+            area_state,
+            apply_solar_rules=True,
+            sun_times=sun_times,
         )
 
         # Map to 0-100 slider position
@@ -1272,8 +1354,11 @@ class CircadianLightPrimitives:
             if area_state.is_on and not skip_bounce:
                 current_bri = self._compute_current_actual(area_id)
                 await self._bounce_at_limit(
-                    area_id, current_bri, current_cct,
-                    direction=direction, bounce_type="color",
+                    area_id,
+                    current_bri,
+                    current_cct,
+                    direction=direction,
+                    bounce_type="color",
                 )
             return
 
@@ -1282,7 +1367,10 @@ class CircadianLightPrimitives:
             f"pos {current_pos:.0f}→{target_pos:.0f} ({steps} step{'s' if steps > 1 else ''})"
         )
         await self.set_position(
-            area_id, target_pos, mode="color", source=source,
+            area_id,
+            target_pos,
+            mode="color",
+            source=source,
             _send_command=send_command,
         )
 
@@ -1316,7 +1404,12 @@ class CircadianLightPrimitives:
             from_motion: If True, couple boost timer to motion timer (boost ends
                 when motion timer ends, not independently).
         """
-        if source not in ("auto_on", "auto_off", "auto_off_fade_complete", "wake_alarm"):
+        if source not in (
+            "auto_on",
+            "auto_off",
+            "auto_off_fade_complete",
+            "wake_alarm",
+        ):
             self.cancel_fade(area_id, source=source or "unknown")
             state.mark_user_action(area_id)
 
@@ -1428,7 +1521,12 @@ class CircadianLightPrimitives:
             area_id: The area ID to control
             source: Source of the action
         """
-        if source not in ("auto_on", "auto_off", "auto_off_fade_complete", "wake_alarm"):
+        if source not in (
+            "auto_on",
+            "auto_off",
+            "auto_off_fade_complete",
+            "wake_alarm",
+        ):
             self.cancel_fade(area_id, source=source or "unknown")
             state.mark_user_action(area_id)
 
@@ -1548,7 +1646,9 @@ class CircadianLightPrimitives:
                 if hasattr(self.client, "_get_sun_times")
                 else None
             )
-            result = CircadianLight.calculate_lighting(hour, config, area_state, sun_times=sun_times)
+            result = CircadianLight.calculate_lighting(
+                hour, config, area_state, sun_times=sun_times
+            )
             transition = self._get_turn_on_transition()
             effective_override = self._get_decayed_brightness_override(area_id)
             await self._send_light(
@@ -1657,14 +1757,14 @@ class CircadianLightPrimitives:
                 # Enable circadian and set is_on=False
                 state.enable_circadian_and_set_on(area_id, False)
 
-            # Phase 2: Turn off via reach groups (synchronized) + per-area fallback
-            # Reach groups handle ZHA lights across areas simultaneously.
-            # Per-area turn_off handles non-ZHA lights and areas not in reach groups.
-            reach_used = await self.client.turn_off_reach_groups(
+            # Phase 2: Turn off via batch groups (synchronized) + per-area fallback
+            # Batch groups handle ZHA lights across areas simultaneously.
+            # Per-area turn_off handles non-ZHA lights and areas not in batch groups.
+            batch_used = await self.client.turn_off_batch_groups(
                 area_ids, transition=transition
             )
 
-            # Per-area turn_off for non-reach lights (Hue, WiFi, individual ZHA)
+            # Per-area turn_off for non-batch lights (Hue, WiFi, individual ZHA)
             # and switch entities. Idempotent — double-off for ZHA lights is harmless.
             tasks = []
             for area_id in area_ids:
@@ -1674,9 +1774,9 @@ class CircadianLightPrimitives:
                 tasks.append(self.client.turn_off_switch_entities(area_id))
             await asyncio.gather(*tasks)
 
-            reach_note = " (reach + per-area)" if reach_used else ""
+            batch_note = " (batch + per-area)" if batch_used else ""
             logger.info(
-                f"[{source}] lights_toggle_multiple: turned off {len(area_ids)} area(s){reach_note}"
+                f"[{source}] lights_toggle_multiple: turned off {len(area_ids)} area(s){batch_note}"
             )
 
         else:
@@ -1704,18 +1804,19 @@ class CircadianLightPrimitives:
 
                 state.enable_circadian_and_set_on(area_id, True)
                 area_pipeline_results[area_id] = self.compute_pipeline_for_area(
-                    area_id, transition=transition,
+                    area_id,
+                    transition=transition,
                 )
 
-            # Try reach groups (greedy largest-first)
-            reach_handled = await self._send_via_reach(
+            # Try batch groups (greedy largest-first)
+            batch_handled = await self._send_via_batch(
                 area_ids, area_pipeline_results, transition=transition
             )
 
             # Per-area fallback for unhandled
             fallback_tasks = []
             for area_id, pipe_result in area_pipeline_results.items():
-                skip = reach_handled.get(area_id)
+                skip = batch_handled.get(area_id)
                 if skip:
                     area_filters = glozone.get_area_light_filters(area_id)
                     all_filters = (
@@ -1723,7 +1824,7 @@ class CircadianLightPrimitives:
                     )
                     all_norms = {f.replace(" ", "_").lower() for f in all_filters}
                     if all_norms.issubset(skip):
-                        continue  # Fully handled by reach
+                        continue  # Fully handled by batch
                 # Per-area delivery (inner 2-step handles off→on)
                 fallback_tasks.append(
                     self.client.send_light(
@@ -1739,11 +1840,11 @@ class CircadianLightPrimitives:
             for area_id in area_ids:
                 await self.client.turn_on_switch_entities(area_id)
 
-            reach_note = ""
-            if reach_handled:
-                reach_note = f" (reach: {len(reach_handled)} areas)"
+            batch_note = ""
+            if batch_handled:
+                batch_note = f" (batch: {len(batch_handled)} areas)"
             logger.info(
-                f"[{source}] lights_toggle_multiple: turned on {len(area_ids)} area(s){reach_note}"
+                f"[{source}] lights_toggle_multiple: turned on {len(area_ids)} area(s){batch_note}"
             )
 
     # -------------------------------------------------------------------------
@@ -2327,7 +2428,9 @@ class CircadianLightPrimitives:
     # Auto On/Off Schedules
     # -------------------------------------------------------------------------
 
-    def _resolve_auto_time(self, settings: dict, prefix: str, current_weekday: int) -> Optional[float]:
+    def _resolve_auto_time(
+        self, settings: dict, prefix: str, current_weekday: int
+    ) -> Optional[float]:
         """Resolve trigger time for auto_on or auto_off.
 
         Args:
@@ -2359,7 +2462,11 @@ class CircadianLightPrimitives:
             active_days = settings.get(f"{prefix}_days", [0, 1, 2, 3, 4, 5, 6])
             if current_weekday not in active_days:
                 return None
-            sun_times = self.client._get_sun_times() if hasattr(self.client, '_get_sun_times') else None
+            sun_times = (
+                self.client._get_sun_times()
+                if hasattr(self.client, "_get_sun_times")
+                else None
+            )
             if sun_times is None:
                 sun_times = SunTimes()
             base_time = sun_times.sunrise if source == "sunrise" else sun_times.sunset
@@ -2398,27 +2505,38 @@ class CircadianLightPrimitives:
         for area_id, settings in area_settings.items():
             # Check auto_on
             if settings.get("auto_on_enabled"):
-                trigger_time = self._resolve_auto_time(settings, "auto_on", current_weekday)
+                trigger_time = self._resolve_auto_time(
+                    settings, "auto_on", current_weekday
+                )
                 if trigger_time is not None and current_hour >= trigger_time:
                     # Check if already fired today at this time
                     fired = self._auto_fired.get(area_id, {}).get("auto_on", {})
-                    if fired.get("date") == today_str and fired.get("time") == trigger_time:
+                    if (
+                        fired.get("date") == today_str
+                        and fired.get("time") == trigger_time
+                    ):
                         pass  # Already fired
                     else:
                         # Trigger mode check
                         skip = False
                         trigger_mode = settings.get("auto_on_trigger_mode", "always")
                         # Backward compat: old boolean overrides if new field absent
-                        if trigger_mode == "always" and settings.get("auto_on_skip_if_brighter", False):
+                        if trigger_mode == "always" and settings.get(
+                            "auto_on_skip_if_brighter", False
+                        ):
                             trigger_mode = "skip_brighter"
 
                         if trigger_mode == "skip_on":
                             if state.is_circadian(area_id) and state.get_is_on(area_id):
                                 skip = True
-                                logger.info(f"[auto_on] Skipping {area_id}: already on (skip_on mode)")
+                                logger.info(
+                                    f"[auto_on] Skipping {area_id}: already on (skip_on mode)"
+                                )
                         elif trigger_mode == "skip_brighter":
                             if state.is_circadian(area_id) and state.get_is_on(area_id):
-                                current_bri = state.get_area(area_id).get("last_sent_brightness")
+                                current_bri = state.get_area(area_id).get(
+                                    "last_sent_brightness"
+                                )
                                 if current_bri is not None:
                                     area_config = self._get_config(area_id)
                                     area_state = self._get_area_state(area_id)
@@ -2437,10 +2555,16 @@ class CircadianLightPrimitives:
                             if fade_minutes > 0:
                                 # Capture current state BEFORE any changes.
                                 # If lights are off, start from 0/warm (not stale last_sent).
-                                is_currently_on = state.is_circadian(area_id) and state.get_is_on(area_id)
+                                is_currently_on = state.is_circadian(
+                                    area_id
+                                ) and state.get_is_on(area_id)
                                 if is_currently_on:
-                                    start_bri = state.get_last_sent_brightness(area_id) or 0
-                                    start_kelvin = state.get_last_sent_kelvin(area_id) or 2000
+                                    start_bri = (
+                                        state.get_last_sent_brightness(area_id) or 0
+                                    )
+                                    start_kelvin = (
+                                        state.get_last_sent_kelvin(area_id) or 2000
+                                    )
                                 else:
                                     start_bri = 0
                                     start_kelvin = 2000
@@ -2448,46 +2572,70 @@ class CircadianLightPrimitives:
                                 # — that happens at fade completion for clean cancel behavior)
                                 state.enable_circadian_and_set_on(area_id, True)
                                 state.set_fade(
-                                    area_id, "in", fade_minutes * 60,
+                                    area_id,
+                                    "in",
+                                    fade_minutes * 60,
                                     target_preset=light_preset,
                                     start_brightness=start_bri,
                                     start_kelvin=start_kelvin,
                                 )
                                 # Send initial fade command immediately (don't wait for tick)
                                 await self.client.update_lights_in_circadian_mode(
-                                    area_id, log_periodic=True, periodic_transition=5.0,
+                                    area_id,
+                                    log_periodic=True,
+                                    periodic_transition=5.0,
                                 )
-                                logger.info(f"[auto_on] Starting {fade_minutes}min fade-in for {area_id} ({light_preset})")
+                                logger.info(
+                                    f"[auto_on] Starting {fade_minutes}min fade-in for {area_id} ({light_preset})"
+                                )
                             else:
                                 if light_preset in ("nitelite", "britelite"):
-                                    await self.set(area_id, source="auto_on", preset=light_preset, is_on=True)
+                                    await self.set(
+                                        area_id,
+                                        source="auto_on",
+                                        preset=light_preset,
+                                        is_on=True,
+                                    )
                                 else:
                                     await self.glo_reset(area_id, source="auto_on")
                                     await self.lights_on(area_id, source="auto_on")
-                                logger.info(f"[auto_on] Fired for {area_id} ({light_preset})")
+                                logger.info(
+                                    f"[auto_on] Fired for {area_id} ({light_preset})"
+                                )
 
                         # Mark as fired (even if skipped)
                         if area_id not in self._auto_fired:
                             self._auto_fired[area_id] = {}
-                        self._auto_fired[area_id]["auto_on"] = {"date": today_str, "time": trigger_time}
+                        self._auto_fired[area_id]["auto_on"] = {
+                            "date": today_str,
+                            "time": trigger_time,
+                        }
                         self._save_auto_fired()
 
             # Check auto_off
             if settings.get("auto_off_enabled"):
-                trigger_time = self._resolve_auto_time(settings, "auto_off", current_weekday)
+                trigger_time = self._resolve_auto_time(
+                    settings, "auto_off", current_weekday
+                )
                 if trigger_time is not None and current_hour >= trigger_time:
                     fired = self._auto_fired.get(area_id, {}).get("auto_off", {})
-                    if fired.get("date") == today_str and fired.get("time") == trigger_time:
+                    if (
+                        fired.get("date") == today_str
+                        and fired.get("time") == trigger_time
+                    ):
                         pass  # Already fired
                     else:
                         # "Only if untouched" check — skip if user interacted since auto_on
                         if settings.get("auto_off_only_untouched", False):
                             last_action = state.get_last_user_action(area_id)
-                            auto_on_fired = self._auto_fired.get(area_id, {}).get("auto_on", {})
+                            auto_on_fired = self._auto_fired.get(area_id, {}).get(
+                                "auto_on", {}
+                            )
                             auto_on_date = auto_on_fired.get("date")
                             if last_action and auto_on_date:
                                 try:
                                     from datetime import datetime as dt_cls
+
                                     action_dt = dt_cls.fromisoformat(last_action)
                                     # auto_on stores date + time; reconstruct a datetime
                                     auto_on_time = auto_on_fired.get("time", 0)
@@ -2503,7 +2651,10 @@ class CircadianLightPrimitives:
                                         )
                                         if area_id not in self._auto_fired:
                                             self._auto_fired[area_id] = {}
-                                        self._auto_fired[area_id]["auto_off"] = {"date": today_str, "time": trigger_time}
+                                        self._auto_fired[area_id]["auto_off"] = {
+                                            "date": today_str,
+                                            "time": trigger_time,
+                                        }
                                         self._save_auto_fired()
                                         continue
                                 except Exception:
@@ -2514,23 +2665,32 @@ class CircadianLightPrimitives:
                             start_bri = state.get_last_sent_brightness(area_id) or 50
                             start_kelvin = state.get_last_sent_kelvin(area_id) or 2700
                             state.set_fade(
-                                area_id, "out", fade_minutes * 60,
+                                area_id,
+                                "out",
+                                fade_minutes * 60,
                                 target_preset="off",
                                 start_brightness=start_bri,
                                 start_kelvin=start_kelvin,
                             )
                             # Send initial fade command immediately
                             await self.client.update_lights_in_circadian_mode(
-                                area_id, log_periodic=True, periodic_transition=5.0,
+                                area_id,
+                                log_periodic=True,
+                                periodic_transition=5.0,
                             )
-                            logger.info(f"[auto_off] Starting {fade_minutes}min fade-out for {area_id}")
+                            logger.info(
+                                f"[auto_off] Starting {fade_minutes}min fade-out for {area_id}"
+                            )
                         else:
                             await self.lights_off(area_id, source="auto_off")
                             logger.info(f"[auto_off] Fired for {area_id}")
 
                         if area_id not in self._auto_fired:
                             self._auto_fired[area_id] = {}
-                        self._auto_fired[area_id]["auto_off"] = {"date": today_str, "time": trigger_time}
+                        self._auto_fired[area_id]["auto_off"] = {
+                            "date": today_str,
+                            "time": trigger_time,
+                        }
                         self._save_auto_fired()
 
     def clear_auto_fired(self):
@@ -2545,6 +2705,7 @@ class CircadianLightPrimitives:
         # Re-mark already-passed triggers to prevent catch-up
         try:
             from datetime import date as date_cls
+
             config = glozone.get_config()
             area_settings = config.get("area_settings", {})
             now = datetime.now()
@@ -2561,7 +2722,8 @@ class CircadianLightPrimitives:
                     )
                     if trigger_time is not None and current_hour >= trigger_time:
                         self._auto_fired.setdefault(area_id, {})[prefix] = {
-                            "date": today_str, "time": trigger_time
+                            "date": today_str,
+                            "time": trigger_time,
                         }
                         logger.info(
                             f"[auto] Pre-marked {prefix} as fired for {area_id} "
@@ -2681,12 +2843,22 @@ class CircadianLightPrimitives:
             pass  # state is already circadian
         elif target_preset in ("nitelite", "britelite"):
             config = self._get_config(area_id)
-            frozen_hour = config.ascend_start if target_preset == "nitelite" else config.descend_start
-            state.update_area(area_id, {
-                "brightness_mid": None, "color_mid": None,
-                "brightness_override": None, "brightness_override_set_at": None,
-                "color_override": None, "color_override_set_at": None,
-            })
+            frozen_hour = (
+                config.ascend_start
+                if target_preset == "nitelite"
+                else config.descend_start
+            )
+            state.update_area(
+                area_id,
+                {
+                    "brightness_mid": None,
+                    "color_mid": None,
+                    "brightness_override": None,
+                    "brightness_override_set_at": None,
+                    "color_override": None,
+                    "color_override_set_at": None,
+                },
+            )
             state.set_frozen_at(area_id, frozen_hour)
         else:
             # circadian: reset midpoints (glo_reset equivalent)
@@ -2746,8 +2918,10 @@ class CircadianLightPrimitives:
                 logger.info(f"[fade] Complete for {area_id}: off")
             elif target_preset in ("nitelite", "britelite"):
                 await self.set(
-                    area_id, source="fade_complete",
-                    preset=target_preset, is_on=True,
+                    area_id,
+                    source="fade_complete",
+                    preset=target_preset,
+                    is_on=True,
                 )
                 logger.info(f"[fade] Complete for {area_id}: {target_preset}")
             else:
@@ -2841,9 +3015,7 @@ class CircadianLightPrimitives:
             )
 
         # Trigger immediate pipeline update to apply the dim
-        await self.client.update_lights_in_circadian_mode(
-            area_id, log_periodic=True
-        )
+        await self.client.update_lights_in_circadian_mode(area_id, log_periodic=True)
 
     async def cancel_motion_warning(
         self, area_id: str, source: str = "motion_detected"
@@ -2863,14 +3035,10 @@ class CircadianLightPrimitives:
         # Clear warning state — pipeline will compute full brightness
         state.clear_motion_warning(area_id)
 
-        logger.info(
-            f"[{source}] Cancelled motion warning for area {area_id}"
-        )
+        logger.info(f"[{source}] Cancelled motion warning for area {area_id}")
 
         # Trigger immediate pipeline update to restore brightness
-        await self.client.update_lights_in_circadian_mode(
-            area_id, log_periodic=True
-        )
+        await self.client.update_lights_in_circadian_mode(area_id, log_periodic=True)
 
     async def contact_off(self, area_id: str, source: str = "contact_sensor"):
         """Turn off lights and disable Circadian for contact sensor close event.
@@ -2992,7 +3160,9 @@ class CircadianLightPrimitives:
                     and state.get_is_on(area_id)
                     and send_command
                 ):
-                    await self.client.update_lights_in_circadian_mode(area_id, log_periodic=True)
+                    await self.client.update_lights_in_circadian_mode(
+                        area_id, log_periodic=True
+                    )
                 elif take_control and is_on == False and send_command:
                     transition = self._get_turn_off_transition()
                     await self._turn_off_area(area_id, transition=transition)
@@ -3011,7 +3181,9 @@ class CircadianLightPrimitives:
                 and state.get_is_on(area_id)
                 and send_command
             ):
-                await self.client.update_lights_in_circadian_mode(area_id, log_periodic=True)
+                await self.client.update_lights_in_circadian_mode(
+                    area_id, log_periodic=True
+                )
             elif take_control and is_on == False and send_command:
                 transition = self._get_turn_off_transition()
                 await self._turn_off_area(area_id, transition=transition)
@@ -3163,16 +3335,25 @@ class CircadianLightPrimitives:
                     area_factor = glozone.get_area_brightness_factor(area_id)
                     denom = max(0.01, sun_bright_factor * area_factor)
                     curve_bri = brightness / denom
-                    curve_bri = max(config.min_brightness, min(config.max_brightness, curve_bri))
+                    curve_bri = max(
+                        config.min_brightness, min(config.max_brightness, curve_bri)
+                    )
                     b_range = config.max_brightness - config.min_brightness
-                    position = (curve_bri - config.min_brightness) / b_range * 100 if b_range > 0 else 50
+                    position = (
+                        (curve_bri - config.min_brightness) / b_range * 100
+                        if b_range > 0
+                        else 50
+                    )
                     position = max(0, min(100, round(position, 1)))
                     logger.info(
                         f"[{source}] Set {area_id} to circadian preset "
                         f"(actual={brightness}, curve={curve_bri:.0f}, pos={position})"
                     )
                     await self.set_position(
-                        area_id, position, mode="step", source=source,
+                        area_id,
+                        position,
+                        mode="step",
+                        source=source,
                         _send_command=send_command,
                     )
                 else:
@@ -3182,7 +3363,9 @@ class CircadianLightPrimitives:
                         and state.get_is_on(area_id)
                         and send_command
                     ):
-                        await self.client.update_lights_in_circadian_mode(area_id, log_periodic=True)
+                        await self.client.update_lights_in_circadian_mode(
+                            area_id, log_periodic=True
+                        )
                 return
 
             else:
@@ -3418,7 +3601,12 @@ class CircadianLightPrimitives:
             source: Source of the action
             send_command: Whether to send light commands (False for reach group batching)
         """
-        if source not in ("auto_on", "auto_off", "auto_off_fade_complete", "wake_alarm"):
+        if source not in (
+            "auto_on",
+            "auto_off",
+            "auto_off_fade_complete",
+            "wake_alarm",
+        ):
             self.cancel_fade(area_id, source=source or "unknown")
             state.mark_user_action(area_id)
 
@@ -3439,7 +3627,9 @@ class CircadianLightPrimitives:
                 else None
             )
             if send_command:
-                await self.client.update_lights_in_circadian_mode(area_id, log_periodic=True)
+                await self.client.update_lights_in_circadian_mode(
+                    area_id, log_periodic=True
+                )
 
             logger.info(f"glo_reset complete for area {area_id}")
         else:
@@ -3542,7 +3732,9 @@ class CircadianLightPrimitives:
 
         # Apply lighting if area is circadian and is_on
         if state.is_circadian(area_id) and state.get_is_on(area_id) and send_command:
-            await self.client.update_lights_in_circadian_mode(area_id, log_periodic=True)
+            await self.client.update_lights_in_circadian_mode(
+                area_id, log_periodic=True
+            )
             logger.info(f"glo_down complete for {area_id}")
         elif not state.is_circadian(area_id) or not state.get_is_on(area_id):
             logger.info(
@@ -3873,16 +4065,16 @@ class CircadianLightPrimitives:
             include_color=include_color,
         )
 
-    async def _send_via_reach(
+    async def _send_via_batch(
         self,
         area_ids: List[str],
         area_pipeline_results: Dict[str, "PipelineResult"],
         transition: float = 0.4,
     ) -> Dict[str, Set[str]]:
-        """Attempt reach group dispatch for multi-area actions.
+        """Attempt batch group dispatch for multi-area actions.
 
         Uses pre-computed pipeline results per area. Matches values across
-        areas using greedy set cover (largest reach group first) to minimize
+        areas using greedy set cover (largest batch group first) to minimize
         ZigBee calls. Direction-aware 2-step with configured transition.
 
         Args:
@@ -3891,63 +4083,57 @@ class CircadianLightPrimitives:
             transition: Transition time in seconds
 
         Returns:
-            Dict of area_id -> set of filter_norms handled via reach groups.
-            Empty dict if no reach groups were used.
+            Dict of area_id -> set of filter_norms handled via batch groups.
+            Empty dict if no batch groups were used.
         """
         handled_filters: Dict[str, Set[str]] = {}
 
         if len(area_ids) < 2:
             return handled_filters
 
-        import switches as _switches
-
         # Build per-area per-purpose data from pipeline results
-        # area_purpose_data[area_id] = [(filter_norm, factor_key, brightness, kelvin)]
+        # area_purpose_data[area_id] = [(purpose_norm, brightness, kelvin)]
         area_purpose_data: Dict[str, List[Tuple]] = {}
         for area_id, pipe_result in area_pipeline_results.items():
-            area_factor = glozone.get_area_brightness_factor(area_id)
-            factor_key = round(area_factor, 3)
             purposes = []
             for p in pipe_result.purposes:
-                filter_norm = p.name.replace(" ", "_").lower()
-                purposes.append((filter_norm, factor_key, p.brightness, p.kelvin))
+                purpose_norm = p.name.replace(" ", "_").lower()
+                purposes.append((purpose_norm, p.brightness, p.kelvin))
             area_purpose_data[area_id] = purposes
 
-        # Collect all candidate reach groups (exact + subset reaches)
+        # Collect all candidate batch groups whose areas are a subset of targeted areas
         area_set = set(area_ids)
-        candidate_reaches = []
-        for rkey, rgroup in self.client.reach_groups.items():
-            if not rgroup.filter_groups:
+        candidate_batches = []
+        for bg in self.client.batch_groups:
+            if not bg.filter_groups:
                 continue
-            rgroup_areas = set(rgroup.areas)
-            if len(rgroup_areas) >= 2 and rgroup_areas.issubset(area_set):
-                candidate_reaches.append((rkey, rgroup))
+            bg_areas = set(bg.areas)
+            if len(bg_areas) >= 2 and bg_areas.issubset(area_set):
+                candidate_batches.append(bg)
 
-        if not candidate_reaches:
+        if not candidate_batches:
             return handled_filters
 
-        # Sort by group size descending (greedy: largest reach first = most ZigBee calls saved)
-        candidate_reaches.sort(
-            key=lambda x: len(x[1].filter_groups), reverse=True
-        )
+        # Sort by number of member areas descending (greedy: largest first)
+        candidate_batches.sort(key=lambda x: len(x.areas), reverse=True)
 
         # 2-step config
         raw_cfg = glozone.load_config_from_files()
         ct_threshold = raw_cfg.get("two_step_ct_threshold", 500)
         bri_delta_threshold = raw_cfg.get("two_step_bri_threshold", 15)
 
-        handled_set: Set[Tuple[str, str]] = set()  # (area_id, filter_norm)
-        reach_commands = []  # list of command dicts
+        handled_set: Set[Tuple[str, str]] = set()  # (area_id, purpose_norm)
+        batch_commands = []  # list of command dicts
 
-        for rkey, rgroup in candidate_reaches:
-            for (filter_norm, factor_key, cap), entity_id in rgroup.filter_groups.items():
-                # Find areas in this reach group that match filter+factor and aren't handled
+        for bg in candidate_batches:
+            for (purpose_norm, cap), entity_id in bg.filter_groups.items():
+                # Find areas in this batch group that match purpose and aren't handled
                 matching = {}
-                for area_id in rgroup.areas:
-                    if (area_id, filter_norm) in handled_set:
+                for area_id in bg.areas:
+                    if (area_id, purpose_norm) in handled_set:
                         continue
-                    for fn, fk, bri, ct in area_purpose_data.get(area_id, []):
-                        if fn == filter_norm and fk == factor_key:
+                    for pn, bri, ct in area_purpose_data.get(area_id, []):
+                        if pn == purpose_norm:
                             matching[area_id] = (bri, ct)
 
                 if len(matching) < 2:
@@ -4017,34 +4203,41 @@ class CircadianLightPrimitives:
                                     phase2_data = (None, True)
 
                         if needs_2step:
-                            mode = "off→on" if not shared_on else (
-                                f"brighten {shared_bri}→{bri}%" if brightening
-                                else f"dim {shared_bri}→{bri}%"
+                            mode = (
+                                "off→on"
+                                if not shared_on
+                                else (
+                                    f"brighten {shared_bri}→{bri}%"
+                                    if brightening
+                                    else f"dim {shared_bri}→{bri}%"
+                                )
                             )
                             logger.info(
-                                f"Reach 2-step: {filter_norm} {cap}, {mode}, {ct}K"
+                                f"Batch 2-step: {purpose_norm} {cap}, {mode}, {ct}K"
                             )
 
-                reach_commands.append({
-                    "entity_id": entity_id,
-                    "bri": bri,
-                    "ct": ct,
-                    "filter_norm": filter_norm,
-                    "cap": cap,
-                    "needs_2step": needs_2step,
-                    "phase1_data": phase1_data,
-                    "phase2_data": phase2_data,
-                })
+                batch_commands.append(
+                    {
+                        "entity_id": entity_id,
+                        "bri": bri,
+                        "ct": ct,
+                        "purpose_norm": purpose_norm,
+                        "cap": cap,
+                        "needs_2step": needs_2step,
+                        "phase1_data": phase1_data,
+                        "phase2_data": phase2_data,
+                    }
+                )
                 for area_id in matching:
-                    handled_filters.setdefault(area_id, set()).add(filter_norm)
-                    handled_set.add((area_id, filter_norm))
+                    handled_filters.setdefault(area_id, set()).add(purpose_norm)
+                    handled_set.add((area_id, purpose_norm))
 
-        if not reach_commands:
+        if not batch_commands:
             return handled_filters
 
         # --- Execute commands ---
-        two_step_cmds = [c for c in reach_commands if c["needs_2step"]]
-        direct_cmds = [c for c in reach_commands if not c["needs_2step"]]
+        two_step_cmds = [c for c in batch_commands if c["needs_2step"]]
+        direct_cmds = [c for c in batch_commands if not c["needs_2step"]]
 
         # Wave 1: phase 1 for 2-step + direct commands (parallel)
         wave1 = []
@@ -4060,7 +4253,9 @@ class CircadianLightPrimitives:
                 elif cmd["cap"] == "ct":
                     sdata["color_temp_kelvin"] = max(2000, cmd["ct"])
             wave1.append(
-                self.client.call_service("light", "turn_on", sdata, {"entity_id": cmd["entity_id"]})
+                self.client.call_service(
+                    "light", "turn_on", sdata, {"entity_id": cmd["entity_id"]}
+                )
             )
 
         for cmd in direct_cmds:
@@ -4071,11 +4266,13 @@ class CircadianLightPrimitives:
             elif cmd["cap"] == "ct":
                 sdata["color_temp_kelvin"] = max(2000, cmd["ct"])
             logger.info(
-                f"Reach {cmd['filter_norm']} {cmd['cap']}: {cmd['entity_id']}, "
+                f"Batch {cmd['purpose_norm']} {cmd['cap']}: {cmd['entity_id']}, "
                 f"{cmd['bri']}% {cmd['ct']}K, transition={transition}s"
             )
             wave1.append(
-                self.client.call_service("light", "turn_on", sdata, {"entity_id": cmd["entity_id"]})
+                self.client.call_service(
+                    "light", "turn_on", sdata, {"entity_id": cmd["entity_id"]}
+                )
             )
 
         if wave1:
@@ -4099,24 +4296,28 @@ class CircadianLightPrimitives:
                     elif cmd["cap"] == "ct":
                         sdata["color_temp_kelvin"] = max(2000, cmd["ct"])
                 logger.info(
-                    f"Reach {cmd['filter_norm']} {cmd['cap']}: {cmd['entity_id']}, "
+                    f"Batch {cmd['purpose_norm']} {cmd['cap']}: {cmd['entity_id']}, "
                     f"phase 2, transition={transition}s"
                 )
                 wave2.append(
-                    self.client.call_service("light", "turn_on", sdata, {"entity_id": cmd["entity_id"]})
+                    self.client.call_service(
+                        "light", "turn_on", sdata, {"entity_id": cmd["entity_id"]}
+                    )
                 )
             await asyncio.gather(*wave2)
 
         # Update state for handled areas
-        for area_id, filter_norms in handled_filters.items():
-            for fn, fk, bri, ct in area_purpose_data.get(area_id, []):
-                if fn in filter_norms:
+        for area_id, purpose_norms in handled_filters.items():
+            for pn, bri, ct in area_purpose_data.get(area_id, []):
+                if pn in purpose_norms:
                     state.set_last_sent_kelvin(area_id, ct)
-                    state.set_last_sent_purpose(area_id, fn, bri, ct or 4000)
+                    state.set_last_sent_purpose(area_id, pn, bri, ct or 4000)
 
         handled_count = sum(len(fns) for fns in handled_filters.values())
         if handled_count:
-            logger.info(f"Reach handled {handled_count} area/purpose combos across {len(handled_filters)} areas")
+            logger.info(
+                f"Batch handled {handled_count} area/purpose combos across {len(handled_filters)} areas"
+            )
 
         return handled_filters
 
@@ -4204,6 +4405,7 @@ class CircadianLightPrimitives:
 
         # Color bounce target using xy (works across full Kelvin range)
         from brain import CircadianLight as CL
+
         include_color = bounce_type in ("step", "color")
         phase1_xy = None
         restore_xy = None
@@ -4211,9 +4413,13 @@ class CircadianLightPrimitives:
             color_range = config.max_color_temp - config.min_color_temp
             color_delta = int(bounce_percent * color_range)
             if direction == "up":
-                target_color = max(config.min_color_temp, int(current_color - color_delta))
+                target_color = max(
+                    config.min_color_temp, int(current_color - color_delta)
+                )
             else:
-                target_color = min(config.max_color_temp, int(current_color + color_delta))
+                target_color = min(
+                    config.max_color_temp, int(current_color + color_delta)
+                )
             phase1_xy = list(CL.color_temperature_to_xy(target_color))
             restore_xy = list(CL.color_temperature_to_xy(current_color))
 
@@ -4259,7 +4465,11 @@ class CircadianLightPrimitives:
         finally:
             self.client._defer_periodic_tick = False
 
-        target_entity = feedback_target.get("entity_id", feedback_target.get("area_id", "?")) if feedback_target else "none"
+        target_entity = (
+            feedback_target.get("entity_id", feedback_target.get("area_id", "?"))
+            if feedback_target
+            else "none"
+        )
         logger.info(
             f"Limit bounce ({bounce_type} {direction}) for {area_id}: "
             f"target={target_entity}, "
@@ -4312,7 +4522,9 @@ class CircadianLightPrimitives:
         # Use our internal state, not HA cached_states
         was_on = state.get_is_on(area_id)
         if was_on:
-            target_entity = feedback_target.get("entity_id") if feedback_target else None
+            target_entity = (
+                feedback_target.get("entity_id") if feedback_target else None
+            )
             if target_entity:
                 cached = self.client.cached_states.get(target_entity, {})
                 cached_bri = cached.get("attributes", {}).get("brightness", 0) or 1
@@ -4340,15 +4552,23 @@ class CircadianLightPrimitives:
             try:
                 config = self._get_config(area_id)
                 hour = get_current_hour()
-                sun_times = self.client._get_sun_times() if hasattr(self.client, "_get_sun_times") else None
+                sun_times = (
+                    self.client._get_sun_times()
+                    if hasattr(self.client, "_get_sun_times")
+                    else None
+                )
                 area_state_obj = self._get_area_state(area_id)
-                result = CircadianLight.calculate_lighting(hour, config, area_state_obj, sun_times=sun_times)
+                result = CircadianLight.calculate_lighting(
+                    hour, config, area_state_obj, sun_times=sun_times
+                )
                 xy = CircadianLight.color_temperature_to_xy(result.color_temp)
                 color_data = {"xy_color": list(xy)}
             except Exception:
                 pass
 
-        target_desc = feedback_target.get("entity_id", feedback_target.get("area_id", "?"))
+        target_desc = feedback_target.get(
+            "entity_id", feedback_target.get("area_id", "?")
+        )
         logger.info(
             f"Alert bounce starting for {area_id}: {count}x, intensity={intensity} ({multiplier}x), "
             f"target={target_desc}, was_on={was_on}, cached_bri={cached_bri}, "
@@ -4361,25 +4581,40 @@ class CircadianLightPrimitives:
                 # Phase 1: bounce to target (include color data)
                 sdata = {"brightness": target_bri, "transition": speed, **color_data}
                 for target in targets:
-                    logger.info(f"Alert bounce [{i+1}/{count}] phase1: turn_on {target} bri={target_bri}")
+                    logger.info(
+                        f"Alert bounce [{i+1}/{count}] phase1: turn_on {target} bri={target_bri}"
+                    )
                     await self.client.call_service(
-                        "light", "turn_on", sdata, target=target,
+                        "light",
+                        "turn_on",
+                        sdata,
+                        target=target,
                     )
                 await asyncio.sleep(speed + two_step_delay)
 
                 # Phase 2: restore
                 if was_on:
-                    rdata = {"brightness": cached_bri, "transition": speed, **color_data}
+                    rdata = {
+                        "brightness": cached_bri,
+                        "transition": speed,
+                        **color_data,
+                    }
                     for target in targets:
-                        logger.info(f"Alert bounce [{i+1}/{count}] phase2: restore bri={cached_bri}")
+                        logger.info(
+                            f"Alert bounce [{i+1}/{count}] phase2: restore bri={cached_bri}"
+                        )
                         await self.client.call_service(
-                            "light", "turn_on", rdata, target=target,
+                            "light",
+                            "turn_on",
+                            rdata,
+                            target=target,
                         )
                 else:
                     for target in targets:
                         logger.info(f"Alert bounce [{i+1}/{count}] phase2: turn_off")
                         await self.client.call_service(
-                            "light", "turn_off",
+                            "light",
+                            "turn_off",
                             {"transition": speed},
                             target=target,
                         )

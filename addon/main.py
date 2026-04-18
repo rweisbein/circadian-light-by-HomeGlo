@@ -40,7 +40,7 @@ from light_controller import (
     MultiProtocolController,
     LightCommand,
     Protocol,
-    ReachGroup,
+    BatchGroup,
 )
 
 # Configure logging
@@ -141,9 +141,9 @@ class HomeAssistantWebSocketClient:
             {}
         )  # area_id -> area_name (for webserver)
 
-        # Reach groups for multi-area switch scopes (synchronized ZigBee control)
-        # Maps reach_key (hash of sorted areas) -> ReachGroup with group entity IDs
-        self.reach_groups: Dict[str, ReachGroup] = {}
+        # Batch groups for balance-matched areas across all reaches
+        # List of BatchGroup objects with per-purpose ZHA group mappings
+        self.batch_groups: List[BatchGroup] = []
 
         # Pending response futures for async message routing (used when message loop is running)
         self._pending_responses: Dict[int, asyncio.Future] = {}
@@ -174,7 +174,9 @@ class HomeAssistantWebSocketClient:
         # Coalesce queue: when a switch action fires while the previous is
         # still delivering to ZHA, accumulate pending steps instead of queuing.
         self._switch_executing: Dict[str, bool] = {}  # switch_id -> True
-        self._switch_pending: Dict[str, Dict[str, Any]] = {}  # switch_id -> {action, steps}
+        self._switch_pending: Dict[str, Dict[str, Any]] = (
+            {}
+        )  # switch_id -> {action, steps}
 
         # Multi-click detection state for Hue Hub switches
         # Key: (switch_id, button) -> {"count": int, "timer": Optional[asyncio.Task]}
@@ -1683,25 +1685,23 @@ class HomeAssistantWebSocketClient:
 
         return command_lower
 
-    def _can_use_reach(self, areas: List[str]) -> bool:
-        """Quick structural check: can reach groups be used for these areas?
+    def _can_use_batch(self, areas: List[str]) -> bool:
+        """Quick structural check: can batch groups be used for these areas?
 
-        Checks: 2+ areas and reach groups exist (legacy or filter-aware).
-        Does NOT check filters, values, or ZHA parity — _send_via_reach
-        handles those checks per-filter at runtime.
+        Checks: 2+ areas and at least one batch group's areas are a subset
+        of the targeted areas. Does NOT check values — _send_via_batch
+        handles value matching at runtime.
         """
         if len(areas) < 2:
             return False
-        import switches as _switches
+        area_set = set(areas)
+        for bg in self.batch_groups:
+            if len(bg.areas) >= 2 and set(bg.areas).issubset(area_set):
+                if bg.filter_groups:
+                    return True
+        return False
 
-        key = _switches.get_reach_key(areas)
-        reach = self.reach_groups.get(key)
-        if not reach:
-            return False
-        # Has filter-aware groups OR legacy entity_id_color/ct
-        return bool(reach.filter_groups) or reach.entity_id_color or reach.entity_id_ct
-
-    async def _send_via_reach_or_fallback(
+    async def _send_via_batch_or_fallback(
         self,
         areas: List[str],
         results: list,
@@ -1709,9 +1709,9 @@ class HomeAssistantWebSocketClient:
         direction: str = "up",
         bounce_type: str = "step",
     ) -> None:
-        """Send multi-area results via reach groups where possible, else per-area.
+        """Send multi-area results via batch groups where possible, else per-area.
 
-        Computes pipeline per-area, attempts reach dispatch, falls back to
+        Computes pipeline per-area, attempts batch dispatch, falls back to
         per-area send_light for unhandled area/purpose combos.
 
         Args:
@@ -1724,18 +1724,24 @@ class HomeAssistantWebSocketClient:
         # Check if ALL on-areas are at limit
         on_areas = [a for a in areas if state.get_is_on(a)]
         at_limit = [
-            a for a, r in zip(areas, results)
+            a
+            for a, r in zip(areas, results)
             if (r is None or r == "sun_dimming_limit") and a in on_areas
         ]
         if on_areas and len(at_limit) == len(on_areas):
             sun_dimming = any(
-                r == "sun_dimming_limit" for a, r in zip(areas, results) if a in on_areas
+                r == "sun_dimming_limit"
+                for a, r in zip(areas, results)
+                if a in on_areas
             )
             if switch_id:
                 asyncio.create_task(
                     self._feedback_cue(
-                        switch_id, "bounce", direction=direction,
-                        bounce_type=bounce_type, sun_dimming_hint=sun_dimming,
+                        switch_id,
+                        "bounce",
+                        direction=direction,
+                        bounce_type=bounce_type,
+                        sun_dimming_hint=sun_dimming,
                     )
                 )
             return
@@ -1749,14 +1755,15 @@ class HomeAssistantWebSocketClient:
             if result is None or not state.get_is_on(area_id):
                 continue
             area_pipeline_results[area_id] = self.primitives.compute_pipeline_for_area(
-                area_id, transition=transition,
+                area_id,
+                transition=transition,
             )
 
         if not area_pipeline_results:
             return
 
-        # Try reach groups (greedy largest-first)
-        handled = await self.primitives._send_via_reach(
+        # Try batch groups (greedy largest-first)
+        handled = await self.primitives._send_via_batch(
             list(area_pipeline_results.keys()),
             area_pipeline_results,
             transition=transition,
@@ -1773,17 +1780,21 @@ class HomeAssistantWebSocketClient:
                 )
                 all_norms = {f.replace(" ", "_").lower() for f in all_filters}
                 if all_norms.issubset(skip):
-                    continue  # Fully handled by reach
+                    continue  # Fully handled by batch
             tasks.append(
                 self.send_light(
-                    area_id, transition=transition, pipeline_result=pipe_result,
+                    area_id,
+                    transition=transition,
+                    pipeline_result=pipe_result,
                     skip_if_identical=True,
                 )
             )
         if tasks:
             await asyncio.gather(*tasks)
 
-    async def _execute_switch_action(self, switch_id: str, action, *, steps_override: int = None) -> str:
+    async def _execute_switch_action(
+        self, switch_id: str, action, *, steps_override: int = None
+    ) -> str:
         """Execute a switch action.
 
         Args:
@@ -1873,7 +1884,7 @@ class HomeAssistantWebSocketClient:
                 state.is_circadian(area) and state.get_is_on(area) for area in areas
             )
             if any_on_circadian:
-                if self._can_use_reach(areas):
+                if self._can_use_batch(areas):
                     results = await asyncio.gather(
                         *[
                             self.primitives.step_up(
@@ -1882,7 +1893,7 @@ class HomeAssistantWebSocketClient:
                             for a in areas
                         ]
                     )
-                    await self._send_via_reach_or_fallback(
+                    await self._send_via_batch_or_fallback(
                         areas, results, switch_id=switch_id, direction="up"
                     )
                 else:
@@ -1897,13 +1908,15 @@ class HomeAssistantWebSocketClient:
                     on_areas = [a for a in areas if state.get_is_on(a)]
                     at_limit = on_areas and all(
                         r is None or r == "sun_dimming_limit"
-                        for a, r in zip(areas, results) if a in on_areas
+                        for a, r in zip(areas, results)
+                        if a in on_areas
                     )
                     if at_limit:
                         # Check if any area hit the sun dimming limit
                         sun_dimming = any(
                             r == "sun_dimming_limit"
-                            for a, r in zip(areas, results) if a in on_areas
+                            for a, r in zip(areas, results)
+                            if a in on_areas
                         )
                         if switch_id:
                             asyncio.create_task(
@@ -1928,7 +1941,7 @@ class HomeAssistantWebSocketClient:
                 state.is_circadian(area) and state.get_is_on(area) for area in areas
             )
             if any_on_circadian:
-                if self._can_use_reach(areas):
+                if self._can_use_batch(areas):
                     results = await asyncio.gather(
                         *[
                             self.primitives.step_down(
@@ -1937,7 +1950,7 @@ class HomeAssistantWebSocketClient:
                             for a in areas
                         ]
                     )
-                    await self._send_via_reach_or_fallback(
+                    await self._send_via_batch_or_fallback(
                         areas, results, switch_id=switch_id, direction="down"
                     )
                 else:
@@ -1982,7 +1995,7 @@ class HomeAssistantWebSocketClient:
                 state.is_circadian(area) and state.get_is_on(area) for area in areas
             )
             if any_on_circadian:
-                if self._can_use_reach(areas):
+                if self._can_use_batch(areas):
                     results = await asyncio.gather(
                         *[
                             self.primitives.brightness_up(
@@ -1992,8 +2005,12 @@ class HomeAssistantWebSocketClient:
                         ]
                     )
                     logger.info(f"[bright_up reach] results={results}, areas={areas}")
-                    await self._send_via_reach_or_fallback(
-                        areas, results, switch_id=switch_id, direction="up", bounce_type="bright"
+                    await self._send_via_batch_or_fallback(
+                        areas,
+                        results,
+                        switch_id=switch_id,
+                        direction="up",
+                        bounce_type="bright",
                     )
                 else:
                     results = await asyncio.gather(
@@ -2037,7 +2054,7 @@ class HomeAssistantWebSocketClient:
                 state.is_circadian(area) and state.get_is_on(area) for area in areas
             )
             if any_on_circadian:
-                if self._can_use_reach(areas):
+                if self._can_use_batch(areas):
                     results = await asyncio.gather(
                         *[
                             self.primitives.brightness_down(
@@ -2047,8 +2064,12 @@ class HomeAssistantWebSocketClient:
                         ]
                     )
                     logger.info(f"[bright_down reach] results={results}, areas={areas}")
-                    await self._send_via_reach_or_fallback(
-                        areas, results, switch_id=switch_id, direction="down", bounce_type="bright"
+                    await self._send_via_batch_or_fallback(
+                        areas,
+                        results,
+                        switch_id=switch_id,
+                        direction="down",
+                        bounce_type="bright",
                     )
                 else:
                     results = await asyncio.gather(
@@ -2084,21 +2105,23 @@ class HomeAssistantWebSocketClient:
                 state.is_circadian(area) and state.get_is_on(area) for area in areas
             )
             if any_on_circadian:
-                if self._can_use_reach(areas):
+                if self._can_use_batch(areas):
                     await asyncio.gather(
                         *[
-                            self.primitives.color_up(a, "switch", steps=color_steps, send_command=False)
+                            self.primitives.color_up(
+                                a, "switch", steps=color_steps, send_command=False
+                            )
                             for a in areas
                         ]
                     )
-                    await self._send_via_reach_or_fallback(
-                        areas, [True for _ in areas]
-                    )
+                    await self._send_via_batch_or_fallback(areas, [True for _ in areas])
                 else:
                     multi = len(areas) > 1
                     results = await asyncio.gather(
                         *[
-                            self.primitives.color_up(area, "switch", steps=color_steps, skip_bounce=multi)
+                            self.primitives.color_up(
+                                area, "switch", steps=color_steps, skip_bounce=multi
+                            )
                             for area in areas
                         ]
                     )
@@ -2126,16 +2149,16 @@ class HomeAssistantWebSocketClient:
                 state.is_circadian(area) and state.get_is_on(area) for area in areas
             )
             if any_on_circadian:
-                if self._can_use_reach(areas):
+                if self._can_use_batch(areas):
                     await asyncio.gather(
                         *[
-                            self.primitives.color_down(a, "switch", steps=color_steps, send_command=False)
+                            self.primitives.color_down(
+                                a, "switch", steps=color_steps, send_command=False
+                            )
                             for a in areas
                         ]
                     )
-                    await self._send_via_reach_or_fallback(
-                        areas, [True for _ in areas]
-                    )
+                    await self._send_via_batch_or_fallback(areas, [True for _ in areas])
                 else:
                     multi = len(areas) > 1
                     results = await asyncio.gather(
@@ -2165,16 +2188,14 @@ class HomeAssistantWebSocketClient:
 
         elif main_action == "glo_reset":
             # Reset area to Daily Rhythm
-            if self._can_use_reach(areas):
+            if self._can_use_batch(areas):
                 await asyncio.gather(
                     *[
                         self.primitives.glo_reset(a, "switch", send_command=False)
                         for a in areas
                     ]
                 )
-                await self._send_via_reach_or_fallback(
-                    areas, [True for _ in areas]
-                )
+                await self._send_via_batch_or_fallback(areas, [True for _ in areas])
             else:
                 await asyncio.gather(
                     *[self.primitives.glo_reset(area, "switch") for area in areas]
@@ -2192,16 +2213,14 @@ class HomeAssistantWebSocketClient:
 
         elif main_action == "glo_down":
             # Pull GloZone settings to this area
-            if self._can_use_reach(areas):
+            if self._can_use_batch(areas):
                 await asyncio.gather(
                     *[
                         self.primitives.glo_down(a, "switch", send_command=False)
                         for a in areas
                     ]
                 )
-                await self._send_via_reach_or_fallback(
-                    areas, [True for _ in areas]
-                )
+                await self._send_via_batch_or_fallback(areas, [True for _ in areas])
             else:
                 await asyncio.gather(
                     *[self.primitives.glo_down(area, "switch") for area in areas]
@@ -2247,7 +2266,7 @@ class HomeAssistantWebSocketClient:
         elif main_action == "set_britelite":
             # Freeze at descend_start (max brightness/coolest color on curve)
             logger.info(f"[switch] set_britelite for areas: {areas}")
-            if self._can_use_reach(areas):
+            if self._can_use_batch(areas):
                 for area in areas:
                     await self.primitives.set(
                         area,
@@ -2256,9 +2275,7 @@ class HomeAssistantWebSocketClient:
                         is_on=True,
                         send_command=False,
                     )
-                await self._send_via_reach_or_fallback(
-                    areas, [True for _ in areas]
-                )
+                await self._send_via_batch_or_fallback(areas, [True for _ in areas])
             else:
                 for area in areas:
                     await self.primitives.set(
@@ -2268,7 +2285,7 @@ class HomeAssistantWebSocketClient:
         elif main_action == "set_nitelite":
             # Freeze at ascend_start (min brightness/warmest color on curve)
             logger.info(f"[switch] set_nitelite for areas: {areas}")
-            if self._can_use_reach(areas):
+            if self._can_use_batch(areas):
                 for area in areas:
                     await self.primitives.set(
                         area,
@@ -2277,9 +2294,7 @@ class HomeAssistantWebSocketClient:
                         is_on=True,
                         send_command=False,
                     )
-                await self._send_via_reach_or_fallback(
-                    areas, [True for _ in areas]
-                )
+                await self._send_via_batch_or_fallback(areas, [True for _ in areas])
             else:
                 for area in areas:
                     await self.primitives.set(
@@ -2292,14 +2307,12 @@ class HomeAssistantWebSocketClient:
             "set_wake",
             "set_bed",
         ):
-            if self._can_use_reach(areas):
+            if self._can_use_batch(areas):
                 for area in areas:
                     await self.primitives.set(
                         area, "switch", preset="wake_or_bed", send_command=False
                     )
-                await self._send_via_reach_or_fallback(
-                    areas, [True for _ in areas]
-                )
+                await self._send_via_batch_or_fallback(areas, [True for _ in areas])
             else:
                 for area in areas:
                     await self.primitives.set(area, "switch", preset="wake_or_bed")
@@ -2717,7 +2730,9 @@ class HomeAssistantWebSocketClient:
                 flash_up = False
                 bri_pct = cached_bri / 2.55
                 if feedback_area:
-                    sun_exposure = glozone.get_area_natural_light_exposure(feedback_area)
+                    sun_exposure = glozone.get_area_natural_light_exposure(
+                        feedback_area
+                    )
                     if sun_exposure > 0:
                         outdoor_norm = lux_tracker.get_outdoor_normalized() or 0.0
                         if outdoor_norm > 0:
@@ -2953,7 +2968,8 @@ class HomeAssistantWebSocketClient:
         self._switch_executing[switch_id] = True
         try:
             result = await self._execute_switch_action(
-                switch_id, action,
+                switch_id,
+                action,
                 steps_override=steps if steps > 1 else None,
             )
 
@@ -3771,7 +3787,9 @@ class HomeAssistantWebSocketClient:
         off_threshold = glozone.get_off_threshold()
 
         # Build lookup for pre-computed purpose values (pipeline path)
-        _purpose_map = {p.name: p for p in precomputed_purposes} if precomputed_purposes else {}
+        _purpose_map = (
+            {p.name: p for p in precomputed_purposes} if precomputed_purposes else {}
+        )
 
         # Track area-level brightness (pipeline already computed correctly)
         if not skip_off_threshold and area_brightness is not None:
@@ -3899,7 +3917,9 @@ class HomeAssistantWebSocketClient:
 
                 if brightening or is_off:
                     # Brightening / off→on: phase 1 = new color at low brightness
-                    phase1_bri = 1 if is_off else max(1, min(current_bri_pct, filtered_bri))
+                    phase1_bri = (
+                        1 if is_off else max(1, min(current_bri_pct, filtered_bri))
+                    )
 
                     def _add_p1_brighten(entity_id, cap_type):
                         p1 = {"transition": transition, "brightness_pct": phase1_bri}
@@ -3947,7 +3967,11 @@ class HomeAssistantWebSocketClient:
                     )
                     delta_str = f"{ct_diff}K" if ct_diff is not None else "?K"
                     mode = "brighten" if brightening else "dim"
-                    p1_target = zha_color or zha_ct or f"{len(lights_by_cap['color'] + lights_by_cap['ct'])} lights"
+                    p1_target = (
+                        zha_color
+                        or zha_ct
+                        or f"{len(lights_by_cap['color'] + lights_by_cap['ct'])} lights"
+                    )
                     p1_bri = phase1_bri if brightening or is_off else filtered_bri
                     logger.info(
                         f"Purpose 2-step ({filter_name}): phase 1 {mode} ({reason}, CT Δ{delta_str}), "
@@ -4309,7 +4333,11 @@ class HomeAssistantWebSocketClient:
 
                         if log_periodic:
                             mode_p2 = "dim" if is_dimming else "brighten"
-                            p2_target = zha_group or zha_ct or f"{len(lights_by_cap['color'] + lights_by_cap['ct'])} lights"
+                            p2_target = (
+                                zha_group
+                                or zha_ct
+                                or f"{len(lights_by_cap['color'] + lights_by_cap['ct'])} lights"
+                            )
                             logger.info(
                                 f"Purpose 2-step ({filter_name}): phase 2 {mode_p2}, "
                                 f"target={p2_target}, bri={comp_bri}%, {kelvin}K"
@@ -4522,7 +4550,8 @@ class HomeAssistantWebSocketClient:
             last = state.get_last_sent_purpose(area_id, purpose_name)
             if last:
                 state.set_last_sent_purpose(
-                    area_id, purpose_name,
+                    area_id,
+                    purpose_name,
                     last.get("brightness", 0),
                     last.get("kelvin", 4000),
                     is_off=True,
@@ -4546,136 +4575,38 @@ class HomeAssistantWebSocketClient:
         )
         await self.call_service("switch", "turn_off", {}, {"entity_id": switches})
 
-    async def turn_on_reach_groups(
-        self,
-        areas: List[str],
-        brightness: int,
-        color_temp: int,
-        transition: float = 0.4,
-    ) -> bool:
-        """Turn on lights via reach groups for synchronized multi-area control.
-
-        Uses Circadian_Reach_{hash}_color and _ct groups to control lights
-        across multiple areas with a single command per capability type.
-        Falls back to per-area control if reach groups aren't available.
-
-        Args:
-            areas: List of area IDs to control
-            brightness: Brightness percentage 0-100
-            color_temp: Color temperature in Kelvin
-            transition: Transition time in seconds
-
-        Returns:
-            True if reach groups were used, False if fell back to per-area
-        """
-        if len(areas) < 2:
-            return False  # Single area doesn't use reach groups
-
-        reach_color, reach_ct = self.get_reach_groups(areas)
-        if not reach_color and not reach_ct:
-            return False  # No reach groups available
-
-        logger.info(
-            f"Using reach groups for synchronized control: color={reach_color}, ct={reach_ct}"
-        )
-
-        # Compute xy from kelvin for color-capable lights
-        xy = CircadianLight.color_temperature_to_xy(color_temp)
-
-        # Apply CT brightness compensation
-        original_brightness = brightness
-        brightness = self._apply_ct_brightness_compensation(brightness, color_temp)
-        if brightness != original_brightness:
-            logger.debug(
-                f"CT compensation: {original_brightness}% -> {brightness}% at {color_temp}K"
-            )
-
-        tasks = []
-
-        # Send command to reach color group
-        if reach_color:
-            color_data = {
-                "transition": transition,
-                "brightness_pct": brightness,
-                "xy_color": list(xy),
-            }
-            logger.info(
-                f"Reach group (color): {reach_color}, xy={xy} ({kelvin}K), brightness={brightness}%"
-            )
-            tasks.append(
-                asyncio.create_task(
-                    self.call_service(
-                        "light", "turn_on", color_data, {"entity_id": reach_color}
-                    )
-                )
-            )
-
-        # Send command to reach CT group
-        if reach_ct:
-            ct_data = {
-                "transition": transition,
-                "brightness_pct": brightness,
-                "color_temp_kelvin": max(2000, color_temp),
-            }
-            logger.info(
-                f"Reach group (CT): {reach_ct}, kelvin={color_temp}, brightness={brightness}%"
-            )
-            tasks.append(
-                asyncio.create_task(
-                    self.call_service(
-                        "light", "turn_on", ct_data, {"entity_id": reach_ct}
-                    )
-                )
-            )
-
-        if tasks:
-            await asyncio.gather(*tasks)
-
-        return True
-
-    async def turn_off_reach_groups(
+    async def turn_off_batch_groups(
         self,
         areas: List[str],
         transition: float = 0.3,
     ) -> bool:
-        """Turn off lights via reach groups for synchronized multi-area control.
+        """Turn off lights via batch groups for synchronized multi-area control.
 
-        Sends turn_off to all filter-aware reach group entities for this reach.
-        Since turn_off doesn't involve brightness, no value matching needed —
-        every reach group entity gets the off command.
+        Finds all batch groups whose areas are a subset of the targeted areas
+        and sends turn_off to their group entities. Since turn_off doesn't
+        involve brightness, no value matching needed.
 
         Args:
             areas: List of area IDs to control
             transition: Transition time in seconds
 
         Returns:
-            True if any reach groups were used, False otherwise
+            True if any batch groups were used, False otherwise
         """
         if len(areas) < 2:
             return False
 
-        import switches as _switches
+        area_set = set(areas)
+        batch_entities = []
+        for bg in self.batch_groups:
+            if set(bg.areas).issubset(area_set):
+                batch_entities.extend(bg.filter_groups.values())
 
-        key = _switches.get_reach_key(areas)
-        reach = self.reach_groups.get(key)
-        if not reach:
-            return False
-
-        # Collect ALL reach group entities (every filter+factor+cap combo)
-        reach_entities = list(reach.filter_groups.values())
-
-        # Fall back to legacy entity_id_color/ct if no filter_groups
-        if not reach_entities:
-            if reach.entity_id_color:
-                reach_entities.append(reach.entity_id_color)
-            if reach.entity_id_ct:
-                reach_entities.append(reach.entity_id_ct)
-
-        if not reach_entities:
+        if not batch_entities:
             return False
 
         logger.info(
-            f"Reach group turn off: {len(reach_entities)} group(s) for {len(areas)} areas"
+            f"Batch group turn off: {len(batch_entities)} group(s) for {len(areas)} areas"
         )
 
         service_data = {"transition": transition}
@@ -4685,7 +4616,7 @@ class HomeAssistantWebSocketClient:
                     "light", "turn_off", service_data, {"entity_id": entity_id}
                 )
             )
-            for entity_id in reach_entities
+            for entity_id in batch_entities
         ]
         await asyncio.gather(*tasks)
 
@@ -5972,6 +5903,7 @@ class HomeAssistantWebSocketClient:
                 log_decay=log_periodic,
             )
             import pipeline as pipeline_mod
+
             pipeline_result = pipeline_mod.compute(ctx)
 
             # --- Fade: lerp between captured start state and live target ---
@@ -6003,8 +5935,12 @@ class HomeAssistantWebSocketClient:
                         lerped_bri = max(1, round(start_bri * (1.0 - progress)))
                         lerped_kelvin = start_kelvin
                     else:
-                        lerped_bri = max(1, round(start_bri + (target_bri - start_bri) * progress))
-                        lerped_kelvin = round(start_kelvin + (target_kelvin - start_kelvin) * progress)
+                        lerped_bri = max(
+                            1, round(start_bri + (target_bri - start_bri) * progress)
+                        )
+                        lerped_kelvin = round(
+                            start_kelvin + (target_kelvin - start_kelvin) * progress
+                        )
                     lerped_xy = CircadianLight.color_temperature_to_xy(lerped_kelvin)
 
                     # Override pipeline result with lerped values.
@@ -6012,7 +5948,10 @@ class HomeAssistantWebSocketClient:
                     if target_result is not None and target_result.area_brightness > 0:
                         for p in pipeline_result.purposes:
                             # Find matching target purpose for ratio
-                            tp = next((t for t in target_result.purposes if t.name == p.name), None)
+                            tp = next(
+                                (t for t in target_result.purposes if t.name == p.name),
+                                None,
+                            )
                             if tp and target_result.area_brightness > 0:
                                 ratio = tp.brightness / target_result.area_brightness
                             else:
@@ -6022,20 +5961,26 @@ class HomeAssistantWebSocketClient:
                             p.xy = lerped_xy
                     else:
                         for p in pipeline_result.purposes:
-                            p.brightness = max(1, round(lerped_bri)) if lerped_bri > 0 else 1
+                            p.brightness = (
+                                max(1, round(lerped_bri)) if lerped_bri > 0 else 1
+                            )
                             p.kelvin = lerped_kelvin
                             p.xy = lerped_xy
                     pipeline_result.area_brightness = lerped_bri
                     pipeline_result.area_kelvin = lerped_kelvin
                     pipeline_result.area_xy = lerped_xy
 
-                    remaining = max(0, (fade_state.get("fade_duration") or 0) * (1 - progress))
+                    remaining = max(
+                        0, (fade_state.get("fade_duration") or 0) * (1 - progress)
+                    )
                     fade_note = f" (fade {'↑' if direction == 'in' else '↓'} → {target_preset} {remaining:.0f}s)"
 
             # Log the calculation
             hour = ctx.hour
             frozen_note = (
-                f" (frozen at {hour:.1f}h)" if ctx.area_state.frozen_at is not None else ""
+                f" (frozen at {hour:.1f}h)"
+                if ctx.area_state.frozen_at is not None
+                else ""
             )
             if log_periodic:
                 logger.info(
@@ -6205,17 +6150,20 @@ class HomeAssistantWebSocketClient:
                 # is too slow (20s default).
                 now = time.time()
                 fading_areas = [
-                    aid for aid in state.get_all_areas().keys()
-                    if state.is_fading(aid)
+                    aid for aid in state.get_all_areas().keys() if state.is_fading(aid)
                 ]
                 for area_id in fading_areas:
                     if not state.is_circadian(area_id) or not state.get_is_on(area_id):
-                        logger.debug(f"[fade_tick] {area_id}: skipping (circadian={state.is_circadian(area_id)}, on={state.get_is_on(area_id)})")
+                        logger.debug(
+                            f"[fade_tick] {area_id}: skipping (circadian={state.is_circadian(area_id)}, on={state.get_is_on(area_id)})"
+                        )
                         continue
                     last = _fade_last_update.get(area_id, 0)
                     if now - last >= FADE_TICK_INTERVAL:
                         progress = state.get_fade_progress(area_id)
-                        logger.debug(f"[fade_tick] {area_id}: progress={progress:.2f}, sending update")
+                        logger.debug(
+                            f"[fade_tick] {area_id}: progress={progress:.2f}, sending update"
+                        )
                         _fade_last_update[area_id] = now
                         await self.update_lights_in_circadian_mode(
                             area_id,
@@ -6672,8 +6620,8 @@ class HomeAssistantWebSocketClient:
                     # Refresh parity cache using the areas data we already have
                     await self.refresh_area_parity_cache(areas_data=areas)
 
-                    # Sync reach groups for multi-area scopes
-                    await self.sync_reach_groups(areas_data=areas)
+                    # Sync batch groups for multi-area scopes
+                    await self.sync_batch_groups(areas_data=areas)
             else:
                 logger.warning("ZigBee controller not available for group sync")
 
@@ -6684,12 +6632,12 @@ class HomeAssistantWebSocketClient:
         except Exception as e:
             logger.error(f"Failed to sync ZHA groups: {e}")
 
-    async def sync_reach_groups(self, areas_data: Dict[str, Dict[str, Any]] = None):
-        """Sync ZHA groups for multi-area reach combinations.
+    async def sync_batch_groups(self, areas_data: Dict[str, Dict[str, Any]] = None):
+        """Sync ZHA groups for balance-matched areas across all reaches.
 
-        Creates per-filter reach groups that combine areas with the same filter
-        AND area_factor. These groups enable synchronized control of lights
-        across multiple areas with a single ZigBee command per filter.
+        Pools all areas from all reaches, groups by shared balance (area_factor),
+        then creates per-purpose ZHA groups. These groups enable synchronized
+        control of lights across multiple areas with a single ZigBee command.
 
         Args:
             areas_data: Optional areas data from sync_zha_groups. If not provided,
@@ -6700,10 +6648,10 @@ class HomeAssistantWebSocketClient:
             reaches = switches.get_all_unique_reaches()
             if not reaches:
                 logger.debug("No multi-area reaches configured")
-                self.reach_groups = {}
+                self.batch_groups = []
                 return
 
-            logger.info(f"Syncing {len(reaches)} multi-area reach group(s)...")
+            logger.info(f"Syncing batch groups from {len(reaches)} reach(es)...")
 
             # Get areas data if not provided
             if areas_data is None:
@@ -6714,7 +6662,7 @@ class HomeAssistantWebSocketClient:
                     areas_data = await zigbee_controller.get_areas()
                 else:
                     logger.warning(
-                        "ZigBee controller not available for reach group sync"
+                        "ZigBee controller not available for batch group sync"
                     )
                     return
 
@@ -6736,42 +6684,24 @@ class HomeAssistantWebSocketClient:
                                     area_factors[aid] = bf
             except Exception as e:
                 logger.warning(
-                    f"Could not load filter/factor config for reach sync: {e}"
+                    f"Could not load filter/factor config for batch sync: {e}"
                 )
 
-            # Use ZigBee controller to sync reach groups
+            # Use ZigBee controller to sync batch groups
             zigbee_controller = self.light_controller.controllers.get(Protocol.ZIGBEE)
             if zigbee_controller:
-                self.reach_groups = await zigbee_controller.sync_reach_groups(
+                self.batch_groups = await zigbee_controller.sync_batch_groups(
                     reaches,
                     areas_data,
                     filter_config=filter_config,
                     area_factors=area_factors,
                 )
-                logger.info(f"Reach groups synced: {list(self.reach_groups.keys())}")
+                logger.info(f"Batch groups synced: {len(self.batch_groups)} group(s)")
             else:
-                logger.warning("ZigBee controller not available for reach group sync")
+                logger.warning("ZigBee controller not available for batch group sync")
 
         except Exception as e:
-            logger.error(f"Failed to sync reach groups: {e}")
-
-    def get_reach_groups(self, areas: List[str]) -> Tuple[Optional[str], Optional[str]]:
-        """Look up reach group entities for a set of areas.
-
-        Args:
-            areas: List of area IDs to look up
-
-        Returns:
-            Tuple of (color_entity_id, ct_entity_id) - either or both may be None
-        """
-        if len(areas) < 2:
-            return None, None  # Single-area uses area groups, not reach groups
-
-        key = switches.get_reach_key(areas)
-        reach = self.reach_groups.get(key)
-        if reach:
-            return reach.entity_id_color, reach.entity_id_ct
-        return None, None
+            logger.error(f"Failed to sync batch groups: {e}")
 
     async def handle_message(self, message: Dict[str, Any]):
         """Handle incoming messages."""
@@ -7074,12 +7004,13 @@ class HomeAssistantWebSocketClient:
                 )
                 await self.run_manual_sync()
 
-            # Handle circadian_light_sync_reach_groups event (fired by webserver on switch config change)
-            elif event_type == "circadian_light_sync_reach_groups":
-                logger.info(
-                    "circadian_light_sync_reach_groups event received - syncing reach groups"
-                )
-                await self.sync_reach_groups()
+            # Handle circadian_light_sync_batch_groups event (fired by webserver on switch config change)
+            elif event_type in (
+                "circadian_light_sync_reach_groups",
+                "circadian_light_sync_batch_groups",
+            ):
+                logger.info(f"{event_type} event received - syncing batch groups")
+                await self.sync_batch_groups()
 
             # Handle circadian_light_live_design event (fired by webserver when Live Design starts/stops)
             elif event_type == "circadian_light_live_design":
