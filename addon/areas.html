@@ -527,6 +527,12 @@
       display: flex;
       flex-direction: column;
       gap: 2px;
+      align-items: flex-end;
+    }
+    .row-step-row {
+      display: flex;
+      gap: 4px;
+      align-items: center;
     }
 
     .row-step-stack .row-btn {
@@ -534,6 +540,12 @@
       height: 28px;
       border-radius: 3px;
     }
+    .row-btn-reset {
+      width: 24px !important;
+      height: 24px !important;
+      opacity: 0.7;
+    }
+    .row-btn-reset:hover { opacity: 1; }
 
     .row-step-stack .row-btn svg {
       width: 16px;
@@ -2574,15 +2586,32 @@
       return phase === 'wake' ? zc.wake_time : zc.bed_time;
     }
 
+    // Cache for zone effective midpoints (set by getZonePhaseMidpoint, read by getPhaseMidpoint)
+    const _zoneEffectiveMidpoint = {};  // zoneName -> decimal hour
+
     function getZonePhaseMidpoint(zoneName, areasInZone) {
       // Get phase from any area in the zone
       const anyArea = areasInZone.find(a => areaStatus[a.area_id]?.phase);
       if (!anyArea) return '';
       const phase = areaStatus[anyArea.area_id].phase;
+
+      // If zone has a runtime midpoint shift (from Send All / full_send),
+      // use the area's phase_midpoint which already incorporates it.
+      const rs = zoneStates[zoneName]?.runtime_state;
+      if (rs && rs.brightness_mid != null) {
+        const midpoint = areaStatus[anyArea.area_id]?.phase_midpoint;
+        if (midpoint != null) {
+          _zoneEffectiveMidpoint[zoneName] = midpoint;
+          const label = phase === 'wake' ? 'Wake' : 'Bed';
+          return `${label} ${formatDecimalHour(midpoint)}`;
+        }
+      }
+
       const zc = cachedGlozones?.zones?.[zoneName];
       if (!zc) return '';
       const mid = resolveEffectiveTime(zc, phase);
       if (mid == null) return '';
+      _zoneEffectiveMidpoint[zoneName] = mid;
       const label = phase === 'wake' ? 'Wake' : 'Bed';
       const time = formatDecimalHour(mid);
       return `${label} ${time}`;
@@ -2604,11 +2633,10 @@
       const midpoint = status.phase_midpoint;
       if (!phase || midpoint == null) return '';
 
-      // Compare to zone default (alt-day aware) — only show if different
+      // Compare to zone header's displayed midpoint — only show if different
       const zoneName = area.zone_name || status.zone_name;
-      if (zoneName && cachedGlozones?.zones?.[zoneName]) {
-        const zc = cachedGlozones.zones[zoneName];
-        const zoneDefault = resolveEffectiveTime(zc, phase);
+      if (zoneName) {
+        const zoneDefault = _zoneEffectiveMidpoint[zoneName];
         if (zoneDefault != null && Math.abs(midpoint - zoneDefault) < 0.05) {
           return ''; // matches zone default, don't show
         }
@@ -2687,9 +2715,11 @@
 
       const rightControls = `
         <div class="row-controls">
-          <button class="row-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_down')" title="Reset to rhythm zone">${resetSvg}</button>
           <div class="row-step-stack">
-            <button class="row-btn" onclick="event.stopPropagation(); homeStepUp('${area.area_id}')" title="Step up">${stepUpSvg}</button>
+            <div class="row-step-row">
+              <button class="row-btn row-btn-reset" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_down')" title="Reset to rhythm zone">${resetSvg}</button>
+              <button class="row-btn" onclick="event.stopPropagation(); homeStepUp('${area.area_id}')" title="Step up">${stepUpSvg}</button>
+            </div>
             <button class="row-btn" onclick="event.stopPropagation(); homeStepDown('${area.area_id}')" title="Step down">${stepDownSvg}</button>
           </div>
         </div>
