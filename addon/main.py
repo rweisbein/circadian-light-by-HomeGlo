@@ -6215,7 +6215,7 @@ class HomeAssistantWebSocketClient:
                     last = _fade_last_update.get(area_id, 0)
                     if now - last >= FADE_TICK_INTERVAL:
                         progress = state.get_fade_progress(area_id)
-                        logger.info(f"[fade_tick] {area_id}: progress={progress:.2f}, sending update")
+                        logger.debug(f"[fade_tick] {area_id}: progress={progress:.2f}, sending update")
                         _fade_last_update[area_id] = now
                         await self.update_lights_in_circadian_mode(
                             area_id,

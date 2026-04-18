@@ -2500,7 +2500,6 @@ class LightDesignerServer:
             return (6.0, 18.0)
 
     @staticmethod
-    @staticmethod
     def _get_fade_info(area_id):
         """Get fade state for API responses."""
         if not state.is_fading(area_id):
@@ -2521,6 +2520,7 @@ class LightDesignerServer:
             "fade_remaining": round(remaining),
         }
 
+    @staticmethod
     def _get_sun_hours():
         """Get today's sunrise/sunset as decimal hours."""
         from zoneinfo import ZoneInfo
