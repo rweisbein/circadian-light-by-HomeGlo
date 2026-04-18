@@ -1034,16 +1034,7 @@ class LightDesignerServer:
                             "boosted": is_boosted,
                             "boost_brightness": boost_brightness or 0,
                             "bri_override": effective_bri_override,
-                            "fade_direction": (
-                                state.get_fade_state(area_id).get("fade_direction")
-                                if state.is_fading(area_id)
-                                else None
-                            ),
-                            "fade_progress": (
-                                state.get_fade_progress(area_id)
-                                if state.is_fading(area_id)
-                                else None
-                            ),
+                            **self._get_fade_info(area_id),
                         }
                     )
                 zone_cfg = glozone.get_zone_config(zone_name)
@@ -2509,6 +2500,27 @@ class LightDesignerServer:
             return (6.0, 18.0)
 
     @staticmethod
+    @staticmethod
+    def _get_fade_info(area_id):
+        """Get fade state for API responses."""
+        if not state.is_fading(area_id):
+            return {
+                "fade_direction": None,
+                "fade_progress": None,
+                "fade_target_preset": None,
+                "fade_remaining": None,
+            }
+        fs = state.get_fade_state(area_id)
+        progress = state.get_fade_progress(area_id) or 0
+        duration = fs.get("fade_duration") or 0
+        remaining = max(0, duration * (1 - progress))
+        return {
+            "fade_direction": fs.get("fade_direction"),
+            "fade_progress": round(progress, 3),
+            "fade_target_preset": fs.get("fade_target_preset"),
+            "fade_remaining": round(remaining),
+        }
+
     def _get_sun_hours():
         """Get today's sunrise/sunset as decimal hours."""
         from zoneinfo import ZoneInfo
@@ -3144,16 +3156,7 @@ class LightDesignerServer:
                         "motion_expires_at": motion_expires_at,
                         "motion_warning_active": motion_warning_active,
                         "dim_factor": state.get_dim_factor(area_id),
-                        "fade_direction": (
-                            state.get_fade_state(area_id).get("fade_direction")
-                            if state.is_fading(area_id)
-                            else None
-                        ),
-                        "fade_progress": (
-                            state.get_fade_progress(area_id)
-                            if state.is_fading(area_id)
-                            else None
-                        ),
+                        **self._get_fade_info(area_id),
                         "zone_name": zone_name if zone_name != "Unassigned" else None,
                         "preset_name": zone_name,
                         # Effective brightness/CCT range for this area's rhythm
@@ -3302,21 +3305,7 @@ class LightDesignerServer:
                         ),
                         "motion_expires_at": state.get_motion_expires(area_id),
                         "motion_warning_active": state.is_motion_warned(area_id),
-                        "fade_direction": (
-                            state.get_fade_state(area_id).get("fade_direction")
-                            if state.is_fading(area_id)
-                            else None
-                        ),
-                        "fade_progress": (
-                            state.get_fade_progress(area_id)
-                            if state.is_fading(area_id)
-                            else None
-                        ),
-                        "fade_start": (
-                            state.get_fade_state(area_id).get("fade_start")
-                            if state.is_fading(area_id)
-                            else None
-                        ),
+                        **self._get_fade_info(area_id),
                         "zone_name": (zone_name if zone_name != "Unassigned" else None),
                         "preset_name": zone_name,
                         "min_brightness": area_config.min_brightness,
@@ -3444,6 +3433,7 @@ class LightDesignerServer:
                 "auto_on_fade": 0,
                 "auto_on_skip_if_brighter": False,
                 "auto_on_trigger_mode": "always",
+                "auto_on_light": "circadian",
                 "auto_on_override": None,
                 # Auto Off
                 "auto_off_enabled": False,
@@ -3526,7 +3516,7 @@ class LightDesignerServer:
                     full = f"{prefix}_{key}"
                     if full in data:
                         area_cfg[full] = bool(data[full])
-                for key in ("source", "trigger_mode"):
+                for key in ("source", "trigger_mode", "light"):
                     full = f"{prefix}_{key}"
                     if full in data:
                         area_cfg[full] = str(data[full])

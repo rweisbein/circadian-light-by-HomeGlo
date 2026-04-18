@@ -1400,21 +1400,19 @@
 
         const parts = [];
 
-        // Fade indicator (replaces auto pill for the active type)
+        // Fade indicator: arrow + target + countdown
         const fadeDir = status.fade_direction;  // 'in' or 'out' or null
         if (fadeDir) {
           const fadeIcon = fadeDir === 'in' ? '\u25B2' : '\u25BC';
-          let fadeTime = '';
-          if (status.fade_start) {
-            try {
-              const d = new Date(status.fade_start);
-              let h = d.getHours(), m = d.getMinutes();
-              const suffix = h < 12 ? 'a' : 'p';
-              if (h === 0) h = 12; else if (h > 12) h -= 12;
-              fadeTime = m === 0 ? h + suffix : h + ':' + String(m).padStart(2, '0') + suffix;
-            } catch (e) {}
+          const target = status.fade_target_preset || (fadeDir === 'out' ? 'off' : 'circadian');
+          const remaining = status.fade_remaining;
+          let countdown = '';
+          if (remaining != null && remaining > 0) {
+            const m = Math.floor(remaining / 60);
+            const s = remaining % 60;
+            countdown = m > 0 ? `${m}m ${s}s` : `${s}s`;
           }
-          parts.push(`<span class="timer-fade">${fadeIcon} ${fadeTime}</span>`);
+          parts.push(`<span class="timer-fade">\u23F0 ${fadeIcon} ${target} ${countdown}</span>`);
         }
 
         // Auto schedule pill — show only the nearest one, skip entirely during fade

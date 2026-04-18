@@ -879,6 +879,11 @@ class CircadianLightPrimitives:
             ctx.hour = synthetic_state.frozen_at
         else:
             ctx.hour = get_current_hour()
+        # Clear all overrides — the target represents a clean state
+        # (what glo_reset / set(preset=...) will produce at completion)
+        ctx.brightness_override = None
+        ctx.boost_brightness = None
+        ctx.color_override = None
 
         return pipeline_mod.compute(ctx)
 

@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.33
+- **Fix fade completion brightness jump**: `compute_fade_target` now clears brightness_override, boost_brightness, and color_override from the synthetic context so the target matches what completion will actually produce.
+- **Fix auto_on_light not persisting**: `auto_on_light` was missing from webserver defaults and save handler field list. Britelite/nitelite selection now saves and loads correctly.
+- **Fix schedule day mutual exclusivity**: Selecting a day on schedule 1 now removes it from schedule 2 (was only one-directional before).
+- **Fade status UI**: Home page and area detail show alarm icon + arrow (▲/▼) + target preset + countdown during active fade. API returns `fade_target_preset` and `fade_remaining` from all status endpoints.
+- **Fix zone header alt-day timing**: Zone header now resolves alt-day wake/bed time based on weekday. Areas only show midpoint when actually different from the effective default.
+- **Fix slider button gap**: Removed flex:1 and width:100% so buttons sit next to the track.
+
 ## 1.2.30
 - **Area detail UI overhaul**: Slider up/down buttons closer to track (gap 6px → 2px). Section renamed to "Brightness" (was "Brightness & Lights"). "Curve" → "Circadian curve". "Per-Light" → "Lights". Brightness cascade simplified: shows Circadian curve, Adjustments (net, expandable), Area Brightness. Detail rows collapse by default. New "Controls" section with Feedback light dropdown moved from Lights.
 

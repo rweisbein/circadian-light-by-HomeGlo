@@ -2314,7 +2314,9 @@
         is_motion_coupled: status.is_motion_coupled || false,
         motion_expires_at: status.motion_expires_at || null,
         motion_warning_active: status.motion_warning_active || false,
-        fade_direction: status.fade_direction || null
+        fade_direction: status.fade_direction || null,
+        fade_target_preset: status.fade_target_preset || null,
+        fade_remaining: status.fade_remaining ?? null
       };
 
       document.getElementById('page-title').innerHTML = '<span style="color:var(--muted);font-weight:500;">Area:</span> ' + area.name;
@@ -2610,8 +2612,15 @@
 
         if (selectedArea.fade_direction) {
           const fadeIcon = selectedArea.fade_direction === 'in' ? '\u25B2' : '\u25BC';
-          const fadeLabel = selectedArea.fade_direction === 'in' ? 'Fade in' : 'Fade out';
-          parts.push(`<span class="timer-fade">${fadeIcon} ${fadeLabel}</span>`);
+          const target = selectedArea.fade_target_preset || (selectedArea.fade_direction === 'out' ? 'off' : 'circadian');
+          const remaining = selectedArea.fade_remaining;
+          let countdown = '';
+          if (remaining != null && remaining > 0) {
+            const m = Math.floor(remaining / 60);
+            const s = remaining % 60;
+            countdown = m > 0 ? `${m}m ${s}s` : `${s}s`;
+          }
+          parts.push(`<span class="timer-fade">\u23F0 ${fadeIcon} ${target} ${countdown}</span>`);
         }
 
         if (selectedArea.frozen) {
@@ -4183,6 +4192,12 @@
     }
 
     function toggleAutoDay(type, btn) {
+      // Mutual exclusivity: if selecting on schedule 1, remove from schedule 2
+      if (!btn.classList.contains('active')) {
+        const day = parseInt(btn.dataset.day);
+        const sched2Btn = document.querySelector('#auto-' + type + '-days-2 .auto-sched-day-btn[data-day="' + day + '"]');
+        if (sched2Btn) sched2Btn.classList.remove('active');
+      }
       btn.classList.toggle('active');
       onAutoFieldChanged(type);
     }
