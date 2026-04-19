@@ -4007,9 +4007,11 @@
         }
         if (targetCard) {
           // Open the card if closed
+          const type = focus === 'auto_on' ? 'on' : 'off';
           if (!targetCard.classList.contains('is-open')) {
             targetCard.classList.add('is-open');
           }
+          updateAutoHeaderText(type);
           // Scroll into view
           targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
           // Brief highlight

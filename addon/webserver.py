@@ -5250,7 +5250,7 @@ class LightDesignerServer:
                     )
                     created += 1
 
-                elif category == "motion_sensor":
+                elif category in ("motion_sensor", "camera"):
                     if not device_id:
                         continue
                     existing = switches.get_motion_sensor_by_device_id(device_id)
@@ -6078,7 +6078,7 @@ class LightDesignerServer:
                 category = ctrl.get("category")
 
                 # Get config based on category
-                if category == "motion_sensor":
+                if category in ("motion_sensor", "camera"):
                     # Look up by device_id for motion sensors
                     motion_config = (
                         switches.get_motion_sensor_by_device_id(device_id)
@@ -6128,7 +6128,10 @@ class LightDesignerServer:
 
                 # Look up last_action from pre-loaded dict
                 # Motion/contact sensors save under device_id; switches save under ieee
-                if category in ("motion_sensor", "contact_sensor") and device_id:
+                if (
+                    category in ("motion_sensor", "camera", "contact_sensor")
+                    and device_id
+                ):
                     last_action = all_last_actions.get(device_id)
                     if not last_action:
                         last_action = all_last_actions.get(ieee)
@@ -6160,7 +6163,7 @@ class LightDesignerServer:
 
                 control_data["inactive"] = config.get("inactive", False)
                 control_data["inactive_until"] = config.get("inactive_until")
-                if category in ("motion_sensor", "contact_sensor"):
+                if category in ("motion_sensor", "camera", "contact_sensor"):
                     control_data["scopes"] = config.get("scopes", [])
                     control_data["cooldown"] = config.get("cooldown", 0)
                     control_data["trigger_entities"] = config.get(
@@ -6394,7 +6397,9 @@ class LightDesignerServer:
 
                 # Skip motion/camera devices with no binary_sensors
                 # (e.g. SwitchBot Hub 3 HumiSensor/TempSensor sub-devices)
-                if category == "motion_sensor" and not entities.get("binary_sensors"):
+                if category in ("motion_sensor", "camera") and not entities.get(
+                    "binary_sensors"
+                ):
                     continue
 
                 detected_type = control_info.get("type")
@@ -6424,7 +6429,7 @@ class LightDesignerServer:
 
                 sensitivity_entity = (
                     entities.get("sensitivity_entity")
-                    if category == "motion_sensor"
+                    if category in ("motion_sensor", "camera")
                     else None
                 )
 
@@ -6620,7 +6625,7 @@ class LightDesignerServer:
             name = data.get("name", f"Control ({control_id[-8:]})")
             device_id = data.get("device_id")
 
-            if category == "motion_sensor":
+            if category in ("motion_sensor", "camera"):
                 # Handle motion sensor configuration
                 scopes_data = data.get("scopes", [])
                 scopes = [switches.MotionScope.from_dict(s) for s in scopes_data]

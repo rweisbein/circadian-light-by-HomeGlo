@@ -721,13 +721,13 @@ def detect_control_type(
                 if model.upper() == model_key.upper():
                     return {"category": "contact_sensor", "name": meta["name"]}
 
-    # Check cameras (map to motion_sensor category)
+    # Check cameras (UI-distinct category, same data model as motion)
     for mfr_key, models_dict in CAMERA_MODELS.items():
         if mfr_key in manufacturer_lower:
             for model_key, meta in models_dict.items():
                 if model.upper() == model_key.upper():
                     return {
-                        "category": "motion_sensor",
+                        "category": "camera",
                         "name": meta["name"],
                         "trigger_patterns": meta.get("trigger_patterns", []),
                     }

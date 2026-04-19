@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.83
+- **Camera as separate control type**: Cameras now show as "Camera" with a camera icon in the controls list, distinct from "Motion" sensors. Backend handling unchanged (same data model and event processing).
+- **Fix deep-link auto card header**: When deep-linking to auto on/off from home page, the expanded card now correctly shows the resolved time instead of the source label.
+- **Home page & area detail UI polish**: Bigger area/zone names, bed/wake, and schedule times. Reduced card padding to offset. Collapsible chart card. Auto card header shows source (Sunrise/Sunset ±offset) when collapsed, resolved time when expanded. Schedule text inherits row color (no pill background). Clickable auto schedule deep-links to area detail.
+
 ## 1.2.55
 - **Batch groups from all controls**: `get_all_unique_reaches()` now includes multi-area scopes from motion sensors and contact sensors, not just switches.
 - **Wire motion/contact event handlers for batch dispatch**: Multi-area motion and contact events now use batch groups when available. `lights_on`, `motion_on_off`, and `motion_on_only` accept `send_command=False` for deferred batch delivery.
