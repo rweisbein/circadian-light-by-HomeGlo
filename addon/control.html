@@ -493,6 +493,42 @@
       flex: 1;
     }
 
+    /* Reaches section header */
+    .reaches-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .reaches-section-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .reaches-add-btn {
+      background: transparent;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      color: var(--muted);
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      line-height: 1;
+    }
+    .reaches-add-btn:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
     /* Scope Card (motion/contact collapsible reaches) */
     .scope-card {
       border: 1px solid var(--line);
@@ -525,20 +561,51 @@
       transform: rotate(90deg);
     }
 
-    .scope-card-summary {
+    .scope-card-action {
       font-size: 0.85rem;
+      font-weight: 600;
       color: var(--text);
+      flex-shrink: 0;
+    }
+
+    .scope-card-areas {
+      font-size: 0.8rem;
+      color: var(--muted);
       flex: 1;
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      text-align: right;
     }
 
     .scope-card-body {
       padding: 4px 16px 14px;
       border-top: 1px solid var(--line);
     }
+
+    .scope-card-expanded-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .scope-reorder-btn {
+      background: none;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      color: var(--muted);
+      font-size: 0.75rem;
+      cursor: pointer;
+      padding: 4px 8px;
+      min-width: 32px;
+      min-height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .scope-reorder-btn:hover { color: var(--accent); border-color: var(--accent); }
+    .scope-reorder-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
     .scope-section {
       margin-top: 10px;
@@ -888,8 +955,11 @@
 
     <!-- Reach cards (motion/contact sensors) -->
     <div id="motion-config-section" style="display: none;">
+      <div class="reaches-section-header">
+        <span class="reaches-section-label">Reaches</span>
+        <button class="reaches-add-btn" id="add-motion-scope-btn" title="Add Reach">+</button>
+      </div>
       <div id="motion-scopes-editor"></div>
-      <button class="add-scope-btn" id="add-motion-scope-btn" style="margin-top: 8px;">Add Reach</button>
     </div>
 
     <!-- Sensor-level cooldown removed — cooldown is per-scope (reach level) -->
@@ -2107,23 +2177,19 @@
       renderMotionScopesEditor();
     }
 
-    function _motionScopeSummary(scope) {
+    function _motionScopeAction(scope) {
       const modeLabels = { 'on_only': 'On only', 'on_off': 'On/Off', 'alert': 'Alert', 'disabled': 'Disabled' };
-      const mode = scope.mode || 'on_off';
-      const modeLabel = modeLabels[mode] || mode;
+      return modeLabels[scope.mode || 'on_off'] || scope.mode;
+    }
 
+    function _motionScopeAreas(scope) {
       const areaNames = (scope.areas || []).map(areaId => {
         const area = allAreas.find(a => a.area_id === areaId);
         return area ? area.name : areaId;
       });
-      let areaText = '';
-      if (areaNames.length <= 3) {
-        areaText = areaNames.join(', ');
-      } else {
-        areaText = areaNames.slice(0, 2).join(', ') + ` +${areaNames.length - 2}`;
-      }
-
-      return `${modeLabel} · ${areaText || 'No areas'}`;
+      if (areaNames.length === 0) return 'No areas';
+      if (areaNames.length <= 3) return areaNames.join(', ');
+      return areaNames.slice(0, 2).join(', ') + ` +${areaNames.length - 2}`;
     }
 
     function renderMotionScopesEditor() {
@@ -2167,18 +2233,13 @@
         const motionDownDisabled = idx === editingMotionScopes.length - 1 ? 'disabled' : '';
 
         if (!isExpanded) {
-          // Collapsed card: summary + expand
+          // Collapsed card: action + areas, no controls
           return `
             <div class="scope-card" data-motion-idx="${idx}">
               <div class="scope-card-header" onclick="toggleMotionScope(${idx})">
                 <span class="scope-card-chevron">&#x203A;</span>
-                <span class="scope-card-summary">${_motionScopeSummary(scope)}</span>
-                ${showMotionArrows ? `
-                  <div class="scope-reorder-arrows" onclick="event.stopPropagation()">
-                    <button class="scope-reorder-arrow" ${motionUpDisabled} onclick="swapMotionScope(${idx}, -1)" title="Move up">&#9650;</button>
-                    <button class="scope-reorder-arrow" ${motionDownDisabled} onclick="swapMotionScope(${idx}, 1)" title="Move down">&#9660;</button>
-                  </div>
-                ` : ''}
+                <span class="scope-card-action">${_motionScopeAction(scope)}</span>
+                <span class="scope-card-areas">${_motionScopeAreas(scope)}</span>
               </div>
             </div>
           `;
@@ -2200,14 +2261,15 @@
           <div class="scope-card is-open" data-motion-idx="${idx}">
             <div class="scope-card-header" onclick="toggleMotionScope(${idx})">
               <span class="scope-card-chevron">&#x203A;</span>
-              <span class="scope-card-summary">${_motionScopeSummary(scope)}</span>
-              ${showMotionArrows ? `
-                <div class="scope-reorder-arrows" onclick="event.stopPropagation()">
-                  <button class="scope-reorder-arrow" ${motionUpDisabled} onclick="swapMotionScope(${idx}, -1)" title="Move up">&#9650;</button>
-                  <button class="scope-reorder-arrow" ${motionDownDisabled} onclick="swapMotionScope(${idx}, 1)" title="Move down">&#9660;</button>
-                </div>
-              ` : ''}
-              ${editingMotionScopes.length > 1 ? `<button class="scope-editor-remove" onclick="event.stopPropagation(); removeMotionScope(${idx})">remove</button>` : ''}
+              <span class="scope-card-action">${_motionScopeAction(scope)}</span>
+              <span class="scope-card-areas">${_motionScopeAreas(scope)}</span>
+              <div class="scope-card-expanded-controls" onclick="event.stopPropagation()">
+                ${showMotionArrows ? `
+                  <button class="scope-reorder-btn" ${motionUpDisabled} onclick="swapMotionScope(${idx}, -1)" title="Move up">&#9650;</button>
+                  <button class="scope-reorder-btn" ${motionDownDisabled} onclick="swapMotionScope(${idx}, 1)" title="Move down">&#9660;</button>
+                ` : ''}
+                ${editingMotionScopes.length > 1 ? `<button class="scope-editor-remove" onclick="removeMotionScope(${idx})">remove</button>` : ''}
+              </div>
             </div>
             <div class="scope-card-body">
               <div class="scope-section">
