@@ -839,7 +839,15 @@
         </div>
       </div>
     </div>
-    <div id="mini-chart"></div>
+    <div class="auto-sched-card" id="chart-card" style="margin-bottom: 8px;">
+      <div class="auto-sched-header" onclick="toggleChartCard()">
+        <span class="auto-sched-chevron" id="chart-chevron">&#x203A;</span>
+        <span class="auto-sched-title">Curve</span>
+      </div>
+      <div class="auto-sched-body" id="chart-body">
+        <div id="mini-chart"></div>
+      </div>
+    </div>
     <button class="enable-circadian-btn" id="enable-circadian-btn"
             style="display:none;" onclick="executeAction('circadian_on')">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
@@ -2249,6 +2257,8 @@
       // Start refresh intervals
       startRefresh();
       initSliderHandlers();
+      initChartCardState();
+      handleDeepLink();
 
     });
 
@@ -3956,6 +3966,61 @@
       on:  { source: 'sunrise', offset: 0, days: [0,1,2,3,4,5,6], days1: [], days2: [], light: 'circadian', snapshot: null },
       off: { source: 'sunset',  offset: 0, days: [0,1,2,3,4,5,6], days1: [], days2: [], snapshot: null },
     };
+
+    function toggleChartCard() {
+      const card = document.getElementById('chart-card');
+      if (!card) return;
+      card.classList.toggle('is-open');
+      const isOpen = card.classList.contains('is-open');
+      localStorage.setItem('chart_collapsed', isOpen ? 'false' : 'true');
+      // Trigger chart resize when opening (Plotly needs this)
+      if (isOpen) {
+        setTimeout(() => {
+          const chartEl = document.getElementById('mini-chart');
+          if (chartEl && window.Plotly) Plotly.Plots.resize(chartEl);
+        }, 350);
+      }
+    }
+
+    function initChartCardState() {
+      const card = document.getElementById('chart-card');
+      if (!card) return;
+      // Default collapsed; open if localStorage says so
+      const stored = localStorage.getItem('chart_collapsed');
+      if (stored === 'false') {
+        card.classList.add('is-open');
+      }
+    }
+
+    function handleDeepLink() {
+      const params = new URLSearchParams(window.location.search);
+      const focus = params.get('focus');
+      if (!focus) return;
+
+      // Wait for content to render
+      setTimeout(() => {
+        let targetCard = null;
+        if (focus === 'auto_on') {
+          targetCard = document.getElementById('auto-on-card');
+        } else if (focus === 'auto_off') {
+          targetCard = document.getElementById('auto-off-card');
+        }
+        if (targetCard) {
+          // Open the card if closed
+          if (!targetCard.classList.contains('is-open')) {
+            targetCard.classList.add('is-open');
+          }
+          // Scroll into view
+          targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Brief highlight
+          targetCard.style.transition = 'border-color 0.3s';
+          targetCard.style.borderColor = 'var(--accent)';
+          setTimeout(() => {
+            targetCard.style.borderColor = '';
+          }, 2000);
+        }
+      }, 500);
+    }
 
     async function toggleAutoBody(type) {
       const card = document.getElementById('auto-' + type + '-card');

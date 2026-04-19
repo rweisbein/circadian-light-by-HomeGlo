@@ -1412,7 +1412,7 @@
       return 3;
     }
 
-    function formatAutoSchedulePill(nxt, type) {
+    function formatAutoSchedulePill(nxt, type, areaId) {
       if (!nxt) return '';
       let t = nxt.time;
       if (t && t !== 'paused') t = t.replace(/:00([ap])$/, '$1');
@@ -1425,7 +1425,9 @@
       }
       const text = day ? t + ' ' + day : t;
       const arrow = type === 'on' ? '\u25B2' : '\u25BC';
-      return `<span class="timer-alarm">${arrow} ${text}</span>`;
+      const focus = type === 'on' ? 'auto_on' : 'auto_off';
+      const href = areaId ? `./area/${encodeURIComponent(areaId)}?focus=${focus}` : '#';
+      return `<a href="${href}" class="timer-alarm" style="text-decoration:none; color:inherit;">${arrow} ${text}</a>`;
     }
 
     function updateHomeTimers() {
@@ -1502,11 +1504,11 @@
             const onAt = (nxtOn.fire_offset ?? nxtOn.offset ?? 999) * 24 + (nxtOn.decimal_hour ?? 0);
             const offAt = (nxtOff.fire_offset ?? nxtOff.offset ?? 999) * 24 + (nxtOff.decimal_hour ?? 0);
             const onOff = onAt <= offAt ? ['on', nxtOn] : ['off', nxtOff];
-            scheduleParts.push(formatAutoSchedulePill(onOff[1], onOff[0]));
+            scheduleParts.push(formatAutoSchedulePill(onOff[1], onOff[0], areaId));
           } else if (nxtOn) {
-            scheduleParts.push(formatAutoSchedulePill(nxtOn, 'on'));
+            scheduleParts.push(formatAutoSchedulePill(nxtOn, 'on', areaId));
           } else if (nxtOff) {
-            scheduleParts.push(formatAutoSchedulePill(nxtOff, 'off'));
+            scheduleParts.push(formatAutoSchedulePill(nxtOff, 'off', areaId));
           }
           const newSchedule = scheduleParts.join('');
           if (scheduleEl.innerHTML !== newSchedule) {
