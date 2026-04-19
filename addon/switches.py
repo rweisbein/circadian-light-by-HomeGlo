@@ -1076,8 +1076,28 @@ class MotionSensorConfig:
         if "scopes" in data:
             scopes = [MotionScope.from_dict(s) for s in data["scopes"]]
         elif "areas" in data:
-            # Legacy migration: each area becomes its own 1-area scope
-            scopes = [MotionScope.from_legacy_area(a) for a in data["areas"]]
+            # Legacy migration: group areas with identical settings into scopes
+            scope_map: Dict[tuple, MotionScope] = {}
+            for area_data in data["areas"]:
+                scope = MotionScope.from_legacy_area(area_data)
+                # Build a key from all settings (excluding areas)
+                settings_key = (
+                    scope.mode,
+                    scope.duration,
+                    scope.boost_enabled,
+                    scope.boost_brightness,
+                    scope.active_when,
+                    scope.active_offset,
+                    scope.cooldown,
+                    tuple(sorted(scope.trigger_entities)),
+                    scope.alert_intensity,
+                    scope.alert_count,
+                )
+                if settings_key in scope_map:
+                    scope_map[settings_key].areas.extend(scope.areas)
+                else:
+                    scope_map[settings_key] = scope
+            scopes = list(scope_map.values())
         else:
             scopes = []
         return cls(
@@ -1242,7 +1262,21 @@ class ContactSensorConfig:
         if "scopes" in data:
             scopes = [ContactScope.from_dict(s) for s in data["scopes"]]
         elif "areas" in data:
-            scopes = [ContactScope.from_legacy_area(a) for a in data["areas"]]
+            # Legacy migration: group areas with identical settings into scopes
+            scope_map: Dict[tuple, ContactScope] = {}
+            for area_data in data["areas"]:
+                scope = ContactScope.from_legacy_area(area_data)
+                settings_key = (
+                    scope.mode,
+                    scope.duration,
+                    scope.boost_enabled,
+                    scope.boost_brightness,
+                )
+                if settings_key in scope_map:
+                    scope_map[settings_key].areas.extend(scope.areas)
+                else:
+                    scope_map[settings_key] = scope
+            scopes = list(scope_map.values())
         else:
             scopes = []
         return cls(
