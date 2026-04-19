@@ -2625,40 +2625,53 @@ class CircadianLightPrimitives:
                     ):
                         pass  # Already fired
                     else:
-                        # "Only if untouched" check — skip if user interacted since auto_on
+                        # "Only if untouched" check — auto-off only fires if
+                        # auto-on turned lights on today and no user action since
                         if settings.get("auto_off_only_untouched", False):
-                            last_action = state.get_last_user_action(area_id)
                             auto_on_fired = self._auto_fired.get(area_id, {}).get(
                                 "auto_on", {}
                             )
                             auto_on_date = auto_on_fired.get("date")
-                            if last_action and auto_on_date:
-                                try:
-                                    from datetime import datetime as dt_cls
 
-                                    action_dt = dt_cls.fromisoformat(last_action)
-                                    # auto_on stores date + time; reconstruct a datetime
-                                    auto_on_time = auto_on_fired.get("time", 0)
-                                    auto_on_h = int(auto_on_time)
-                                    auto_on_m = int((auto_on_time - auto_on_h) * 60)
-                                    auto_on_dt = dt_cls.fromisoformat(
-                                        f"{auto_on_date}T{auto_on_h:02d}:{auto_on_m:02d}:00"
-                                    )
-                                    if action_dt > auto_on_dt:
-                                        logger.info(
-                                            f"[auto_off] Skipping {area_id}: user action at "
-                                            f"{last_action} after auto_on at {auto_on_date} {auto_on_time}"
+                            should_skip = False
+                            if auto_on_date != today_str:
+                                # Auto-on hasn't fired today — no valid trigger
+                                logger.info(
+                                    f"[auto_off] Skipping {area_id}: untouched guard active "
+                                    f"but auto_on has not fired today"
+                                )
+                                should_skip = True
+                            else:
+                                last_action = state.get_last_user_action(area_id)
+                                if last_action:
+                                    try:
+                                        from datetime import datetime as dt_cls
+
+                                        action_dt = dt_cls.fromisoformat(last_action)
+                                        auto_on_time = auto_on_fired.get("time", 0)
+                                        auto_on_h = int(auto_on_time)
+                                        auto_on_m = int((auto_on_time - auto_on_h) * 60)
+                                        auto_on_dt = dt_cls.fromisoformat(
+                                            f"{auto_on_date}T{auto_on_h:02d}:{auto_on_m:02d}:00"
                                         )
-                                        if area_id not in self._auto_fired:
-                                            self._auto_fired[area_id] = {}
-                                        self._auto_fired[area_id]["auto_off"] = {
-                                            "date": today_str,
-                                            "time": trigger_time,
-                                        }
-                                        self._save_auto_fired()
-                                        continue
-                                except Exception:
-                                    pass  # On parse error, don't skip
+                                        if action_dt > auto_on_dt:
+                                            logger.info(
+                                                f"[auto_off] Skipping {area_id}: user action at "
+                                                f"{last_action} after auto_on at {auto_on_date} {auto_on_time}"
+                                            )
+                                            should_skip = True
+                                    except Exception:
+                                        pass  # On parse error, don't skip
+
+                            if should_skip:
+                                if area_id not in self._auto_fired:
+                                    self._auto_fired[area_id] = {}
+                                self._auto_fired[area_id]["auto_off"] = {
+                                    "date": today_str,
+                                    "time": trigger_time,
+                                }
+                                self._save_auto_fired()
+                                continue
 
                         fade_minutes = settings.get("auto_off_fade", 0)
                         if fade_minutes > 0:

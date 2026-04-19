@@ -2762,17 +2762,31 @@ class LightDesignerServer:
         if not result or not settings.get("auto_off_only_untouched", False):
             return result
 
-        # Check if user touched since auto-on fired
-        last_action = state.get_last_user_action(area_id)
-        if not last_action:
-            return result  # No user action recorded — untouched
-
         prims = self.client.primitives
         auto_on_fired = prims._auto_fired.get(area_id, {}).get("auto_on", {})
         auto_on_date = auto_on_fired.get("date")
         auto_on_time = auto_on_fired.get("time")
-        if not auto_on_date or auto_on_time is None:
-            return result  # No auto-on record — can't determine, show it
+
+        # Auto-on must have fired today for untouched auto-off to be valid
+        from datetime import datetime as dt_cls
+        import os
+
+        timezone = os.getenv("HASS_TIME_ZONE", "US/Eastern")
+        try:
+            from zoneinfo import ZoneInfo
+
+            tzinfo = ZoneInfo(timezone)
+        except Exception:
+            tzinfo = None
+        today_str = dt_cls.now(tzinfo).strftime("%Y-%m-%d")
+
+        if auto_on_date != today_str:
+            return None  # Auto-on hasn't fired today — auto-off won't fire
+
+        # Check if user touched since auto-on fired
+        last_action = state.get_last_user_action(area_id)
+        if not last_action:
+            return result  # No user action recorded — untouched
 
         try:
             action_dt = datetime.fromisoformat(last_action)
