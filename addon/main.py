@@ -2650,6 +2650,135 @@ class HomeAssistantWebSocketClient:
         # No lights found for purpose — shouldn't happen, but safe fallback
         return {"area_id": area_id, "filter_name": best_filter}
 
+    def _resolve_feedback_targets_for_reach(self, switch_id: str) -> List[dict]:
+        """Resolve feedback targets for ALL areas in the active reach.
+
+        Returns a list of target dicts, one per area, each with entity_id,
+        area_id, filter_name, cached brightness/kelvin, and on/off state.
+        """
+        switch_config = switches.get_switch(switch_id)
+        if not switch_config:
+            return []
+
+        scope_idx = switches.get_current_scope(switch_id)
+        scope = (
+            switch_config.scopes[scope_idx]
+            if scope_idx < len(switch_config.scopes)
+            else None
+        )
+        if not scope or not scope.areas:
+            return []
+
+        targets = []
+        for area_id in scope.areas:
+            target = self._get_feedback_group_for_area(area_id)
+            if not target:
+                continue
+
+            feedback_filter = target.get("filter_name", "Standard")
+            purpose_state = state.get_last_sent_purpose(area_id, feedback_filter) or {}
+            was_on = not purpose_state.get("is_off", False) and state.get_is_on(area_id)
+            cached_bri = int(purpose_state.get("brightness", 50) * 2.55)
+            cached_kelvin = state.get_last_sent_kelvin(area_id)
+
+            # Build clean HA service target
+            if "entity_id" in target:
+                ha_target = {"entity_id": target["entity_id"]}
+            else:
+                ha_target = {"area_id": target["area_id"]}
+
+            targets.append(
+                {
+                    "area_id": area_id,
+                    "filter_name": feedback_filter,
+                    "ha_target": ha_target,
+                    "cached_bri": cached_bri,
+                    "cached_kelvin": cached_kelvin,
+                    "was_on": was_on,
+                }
+            )
+
+        return targets
+
+    async def _send_feedback_phase(
+        self, targets: List[dict], phase_data_fn, service: str = "turn_on"
+    ) -> None:
+        """Send a feedback phase to multiple areas, batching where possible.
+
+        Args:
+            targets: List of target dicts from _resolve_feedback_targets_for_reach
+            phase_data_fn: Function(target) -> service_data dict for this phase
+            service: "turn_on" or "turn_off"
+        """
+        if not targets:
+            return
+
+        # Build per-area phase data
+        area_phase = {}  # area_id -> (ha_target, service_data)
+        for t in targets:
+            sdata = phase_data_fn(t)
+            if sdata is not None:
+                area_phase[t["area_id"]] = (t["ha_target"], sdata)
+
+        if not area_phase:
+            return
+
+        # Try batch groups: group areas by matching (brightness, xy/kelvin)
+        handled = set()
+        tasks = []
+
+        if len(area_phase) >= 2:
+            area_set = set(area_phase.keys())
+            # Sort batch groups largest-first
+            sorted_bgs = sorted(
+                self.batch_groups,
+                key=lambda bg: len(bg.areas),
+                reverse=True,
+            )
+            for bg in sorted_bgs:
+                bg_areas = set(bg.areas)
+                if not (bg_areas.issubset(area_set) and len(bg_areas) >= 2):
+                    continue
+                for (purpose_norm, cap), entity_id in bg.filter_groups.items():
+                    # Find unhandled areas in this group
+                    matching = {}
+                    for aid in bg.areas:
+                        if aid in handled or aid not in area_phase:
+                            continue
+                        _, sdata = area_phase[aid]
+                        # Use brightness + xy_color as matching key
+                        match_key = (
+                            sdata.get("brightness"),
+                            tuple(sdata.get("xy_color", [])),
+                        )
+                        matching.setdefault(match_key, []).append(aid)
+
+                    # Batch areas with identical phase data
+                    for key, aids in matching.items():
+                        if len(aids) < 2:
+                            continue
+                        _, sdata = area_phase[aids[0]]
+                        tasks.append(
+                            self.call_service(
+                                "light",
+                                service,
+                                sdata,
+                                {"entity_id": entity_id},
+                            )
+                        )
+                        for aid in aids:
+                            handled.add(aid)
+
+        # Fallback: per-area for unhandled
+        for aid, (ha_target, sdata) in area_phase.items():
+            if aid not in handled:
+                tasks.append(
+                    self.call_service("light", service, sdata, target=ha_target)
+                )
+
+        if tasks:
+            await asyncio.gather(*tasks)
+
     async def _feedback_cue(
         self,
         switch_id: str,
@@ -2659,10 +2788,10 @@ class HomeAssistantWebSocketClient:
         scope_number: int = 1,
         sun_dimming_hint: bool = False,
     ) -> None:
-        """Unified feedback cue — always 2 Zigbee calls to one entity.
+        """Unified feedback cue — hits all areas in the active reach.
 
-        Resolves the feedback target (indicator light, indicator area, or
-        switch's device area), reads cached brightness, executes the cue.
+        Uses batch groups to minimize ZigBee calls when areas have matching
+        brightness/color values.
 
         Args:
             switch_id: The switch IEEE address
@@ -2677,33 +2806,18 @@ class HomeAssistantWebSocketClient:
                 f"[hint] Circadian curve at max — use bright up to override sun dimming "
                 f"(switch {switch_id})"
             )
-        target = self._resolve_feedback_target(switch_id)
-        if not target:
-            logger.debug(f"No feedback target for switch {switch_id}")
-            return
 
         if not self.primitives._is_limit_bounce_enabled() and cue_type == "bounce":
             return
+        if cue_type == "freeze" and not self._is_freeze_feedback_enabled():
+            return
+        if cue_type == "reach" and not self._is_reach_feedback_enabled():
+            return
 
-        # Extract metadata for state lookups, build clean HA service target
-        feedback_area = target.get("area_id")
-        feedback_filter = target.get("filter_name", "Standard")
-        if "entity_id" in target:
-            target = {"entity_id": target["entity_id"]}
-        else:
-            target = {"area_id": target["area_id"]}
-        purpose_state = (
-            state.get_last_sent_purpose(feedback_area, feedback_filter)
-            if feedback_area
-            else None
-        ) or {}
-        was_on = (
-            not purpose_state.get("is_off", False) and state.get_is_on(feedback_area)
-            if feedback_area
-            else True
-        )
-        # Convert 0-100% to HA 0-255 scale
-        cached_bri = int(purpose_state.get("brightness", 50) * 2.55)
+        targets = self._resolve_feedback_targets_for_reach(switch_id)
+        if not targets:
+            logger.debug(f"No feedback targets for switch {switch_id}")
+            return
 
         limit_speed = self.primitives._get_limit_warning_speed()
         two_step_delay = self.primitives._get_two_step_delay()
@@ -2725,190 +2839,166 @@ class HomeAssistantWebSocketClient:
 
                 bounce_bri = bounce_type in ("step", "bright")
                 bounce_color = bounce_type in ("step", "color")
+                config = Config.from_dict(glozone.get_config())
+                ct_range = config.max_color_temp - config.min_color_temp
 
-                # Brightness target in visible space (% of full range, not % of current)
-                if bounce_bri:
-                    delta = int(bounce_pct * 255)
-                    if direction == "up":
-                        target_bri = max(1, cached_bri - delta)
-                    else:
-                        target_bri = min(255, cached_bri + delta)
-                else:
-                    target_bri = cached_bri
-
-                # Color target
-                phase1_data = {"brightness": target_bri, "transition": limit_speed}
-                restore_xy = None
-                if bounce_color:
-                    # Shift color for visual effect using xy (works across full Kelvin range)
-                    last_kelvin = (
-                        state.get_last_sent_kelvin(feedback_area)
-                        if feedback_area
-                        else None
-                    )
-                    if last_kelvin:
-                        from brain import CircadianLight as CL
-
-                        config = Config.from_dict(glozone.get_config())
-                        ct_range = config.max_color_temp - config.min_color_temp
-                        kelvin_delta = int(bounce_pct * ct_range)
-                        if direction == "up":
-                            shifted_kelvin = max(500, last_kelvin - kelvin_delta)
-                        else:
-                            shifted_kelvin = min(6500, last_kelvin + kelvin_delta)
-                        phase1_data["xy_color"] = list(
-                            CL.color_temperature_to_xy(shifted_kelvin)
+                def bounce_phase1(t):
+                    bri = t["cached_bri"]
+                    if bounce_bri:
+                        delta = int(bounce_pct * 255)
+                        bri = (
+                            max(1, bri - delta)
+                            if direction == "up"
+                            else min(255, bri + delta)
                         )
-                        restore_xy = list(CL.color_temperature_to_xy(last_kelvin))
+                    data = {"brightness": bri, "transition": limit_speed}
+                    if bounce_color and t["cached_kelvin"]:
+                        kelvin_delta = int(bounce_pct * ct_range)
+                        shifted = (
+                            max(500, t["cached_kelvin"] - kelvin_delta)
+                            if direction == "up"
+                            else min(6500, t["cached_kelvin"] + kelvin_delta)
+                        )
+                        data["xy_color"] = list(
+                            CircadianLight.color_temperature_to_xy(shifted)
+                        )
+                    return data
 
-                # Phase 1: dip/flash
-                await self.call_service("light", "turn_on", phase1_data, target=target)
+                def bounce_restore(t):
+                    data = {"brightness": t["cached_bri"], "transition": limit_speed}
+                    if bounce_color and t["cached_kelvin"]:
+                        data["xy_color"] = list(
+                            CircadianLight.color_temperature_to_xy(t["cached_kelvin"])
+                        )
+                    return data
+
+                await self._send_feedback_phase(targets, bounce_phase1)
                 await asyncio.sleep(limit_speed + two_step_delay)
-
-                # Phase 2: restore cached (brightness + color)
-                restore_data = {"brightness": cached_bri, "transition": limit_speed}
-                if restore_xy:
-                    restore_data["xy_color"] = restore_xy
-                await self.call_service("light", "turn_on", restore_data, target=target)
+                await self._send_feedback_phase(targets, bounce_restore)
 
                 logger.info(
                     f"Feedback bounce ({bounce_type} {direction}): "
-                    f"area={feedback_area}, purpose={feedback_filter}, "
-                    f"phase1={phase1_data}, phase2={restore_data}"
+                    f"{len(targets)} area(s)"
                 )
 
             elif cue_type == "freeze":
-                # Check global freeze feedback setting
-                if not self._is_freeze_feedback_enabled():
-                    logger.debug("Freeze feedback disabled, skipping")
-                    return
 
-                # Phase 1: dim to off
-                await self.call_service(
-                    "light",
-                    "turn_on",
-                    {"brightness": 1, "transition": limit_speed},
-                    target=target,
-                )
+                def freeze_phase1(t):
+                    return {"brightness": 1, "transition": limit_speed}
+
+                def freeze_restore(t):
+                    return {"brightness": t["cached_bri"], "transition": limit_speed}
+
+                await self._send_feedback_phase(targets, freeze_phase1)
                 await asyncio.sleep(limit_speed + two_step_delay)
+                await self._send_feedback_phase(targets, freeze_restore)
 
-                # Phase 2: restore cached
-                await self.call_service(
-                    "light",
-                    "turn_on",
-                    {"brightness": cached_bri, "transition": limit_speed},
-                    target=target,
-                )
-                logger.info(
-                    f"Feedback freeze: area={feedback_area}, purpose={feedback_filter}, "
-                    f"{cached_bri}/255 -> dim -> restore"
-                )
+                logger.info(f"Feedback freeze: {len(targets)} area(s)")
 
             elif cue_type == "reach":
-                # Check global reach feedback setting
-                if not self._is_reach_feedback_enabled():
-                    logger.debug("Reach feedback disabled, skipping")
-                    return
-
-                # Determine flash direction based on sun bright and brightness
-                # On + sun=0: flash OFF → restore (normal)
-                # On + sun > 0, brightness ≥ threshold: flash OFF → restore (normal)
-                # On + sun > 0, brightness < threshold: flash UP to 100% → restore
-                # Off + sun > 0: flash UP to 100% → off (daytime, sun-bright-aware)
-                # Off + sun=0: flash on at bounce % with circadian color → off
-                flash_up = False
-                bri_pct = cached_bri / 2.55
-                if feedback_area:
-                    sun_exposure = glozone.get_area_natural_light_exposure(
-                        feedback_area
-                    )
-                    if sun_exposure > 0:
-                        outdoor_norm = lux_tracker.get_outdoor_normalized() or 0.0
-                        if outdoor_norm > 0:
-                            threshold = self.primitives._get_reach_daytime_threshold()
-                            if bri_pct < threshold:
-                                flash_up = True
-
-                # Off + no flash_up: flash on at bounce % with circadian color
-                flash_on_off = False
-                flash_on_data = {}
-                if not was_on and not flash_up:
-                    flash_on_off = True
-                    bounce_pct = self.primitives._get_limit_bounce_min_percent() / 100.0
-                    flash_bri = max(1, int(255 * bounce_pct))
-                    flash_on_data = {"brightness": flash_bri, "transition": 0}
-                    # Add circadian color
-                    try:
-                        config = self.primitives._get_config(feedback_area)
-                        hour = get_current_hour()
-                        sun_times = self._get_sun_times()
-                        area_state = self.primitives._get_area_state(feedback_area)
-                        result = CircadianLight.calculate_lighting(
-                            hour, config, area_state, sun_times=sun_times
-                        )
-                        xy = CircadianLight.color_temperature_to_xy(result.color_temp)
-                        flash_on_data["xy_color"] = list(xy)
-                    except Exception:
-                        pass
-
-                # N flashes for reach 1-5
                 for i in range(scope_number):
-                    if flash_up:
-                        await self.call_service(
-                            "light",
-                            "turn_on",
-                            {"brightness": 255, "transition": 0},
-                            target=target,
+                    # Phase 1: flash
+                    def reach_flash(t):
+                        if t["was_on"]:
+                            return {"transition": 0}  # will turn_off
+                        else:
+                            # Off: flash on at bounce % with circadian color
+                            bounce_pct = (
+                                self.primitives._get_limit_bounce_min_percent() / 100.0
+                            )
+                            flash_bri = max(1, int(255 * bounce_pct))
+                            data = {"brightness": flash_bri, "transition": 0}
+                            try:
+                                cfg = self.primitives._get_config(t["area_id"])
+                                hour = get_current_hour()
+                                sun_times = self._get_sun_times()
+                                a_state = self.primitives._get_area_state(t["area_id"])
+                                result = CircadianLight.calculate_lighting(
+                                    hour, cfg, a_state, sun_times=sun_times
+                                )
+                                data["xy_color"] = list(
+                                    CircadianLight.color_temperature_to_xy(
+                                        result.color_temp
+                                    )
+                                )
+                            except Exception:
+                                pass
+                            return data
+
+                    # Split by on/off — on areas get turn_off, off areas get turn_on
+                    on_targets = [t for t in targets if t["was_on"]]
+                    off_targets = [t for t in targets if not t["was_on"]]
+
+                    flash_tasks = []
+                    for t in on_targets:
+                        flash_tasks.append(
+                            self.call_service(
+                                "light",
+                                "turn_off",
+                                {"transition": 0},
+                                target=t["ha_target"],
+                            )
                         )
-                    elif flash_on_off:
-                        await self.call_service(
-                            "light",
-                            "turn_on",
-                            flash_on_data,
-                            target=target,
+                    for t in off_targets:
+                        data = reach_flash(t)
+                        flash_tasks.append(
+                            self.call_service(
+                                "light",
+                                "turn_on",
+                                data,
+                                target=t["ha_target"],
+                            )
                         )
-                    else:
-                        await self.call_service(
-                            "light", "turn_off", {"transition": 0}, target=target
-                        )
-                    await asyncio.sleep(0.3)
-                    # Restore: if lights were off, go back to off between flashes
-                    if was_on:
-                        await self.call_service(
-                            "light",
-                            "turn_on",
-                            {"brightness": cached_bri, "transition": 0},
-                            target=target,
-                        )
-                    else:
-                        await self.call_service(
-                            "light", "turn_off", {"transition": 0}, target=target
-                        )
+                    if flash_tasks:
+                        await asyncio.gather(*flash_tasks)
+
                     await asyncio.sleep(0.3)
 
-                # Restore final state (if was on, already at cached_bri from last loop)
-                if not was_on:
+                    # Phase 2: restore
+                    restore_tasks = []
+                    for t in on_targets:
+                        restore_tasks.append(
+                            self.call_service(
+                                "light",
+                                "turn_on",
+                                {"brightness": t["cached_bri"], "transition": 0},
+                                target=t["ha_target"],
+                            )
+                        )
+                    for t in off_targets:
+                        restore_tasks.append(
+                            self.call_service(
+                                "light",
+                                "turn_off",
+                                {"transition": 0},
+                                target=t["ha_target"],
+                            )
+                        )
+                    if restore_tasks:
+                        await asyncio.gather(*restore_tasks)
+
+                    await asyncio.sleep(0.3)
+
+                # Final: ensure off areas stay off
+                for t in [t for t in targets if not t["was_on"]]:
                     await self.call_service(
-                        "light", "turn_off", {"transition": 0}, target=target
+                        "light",
+                        "turn_off",
+                        {"transition": 0},
+                        target=t["ha_target"],
                     )
-                    # Reset off-confirm so periodic tick re-sends turn_off
-                    if feedback_area:
-                        state.reset_off_confirm_count(feedback_area)
-                        state.set_off_enforced(feedback_area, False)
+                    if t["area_id"]:
+                        state.reset_off_confirm_count(t["area_id"])
+                        state.set_off_enforced(t["area_id"], False)
+
                 logger.info(
                     f"Feedback reach: {scope_number} flash(es), "
-                    f"area={feedback_area}, purpose={feedback_filter}, "
-                    f"flash_up={flash_up}, bri={bri_pct:.0f}%"
+                    f"{len(targets)} area(s)"
                 )
 
         finally:
             self._defer_periodic_tick = False
             self.record_light_action()
-
-    # _show_reach_all_lights_feedback, _bounce_at_limit_reach, and
-    # _show_reach_single_light_feedback removed — replaced by _feedback_cue
-
-    # _show_scope_error_feedback removed — was dead code (no callers)
 
     async def _set_area_brightness_quick(self, area: str, brightness: int) -> None:
         """Quickly set brightness for an area (no transition).
