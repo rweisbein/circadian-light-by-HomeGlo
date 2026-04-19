@@ -593,11 +593,14 @@
       white-space: nowrap;
     }
 
-    .scope-action-hero {
-      font-size: 1.1rem;
-      font-weight: 700;
+    .scope-action-select {
+      font-size: 0.9rem;
+      font-weight: 600;
       color: var(--accent);
-      margin-bottom: 2px;
+      background: transparent;
+      border: none;
+      padding: 2px 0;
+      cursor: pointer;
     }
 
     .scope-card-body {
@@ -630,6 +633,7 @@
 
     .scope-section {
       margin-top: 10px;
+      padding-left: 8px;
     }
     .scope-section:first-child {
       margin-top: 4px;
@@ -2302,10 +2306,11 @@
               ` : ''}
 
               <div class="scope-section">
+                <div class="scope-section-label">Action</div>
                 <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                  <select class="scope-action-hero" onchange="updateMotionScope(${idx}, 'mode', this.value)" style="font-size: 1.1rem; font-weight: 700; color: var(--accent); background: transparent; border: none; border-bottom: 2px solid var(--accent); border-radius: 0; padding: 4px 2px; cursor: pointer;">
+                  <select class="scope-action-select" onchange="updateMotionScope(${idx}, 'mode', this.value)">
                     ${Object.entries(modeLabels).map(([value, label]) => `
-                      <option value="${value}" ${mode === value ? 'selected' : ''} style="font-size: 0.9rem; font-weight: 400; color: var(--text); background: var(--panel);">${label}</option>
+                      <option value="${value}" ${mode === value ? 'selected' : ''}>${label}</option>
                     `).join('')}
                   </select>
                   <div style="display: ${showDuration ? 'flex' : 'none'}; align-items: center; gap: 6px;">
@@ -2376,6 +2381,8 @@
                     </div>
                     <span style="color: var(--muted); font-size: 0.85rem;">min</span>
                   </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
                   <span style="color: var(--muted); font-size: 0.85rem;">Cooloff</span>
                   <div class="number-input-wrap">
                     <input type="number" id="cooldown-${idx}" style="width: 55px;" value="${cooldown}" min="0" max="300" step="5"
@@ -2636,7 +2643,7 @@
       const subEl = document.getElementById('page-title-sub');
       const locationName = ctrl.area_name || 'Unassigned';
       const typeName = ctrl.type_name || ctrl.type || '';
-      subEl.textContent = typeName ? `${locationName} · ${typeName}` : locationName;
+      subEl.textContent = typeName || '';
 
       // Hide header-meta-area (location now in subtitle)
       document.getElementById('header-meta-area').textContent = '';
