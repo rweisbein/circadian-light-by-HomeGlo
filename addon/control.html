@@ -633,7 +633,7 @@
 
     .scope-section {
       margin-top: 10px;
-      padding-left: 8px;
+      padding-left: 4px;
     }
     .scope-section:first-child {
       margin-top: 4px;
@@ -646,6 +646,10 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
       margin-bottom: 4px;
+    }
+
+    .scope-section > div:not(.scope-section-label) {
+      padding-left: 8px;
     }
 
     .scope-editor-remove {
@@ -2381,18 +2385,18 @@
                     </div>
                     <span style="color: var(--muted); font-size: 0.85rem;">min</span>
                   </div>
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
-                  <span style="color: var(--muted); font-size: 0.85rem;">Cooloff</span>
-                  <div class="number-input-wrap">
-                    <input type="number" id="cooldown-${idx}" style="width: 55px;" value="${cooldown}" min="0" max="300" step="5"
-                      onchange="updateMotionScope(${idx}, 'cooldown', parseInt(this.value) || 0)">
-                    <div class="number-input-btns">
-                      <button type="button" onclick="stepNumberInput('cooldown-${idx}', 5)">&#9650;</button>
-                      <button type="button" onclick="stepNumberInput('cooldown-${idx}', -5)">&#9660;</button>
+                  <span style="display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;">
+                    <span style="color: var(--muted); font-size: 0.85rem;">Cooloff</span>
+                    <div class="number-input-wrap">
+                      <input type="number" id="cooldown-${idx}" style="width: 55px;" value="${cooldown}" min="0" max="300" step="5"
+                        onchange="updateMotionScope(${idx}, 'cooldown', parseInt(this.value) || 0)">
+                      <div class="number-input-btns">
+                        <button type="button" onclick="stepNumberInput('cooldown-${idx}', 5)">&#9650;</button>
+                        <button type="button" onclick="stepNumberInput('cooldown-${idx}', -5)">&#9660;</button>
+                      </div>
                     </div>
-                  </div>
-                  <span style="color: var(--muted); font-size: 0.85rem;">sec</span>
+                    <span style="color: var(--muted); font-size: 0.85rem;">sec</span>
+                  </span>
                 </div>
               </div>
             </div>
