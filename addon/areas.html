@@ -296,8 +296,7 @@
     /* Timer styles (shared with homepage) */
     .timer-motion {
       color: #e2e8f0;
-      opacity: 0.8;
-      animation: timer-motion-pulse 2.5s ease-in-out infinite;
+      animation: timer-motion-flash 3s step-end infinite;
     }
 
     .timer-boost {
@@ -320,9 +319,9 @@
       animation: timer-warning-pulse 1s ease-in-out infinite;
     }
 
-    @keyframes timer-motion-pulse {
-      0%, 100% { opacity: 0.8; }
-      50% { opacity: 0.3; }
+    @keyframes timer-motion-flash {
+      0%, 50% { opacity: 0.8; }
+      50.1%, 100% { opacity: 0.2; }
     }
 
     @keyframes timer-warning-pulse {
@@ -426,12 +425,12 @@
       display: flex;
       align-items: center;
       justify-content: flex-end;
-      gap: 8px;
-      padding: 0 8px 3px 16px;
+      gap: 5px;
+      padding: 0 0 3px 16px;
     }
     .row-status-row:empty { display: none; }
 
-    .row-timer { font-size: 0.7rem; color: #e2e8f0; white-space: nowrap; display: inline-flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .row-timer { font-size: 0.7rem; color: #e2e8f0; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; }
     .row-timer:empty { display: none; }
     .row-timer > span { background: rgba(0,0,0,0.5); border-radius: 3px; padding: 1px 5px; }
 
@@ -1449,7 +1448,7 @@
         } else {
           if (hasMotion) {
             const remaining = formatCountdown(status.motion_expires_at);
-            if (remaining) parts.push(`<span class="timer-motion${warnClass}">${remaining}</span>`);
+            if (remaining) parts.push(`<span class="timer-motion${warnClass}">\u25CF ${remaining}</span>`);
           }
           if (isBoosted && status.boost_brightness && !isMotionCoupled) {
             let text = '\u26A1';
