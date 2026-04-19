@@ -906,23 +906,26 @@
       </select>
     </div>
 
-    <!-- Pause card -->
-    <div class="ctrl-card" id="pause-section" style="display: none;">
+    <!-- Settings card (Pause + Sensitivity) -->
+    <div class="ctrl-card is-open" id="pause-section" style="display: none;">
       <div class="ctrl-card-header" onclick="toggleCard('pause-section')">
         <span class="ctrl-card-chevron">&#x203A;</span>
-        <span class="ctrl-card-title-muted">Pause</span>
-        <span class="info-icon" onclick="event.stopPropagation()">i<span class="info-tooltip">When paused, a control won't trigger actions. Set a timer to auto-unpause.</span></span>
+        <span class="ctrl-card-title-muted">Settings</span>
         <div class="ctrl-card-right">
           <span id="pause-remaining" style="font-size: 0.75rem; color: var(--muted2); white-space: nowrap;"></span>
-          <label class="ctrl-toggle pause-toggle" onclick="event.stopPropagation()">
-            <input type="checkbox" id="control-pause-checkbox">
-            <span class="slider"></span>
-          </label>
         </div>
       </div>
       <div class="ctrl-card-body" id="pause-body">
         <div class="ctrl-card-body-inner">
-          <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+            <label class="ctrl-toggle pause-toggle" onclick="event.stopPropagation()">
+              <input type="checkbox" id="control-pause-checkbox">
+              <span class="slider"></span>
+            </label>
+            <span style="font-size: 0.85rem; color: var(--muted);">Pause</span>
+            <span class="info-icon" onclick="event.stopPropagation()">i<span class="info-tooltip">When paused, a control won't trigger actions. Set a timer to auto-unpause.</span></span>
+          </div>
+          <div id="pause-timer-row" style="display: none; align-items: center; gap: 10px; margin-bottom: 10px;">
             <span style="font-size: 0.85rem; color: var(--muted);">Unpause after</span>
             <select id="pause-timer-select" style="padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.85rem;">
               <option value="forever">Never</option>
@@ -932,6 +935,13 @@
               <option value="1d">1 day</option>
               <option value="1w">1 week</option>
             </select>
+          </div>
+          <div id="sensitivity-row" style="display: none; align-items: center; gap: 10px;">
+            <span style="font-size: 0.85rem; color: var(--muted);">Sensitivity</span>
+            <select id="zha-sensitivity-select" onchange="saveZhaSettings()" style="padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.85rem;">
+              <option value="">Loading...</option>
+            </select>
+            <span id="zha-settings-status" style="font-size: 0.8rem; color: var(--muted);"></span>
           </div>
         </div>
       </div>
@@ -954,7 +964,7 @@
     </div>
 
     <!-- Reach cards (motion/contact sensors) -->
-    <div id="motion-config-section" style="display: none;">
+    <div id="motion-config-section" style="display: none; margin-bottom: 16px;">
       <div class="reaches-section-header">
         <span class="reaches-section-label">Reaches</span>
         <button class="reaches-add-btn" id="add-motion-scope-btn" title="Add Reach">+</button>
@@ -977,24 +987,6 @@
       </div>
     </div>
 
-    <!-- Sensitivity card (ZHA) -->
-    <div class="ctrl-card is-open" id="zha-settings-section" style="display: none;">
-      <div class="ctrl-card-header" onclick="toggleCard('zha-settings-section')">
-        <span class="ctrl-card-chevron">&#x203A;</span>
-        <span class="ctrl-card-title">Sensitivity</span>
-        <span class="info-icon" onclick="event.stopPropagation()">i<span class="info-tooltip">Hardware sensitivity for ZHA motion sensors. Controls motion detection range.</span></span>
-      </div>
-      <div class="ctrl-card-body">
-        <div class="ctrl-card-body-inner">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <select id="zha-sensitivity-select" onchange="saveZhaSettings()" style="padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.85rem;">
-              <option value="">Loading...</option>
-            </select>
-            <span id="zha-settings-status" style="font-size: 0.8rem; color: var(--muted);"></span>
-          </div>
-        </div>
-      </div>
-    </div>
 
   </main>
   <div class="save-status" id="save-status">Saved</div>
@@ -1275,7 +1267,7 @@
         const data = await res.json();
 
         if (!data.is_zha) {
-          document.getElementById('zha-settings-section').style.display = 'none';
+          document.getElementById('sensitivity-row').style.display = 'none';
           return;
         }
 
@@ -1498,14 +1490,13 @@
 
     document.getElementById('control-pause-checkbox').addEventListener('change', () => {
       const checked = document.getElementById('control-pause-checkbox').checked;
-      const pauseSection = document.getElementById('pause-section');
+      document.getElementById('pause-timer-row').style.display = checked ? 'flex' : 'none';
       if (checked) {
-        // Default to "forever" when first pausing, and open card to show timer
+        // Default to "forever" when first pausing
         if (!editingInactiveUntil) {
           editingInactiveUntil = 'forever';
           document.getElementById('pause-timer-select').value = 'forever';
         }
-        pauseSection.classList.add('is-open');
       } else {
         editingInactiveUntil = null;
       }
@@ -1628,7 +1619,7 @@
       document.getElementById('motion-config-section').style.display = 'none';
       document.getElementById('pause-section').style.display = 'none';
       document.getElementById('magic-section').style.display = 'none';
-      document.getElementById('zha-settings-section').style.display = 'none';
+      document.getElementById('sensitivity-row').style.display = 'none';
     }
 
     // ============================================================
@@ -2188,8 +2179,8 @@
         return area ? area.name : areaId;
       });
       if (areaNames.length === 0) return 'No areas';
-      if (areaNames.length <= 3) return areaNames.join(', ');
-      return areaNames.slice(0, 2).join(', ') + ` +${areaNames.length - 2}`;
+      if (areaNames.length <= 5) return areaNames.join(', ');
+      return areaNames.slice(0, 4).join(', ') + ` +${areaNames.length - 4}`;
     }
 
     function renderMotionScopesEditor() {
@@ -2262,7 +2253,7 @@
             <div class="scope-card-header" onclick="toggleMotionScope(${idx})">
               <span class="scope-card-chevron">&#x203A;</span>
               <span class="scope-card-action">${_motionScopeAction(scope)}</span>
-              <span class="scope-card-areas">${_motionScopeAreas(scope)}</span>
+              <span style="flex:1;"></span>
               <div class="scope-card-expanded-controls" onclick="event.stopPropagation()">
                 ${showMotionArrows ? `
                   <button class="scope-reorder-btn" ${motionUpDisabled} onclick="swapMotionScope(${idx}, -1)" title="Move up">&#9650;</button>
@@ -2683,9 +2674,10 @@
       const motionSection = document.getElementById('motion-config-section');
       const pauseSection = document.getElementById('pause-section');
 
-      // Show pause section for all control types and set checkbox + timer
+      // Show settings section for all control types and set checkbox + timer
       pauseSection.style.display = '';
       document.getElementById('control-pause-checkbox').checked = editingInactive;
+      document.getElementById('pause-timer-row').style.display = editingInactive ? 'flex' : 'none';
       initPauseTimer(ctrl.inactive_until);
 
       if (isSensorType) {
@@ -2695,20 +2687,20 @@
           document.getElementById('magic-section').style.display = 'none';
         renderMotionScopesEditor();
 
-        // Load ZHA settings for motion sensors (only for ZHA devices)
-        const zhaSection = document.getElementById('zha-settings-section');
+        // Show sensitivity row for ZHA motion sensors
+        const sensitivityRow = document.getElementById('sensitivity-row');
         if (ctrl.category === 'motion_sensor' && ctrl.integration === 'zha') {
-          zhaSection.style.display = '';
+          sensitivityRow.style.display = 'flex';
           loadZhaSettings(ctrl.device_id);
         } else {
-          zhaSection.style.display = 'none';
+          sensitivityRow.style.display = 'none';
         }
       } else {
         // Type is now shown in device-info, hide the type section
         if (typeSectionEl) typeSectionEl.style.display = 'none';
         switchSection.style.display = '';
         motionSection.style.display = 'none';
-        document.getElementById('zha-settings-section').style.display = 'none';
+        document.getElementById('sensitivity-row').style.display = 'none';
 
 
         // Load magic buttons and show section if switch type has magic slots
