@@ -1875,6 +1875,7 @@ class LightDesignerServer:
         "post_action_burst_count",  # Number of burst refreshes after switch actions (0-3, default 3)
         "reach_daytime_threshold",  # Brightness % below which reach feedback flashes UP when sun bright > 0 (default 50)
         "reach_feedback_enabled",  # Whether reach scope changes flash lights (default true)
+        "feedback_restrict_to_primary",  # Restrict feedback to primary (starred) area only (default false)
         "boost_default",  # Default boost percentage (10-100, default 30)
         "long_press_repeat_interval",  # Long-press repeat interval in tenths of seconds (default 7 = 700ms)
         "controls_ui",  # Controls page UI preferences (sort, filter)
@@ -2096,6 +2097,7 @@ class LightDesignerServer:
             "post_action_burst_count": 1,  # 0-3 burst refreshes after actions
             "reach_feedback_enabled": True,  # Flash lights on reach change
             "reach_daytime_threshold": 50,  # % brightness
+            "feedback_restrict_to_primary": False,  # All areas get feedback (not just starred)
         }
 
         # Merge supervisor-managed options.json (if present)
@@ -2205,6 +2207,7 @@ class LightDesignerServer:
             # Reach feedback
             "reach_feedback_enabled": True,
             "reach_daytime_threshold": 50,  # % brightness
+            "feedback_restrict_to_primary": False,
         }
 
         # Merge options.json

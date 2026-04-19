@@ -1112,6 +1112,7 @@
     let controls = [];
     let allAreas = [];
     let allGlozones = [];
+    let feedbackRestrictToPrimary = false;
     let editingControlId = null;
     let editingDeviceId = null;
     let editingScopes = [];
@@ -1182,6 +1183,7 @@
             name: zone.name || id,
             areaIds: (zone.areas || []).map(a => typeof a === 'object' ? a.id : a).filter(Boolean)
           }));
+          feedbackRestrictToPrimary = config.feedback_restrict_to_primary ?? false;
         }
 
         if (switchmapRes.ok) {
@@ -1859,12 +1861,16 @@
       const container = document.getElementById('scopes-editor');
       container.innerHTML = editingScopes.map((scope, idx) => {
         const feedbackArea = scope.feedback_area || (scope.areas.length > 0 ? scope.areas[0] : null);
+        const showStars = feedbackRestrictToPrimary && scope.areas.length > 1;
         const areaChips = scope.areas.map(areaId => {
           const area = allAreas.find(a => a.area_id === areaId);
           const areaName = area ? area.name : areaId;
-          const isFeedback = areaId === feedbackArea;
-          const starClass = isFeedback ? 'feedback-star active' : 'feedback-star';
-          const starHtml = `<span class="${starClass}" onclick="event.stopPropagation(); setFeedbackArea(${idx}, '${areaId}')" title="Feedback target">&#9733;</span>`;
+          let starHtml = '';
+          if (showStars) {
+            const isFeedback = areaId === feedbackArea;
+            const starClass = isFeedback ? 'feedback-star active' : 'feedback-star';
+            starHtml = `<span class="${starClass}" onclick="event.stopPropagation(); setFeedbackArea(${idx}, '${areaId}')" title="Feedback target">&#9733;</span>`;
+          }
           return `
             <span class="area-chip">
               ${starHtml}${areaName}

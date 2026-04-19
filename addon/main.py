@@ -2459,6 +2459,14 @@ class HomeAssistantWebSocketClient:
         except Exception:
             return True
 
+    def _is_feedback_restrict_to_primary(self) -> bool:
+        """Check if feedback should be restricted to the primary (starred) area."""
+        try:
+            raw_config = glozone.load_config_from_files()
+            return raw_config.get("feedback_restrict_to_primary", False)
+        except Exception:
+            return False
+
     def _apply_ct_brightness_compensation(
         self, brightness: int, color_temp: int
     ) -> int:
@@ -2607,7 +2615,9 @@ class HomeAssistantWebSocketClient:
                     filter_counts["Standard"] = (
                         filter_counts.get("Standard", 0) + unassigned
                     )
-                best_filter = max(filter_counts, key=filter_counts.get)
+                max_count = max(filter_counts.values())
+                tied = [f for f, c in filter_counts.items() if c == max_count]
+                best_filter = "Standard" if "Standard" in tied else tied[0]
             else:
                 best_filter = "Standard"
 
@@ -2814,7 +2824,36 @@ class HomeAssistantWebSocketClient:
         if cue_type == "reach" and not self._is_reach_feedback_enabled():
             return
 
-        targets = self._resolve_feedback_targets_for_reach(switch_id)
+        if self._is_feedback_restrict_to_primary():
+            # Restricted mode: only the primary (starred) area
+            single = self._resolve_feedback_target(switch_id)
+            if not single:
+                logger.debug(f"No feedback target for switch {switch_id}")
+                return
+            area_id = single.get("area_id")
+            filter_name = single.get("filter_name", "Standard")
+            purpose_state = state.get_last_sent_purpose(area_id, filter_name) or {}
+            was_on = (
+                not purpose_state.get("is_off", False) and state.get_is_on(area_id)
+                if area_id
+                else True
+            )
+            if "entity_id" in single:
+                ha_target = {"entity_id": single["entity_id"]}
+            else:
+                ha_target = {"area_id": single["area_id"]}
+            targets = [
+                {
+                    "area_id": area_id,
+                    "filter_name": filter_name,
+                    "ha_target": ha_target,
+                    "cached_bri": int(purpose_state.get("brightness", 50) * 2.55),
+                    "cached_kelvin": state.get_last_sent_kelvin(area_id),
+                    "was_on": was_on,
+                }
+            ]
+        else:
+            targets = self._resolve_feedback_targets_for_reach(switch_id)
         if not targets:
             logger.debug(f"No feedback targets for switch {switch_id}")
             return

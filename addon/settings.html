@@ -710,6 +710,18 @@
       <div class="section-content">
         <div class="form-row">
           <label class="form-label">
+            Restrict to primary area
+            <span class="info-icon">i<span class="info-tooltip">When enabled, feedback cues (bounce, freeze, reach) only show on the primary (starred) area in each reach. When disabled, all areas in the reach show feedback simultaneously.</span></span>
+          </label>
+          <div class="form-control">
+            <label class="checkbox-label">
+              <input type="checkbox" id="feedback-restrict-to-primary">
+            </label>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
             Motion warning time
             <span class="info-icon">i<span class="info-tooltip">How long before the motion timer expires to trigger a warning dim. Set to 0 to disable motion warnings. The warning dims lights to alert you before they turn off.</span></span>
           </label>
@@ -1220,6 +1232,7 @@
             }
           }
           updateLoggingRemaining();
+          document.getElementById('feedback-restrict-to-primary').checked = config.feedback_restrict_to_primary ?? false;
           document.getElementById('motion-warning-time').value = config.motion_warning_time ?? 20;
           document.getElementById('motion-blink-threshold').value = config.motion_blink_threshold ?? 15;
           document.getElementById('reach-feedback-enabled').checked = config.reach_feedback_enabled ?? true;
@@ -1307,6 +1320,7 @@
         home_refresh_interval: parseInt(document.getElementById('home-refresh-interval').value) || 3,
         daily_sync_hour: parseInt(document.getElementById('daily-sync-time').value.split(':')[0]) || 4,
         daily_sync_minute: parseInt(document.getElementById('daily-sync-time').value.split(':')[1]) || 0,
+        feedback_restrict_to_primary: document.getElementById('feedback-restrict-to-primary').checked,
         motion_warning_time: parseInt(document.getElementById('motion-warning-time').value) || 20,
         motion_blink_threshold: parseInt(document.getElementById('motion-blink-threshold').value) || 15,
         reach_feedback_enabled: document.getElementById('reach-feedback-enabled').checked,
