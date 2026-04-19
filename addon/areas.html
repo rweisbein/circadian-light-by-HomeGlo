@@ -196,7 +196,7 @@
       color: var(--muted);
     }
 
-    .timer-fade { color: #e2e8f0; animation: timer-motion-flash 3s step-end infinite; }
+    .timer-fade { color: #e2e8f0; animation: timer-motion-flash 3s infinite; }
 
     /* Status badges */
     .status-badge {
@@ -295,7 +295,7 @@
     /* Timer styles (shared with homepage) */
     .timer-motion {
       color: #e2e8f0;
-      animation: timer-motion-flash 3s step-end infinite;
+      animation: timer-motion-flash 3s infinite;
     }
 
     .timer-boost {
@@ -303,7 +303,7 @@
       opacity: 0.9;
     }
     .timer-boost-flash {
-      animation: timer-motion-flash 3s step-end infinite;
+      animation: timer-motion-flash 3s infinite;
     }
 
     .timer-frozen {
@@ -322,8 +322,9 @@
     }
 
     @keyframes timer-motion-flash {
-      0%, 50% { opacity: 0.8; }
-      50.1%, 100% { opacity: 0.2; }
+      0%, 40% { opacity: 0.9; }
+      50%, 90% { opacity: 0.15; }
+      100% { opacity: 0.9; }
     }
 
     @keyframes timer-warning-pulse {
