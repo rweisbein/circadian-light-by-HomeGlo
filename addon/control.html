@@ -535,6 +535,21 @@
       border-radius: 8px;
       margin-bottom: 8px;
       overflow: hidden;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+    .scope-card.moving-up {
+      animation: scope-move-up 0.25s ease;
+    }
+    .scope-card.moving-down {
+      animation: scope-move-down 0.25s ease;
+    }
+    @keyframes scope-move-up {
+      0% { transform: translateY(8px); opacity: 0.5; }
+      100% { transform: translateY(0); opacity: 1; }
+    }
+    @keyframes scope-move-down {
+      0% { transform: translateY(-8px); opacity: 0.5; }
+      100% { transform: translateY(0); opacity: 1; }
     }
     .scope-card:last-of-type {
       margin-bottom: 0;
@@ -916,25 +931,24 @@
         </div>
       </div>
       <div class="ctrl-card-body" id="pause-body">
-        <div class="ctrl-card-body-inner">
+        <div class="ctrl-card-body-inner" style="padding-left: 24px;">
           <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
             <label class="ctrl-toggle pause-toggle" onclick="event.stopPropagation()">
               <input type="checkbox" id="control-pause-checkbox">
               <span class="slider"></span>
             </label>
             <span style="font-size: 0.85rem; color: var(--muted);">Pause</span>
-            <span class="info-icon" onclick="event.stopPropagation()">i<span class="info-tooltip">When paused, a control won't trigger actions. Set a timer to auto-unpause.</span></span>
-          </div>
-          <div id="pause-timer-row" style="display: none; align-items: center; gap: 10px; margin-bottom: 10px;">
-            <span style="font-size: 0.85rem; color: var(--muted);">Unpause after</span>
-            <select id="pause-timer-select" style="padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.85rem;">
-              <option value="forever">Never</option>
-              <option value="15m">15 min</option>
-              <option value="1h">1 hour</option>
-              <option value="4h">4 hours</option>
-              <option value="1d">1 day</option>
-              <option value="1w">1 week</option>
-            </select>
+            <div id="pause-timer-row" style="display: none; align-items: center; gap: 8px; margin-left: 4px;">
+              <span style="font-size: 0.8rem; color: var(--muted2);">unpause in</span>
+              <select id="pause-timer-select" style="padding: 4px 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.8rem;">
+                <option value="forever">Never</option>
+                <option value="15m">15 min</option>
+                <option value="1h">1 hour</option>
+                <option value="4h">4 hours</option>
+                <option value="1d">1 day</option>
+                <option value="1w">1 week</option>
+              </select>
+            </div>
           </div>
           <div id="sensitivity-row" style="display: none; align-items: center; gap: 10px;">
             <span style="font-size: 0.85rem; color: var(--muted);">Sensitivity</span>
@@ -2422,6 +2436,14 @@
       if (aExp) _motionScopeExpanded.add(newIdx); else _motionScopeExpanded.delete(newIdx);
       if (bExp) _motionScopeExpanded.add(idx); else _motionScopeExpanded.delete(idx);
       renderMotionScopesEditor();
+      // Animate the swapped cards
+      const cards = document.querySelectorAll('#motion-scopes-editor .scope-card');
+      if (cards[idx]) cards[idx].classList.add(direction > 0 ? 'moving-up' : 'moving-down');
+      if (cards[newIdx]) cards[newIdx].classList.add(direction > 0 ? 'moving-down' : 'moving-up');
+      setTimeout(() => {
+        if (cards[idx]) cards[idx].classList.remove('moving-up', 'moving-down');
+        if (cards[newIdx]) cards[newIdx].classList.remove('moving-up', 'moving-down');
+      }, 250);
       autoSave();
     }
 
