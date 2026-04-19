@@ -1483,30 +1483,27 @@
           parts.push(`<span class="timer-frozen">❄</span>`);
         }
 
-        // Smart DOM update: update text/class of existing spans without
-        // destroying them (preserves CSS animations across content changes)
-        const existing = el.children;
-        if (parts.length === existing.length) {
-          // Same number of children — update in place
-          let needsRebuild = false;
-          const tempDiv = document.createElement('div');
-          tempDiv.innerHTML = parts.join('');
-          const newChildren = tempDiv.children;
-          for (let i = 0; i < parts.length; i++) {
-            if (existing[i].className !== newChildren[i].className) {
-              needsRebuild = true;
-              break;
-            }
-            if (existing[i].textContent !== newChildren[i].textContent) {
-              existing[i].textContent = newChildren[i].textContent;
-            }
-          }
-          if (needsRebuild) {
-            el.innerHTML = parts.join('');
-          }
-        } else {
-          // Different structure — full rebuild
+        // Build a structure signature (count + classes) to detect when
+        // the set of status items changes (not just text content)
+        const sig = parts.map(p => {
+          const m = p.match(/class="([^"]*)/);
+          return m ? m[1] : '';
+        }).join('|');
+        const prevSig = el.getAttribute('data-sig');
+
+        if (sig !== prevSig) {
+          // Structure changed — full rebuild
           el.innerHTML = parts.join('');
+          el.setAttribute('data-sig', sig);
+        } else {
+          // Same structure — update text only (preserves animations)
+          const children = el.children;
+          for (let i = 0; i < children.length && i < parts.length; i++) {
+            const m = parts[i].match(/>([^<]*)</);
+            if (m && children[i].textContent !== m[1]) {
+              children[i].textContent = m[1];
+            }
+          }
         }
       });
 
