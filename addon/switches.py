@@ -661,16 +661,23 @@ CAMERA_MODELS: Dict[str, Dict[str, Dict[str, Any]]] = {
         "T8162": {
             "name": "Eufy Outdoor Camera",
             "trigger_patterns": [
-                "_motion_detected", "_person_detected", "_pet_detected",
+                "_motion_detected",
+                "_person_detected",
+                "_pet_detected",
                 "_vehicle_detected",
             ],
         },
         "T8214": {
             "name": "Eufy Video Doorbell",
             "trigger_patterns": [
-                "_motion_detected", "_person_detected", "_pet_detected",
-                "_vehicle_detected", "_ringing",
-                "_package_delivered", "_package_stranded", "_package_taken",
+                "_motion_detected",
+                "_person_detected",
+                "_pet_detected",
+                "_vehicle_detected",
+                "_ringing",
+                "_package_delivered",
+                "_package_stranded",
+                "_package_taken",
             ],
         },
     },
@@ -692,7 +699,11 @@ def detect_control_type(
     switch_type = detect_switch_type(manufacturer, model)
     if switch_type:
         type_info = SWITCH_TYPES.get(switch_type, {})
-        return {"category": "switch", "type": switch_type, "name": type_info.get("name")}
+        return {
+            "category": "switch",
+            "type": switch_type,
+            "name": type_info.get("name"),
+        }
 
     manufacturer_lower = manufacturer.lower()
 
@@ -869,17 +880,11 @@ class SwitchRuntimeState:
 
 @dataclass
 class MotionAreaConfig:
-    """Config for one area controlled by a motion sensor.
+    """Runtime view of one area's motion config (expanded from a MotionScope).
 
-    Mode controls power behavior:
-    - on_only: Turn on lights, never auto-off
-    - on_off: Turn on lights, auto-off after duration
-    - alert: Visual bounce on feedback target (no power change)
-    - disabled: Sensor ignored for this area
-
-    Boost is independent - can be combined with any mode (except alert):
-    - boost_enabled: Whether to temporarily increase brightness
-    - boost_brightness: Percentage points to add
+    Used by event handlers to iterate per-area. Not stored directly —
+    MotionSensorConfig stores MotionScope objects and expands them via
+    the `areas` property.
     """
 
     area_id: str
@@ -890,14 +895,56 @@ class MotionAreaConfig:
     active_when: str = "always"  # always, sunset_to_sunrise, wake_to_bed
     active_offset: int = 0  # minutes: positive = widen window, negative = shrink
     cooldown: int = 0  # per-scope cooldown in seconds (0 = use sensor default)
-    trigger_entities: List[str] = field(default_factory=list)  # specific entity_ids that trigger this scope (empty = any)
+    trigger_entities: List[str] = field(
+        default_factory=list
+    )  # specific entity_ids that trigger this scope (empty = any)
     alert_intensity: str = "low"  # low, med, high — multiplier for bounce percentage
     alert_count: int = 3  # number of bounces in alert mode
 
+
+@dataclass
+class MotionScope:
+    """A scope defines which areas a motion sensor controls and how.
+
+    All areas in a scope share the same settings (mode, duration, boost, etc.).
+    A motion sensor can have multiple scopes with different settings.
+    """
+
+    areas: List[str] = field(default_factory=list)
+    mode: str = "on_off"  # on_only, on_off, alert, disabled
+    duration: int = 60  # seconds for on_off auto-off timer
+    boost_enabled: bool = False
+    boost_brightness: int = 50
+    active_when: str = "always"  # always, sunset_to_sunrise, wake_to_bed
+    active_offset: int = 0  # minutes: positive = widen window, negative = shrink
+    cooldown: int = 0  # per-scope cooldown in seconds (0 = use sensor default)
+    trigger_entities: List[str] = field(default_factory=list)
+    alert_intensity: str = "low"  # low, med, high
+    alert_count: int = 3  # number of bounces in alert mode
+
+    def to_area_configs(self) -> List["MotionAreaConfig"]:
+        """Expand this scope into per-area MotionAreaConfig objects."""
+        return [
+            MotionAreaConfig(
+                area_id=area_id,
+                mode=self.mode,
+                duration=self.duration,
+                boost_enabled=self.boost_enabled,
+                boost_brightness=self.boost_brightness,
+                active_when=self.active_when,
+                active_offset=self.active_offset,
+                cooldown=self.cooldown,
+                trigger_entities=list(self.trigger_entities),
+                alert_intensity=self.alert_intensity,
+                alert_count=self.alert_count,
+            )
+            for area_id in self.areas
+        ]
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
-        d = {
-            "area_id": self.area_id,
+        d: Dict[str, Any] = {
+            "areas": list(self.areas),
             "mode": self.mode,
             "duration": self.duration,
             "boost_enabled": self.boost_enabled,
@@ -916,37 +963,10 @@ class MotionAreaConfig:
         return d
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "MotionAreaConfig":
-        """Create from dictionary, with migration from old 'function' format."""
-        # Migration: old format had 'function' with 'boost' as a separate option
-        if "function" in data and "mode" not in data:
-            old_function = data.get("function", "on_off")
-            if old_function == "boost":
-                # boost was its own mode - convert to on_off + boost_enabled
-                return cls(
-                    area_id=data.get("area_id", ""),
-                    mode="on_off",
-                    duration=data.get("duration", 60),
-                    boost_enabled=True,
-                    boost_brightness=data.get("boost_brightness", 50),
-                    active_when=data.get("active_when", "always"),
-                    active_offset=data.get("active_offset", 0),
-                )
-            else:
-                # on_only, on_off, disabled - just rename function to mode
-                return cls(
-                    area_id=data.get("area_id", ""),
-                    mode=old_function,
-                    duration=data.get("duration", 60),
-                    boost_enabled=False,
-                    boost_brightness=data.get("boost_brightness", 50),
-                    active_when=data.get("active_when", "always"),
-                    active_offset=data.get("active_offset", 0),
-                )
-
-        # New format
+    def from_dict(cls, data: Dict[str, Any]) -> "MotionScope":
+        """Create from dictionary."""
         return cls(
-            area_id=data.get("area_id", ""),
+            areas=data.get("areas", []),
             mode=data.get("mode", "on_off"),
             duration=data.get("duration", 60),
             boost_enabled=data.get("boost_enabled", False),
@@ -959,6 +979,35 @@ class MotionAreaConfig:
             alert_count=data.get("alert_count", 3),
         )
 
+    @classmethod
+    def from_legacy_area(cls, area_data: Dict[str, Any]) -> "MotionScope":
+        """Migrate a single legacy MotionAreaConfig dict into a 1-area scope."""
+        # Handle old 'function' format
+        mode = area_data.get("mode", "on_off")
+        boost_enabled = area_data.get("boost_enabled", False)
+        if "function" in area_data and "mode" not in area_data:
+            old_function = area_data.get("function", "on_off")
+            if old_function == "boost":
+                mode = "on_off"
+                boost_enabled = True
+            else:
+                mode = old_function
+                boost_enabled = False
+
+        return cls(
+            areas=[area_data.get("area_id", "")],
+            mode=mode,
+            duration=area_data.get("duration", 60),
+            boost_enabled=boost_enabled,
+            boost_brightness=area_data.get("boost_brightness", 50),
+            active_when=area_data.get("active_when", "always"),
+            active_offset=area_data.get("active_offset", 0),
+            cooldown=area_data.get("cooldown", 0),
+            trigger_entities=area_data.get("trigger_entities", []),
+            alert_intensity=area_data.get("alert_intensity", "low"),
+            alert_count=area_data.get("alert_count", 3),
+        )
+
 
 @dataclass
 class MotionSensorConfig:
@@ -966,11 +1015,25 @@ class MotionSensorConfig:
 
     id: str  # Device ID or unique identifier
     name: str  # User-friendly name
-    areas: List[MotionAreaConfig] = field(default_factory=list)
+    scopes: List[MotionScope] = field(default_factory=list)
     device_id: Optional[str] = None  # HA device_id
     inactive: bool = False  # If True, sensor won't trigger actions
     inactive_until: Optional[str] = None  # ISO timestamp or "forever"; None = no timer
-    trigger_entities: List[str] = field(default_factory=list)  # all binary_sensor entity_ids to listen for (union of scope-level lists)
+    trigger_entities: List[str] = field(
+        default_factory=list
+    )  # all binary_sensor entity_ids to listen for (union of scope-level lists)
+
+    @property
+    def areas(self) -> List[MotionAreaConfig]:
+        """Expand scopes into per-area MotionAreaConfig objects.
+
+        Provides backward compatibility for event handlers that iterate
+        per-area with area_config.area_id, .mode, .duration, etc.
+        """
+        result = []
+        for scope in self.scopes:
+            result.extend(scope.to_area_configs())
+        return result
 
     def get_area_config(self, area_id: str) -> Optional[MotionAreaConfig]:
         """Get config for a specific area."""
@@ -981,14 +1044,22 @@ class MotionSensorConfig:
 
     def get_all_area_ids(self) -> List[str]:
         """Get list of all area IDs this sensor controls."""
-        return [a.area_id for a in self.areas]
+        return [area_id for scope in self.scopes for area_id in scope.areas]
+
+    def remove_area(self, area_id: str) -> bool:
+        """Remove an area from its scope. Returns True if found and removed."""
+        for scope in self.scopes:
+            if area_id in scope.areas:
+                scope.areas.remove(area_id)
+                return True
+        return False
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {
             "id": self.id,
             "name": self.name,
-            "areas": [a.to_dict() for a in self.areas],
+            "scopes": [s.to_dict() for s in self.scopes],
             "inactive": self.inactive,
         }
         if self.device_id:
@@ -1001,12 +1072,18 @@ class MotionSensorConfig:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "MotionSensorConfig":
-        """Create from dictionary."""
-        areas = [MotionAreaConfig.from_dict(a) for a in data.get("areas", [])]
+        """Create from dictionary, with migration from legacy flat areas."""
+        if "scopes" in data:
+            scopes = [MotionScope.from_dict(s) for s in data["scopes"]]
+        elif "areas" in data:
+            # Legacy migration: each area becomes its own 1-area scope
+            scopes = [MotionScope.from_legacy_area(a) for a in data["areas"]]
+        else:
+            scopes = []
         return cls(
             id=data.get("id", ""),
             name=data.get("name", ""),
-            areas=areas,
+            scopes=scopes,
             device_id=data.get("device_id"),
             inactive=data.get("inactive", False),
             inactive_until=data.get("inactive_until"),
@@ -1021,16 +1098,11 @@ class MotionSensorConfig:
 
 @dataclass
 class ContactAreaConfig:
-    """Config for one area controlled by a contact sensor (e.g., door/window sensor).
+    """Runtime view of one area's contact config (expanded from a ContactScope).
 
-    Mode controls power behavior:
-    - on_only: Turn on lights on open, ignore close
-    - on_off: Turn on on open, turn off on close (or after duration)
-    - disabled: Sensor ignored for this area
-
-    Boost is independent - can be combined with any mode:
-    - boost_enabled: Whether to temporarily increase brightness
-    - boost_brightness: Percentage points to add
+    Used by event handlers to iterate per-area. Not stored directly —
+    ContactSensorConfig stores ContactScope objects and expands them via
+    the `areas` property.
     """
 
     area_id: str
@@ -1038,13 +1110,40 @@ class ContactAreaConfig:
     duration: int = (
         60  # seconds, fallback timer for on_off (0 = forever, rely on close)
     )
-    boost_enabled: bool = False  # whether to boost brightness
-    boost_brightness: int = 50  # percentage points to add when boosting
+    boost_enabled: bool = False
+    boost_brightness: int = 50
+
+
+@dataclass
+class ContactScope:
+    """A scope defines which areas a contact sensor controls and how.
+
+    All areas in a scope share the same settings.
+    """
+
+    areas: List[str] = field(default_factory=list)
+    mode: str = "on_off"  # on_only, on_off, disabled
+    duration: int = 60
+    boost_enabled: bool = False
+    boost_brightness: int = 50
+
+    def to_area_configs(self) -> List["ContactAreaConfig"]:
+        """Expand this scope into per-area ContactAreaConfig objects."""
+        return [
+            ContactAreaConfig(
+                area_id=area_id,
+                mode=self.mode,
+                duration=self.duration,
+                boost_enabled=self.boost_enabled,
+                boost_brightness=self.boost_brightness,
+            )
+            for area_id in self.areas
+        ]
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
-            "area_id": self.area_id,
+            "areas": list(self.areas),
             "mode": self.mode,
             "duration": self.duration,
             "boost_enabled": self.boost_enabled,
@@ -1052,37 +1151,36 @@ class ContactAreaConfig:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ContactAreaConfig":
-        """Create from dictionary, with migration from old 'function' format."""
-        # Migration: old format had 'function' with 'boost' as a separate option
-        if "function" in data and "mode" not in data:
-            old_function = data.get("function", "on_off")
-            if old_function == "boost":
-                # boost was its own mode - convert to on_off + boost_enabled
-                return cls(
-                    area_id=data.get("area_id", ""),
-                    mode="on_off",
-                    duration=data.get("duration", 60),
-                    boost_enabled=True,
-                    boost_brightness=data.get("boost_brightness", 50),
-                )
-            else:
-                # on_only, on_off, disabled - just rename function to mode
-                return cls(
-                    area_id=data.get("area_id", ""),
-                    mode=old_function,
-                    duration=data.get("duration", 60),
-                    boost_enabled=False,
-                    boost_brightness=data.get("boost_brightness", 50),
-                )
-
-        # New format
+    def from_dict(cls, data: Dict[str, Any]) -> "ContactScope":
+        """Create from dictionary."""
         return cls(
-            area_id=data.get("area_id", ""),
+            areas=data.get("areas", []),
             mode=data.get("mode", "on_off"),
             duration=data.get("duration", 60),
             boost_enabled=data.get("boost_enabled", False),
             boost_brightness=data.get("boost_brightness", 50),
+        )
+
+    @classmethod
+    def from_legacy_area(cls, area_data: Dict[str, Any]) -> "ContactScope":
+        """Migrate a single legacy ContactAreaConfig dict into a 1-area scope."""
+        mode = area_data.get("mode", "on_off")
+        boost_enabled = area_data.get("boost_enabled", False)
+        if "function" in area_data and "mode" not in area_data:
+            old_function = area_data.get("function", "on_off")
+            if old_function == "boost":
+                mode = "on_off"
+                boost_enabled = True
+            else:
+                mode = old_function
+                boost_enabled = False
+
+        return cls(
+            areas=[area_data.get("area_id", "")],
+            mode=mode,
+            duration=area_data.get("duration", 60),
+            boost_enabled=boost_enabled,
+            boost_brightness=area_data.get("boost_brightness", 50),
         )
 
 
@@ -1092,10 +1190,18 @@ class ContactSensorConfig:
 
     id: str  # Device ID or unique identifier
     name: str  # User-friendly name
-    areas: List[ContactAreaConfig] = field(default_factory=list)
+    scopes: List[ContactScope] = field(default_factory=list)
     device_id: Optional[str] = None  # HA device_id
     inactive: bool = False  # If True, sensor won't trigger actions
     inactive_until: Optional[str] = None  # ISO timestamp or "forever"; None = no timer
+
+    @property
+    def areas(self) -> List[ContactAreaConfig]:
+        """Expand scopes into per-area ContactAreaConfig objects."""
+        result = []
+        for scope in self.scopes:
+            result.extend(scope.to_area_configs())
+        return result
 
     def get_area_config(self, area_id: str) -> Optional[ContactAreaConfig]:
         """Get config for a specific area."""
@@ -1106,14 +1212,22 @@ class ContactSensorConfig:
 
     def get_all_area_ids(self) -> List[str]:
         """Get list of all area IDs this sensor controls."""
-        return [a.area_id for a in self.areas]
+        return [area_id for scope in self.scopes for area_id in scope.areas]
+
+    def remove_area(self, area_id: str) -> bool:
+        """Remove an area from its scope. Returns True if found and removed."""
+        for scope in self.scopes:
+            if area_id in scope.areas:
+                scope.areas.remove(area_id)
+                return True
+        return False
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result = {
             "id": self.id,
             "name": self.name,
-            "areas": [a.to_dict() for a in self.areas],
+            "scopes": [s.to_dict() for s in self.scopes],
             "inactive": self.inactive,
         }
         if self.device_id:
@@ -1124,12 +1238,17 @@ class ContactSensorConfig:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "ContactSensorConfig":
-        """Create from dictionary."""
-        areas = [ContactAreaConfig.from_dict(a) for a in data.get("areas", [])]
+        """Create from dictionary, with migration from legacy flat areas."""
+        if "scopes" in data:
+            scopes = [ContactScope.from_dict(s) for s in data["scopes"]]
+        elif "areas" in data:
+            scopes = [ContactScope.from_legacy_area(a) for a in data["areas"]]
+        else:
+            scopes = []
         return cls(
             id=data.get("id", ""),
             name=data.get("name", ""),
-            areas=areas,
+            scopes=scopes,
             device_id=data.get("device_id"),
             inactive=data.get("inactive", False),
             inactive_until=data.get("inactive_until"),
@@ -1291,15 +1410,11 @@ def purge_area(area_id: str) -> int:
                 cleaned += 1
 
     for motion in _motion_sensors.values():
-        before = len(motion.areas)
-        motion.areas = [a for a in motion.areas if a.area_id != area_id]
-        if len(motion.areas) < before:
+        if motion.remove_area(area_id):
             cleaned += 1
 
     for contact in _contact_sensors.values():
-        before = len(contact.areas)
-        contact.areas = [a for a in contact.areas if a.area_id != area_id]
-        if len(contact.areas) < before:
+        if contact.remove_area(area_id):
             cleaned += 1
 
     if cleaned:
@@ -1475,10 +1590,8 @@ def get_motion_sensors_for_area(area_id: str) -> List[MotionSensorConfig]:
     """Get all motion sensors that control a specific area."""
     result = []
     for sensor in _motion_sensors.values():
-        for area in sensor.areas:
-            if area.area_id == area_id:
-                result.append(sensor)
-                break
+        if area_id in sensor.get_all_area_ids():
+            result.append(sensor)
     return result
 
 
@@ -1560,10 +1673,8 @@ def get_contact_sensors_for_area(area_id: str) -> List[ContactSensorConfig]:
     """Get all contact sensors that control a specific area."""
     result = []
     for sensor in _contact_sensors.values():
-        for area in sensor.areas:
-            if area.area_id == area_id:
-                result.append(sensor)
-                break
+        if area_id in sensor.get_all_area_ids():
+            result.append(sensor)
     return result
 
 
@@ -1896,7 +2007,11 @@ def get_switches_summary() -> List[Dict[str, Any]]:
                 "scopes": [
                     {
                         "areas": s.areas,
-                        **({"feedback_area": s.feedback_area} if s.feedback_area else {}),
+                        **(
+                            {"feedback_area": s.feedback_area}
+                            if s.feedback_area
+                            else {}
+                        ),
                     }
                     for s in switch.scopes
                 ],

@@ -3428,42 +3428,19 @@ class HomeAssistantWebSocketClient:
 
             area_filters = glozone.get_area_light_filters(area_id)
             area_factor = glozone.get_area_brightness_factor(area_id)
-            has_filters = bool(area_filters) or area_factor != 1.0
 
-            if has_filters:
-                await self._deliver_filtered(
-                    area_id,
-                    pipeline_result.area_brightness,
-                    pipeline_result.area_kelvin,
-                    pipeline_result.area_xy,
-                    transition,
-                    include_color,
-                    log_periodic,
-                    area_filters,
-                    area_factor,
-                    prev_kelvin=_prev_kelvin,
-                    precomputed_purposes=pipeline_result.purposes,
-                )
-                return
-
-            # Fast path: single Standard purpose, no filters
-            p = pipeline_result.purposes[0]
-            p_bri = p.brightness
-            p_kelvin = p.kelvin
-            p_xy = p.xy
-
-            state.set_last_sent_brightness(area_id, p_bri)
-            state.set_last_sent_purpose(area_id, "Standard", p_bri, p_kelvin)
-
-            if log_periodic and p_bri is not None:
-                parts = [f"curve={pipeline_result.rhythm_brightness}%"]
-                if pipeline_result.sun_bright_factor < 1.0:
-                    parts.append(f"sun×{pipeline_result.sun_bright_factor:.2f}")
-                parts.append(f"→{p_bri}% {p_kelvin}K")
-                logger.info(f"[Pipeline] {area_id}: {' '.join(parts)}")
-
-            await self._deliver_fast(
-                area_id, p_bri, p_kelvin, p_xy, transition, include_color, log_periodic
+            await self._deliver_filtered(
+                area_id,
+                pipeline_result.area_brightness,
+                pipeline_result.area_kelvin,
+                pipeline_result.area_xy,
+                transition,
+                include_color,
+                log_periodic,
+                area_filters,
+                area_factor,
+                prev_kelvin=_prev_kelvin,
+                precomputed_purposes=pipeline_result.purposes,
             )
             return
 
@@ -3535,255 +3512,22 @@ class HomeAssistantWebSocketClient:
 
         area_filters = glozone.get_area_light_filters(area_id)
         area_factor = glozone.get_area_brightness_factor(area_id)
-        has_filters = bool(area_filters) or area_factor != 1.0
-
-        if has_filters and brightness is not None:
-            await self._deliver_filtered(
-                area_id,
-                pipeline_result.area_brightness,
-                pipeline_result.area_kelvin,
-                pipeline_result.area_xy,
-                transition,
-                include_color,
-                log_periodic,
-                area_filters,
-                area_factor,
-                skip_filters=skip_filters,
-                skip_two_step=skip_two_step,
-                skip_off_threshold=skip_off_threshold,
-                prev_kelvin=_prev_kelvin,
-                precomputed_purposes=pipeline_result.purposes,
-            )
-            return
-
-        # Fast path: single Standard purpose
-        p = pipeline_result.purposes[0]
-        p_bri = p.brightness
-        p_kelvin = p.kelvin
-        p_xy = p.xy
-
-        if not skip_off_threshold and p_bri is not None:
-            state.set_last_sent_brightness(area_id, p_bri)
-        state.set_last_sent_purpose(area_id, "Standard", p_bri, p_kelvin)
-
-        if log_periodic and p_bri is not None:
-            parts = [f"curve={pipeline_result.rhythm_brightness}%"]
-            if pipeline_result.sun_bright_factor < 1.0:
-                parts.append(f"sun×{pipeline_result.sun_bright_factor:.2f}")
-            parts.append(f"→{p_bri}% {p_kelvin}K")
-            logger.info(f"[Pipeline] {area_id}: {' '.join(parts)}")
-
-        await self._deliver_fast(
-            area_id, p_bri, p_kelvin, p_xy, transition, include_color, log_periodic
+        await self._deliver_filtered(
+            area_id,
+            pipeline_result.area_brightness,
+            pipeline_result.area_kelvin,
+            pipeline_result.area_xy,
+            transition,
+            include_color,
+            log_periodic,
+            area_filters,
+            area_factor,
+            skip_filters=skip_filters,
+            skip_two_step=skip_two_step,
+            skip_off_threshold=skip_off_threshold,
+            prev_kelvin=_prev_kelvin,
+            precomputed_purposes=pipeline_result.purposes,
         )
-
-    async def _deliver_fast(
-        self,
-        area_id: str,
-        brightness: int,
-        kelvin: int,
-        xy: tuple,
-        transition: float,
-        include_color: bool,
-        log_periodic: bool,
-    ) -> None:
-        """Dispatch brightness/kelvin/xy to lights via capability groups and ZHA.
-
-        Pure delivery — no computation. Used by both legacy and pipeline paths.
-        """
-        color_lights, ct_lights, brightness_lights, onoff_lights = (
-            self.get_lights_by_capability(area_id)
-        )
-
-        # If no lights found in cache, fall back to area-based control
-        if (
-            not color_lights
-            and not ct_lights
-            and not brightness_lights
-            and not onoff_lights
-        ):
-            target_type, target_value = await self.determine_light_target(area_id)
-            service_data = {"transition": transition}
-            if brightness is not None:
-                service_data["brightness_pct"] = brightness
-            if include_color and kelvin is not None:
-                service_data["color_temp_kelvin"] = max(2000, kelvin)
-
-            if log_periodic:
-                logger.info(
-                    f"Circadian update (fallback): {target_type}={target_value}, {service_data}"
-                )
-            await self.call_service(
-                "light", "turn_on", service_data, {target_type: target_value}
-            )
-            return
-
-        tasks: List[asyncio.Task] = []
-
-        # Look up ZHA capability groups for this area
-        normalized_key = self._normalize_area_key(area_id)
-        group_candidates = (
-            self.area_group_map.get(normalized_key, {}) if normalized_key else {}
-        )
-        zha_color_group = group_candidates.get(
-            "zha_group_color"
-        ) or group_candidates.get("zha_group_standard_color")
-        zha_ct_group = group_candidates.get("zha_group_ct") or group_candidates.get(
-            "zha_group_standard_ct"
-        )
-
-        # Color-capable lights: use xy_color for full color range
-        if color_lights:
-            color_data = {"transition": transition}
-            if brightness is not None:
-                color_data["brightness_pct"] = brightness
-            if include_color and xy is not None:
-                color_data["xy_color"] = list(xy)
-
-            # Use ZHA group if available (efficient hardware-level control)
-            if zha_color_group:
-                # Split into ZHA (use group) and non-ZHA (call individually)
-                non_zha_color = [l for l in color_lights if l not in self.zha_lights]
-                zha_count = len(color_lights) - len(non_zha_color)
-                if log_periodic:
-                    logger.info(
-                        f"Circadian update (color via ZHA group): {zha_color_group} ({zha_count} lights), xy={xy} ({kelvin}K), brightness={brightness}%, transition={transition}s"
-                    )
-                tasks.append(
-                    asyncio.create_task(
-                        self.call_service(
-                            "light",
-                            "turn_on",
-                            color_data,
-                            {"entity_id": zha_color_group},
-                        )
-                    )
-                )
-                # Also call non-ZHA color lights individually
-                if non_zha_color:
-                    if log_periodic:
-                        logger.info(
-                            f"Circadian update (color non-ZHA): {len(non_zha_color)} lights, xy={xy} ({kelvin}K), brightness={brightness}%, transition={transition}s"
-                        )
-                    tasks.append(
-                        asyncio.create_task(
-                            self.call_service(
-                                "light",
-                                "turn_on",
-                                color_data,
-                                {"entity_id": non_zha_color},
-                            )
-                        )
-                    )
-            else:
-                if log_periodic:
-                    logger.info(
-                        f"Circadian update (color): {len(color_lights)} lights, xy={xy} ({kelvin}K), brightness={brightness}%, transition={transition}s"
-                    )
-                tasks.append(
-                    asyncio.create_task(
-                        self.call_service(
-                            "light", "turn_on", color_data, {"entity_id": color_lights}
-                        )
-                    )
-                )
-
-        # CT-only lights: use color_temp_kelvin (clamped to light's actual minimum)
-        if ct_lights:
-            ct_data = {"transition": transition}
-            if brightness is not None:
-                ct_data["brightness_pct"] = brightness
-            if include_color and kelvin is not None:
-                ct_floor = 2000
-                for ct_eid in ct_lights:
-                    min_ct = self.light_min_ct_kelvin.get(ct_eid)
-                    if min_ct and min_ct > ct_floor:
-                        ct_floor = min_ct
-                ct_data["color_temp_kelvin"] = max(ct_floor, kelvin)
-
-            # Use ZHA group if available (efficient hardware-level control)
-            if zha_ct_group:
-                # Split into ZHA (use group) and non-ZHA (call individually)
-                non_zha_ct = [l for l in ct_lights if l not in self.zha_lights]
-                zha_count = len(ct_lights) - len(non_zha_ct)
-                if log_periodic:
-                    logger.info(
-                        f"Circadian update (CT via ZHA group): {zha_ct_group} ({zha_count} lights), kelvin={kelvin}, brightness={brightness}%, transition={transition}s"
-                    )
-                tasks.append(
-                    asyncio.create_task(
-                        self.call_service(
-                            "light", "turn_on", ct_data, {"entity_id": zha_ct_group}
-                        )
-                    )
-                )
-                # Also call non-ZHA CT lights individually
-                if non_zha_ct:
-                    if log_periodic:
-                        logger.info(
-                            f"Circadian update (CT non-ZHA): {len(non_zha_ct)} lights, kelvin={kelvin}, brightness={brightness}%, transition={transition}s"
-                        )
-                    tasks.append(
-                        asyncio.create_task(
-                            self.call_service(
-                                "light",
-                                "turn_on",
-                                ct_data,
-                                {"entity_id": non_zha_ct},
-                            )
-                        )
-                    )
-            else:
-                if log_periodic:
-                    logger.info(
-                        f"Circadian update (CT): {len(ct_lights)} lights, kelvin={kelvin}, brightness={brightness}%, transition={transition}s"
-                    )
-                tasks.append(
-                    asyncio.create_task(
-                        self.call_service(
-                            "light", "turn_on", ct_data, {"entity_id": ct_lights}
-                        )
-                    )
-                )
-
-        # Brightness-only lights: only set brightness, no color
-        if brightness_lights:
-            bri_data = {"transition": transition}
-            if brightness is not None:
-                bri_data["brightness_pct"] = brightness
-
-            if log_periodic:
-                logger.info(
-                    f"Circadian update (brightness-only): {len(brightness_lights)} lights, brightness={brightness}%, transition={transition}s"
-                )
-            tasks.append(
-                asyncio.create_task(
-                    self.call_service(
-                        "light", "turn_on", bri_data, {"entity_id": brightness_lights}
-                    )
-                )
-            )
-
-        # On/off-only lights: just turn on, no brightness or color
-        if onoff_lights:
-            # Only include transition, no brightness or color data
-            onoff_data = {"transition": transition}
-
-            if log_periodic:
-                logger.info(
-                    f"Circadian update (on/off-only): {len(onoff_lights)} lights"
-                )
-            tasks.append(
-                asyncio.create_task(
-                    self.call_service(
-                        "light", "turn_on", onoff_data, {"entity_id": onoff_lights}
-                    )
-                )
-            )
-
-        # Run all tasks concurrently
-        if tasks:
-            await asyncio.gather(*tasks)
 
     async def _deliver_filtered(
         self,

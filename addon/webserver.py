@@ -5243,7 +5243,7 @@ class LightDesignerServer:
                         switches.MotionSensorConfig(
                             id=device_id,
                             name=name,
-                            areas=[switches.MotionAreaConfig(area_id=area_id)],
+                            scopes=[switches.MotionScope(areas=[area_id])],
                             device_id=device_id,
                             inactive=True,
                         )
@@ -5263,7 +5263,7 @@ class LightDesignerServer:
                         switches.ContactSensorConfig(
                             id=device_id,
                             name=name,
-                            areas=[switches.ContactAreaConfig(area_id=area_id)],
+                            scopes=[switches.ContactScope(areas=[area_id])],
                             device_id=device_id,
                             inactive=True,
                         )
@@ -6605,47 +6605,8 @@ class LightDesignerServer:
 
             if category == "motion_sensor":
                 # Handle motion sensor configuration
-                # Support both old format (areas with area_id) and new format (scopes with areas array)
-                scopes_data = data.get("scopes")
-                areas_data = data.get("areas", [])
-                areas = []
-
-                if scopes_data:
-                    # New format: scopes with multiple areas sharing settings
-                    # Expand each scope into individual MotionAreaConfig entries
-                    for scope in scopes_data:
-                        scope_areas = scope.get("areas", [])
-                        mode = scope.get("mode", "on_off")
-                        duration = scope.get("duration", 60)
-                        boost_enabled = scope.get("boost_enabled", False)
-                        boost_brightness = scope.get("boost_brightness", 50)
-                        active_when = scope.get("active_when", "always")
-                        active_offset = scope.get("active_offset", 0)
-                        cooldown = scope.get("cooldown", 0)
-                        trigger_entities = scope.get("trigger_entities", [])
-                        alert_intensity = scope.get("alert_intensity", "low")
-                        alert_count = scope.get("alert_count", 3)
-
-                        for area_id in scope_areas:
-                            areas.append(
-                                switches.MotionAreaConfig(
-                                    area_id=area_id,
-                                    mode=mode,
-                                    duration=duration,
-                                    boost_enabled=boost_enabled,
-                                    boost_brightness=boost_brightness,
-                                    active_when=active_when,
-                                    active_offset=active_offset,
-                                    cooldown=cooldown,
-                                    trigger_entities=trigger_entities,
-                                    alert_intensity=alert_intensity,
-                                    alert_count=alert_count,
-                                )
-                            )
-                else:
-                    # Old format: areas with area_id per entry
-                    for area_data in areas_data:
-                        areas.append(switches.MotionAreaConfig.from_dict(area_data))
+                scopes_data = data.get("scopes", [])
+                scopes = [switches.MotionScope.from_dict(s) for s in scopes_data]
 
                 # Resolve correct storage ID: if an existing config was stored
                 # by device_id (from auto-create), use that ID to update in place
@@ -6667,15 +6628,15 @@ class LightDesignerServer:
 
                 # Compute device-level trigger_entities as union of all scope lists
                 all_triggers = set()
-                for a in areas:
-                    all_triggers.update(a.trigger_entities)
+                for s in scopes:
+                    all_triggers.update(s.trigger_entities)
                 # Also include any device-level triggers from the payload
                 all_triggers.update(data.get("trigger_entities", []))
 
                 motion_config = switches.MotionSensorConfig(
                     id=sensor_id,
                     name=name,
-                    areas=areas,
+                    scopes=scopes,
                     device_id=device_id,
                     inactive=data.get("inactive", False),
                     inactive_until=data.get("inactive_until"),
@@ -6685,35 +6646,8 @@ class LightDesignerServer:
                 switches.add_motion_sensor(motion_config)
             elif category == "contact_sensor":
                 # Handle contact sensor configuration
-                # Support both old format (areas with area_id) and new format (scopes with areas array)
-                scopes_data = data.get("scopes")
-                areas_data = data.get("areas", [])
-                areas = []
-
-                if scopes_data:
-                    # New format: scopes with multiple areas sharing settings
-                    # Expand each scope into individual ContactAreaConfig entries
-                    for scope in scopes_data:
-                        scope_areas = scope.get("areas", [])
-                        mode = scope.get("mode", "on_off")
-                        duration = scope.get("duration", 60)
-                        boost_enabled = scope.get("boost_enabled", False)
-                        boost_brightness = scope.get("boost_brightness", 50)
-
-                        for area_id in scope_areas:
-                            areas.append(
-                                switches.ContactAreaConfig(
-                                    area_id=area_id,
-                                    mode=mode,
-                                    duration=duration,
-                                    boost_enabled=boost_enabled,
-                                    boost_brightness=boost_brightness,
-                                )
-                            )
-                else:
-                    # Old format: areas with area_id per entry
-                    for area_data in areas_data:
-                        areas.append(switches.ContactAreaConfig.from_dict(area_data))
+                scopes_data = data.get("scopes", [])
+                scopes = [switches.ContactScope.from_dict(s) for s in scopes_data]
 
                 # Resolve correct storage ID (same as motion sensor above)
                 sensor_id = control_id
@@ -6733,7 +6667,7 @@ class LightDesignerServer:
                 contact_config = switches.ContactSensorConfig(
                     id=sensor_id,
                     name=name,
-                    areas=areas,
+                    scopes=scopes,
                     device_id=device_id,
                     inactive=data.get("inactive", False),
                     inactive_until=data.get("inactive_until"),
