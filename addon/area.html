@@ -4033,6 +4033,7 @@
       card.classList.toggle('is-open');
       const isOpen = card.classList.contains('is-open');
       localStorage.setItem('auto_' + type + '_collapsed', isOpen ? 'false' : 'true');
+      updateAutoHeaderText(type);
       updateAutoOverrideIndicator(type);
     }
 
@@ -4146,6 +4147,9 @@
       }
     }
 
+    // Cache fetched next auto data for collapsed/expanded switching
+    const _cachedNextAuto = { on: null, off: null };
+
     async function fetchNextAutoSchedule(type) {
       if (!selectedArea) return;
       try {
@@ -4153,18 +4157,58 @@
         if (!res.ok) return;
         const data = await res.json();
         const status = data[selectedArea.area_id];
-        const nextEl = document.getElementById('auto-' + type + '-next');
-        if (!nextEl) return;
-        const enabled = document.getElementById('auto-' + type + '-enabled')?.checked;
-        if (!enabled) { nextEl.textContent = ''; return; }
-        const nxt = status?.['next_auto_' + type];
+        _cachedNextAuto[type] = status?.['next_auto_' + type] || null;
+        updateAutoHeaderText(type);
+      } catch (err) {
+        // fall back to client-side display
+      }
+    }
+
+    function _getAutoSourceLabel(type) {
+      const srcSunrise = document.getElementById('auto-' + type + '-src-sunrise');
+      const srcSunset = document.getElementById('auto-' + type + '-src-sunset');
+      if (srcSunrise?.checked) {
+        const offsetEl = document.getElementById('auto-' + type + '-offset-val');
+        const offsetText = offsetEl?.textContent?.trim() || '0 min';
+        if (offsetText === '0 min') return 'Sunrise';
+        return 'Sunrise ' + offsetText.replace(' min', 'm');
+      }
+      if (srcSunset?.checked) {
+        const offsetEl = document.getElementById('auto-' + type + '-offset-val');
+        const offsetText = offsetEl?.textContent?.trim() || '0 min';
+        if (offsetText === '0 min') return 'Sunset';
+        return 'Sunset ' + offsetText.replace(' min', 'm');
+      }
+      return '';
+    }
+
+    function updateAutoHeaderText(type) {
+      const nextEl = document.getElementById('auto-' + type + '-next');
+      if (!nextEl) return;
+      const enabled = document.getElementById('auto-' + type + '-enabled')?.checked;
+      if (!enabled) { nextEl.textContent = ''; return; }
+
+      const card = document.getElementById('auto-' + type + '-card');
+      const isOpen = card?.classList.contains('is-open');
+      const nxt = _cachedNextAuto[type];
+
+      if (isOpen) {
+        // Expanded: show resolved time + day
         if (nxt) {
           nextEl.textContent = nxt.time + (nxt.day ? ' ' + nxt.day : '');
         } else {
           nextEl.textContent = '';
         }
-      } catch (err) {
-        // fall back to client-side display
+      } else {
+        // Collapsed: show source label (Sunrise, Sunset -10m, etc.)
+        const srcLabel = _getAutoSourceLabel(type);
+        if (srcLabel) {
+          nextEl.textContent = srcLabel;
+        } else if (nxt) {
+          nextEl.textContent = nxt.time + (nxt.day ? ' ' + nxt.day : '');
+        } else {
+          nextEl.textContent = '';
+        }
       }
     }
 
