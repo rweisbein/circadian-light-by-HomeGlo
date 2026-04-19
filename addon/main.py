@@ -2935,23 +2935,77 @@ class HomeAssistantWebSocketClient:
                 logger.info(f"Feedback freeze: {len(targets)} area(s)")
 
             elif cue_type == "reach":
-                for i in range(scope_number):
-                    # Phase 1: flash
-                    def reach_flash(t):
-                        if t["was_on"]:
-                            return {"transition": 0}  # will turn_off
+                # Determine per-area flash behavior based on sun exposure
+                threshold = self.primitives._get_reach_daytime_threshold()
+                flash_tasks = []
+                restore_tasks = []
+
+                for t in targets:
+                    bri_pct = t["cached_bri"] / 2.55
+                    area_id = t["area_id"]
+
+                    # Check if area needs flash-up (sun exposure + low brightness)
+                    flash_up = False
+                    if area_id:
+                        sun_exposure = glozone.get_area_natural_light_exposure(area_id)
+                        if sun_exposure > 0:
+                            outdoor_norm = lux_tracker.get_outdoor_normalized() or 0.0
+                            if outdoor_norm > 0 and bri_pct < threshold:
+                                flash_up = True
+
+                    if t["was_on"]:
+                        if flash_up:
+                            # Flash UP to 100% (sun-dimmed, hard to see a dip)
+                            flash_tasks.append(
+                                self.call_service(
+                                    "light",
+                                    "turn_on",
+                                    {"brightness": 255, "transition": 0},
+                                    target=t["ha_target"],
+                                )
+                            )
                         else:
-                            # Off: flash on at bounce % with circadian color
+                            # Flash OFF
+                            flash_tasks.append(
+                                self.call_service(
+                                    "light",
+                                    "turn_off",
+                                    {"transition": 0},
+                                    target=t["ha_target"],
+                                )
+                            )
+                        # Restore to cached
+                        restore_tasks.append(
+                            self.call_service(
+                                "light",
+                                "turn_on",
+                                {"brightness": t["cached_bri"], "transition": 0},
+                                target=t["ha_target"],
+                            )
+                        )
+                    else:
+                        if flash_up:
+                            # Off + sun: flash UP to 100%
+                            flash_tasks.append(
+                                self.call_service(
+                                    "light",
+                                    "turn_on",
+                                    {"brightness": 255, "transition": 0},
+                                    target=t["ha_target"],
+                                )
+                            )
+                        else:
+                            # Off + no sun: flash on at bounce % with circadian color
                             bounce_pct = (
                                 self.primitives._get_limit_bounce_min_percent() / 100.0
                             )
                             flash_bri = max(1, int(255 * bounce_pct))
                             data = {"brightness": flash_bri, "transition": 0}
                             try:
-                                cfg = self.primitives._get_config(t["area_id"])
+                                cfg = self.primitives._get_config(area_id)
                                 hour = get_current_hour()
                                 sun_times = self._get_sun_times()
-                                a_state = self.primitives._get_area_state(t["area_id"])
+                                a_state = self.primitives._get_area_state(area_id)
                                 result = CircadianLight.calculate_lighting(
                                     hour, cfg, a_state, sun_times=sun_times
                                 )
@@ -2962,49 +3016,15 @@ class HomeAssistantWebSocketClient:
                                 )
                             except Exception:
                                 pass
-                            return data
-
-                    # Split by on/off — on areas get turn_off, off areas get turn_on
-                    on_targets = [t for t in targets if t["was_on"]]
-                    off_targets = [t for t in targets if not t["was_on"]]
-
-                    flash_tasks = []
-                    for t in on_targets:
-                        flash_tasks.append(
-                            self.call_service(
-                                "light",
-                                "turn_off",
-                                {"transition": 0},
-                                target=t["ha_target"],
+                            flash_tasks.append(
+                                self.call_service(
+                                    "light",
+                                    "turn_on",
+                                    data,
+                                    target=t["ha_target"],
+                                )
                             )
-                        )
-                    for t in off_targets:
-                        data = reach_flash(t)
-                        flash_tasks.append(
-                            self.call_service(
-                                "light",
-                                "turn_on",
-                                data,
-                                target=t["ha_target"],
-                            )
-                        )
-                    if flash_tasks:
-                        await asyncio.gather(*flash_tasks)
-
-                    await asyncio.sleep(0.3)
-
-                    # Phase 2: restore
-                    restore_tasks = []
-                    for t in on_targets:
-                        restore_tasks.append(
-                            self.call_service(
-                                "light",
-                                "turn_on",
-                                {"brightness": t["cached_bri"], "transition": 0},
-                                target=t["ha_target"],
-                            )
-                        )
-                    for t in off_targets:
+                        # Restore: off
                         restore_tasks.append(
                             self.call_service(
                                 "light",
@@ -3013,27 +3033,21 @@ class HomeAssistantWebSocketClient:
                                 target=t["ha_target"],
                             )
                         )
-                    if restore_tasks:
-                        await asyncio.gather(*restore_tasks)
 
-                    await asyncio.sleep(0.3)
+                # Single flash: phase 1 → sleep → phase 2
+                if flash_tasks:
+                    await asyncio.gather(*flash_tasks)
+                await asyncio.sleep(0.3)
+                if restore_tasks:
+                    await asyncio.gather(*restore_tasks)
 
-                # Final: ensure off areas stay off
-                for t in [t for t in targets if not t["was_on"]]:
-                    await self.call_service(
-                        "light",
-                        "turn_off",
-                        {"transition": 0},
-                        target=t["ha_target"],
-                    )
-                    if t["area_id"]:
+                # Ensure off areas stay off (reset off-confirm)
+                for t in targets:
+                    if not t["was_on"] and t["area_id"]:
                         state.reset_off_confirm_count(t["area_id"])
                         state.set_off_enforced(t["area_id"], False)
 
-                logger.info(
-                    f"Feedback reach: {scope_number} flash(es), "
-                    f"{len(targets)} area(s)"
-                )
+                logger.info(f"Feedback reach: 1 flash, " f"{len(targets)} area(s)")
 
         finally:
             self._defer_periodic_tick = False
