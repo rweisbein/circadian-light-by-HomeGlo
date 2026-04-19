@@ -322,9 +322,9 @@
     }
 
     @keyframes timer-motion-flash {
-      0%, 45% { visibility: visible; opacity: 1; }
-      50%, 95% { visibility: hidden; opacity: 0; }
-      100% { visibility: visible; opacity: 1; }
+      0%, 35% { opacity: 1; }
+      45%, 85% { opacity: 0; }
+      95%, 100% { opacity: 1; }
     }
 
     @keyframes timer-warning-pulse {
@@ -1482,7 +1482,11 @@
           parts.push(`<span class="timer-frozen">❄</span>`);
         }
 
-        el.innerHTML = parts.join('');
+        // Only update DOM if content changed (preserves CSS animations)
+        const newHtml = parts.join('');
+        if (el.innerHTML !== newHtml) {
+          el.innerHTML = newHtml;
+        }
       });
 
       // Schedule row (row 3): bed/wake left, auto on/off right
@@ -1505,7 +1509,10 @@
           } else if (nxtOff) {
             scheduleParts.push(formatAutoSchedulePill(nxtOff, 'off'));
           }
-          scheduleEl.innerHTML = scheduleParts.join('');
+          const newSchedule = scheduleParts.join('');
+          if (scheduleEl.innerHTML !== newSchedule) {
+            scheduleEl.innerHTML = newSchedule;
+          }
         }
 
         // Left side: bed/wake (already rendered as static HTML)
