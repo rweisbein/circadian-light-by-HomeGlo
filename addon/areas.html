@@ -296,7 +296,8 @@
     /* Timer styles (shared with homepage) */
     .timer-motion {
       color: #e2e8f0;
-      opacity: 0.9;
+      opacity: 0.8;
+      animation: timer-motion-pulse 2.5s ease-in-out infinite;
     }
 
     .timer-boost {
@@ -311,22 +312,20 @@
 
     .timer-alarm {
       color: #e2e8f0;
-      opacity: 0.9;
-      padding: 1px 1px;
-      border-radius: 3px;
-    }
-
-    .timer-arrow {
-      color: inherit;
-      margin: 0 3px;
+      opacity: 0.7;
     }
 
     .timer-warning {
       color: #e6a817;
-      animation: timer-pulse 1s ease-in-out infinite;
+      animation: timer-warning-pulse 1s ease-in-out infinite;
     }
 
-    @keyframes timer-pulse {
+    @keyframes timer-motion-pulse {
+      0%, 100% { opacity: 0.8; }
+      50% { opacity: 0.3; }
+    }
+
+    @keyframes timer-warning-pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.4; }
     }
@@ -426,14 +425,15 @@
     .row-status-row {
       display: flex;
       align-items: center;
-      gap: 4px;
-      padding: 0 0 3px 16px;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 0 8px 3px 16px;
     }
     .row-status-row:empty { display: none; }
 
-    .row-timer { font-size: 0.7rem; color: #e2e8f0; white-space: nowrap; background: rgba(0,0,0,0.5); border-radius: 3px; padding: 0 4px; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
+    .row-timer { font-size: 0.7rem; color: #e2e8f0; white-space: nowrap; display: inline-flex; align-items: center; gap: 10px; flex-shrink: 0; }
     .row-timer:empty { display: none; }
-    .row-timer .timer-sep { opacity: 0.3; }
+    .row-timer > span { background: rgba(0,0,0,0.5); border-radius: 3px; padding: 1px 5px; }
 
     /* Row middle: stacked name + slider column */
     .row-middle {
@@ -1397,7 +1397,7 @@
       }
       const text = day ? t + ' ' + day : t;
       const arrow = type === 'on' ? '\u25B2' : '\u25BC';
-      return `<span class="timer-alarm">\u23F0 ${text} ${arrow}</span>`;
+      return `<span class="timer-alarm">${arrow} ${text}</span>`;
     }
 
     function updateHomeTimers() {
@@ -1424,7 +1424,7 @@
             const s = remaining % 60;
             countdown = m > 0 ? `${m}m ${s}s` : `${s}s`;
           }
-          parts.push(`<span class="timer-fade">\u23F0 ${fadeIcon} ${target} ${countdown}</span>`);
+          parts.push(`<span class="timer-fade">${fadeIcon} ${target} ${countdown}</span>`);
         }
 
         // Auto schedule pill — show only the nearest one, skip entirely during fade
@@ -1466,7 +1466,7 @@
           parts.push(`<span class="timer-frozen">❄</span>`);
         }
 
-        el.innerHTML = parts.join('<span class="timer-sep">|</span>');
+        el.innerHTML = parts.join('');
         // Toggle status row visibility + adjust bottom spacing
         const statusRow = el.closest('.row-status-row');
         if (statusRow) {
