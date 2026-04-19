@@ -1547,9 +1547,9 @@
       const mins = Math.floor(remaining / 60000);
       const hours = Math.floor(mins / 60);
       const days = Math.floor(hours / 24);
-      if (days > 0) el.textContent = days + 'd ' + (hours % 24) + 'h left';
-      else if (hours > 0) el.textContent = hours + 'h ' + (mins % 60) + 'm left';
-      else el.textContent = mins + 'm left';
+      if (days > 0) el.textContent = 'unpause in ' + days + 'd ' + (hours % 24) + 'h';
+      else if (hours > 0) el.textContent = 'unpause in ' + hours + 'h ' + (mins % 60) + 'm';
+      else el.textContent = 'unpause in ' + mins + 'm';
     }
 
     function startPauseRemainingInterval() {
