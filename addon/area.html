@@ -464,7 +464,7 @@
     }
 
     /* Auto schedule section */
-    .auto-sched-section { margin: 16px 0 8px; display: flex; flex-direction: column; gap: 8px; }
+    .auto-sched-section { margin: 8px 0 8px; display: flex; flex-direction: column; gap: 8px; }
     .auto-sched-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; transition: border-color 0.2s; }
     .auto-sched-header { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 14px; user-select: none; }
     .auto-sched-title { font-size: 1.0rem; font-weight: 600; color: var(--text); }
@@ -839,15 +839,6 @@
         </div>
       </div>
     </div>
-    <div class="auto-sched-card" id="chart-card" style="margin-bottom: 0;">
-      <div class="auto-sched-header" onclick="toggleChartCard()">
-        <span class="auto-sched-chevron" id="chart-chevron">&#x203A;</span>
-        <span class="auto-sched-title">Curve</span>
-      </div>
-      <div class="auto-sched-body" id="chart-body">
-        <div id="mini-chart"></div>
-      </div>
-    </div>
     <button class="enable-circadian-btn" id="enable-circadian-btn"
             style="display:none;" onclick="executeAction('circadian_on')">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
@@ -865,8 +856,17 @@
     </button>
     </div>
 
-    <!-- Auto Schedule Section -->
+    <!-- Cards Section (curve + auto schedule) -->
     <div id="auto-sched-section" class="auto-sched-section" style="display:none;">
+    <div class="auto-sched-card" id="chart-card">
+      <div class="auto-sched-header" onclick="toggleChartCard()">
+        <span class="auto-sched-chevron" id="chart-chevron">&#x203A;</span>
+        <span class="auto-sched-title">Curve</span>
+      </div>
+      <div class="auto-sched-body" id="chart-body">
+        <div id="mini-chart"></div>
+      </div>
+    </div>
     <div class="auto-sched-card" id="auto-on-card">
         <div class="auto-sched-header" onclick="toggleAutoBody('on')">
           <span class="auto-sched-chevron" id="auto-on-chevron">&#x203A;</span>
