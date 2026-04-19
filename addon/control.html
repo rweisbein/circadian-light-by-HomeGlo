@@ -579,7 +579,7 @@
     .scope-card-action {
       font-size: 0.85rem;
       font-weight: 600;
-      color: var(--text);
+      color: var(--accent);
       flex-shrink: 0;
     }
 
@@ -591,7 +591,13 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      text-align: right;
+    }
+
+    .scope-action-hero {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 2px;
     }
 
     .scope-card-body {
@@ -1564,10 +1570,8 @@
 
       if (!editingInactiveUntil) {
         select.value = 'forever';
-        pauseSection.classList.remove('is-open');
       } else if (editingInactiveUntil === 'forever') {
         select.value = 'forever';
-        if (editingInactive) pauseSection.classList.add('is-open');
       } else {
         // Find closest matching option
         const remaining = new Date(editingInactiveUntil) - Date.now();
@@ -2238,13 +2242,13 @@
         const motionDownDisabled = idx === editingMotionScopes.length - 1 ? 'disabled' : '';
 
         if (!isExpanded) {
-          // Collapsed card: action + areas, no controls
+          // Collapsed card: areas left, action right (prominent)
           return `
             <div class="scope-card" data-motion-idx="${idx}">
               <div class="scope-card-header" onclick="toggleMotionScope(${idx})">
                 <span class="scope-card-chevron">&#x203A;</span>
-                <span class="scope-card-action">${_motionScopeAction(scope)}</span>
                 <span class="scope-card-areas">${_motionScopeAreas(scope)}</span>
+                <span class="scope-card-action">${_motionScopeAction(scope)}</span>
               </div>
             </div>
           `;
@@ -2266,8 +2270,7 @@
           <div class="scope-card is-open" data-motion-idx="${idx}">
             <div class="scope-card-header" onclick="toggleMotionScope(${idx})">
               <span class="scope-card-chevron">&#x203A;</span>
-              <span class="scope-card-action">${_motionScopeAction(scope)}</span>
-              <span style="flex:1;"></span>
+              <span class="scope-card-areas">${_motionScopeAreas(scope)}</span>
               <div class="scope-card-expanded-controls" onclick="event.stopPropagation()">
                 ${showMotionArrows ? `
                   <button class="scope-reorder-btn" ${motionUpDisabled} onclick="swapMotionScope(${idx}, -1)" title="Move up">&#9650;</button>
@@ -2293,11 +2296,10 @@
               ` : ''}
 
               <div class="scope-section">
-                <div class="scope-section-label">Action</div>
                 <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                  <select onchange="updateMotionScope(${idx}, 'mode', this.value)">
+                  <select class="scope-action-hero" onchange="updateMotionScope(${idx}, 'mode', this.value)" style="font-size: 1.1rem; font-weight: 700; color: var(--accent); background: transparent; border: none; border-bottom: 2px solid var(--accent); border-radius: 0; padding: 4px 2px; cursor: pointer;">
                     ${Object.entries(modeLabels).map(([value, label]) => `
-                      <option value="${value}" ${mode === value ? 'selected' : ''}>${label}</option>
+                      <option value="${value}" ${mode === value ? 'selected' : ''} style="font-size: 0.9rem; font-weight: 400; color: var(--text); background: var(--panel);">${label}</option>
                     `).join('')}
                   </select>
                   <div style="display: ${showDuration ? 'flex' : 'none'}; align-items: center; gap: 6px;">
