@@ -886,20 +886,10 @@
       </div>
     </div>
 
-    <!-- Reach card (motion/contact sensors) -->
-    <div class="ctrl-card is-open" id="motion-config-section" style="display: none;">
-      <div class="ctrl-card-header" onclick="toggleCard('motion-config-section')">
-        <span class="ctrl-card-chevron">&#x203A;</span>
-        <span class="ctrl-card-title">Reach</span>
-      </div>
-      <div class="ctrl-card-body">
-        <div class="ctrl-card-body-inner">
-          <div class="reach-container">
-            <div id="motion-scopes-editor"></div>
-            <button class="add-scope-btn" id="add-motion-scope-btn">Add Reach</button>
-          </div>
-        </div>
-      </div>
+    <!-- Reach cards (motion/contact sensors) -->
+    <div id="motion-config-section" style="display: none;">
+      <div id="motion-scopes-editor"></div>
+      <button class="add-scope-btn" id="add-motion-scope-btn" style="margin-top: 8px;">Add Reach</button>
     </div>
 
     <!-- Sensor-level cooldown removed — cooldown is per-scope (reach level) -->
