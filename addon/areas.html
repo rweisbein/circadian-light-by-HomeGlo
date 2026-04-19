@@ -439,8 +439,8 @@
     .row-status-row {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      padding: 0 16px 3px 0;
+      justify-content: flex-end;
+      padding: 0 16px 3px 16px;
     }
 
     .row-schedule-left {
@@ -448,6 +448,7 @@
       opacity: 0.8;
       white-space: nowrap;
       flex-shrink: 0;
+      margin-right: auto;
     }
     .row-schedule-left:empty { display: none; }
 
@@ -1488,14 +1489,12 @@
       document.querySelectorAll('[data-area-schedule]').forEach(el => {
         const areaId = el.getAttribute('data-area-schedule');
         const status = areaStatus[areaId] || {};
-        const fadeDir = status.fade_direction;
-
-        // Right side: auto schedule (skip during fade)
+        // Right side: auto schedule (always shown, even during fade)
         const scheduleEl = el.querySelector('.row-schedule-right');
         if (scheduleEl) {
           const scheduleParts = [];
-          const nxtOn = fadeDir ? null : status.next_auto_on;
-          const nxtOff = fadeDir ? null : status.next_auto_off;
+          const nxtOn = status.next_auto_on;
+          const nxtOff = status.next_auto_off;
           if (nxtOn && nxtOff) {
             const onAt = (nxtOn.fire_offset ?? nxtOn.offset ?? 999) * 24 + (nxtOn.decimal_hour ?? 0);
             const offAt = (nxtOff.fire_offset ?? nxtOff.offset ?? 999) * 24 + (nxtOff.decimal_hour ?? 0);
