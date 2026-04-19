@@ -464,7 +464,7 @@
       margin-top: 16px;
     }
 
-    /* Scope Editor */
+    /* Scope Editor (switches) */
     .scope-editor {
       margin-bottom: 14px;
       padding: 0;
@@ -491,6 +491,69 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
       flex: 1;
+    }
+
+    /* Scope Card (motion/contact collapsible reaches) */
+    .scope-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+    .scope-card:last-of-type {
+      margin-bottom: 0;
+    }
+
+    .scope-card-header {
+      display: flex;
+      align-items: center;
+      padding: 10px 12px;
+      cursor: pointer;
+      gap: 8px;
+    }
+    .scope-card-header:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .scope-card-chevron {
+      font-size: 1.1rem;
+      color: var(--muted);
+      transition: transform 0.2s;
+      flex-shrink: 0;
+    }
+    .scope-card.is-open .scope-card-chevron {
+      transform: rotate(90deg);
+    }
+
+    .scope-card-summary {
+      font-size: 0.85rem;
+      color: var(--text);
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .scope-card-body {
+      padding: 4px 16px 14px;
+      border-top: 1px solid var(--line);
+    }
+
+    .scope-section {
+      margin-top: 10px;
+    }
+    .scope-section:first-child {
+      margin-top: 4px;
+    }
+
+    .scope-section-label {
+      font-size: 0.7rem;
+      font-weight: 500;
+      color: var(--muted2);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
     }
 
     .scope-editor-remove {
@@ -2042,6 +2105,37 @@
       renderMotionScopesEditor();
     }
 
+    // Track which motion scopes are expanded (by index)
+    const _motionScopeExpanded = new Set();
+
+    function toggleMotionScope(idx) {
+      if (_motionScopeExpanded.has(idx)) {
+        _motionScopeExpanded.delete(idx);
+      } else {
+        _motionScopeExpanded.add(idx);
+      }
+      renderMotionScopesEditor();
+    }
+
+    function _motionScopeSummary(scope) {
+      const modeLabels = { 'on_only': 'On only', 'on_off': 'On/Off', 'alert': 'Alert', 'disabled': 'Disabled' };
+      const mode = scope.mode || 'on_off';
+      const modeLabel = modeLabels[mode] || mode;
+
+      const areaNames = (scope.areas || []).map(areaId => {
+        const area = allAreas.find(a => a.area_id === areaId);
+        return area ? area.name : areaId;
+      });
+      let areaText = '';
+      if (areaNames.length <= 3) {
+        areaText = areaNames.join(', ');
+      } else {
+        areaText = areaNames.slice(0, 2).join(', ') + ` +${areaNames.length - 2}`;
+      }
+
+      return `${modeLabel} · ${areaText || 'No areas'}`;
+    }
+
     function renderMotionScopesEditor() {
       const container = document.getElementById('motion-scopes-editor');
 
@@ -2052,7 +2146,18 @@
         'disabled': 'Disabled'
       };
 
+      // Check if trigger selector has meaningful choices
+      const hasTriggerChoices = _hasDeviceBinarySensors() && (() => {
+        const sensors = _getDeviceBinarySensors();
+        if (sensors.length === 0) return false;
+        const { categories } = _getCategoryEntities(sensors);
+        // More than just "any_motion" means there's a real choice
+        const catKeys = Object.keys(categories).filter(k => k !== 'any_motion');
+        return catKeys.length > 0;
+      })();
+
       container.innerHTML = editingMotionScopes.map((scope, idx) => {
+        const isExpanded = _motionScopeExpanded.has(idx);
         const durationMinutes = (scope.duration || 60) / 60;
         const mode = scope.mode || 'on_off';
         const boostEnabled = scope.boost_enabled || false;
@@ -2067,7 +2172,29 @@
         const showOffset = activeWhen !== 'always';
         const cooldown = scope.cooldown || 0;
 
-        // Build area chips
+        const showMotionArrows = editingMotionScopes.length > 1;
+        const motionUpDisabled = idx === 0 ? 'disabled' : '';
+        const motionDownDisabled = idx === editingMotionScopes.length - 1 ? 'disabled' : '';
+
+        if (!isExpanded) {
+          // Collapsed card: summary + expand
+          return `
+            <div class="scope-card" data-motion-idx="${idx}">
+              <div class="scope-card-header" onclick="toggleMotionScope(${idx})">
+                <span class="scope-card-chevron">&#x203A;</span>
+                <span class="scope-card-summary">${_motionScopeSummary(scope)}</span>
+                ${showMotionArrows ? `
+                  <div class="scope-reorder-arrows" onclick="event.stopPropagation()">
+                    <button class="scope-reorder-arrow" ${motionUpDisabled} onclick="swapMotionScope(${idx}, -1)" title="Move up">&#9650;</button>
+                    <button class="scope-reorder-arrow" ${motionDownDisabled} onclick="swapMotionScope(${idx}, 1)" title="Move down">&#9660;</button>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          `;
+        }
+
+        // Expanded card: full edit UI
         const areaChips = (scope.areas || []).map(areaId => {
           const area = allAreas.find(a => a.area_id === areaId);
           const areaName = area ? area.name : areaId;
@@ -2079,108 +2206,123 @@
           `;
         }).join('');
 
-        const showMotionArrows = editingMotionScopes.length > 1;
-        const motionUpDisabled = idx === 0 ? 'disabled' : '';
-        const motionDownDisabled = idx === editingMotionScopes.length - 1 ? 'disabled' : '';
-
         return `
-          <div class="scope-editor" data-motion-idx="${idx}">
-            <div class="scope-editor-header">
-              <span class="scope-editor-title">Reach ${idx + 1}</span>
+          <div class="scope-card is-open" data-motion-idx="${idx}">
+            <div class="scope-card-header" onclick="toggleMotionScope(${idx})">
+              <span class="scope-card-chevron">&#x203A;</span>
+              <span class="scope-card-summary">${_motionScopeSummary(scope)}</span>
               ${showMotionArrows ? `
-                <div class="scope-reorder-arrows">
+                <div class="scope-reorder-arrows" onclick="event.stopPropagation()">
                   <button class="scope-reorder-arrow" ${motionUpDisabled} onclick="swapMotionScope(${idx}, -1)" title="Move up">&#9650;</button>
                   <button class="scope-reorder-arrow" ${motionDownDisabled} onclick="swapMotionScope(${idx}, 1)" title="Move down">&#9660;</button>
                 </div>
               ` : ''}
-              ${editingMotionScopes.length > 1 ? `<button class="scope-editor-remove" onclick="removeMotionScope(${idx})">remove</button>` : ''}
+              ${editingMotionScopes.length > 1 ? `<button class="scope-editor-remove" onclick="event.stopPropagation(); removeMotionScope(${idx})">remove</button>` : ''}
             </div>
-            <div class="area-chips">
-              ${areaChips}
-              <button class="add-areas-chip" onclick="addAreasToMotionScope(${idx})">+</button>
-            </div>
-            ${_renderTriggerSelector(scope, idx)}
+            <div class="scope-card-body">
+              <div class="scope-section">
+                <div class="scope-section-label">Areas</div>
+                <div class="area-chips">
+                  ${areaChips}
+                  <button class="add-areas-chip" onclick="addAreasToMotionScope(${idx})">+</button>
+                </div>
+              </div>
 
-            <div style="margin-top: 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-              <select onchange="updateMotionScope(${idx}, 'mode', this.value)">
-                ${Object.entries(modeLabels).map(([value, label]) => `
-                  <option value="${value}" ${mode === value ? 'selected' : ''}>${label}</option>
-                `).join('')}
-              </select>
-              <div style="display: ${showDuration ? 'flex' : 'none'}; align-items: center; gap: 6px;">
-                <div class="number-input-wrap">
-                  <input type="number" id="duration-${idx}" style="width: 60px;" value="${durationMinutes}" min="0.5" max="60" step="0.5"
-                    onchange="updateMotionScope(${idx}, 'duration', Math.round(parseFloat(this.value) * 60))">
-                  <div class="number-input-btns">
-                    <button type="button" onclick="stepNumberInput('duration-${idx}', 0.5)">&#9650;</button>
-                    <button type="button" onclick="stepNumberInput('duration-${idx}', -0.5)">&#9660;</button>
+              ${hasTriggerChoices ? `
+                <div class="scope-section">
+                  <div class="scope-section-label">Presence</div>
+                  ${_renderTriggerSelector(scope, idx)}
+                </div>
+              ` : ''}
+
+              <div class="scope-section">
+                <div class="scope-section-label">Action</div>
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                  <select onchange="updateMotionScope(${idx}, 'mode', this.value)">
+                    ${Object.entries(modeLabels).map(([value, label]) => `
+                      <option value="${value}" ${mode === value ? 'selected' : ''}>${label}</option>
+                    `).join('')}
+                  </select>
+                  <div style="display: ${showDuration ? 'flex' : 'none'}; align-items: center; gap: 6px;">
+                    <div class="number-input-wrap">
+                      <input type="number" id="duration-${idx}" style="width: 60px;" value="${durationMinutes}" min="0.5" max="60" step="0.5"
+                        onchange="updateMotionScope(${idx}, 'duration', Math.round(parseFloat(this.value) * 60))">
+                      <div class="number-input-btns">
+                        <button type="button" onclick="stepNumberInput('duration-${idx}', 0.5)">&#9650;</button>
+                        <button type="button" onclick="stepNumberInput('duration-${idx}', -0.5)">&#9660;</button>
+                      </div>
+                    </div>
+                    <span style="color: var(--muted); font-size: 0.85rem;">min</span>
+                  </div>
+                  <label style="display: ${showBoost ? 'flex' : 'none'}; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox" style="width: 16px; height: 16px;" ${boostEnabled ? 'checked' : ''}
+                      onchange="updateMotionScope(${idx}, 'boost_enabled', this.checked)">
+                    <span style="font-size: 0.85rem;">Boost</span>
+                  </label>
+                  <div style="display: ${boostEnabled && showBoost ? 'flex' : 'none'}; align-items: center; gap: 6px;">
+                    <span style="color: var(--muted); font-size: 0.85rem;">+</span>
+                    <div class="number-input-wrap">
+                      <input type="number" id="boost-${idx}" style="width: 55px;" value="${boostBrightness}" min="5" max="100" step="5"
+                        onchange="updateMotionScope(${idx}, 'boost_brightness', parseInt(this.value))">
+                      <div class="number-input-btns">
+                        <button type="button" onclick="stepNumberInput('boost-${idx}', 5)">&#9650;</button>
+                        <button type="button" onclick="stepNumberInput('boost-${idx}', -5)">&#9660;</button>
+                      </div>
+                    </div>
+                    <span style="color: var(--muted); font-size: 0.85rem;">%</span>
+                  </div>
+                  <div style="display: ${showAlert ? 'flex' : 'none'}; align-items: center; gap: 8px;">
+                    <select onchange="updateMotionScope(${idx}, 'alert_intensity', this.value)">
+                      <option value="low" ${alertIntensity === 'low' ? 'selected' : ''}>Low</option>
+                      <option value="med" ${alertIntensity === 'med' ? 'selected' : ''}>Med</option>
+                      <option value="high" ${alertIntensity === 'high' ? 'selected' : ''}>High</option>
+                    </select>
+                    <div class="number-input-wrap">
+                      <input type="number" id="alert-count-${idx}" style="width: 45px;" value="${alertCount}" min="1" max="10" step="1"
+                        onchange="updateMotionScope(${idx}, 'alert_count', parseInt(this.value))">
+                      <div class="number-input-btns">
+                        <button type="button" onclick="stepNumberInput('alert-count-${idx}', 1)">&#9650;</button>
+                        <button type="button" onclick="stepNumberInput('alert-count-${idx}', -1)">&#9660;</button>
+                      </div>
+                    </div>
+                    <span style="color: var(--muted); font-size: 0.85rem;">bounces</span>
                   </div>
                 </div>
-                <span style="color: var(--muted); font-size: 0.85rem;">min</span>
               </div>
-              <label style="display: ${showBoost ? 'flex' : 'none'}; align-items: center; gap: 6px; cursor: pointer;">
-                <input type="checkbox" style="width: 16px; height: 16px;" ${boostEnabled ? 'checked' : ''}
-                  onchange="updateMotionScope(${idx}, 'boost_enabled', this.checked)">
-                <span style="font-size: 0.85rem;">Boost</span>
-              </label>
-              <div style="display: ${boostEnabled && showBoost ? 'flex' : 'none'}; align-items: center; gap: 6px;">
-                <span style="color: var(--muted); font-size: 0.85rem;">+</span>
-                <div class="number-input-wrap">
-                  <input type="number" id="boost-${idx}" style="width: 55px;" value="${boostBrightness}" min="5" max="100" step="5"
-                    onchange="updateMotionScope(${idx}, 'boost_brightness', parseInt(this.value))">
-                  <div class="number-input-btns">
-                    <button type="button" onclick="stepNumberInput('boost-${idx}', 5)">&#9650;</button>
-                    <button type="button" onclick="stepNumberInput('boost-${idx}', -5)">&#9660;</button>
+
+              <div class="scope-section">
+                <div class="scope-section-label">Schedule</div>
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                  <select onchange="updateMotionScope(${idx}, 'active_when', this.value)">
+                    <option value="always" ${activeWhen === 'always' ? 'selected' : ''}>Always</option>
+                    <option value="sunset_to_sunrise" ${activeWhen === 'sunset_to_sunrise' ? 'selected' : ''}>Sunset to Sunrise</option>
+                    <option value="wake_to_bed" ${activeWhen === 'wake_to_bed' ? 'selected' : ''}>Wake to Bed</option>
+                  </select>
+                  <div style="display: ${showOffset ? 'flex' : 'none'}; align-items: center; gap: 6px;">
+                    <span style="color: var(--muted); font-size: 0.85rem;">\u00b1</span>
+                    <div class="number-input-wrap">
+                      <input type="number" id="offset-${idx}" style="width: 45px;" value="${activeOffset}"
+                        min="-120" max="120" step="5"
+                        onchange="updateMotionScope(${idx}, 'active_offset', parseInt(this.value))">
+                      <div class="number-input-btns">
+                        <button type="button" onclick="stepNumberInput('offset-${idx}', 5)">&#9650;</button>
+                        <button type="button" onclick="stepNumberInput('offset-${idx}', -5)">&#9660;</button>
+                      </div>
+                    </div>
+                    <span style="color: var(--muted); font-size: 0.85rem;">min</span>
                   </div>
-                </div>
-                <span style="color: var(--muted); font-size: 0.85rem;">%</span>
-              </div>
-              <div style="display: ${showAlert ? 'flex' : 'none'}; align-items: center; gap: 8px;">
-                <select onchange="updateMotionScope(${idx}, 'alert_intensity', this.value)">
-                  <option value="low" ${alertIntensity === 'low' ? 'selected' : ''}>Low</option>
-                  <option value="med" ${alertIntensity === 'med' ? 'selected' : ''}>Med</option>
-                  <option value="high" ${alertIntensity === 'high' ? 'selected' : ''}>High</option>
-                </select>
-                <div class="number-input-wrap">
-                  <input type="number" id="alert-count-${idx}" style="width: 45px;" value="${alertCount}" min="1" max="10" step="1"
-                    onchange="updateMotionScope(${idx}, 'alert_count', parseInt(this.value))">
-                  <div class="number-input-btns">
-                    <button type="button" onclick="stepNumberInput('alert-count-${idx}', 1)">&#9650;</button>
-                    <button type="button" onclick="stepNumberInput('alert-count-${idx}', -1)">&#9660;</button>
+                  <span style="color: var(--muted); font-size: 0.85rem;">Cooloff</span>
+                  <div class="number-input-wrap">
+                    <input type="number" id="cooldown-${idx}" style="width: 55px;" value="${cooldown}" min="0" max="300" step="5"
+                      onchange="updateMotionScope(${idx}, 'cooldown', parseInt(this.value) || 0)">
+                    <div class="number-input-btns">
+                      <button type="button" onclick="stepNumberInput('cooldown-${idx}', 5)">&#9650;</button>
+                      <button type="button" onclick="stepNumberInput('cooldown-${idx}', -5)">&#9660;</button>
+                    </div>
                   </div>
-                </div>
-                <span style="color: var(--muted); font-size: 0.85rem;">bounces</span>
-              </div>
-            </div>
-            <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-              <select onchange="updateMotionScope(${idx}, 'active_when', this.value)">
-                <option value="always" ${activeWhen === 'always' ? 'selected' : ''}>Always</option>
-                <option value="sunset_to_sunrise" ${activeWhen === 'sunset_to_sunrise' ? 'selected' : ''}>Sunset to Sunrise</option>
-                <option value="wake_to_bed" ${activeWhen === 'wake_to_bed' ? 'selected' : ''}>Wake to Bed</option>
-              </select>
-              <div style="display: ${showOffset ? 'flex' : 'none'}; align-items: center; gap: 6px;">
-                <span style="color: var(--muted); font-size: 0.85rem;">\u00b1</span>
-                <div class="number-input-wrap">
-                  <input type="number" id="offset-${idx}" style="width: 45px;" value="${activeOffset}"
-                    min="-120" max="120" step="5"
-                    onchange="updateMotionScope(${idx}, 'active_offset', parseInt(this.value))">
-                  <div class="number-input-btns">
-                    <button type="button" onclick="stepNumberInput('offset-${idx}', 5)">&#9650;</button>
-                    <button type="button" onclick="stepNumberInput('offset-${idx}', -5)">&#9660;</button>
-                  </div>
-                </div>
-                <span style="color: var(--muted); font-size: 0.85rem;">min</span>
-              </div>
-              <span style="color: var(--muted); font-size: 0.85rem;">Cooloff</span>
-              <div class="number-input-wrap">
-                <input type="number" id="cooldown-${idx}" style="width: 55px;" value="${cooldown}" min="0" max="300" step="5"
-                  onchange="updateMotionScope(${idx}, 'cooldown', parseInt(this.value) || 0)">
-                <div class="number-input-btns">
-                  <button type="button" onclick="stepNumberInput('cooldown-${idx}', 5)">&#9650;</button>
-                  <button type="button" onclick="stepNumberInput('cooldown-${idx}', -5)">&#9660;</button>
+                  <span style="color: var(--muted); font-size: 0.85rem;">sec</span>
                 </div>
               </div>
-              <span style="color: var(--muted); font-size: 0.85rem;">sec</span>
             </div>
           </div>
         `;
@@ -2192,6 +2334,7 @@
         alert('Maximum 5 reaches allowed');
         return;
       }
+      const newIdx = editingMotionScopes.length;
       editingMotionScopes.push({
         areas: [],
         mode: 'on_off',
@@ -2205,6 +2348,7 @@
         alert_intensity: 'low',
         alert_count: 3,
       });
+      _motionScopeExpanded.add(newIdx);
       renderMotionScopesEditor();
       autoSave();
     }
@@ -2213,6 +2357,14 @@
       if (editingMotionScopes.length <= 1) return;
       if (!confirm(`Remove Reach ${idx + 1}?`)) return;
       editingMotionScopes.splice(idx, 1);
+      // Rebuild expanded set with shifted indices
+      const newExpanded = new Set();
+      for (const i of _motionScopeExpanded) {
+        if (i < idx) newExpanded.add(i);
+        else if (i > idx) newExpanded.add(i - 1);
+      }
+      _motionScopeExpanded.clear();
+      for (const i of newExpanded) _motionScopeExpanded.add(i);
       renderMotionScopesEditor();
       autoSave();
     }
@@ -2221,6 +2373,11 @@
       const newIdx = idx + direction;
       if (newIdx < 0 || newIdx >= editingMotionScopes.length) return;
       [editingMotionScopes[idx], editingMotionScopes[newIdx]] = [editingMotionScopes[newIdx], editingMotionScopes[idx]];
+      // Swap expanded state too
+      const aExp = _motionScopeExpanded.has(idx);
+      const bExp = _motionScopeExpanded.has(newIdx);
+      if (aExp) _motionScopeExpanded.add(newIdx); else _motionScopeExpanded.delete(newIdx);
+      if (bExp) _motionScopeExpanded.add(idx); else _motionScopeExpanded.delete(idx);
       renderMotionScopesEditor();
       autoSave();
     }
