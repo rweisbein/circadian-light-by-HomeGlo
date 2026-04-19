@@ -1997,11 +1997,12 @@ def get_reach_key(areas: List[str]) -> str:
 
 
 def get_all_unique_reaches() -> Dict[str, List[str]]:
-    """Collect multi-area reaches from all configured switches.
+    """Collect multi-area reaches from all configured controls.
 
-    Scans all switches and their scopes to find unique reach combinations
-    that span multiple areas. Single-area reaches are excluded since they
-    can use existing area-level groups.
+    Scans all switches, motion sensors, and contact sensors and their
+    scopes to find unique reach combinations that span multiple areas.
+    Single-area reaches are excluded since they can use existing
+    area-level groups.
 
     Returns:
         Dict of reach_key -> list of sorted area IDs
@@ -2009,9 +2010,26 @@ def get_all_unique_reaches() -> Dict[str, List[str]]:
     _reload_switches()  # Ensure we have latest config
     reaches = {}
 
+    # Switch scopes
     for switch in _switches.values():
         for scope in switch.scopes:
-            if len(scope.areas) >= 2:  # Only multi-area reaches
+            if len(scope.areas) >= 2:
+                key = get_reach_key(scope.areas)
+                if key not in reaches:
+                    reaches[key] = sorted(set(scope.areas))
+
+    # Motion sensor scopes
+    for sensor in _motion_sensors.values():
+        for scope in sensor.scopes:
+            if len(scope.areas) >= 2:
+                key = get_reach_key(scope.areas)
+                if key not in reaches:
+                    reaches[key] = sorted(set(scope.areas))
+
+    # Contact sensor scopes
+    for sensor in _contact_sensors.values():
+        for scope in sensor.scopes:
+            if len(scope.areas) >= 2:
                 key = get_reach_key(scope.areas)
                 if key not in reaches:
                     reaches[key] = sorted(set(scope.areas))

@@ -1385,6 +1385,7 @@ class CircadianLightPrimitives:
         boost_brightness: int = None,
         boost_duration: int = None,
         from_motion: bool = False,
+        send_command: bool = True,
     ):
         """Turn on lights with Circadian values and enable Circadian control.
 
@@ -1403,6 +1404,7 @@ class CircadianLightPrimitives:
                 if boost_brightness is provided.
             from_motion: If True, couple boost timer to motion timer (boost ends
                 when motion timer ends, not independently).
+            send_command: Whether to send light commands (False for batch dispatch)
         """
         if source not in (
             "auto_on",
@@ -1488,17 +1490,18 @@ class CircadianLightPrimitives:
         if has_boost:
             pipeline_kwargs["boost_brightness"] = boost_brightness
 
-        await self._send_light(
-            area_id,
-            final_brightness,
-            result.color_temp,
-            include_color=True,
-            transition=transition,
-            **pipeline_kwargs,
-        )
+        if send_command:
+            await self._send_light(
+                area_id,
+                final_brightness,
+                result.color_temp,
+                include_color=True,
+                transition=transition,
+                **pipeline_kwargs,
+            )
 
-        # Also turn on any switch entities (relays, smart plugs) in the area
-        await self.client.turn_on_switch_entities(area_id)
+            # Also turn on any switch entities (relays, smart plugs) in the area
+            await self.client.turn_on_switch_entities(area_id)
 
         if has_boost:
             logger.info(
@@ -2178,6 +2181,7 @@ class CircadianLightPrimitives:
         source: str = "motion_sensor",
         boost_brightness: int = None,
         boost_duration: int = None,
+        send_command: bool = True,
     ):
         """Turn on lights if off, do nothing if already on.
 
@@ -2224,6 +2228,7 @@ class CircadianLightPrimitives:
             boost_brightness=boost_brightness,
             boost_duration=boost_duration,
             from_motion=False,
+            send_command=send_command,
         )
 
         # on_only means lights stay on — override started_from_off so boost
@@ -2248,6 +2253,7 @@ class CircadianLightPrimitives:
         source: str = "motion_sensor",
         boost_brightness: int = None,
         boost_duration: int = None,
+        send_command: bool = True,
     ):
         """Turn on lights with timer, auto-off when timer expires.
 
@@ -2356,6 +2362,7 @@ class CircadianLightPrimitives:
             boost_brightness=boost_brightness,
             boost_duration=boost_duration,
             from_motion=True,
+            send_command=send_command,
         )
 
     async def end_motion_on_off(self, area_id: str, source: str = "timer"):

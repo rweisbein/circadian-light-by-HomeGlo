@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.55
+- **Batch groups from all controls**: `get_all_unique_reaches()` now includes multi-area scopes from motion sensors and contact sensors, not just switches.
+- **Wire motion/contact event handlers for batch dispatch**: Multi-area motion and contact events now use batch groups when available. `lights_on`, `motion_on_off`, and `motion_on_only` accept `send_command=False` for deferred batch delivery.
+
 ## 1.2.43
 - **Fix batch group creation**: Groups are now created per-reach (areas must share balance AND appear in the same reach), not globally pooled. Prevents creating groups for areas that never get commanded together. Deduplicates across reaches when the same area subset appears in multiple scopes. Batch group log now includes area list.
 - **Wire glozone_down/full_send/glozone_reset_full for batch dispatch**: These zone-level primitives now use batch groups when available. `glozone_down` accepts `send_command=False` and returns affected areas for batch dispatch.

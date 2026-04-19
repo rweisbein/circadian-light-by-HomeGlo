@@ -715,6 +715,8 @@ class HomeAssistantWebSocketClient:
                 existing["active_configs"].append(area_config)
 
         # Process each merged area
+        # Collect areas that need light commands for batch dispatch
+        areas_needing_commands = []
         for area_id, merged in merged_areas.items():
             mode = merged["mode"]
             duration = merged["duration"]
@@ -747,6 +749,10 @@ class HomeAssistantWebSocketClient:
                 )
                 boost_duration = duration if merged["boost_enabled"] else None
 
+                # Use batch dispatch: set state without sending commands
+                use_batch = len(merged_areas) >= 2
+                send = not use_batch
+
                 # Motion detected - handle mode (power behavior)
                 # Boost is passed through to avoid intermediate brightness flash
                 if mode == "on_off":
@@ -756,6 +762,7 @@ class HomeAssistantWebSocketClient:
                         source="motion_sensor",
                         boost_brightness=boost_brightness,
                         boost_duration=boost_duration,
+                        send_command=send,
                     )
                 elif mode == "on_only":
                     await self.primitives.motion_on_only(
@@ -763,11 +770,25 @@ class HomeAssistantWebSocketClient:
                         source="motion_sensor",
                         boost_brightness=boost_brightness,
                         boost_duration=boost_duration,
+                        send_command=send,
                     )
+
+                if (
+                    use_batch
+                    and state.is_circadian(area_id)
+                    and state.get_is_on(area_id)
+                ):
+                    areas_needing_commands.append(area_id)
 
             # Note: For on_off, the timer is managed via motion_expires_at state
             # When motion clears, we don't need to do anything - the timer continues
             # If motion is detected again, motion_on_off extends the timer
+
+        # Batch dispatch light commands for multi-area motion
+        if areas_needing_commands:
+            await self._send_via_batch_or_fallback(
+                areas_needing_commands, [True for _ in areas_needing_commands]
+            )
 
         # Process alert scopes (independent of power modes, only on motion-on)
         # Run all alert bounces concurrently to minimize total blocking time
@@ -911,6 +932,7 @@ class HomeAssistantWebSocketClient:
                     existing["duration"] = area_config.duration
                 existing["active_configs"].append(area_config)
 
+        zha_areas_needing_commands = []
         for area_id, merged in merged_areas.items():
             mode = merged["mode"]
             duration = merged["duration"]
@@ -938,6 +960,10 @@ class HomeAssistantWebSocketClient:
             )
             boost_duration = duration if merged["boost_enabled"] else None
 
+            # Use batch dispatch for multi-area
+            use_batch = len(merged_areas) >= 2
+            send = not use_batch
+
             if mode == "on_off":
                 await self.primitives.motion_on_off(
                     area_id,
@@ -945,6 +971,7 @@ class HomeAssistantWebSocketClient:
                     source="motion_sensor",
                     boost_brightness=boost_brightness,
                     boost_duration=boost_duration,
+                    send_command=send,
                 )
             elif mode == "on_only":
                 await self.primitives.motion_on_only(
@@ -952,7 +979,17 @@ class HomeAssistantWebSocketClient:
                     source="motion_sensor",
                     boost_brightness=boost_brightness,
                     boost_duration=boost_duration,
+                    send_command=send,
                 )
+
+            if use_batch and state.is_circadian(area_id) and state.get_is_on(area_id):
+                zha_areas_needing_commands.append(area_id)
+
+        # Batch dispatch light commands for multi-area ZHA motion
+        if zha_areas_needing_commands:
+            await self._send_via_batch_or_fallback(
+                zha_areas_needing_commands, [True for _ in zha_areas_needing_commands]
+            )
 
     async def _handle_contact_event(
         self, entity_id: str, new_state: str, old_state: str
@@ -1009,6 +1046,10 @@ class HomeAssistantWebSocketClient:
         )
 
         # Process each area configured for this sensor
+        contact_areas_needing_commands = []
+        active_areas = [ac for ac in sensor_config.areas if ac.mode != "disabled"]
+        use_batch = len(active_areas) >= 2
+
         for area_config in sensor_config.areas:
             area_id = area_config.area_id
             mode = area_config.mode
@@ -1034,6 +1075,8 @@ class HomeAssistantWebSocketClient:
                 )
                 boost_duration = duration if area_config.boost_enabled else None
 
+                send = not use_batch
+
                 # Contact opened - handle mode (power behavior)
                 # Boost is passed through to avoid intermediate brightness flash
                 if mode == "on_off":
@@ -1043,6 +1086,7 @@ class HomeAssistantWebSocketClient:
                         source="contact_sensor",
                         boost_brightness=boost_brightness,
                         boost_duration=boost_duration,
+                        send_command=send,
                     )
                 elif mode == "on_only":
                     await self.primitives.motion_on_only(
@@ -1050,7 +1094,15 @@ class HomeAssistantWebSocketClient:
                         source="contact_sensor",
                         boost_brightness=boost_brightness,
                         boost_duration=boost_duration,
+                        send_command=send,
                     )
+
+                if (
+                    use_batch
+                    and state.is_circadian(area_id)
+                    and state.get_is_on(area_id)
+                ):
+                    contact_areas_needing_commands.append(area_id)
 
             else:
                 # Contact closed - handle close behaviors
@@ -1083,6 +1135,13 @@ class HomeAssistantWebSocketClient:
                             area_id, source="contact_sensor"
                         )
                 # on_only: ignore close event (lights stay on until manually turned off)
+
+        # Batch dispatch light commands for multi-area contact
+        if contact_areas_needing_commands:
+            await self._send_via_batch_or_fallback(
+                contact_areas_needing_commands,
+                [True for _ in contact_areas_needing_commands],
+            )
 
     # =========================================================================
     # ZHA Switch Event Handling
