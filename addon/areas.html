@@ -462,7 +462,7 @@
       flex-shrink: 0;
     }
     .row-schedule-right:empty { display: none; }
-    .row-schedule-right > span { background: rgba(0,0,0,0.5); border-radius: 3px; padding: 1px 5px; }
+    .row-schedule-right > span, .row-schedule-right > a { background: rgba(0,0,0,0.5); border-radius: 3px; padding: 1px 5px; }
 
     /* Row middle: stacked name + slider column */
     .row-middle {
@@ -1483,10 +1483,30 @@
           parts.push(`<span class="timer-frozen">❄</span>`);
         }
 
-        // Only update DOM if content changed (preserves CSS animations)
-        const newHtml = parts.join('');
-        if (el.innerHTML !== newHtml) {
-          el.innerHTML = newHtml;
+        // Smart DOM update: update text/class of existing spans without
+        // destroying them (preserves CSS animations across content changes)
+        const existing = el.children;
+        if (parts.length === existing.length) {
+          // Same number of children — update in place
+          let needsRebuild = false;
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = parts.join('');
+          const newChildren = tempDiv.children;
+          for (let i = 0; i < parts.length; i++) {
+            if (existing[i].className !== newChildren[i].className) {
+              needsRebuild = true;
+              break;
+            }
+            if (existing[i].textContent !== newChildren[i].textContent) {
+              existing[i].textContent = newChildren[i].textContent;
+            }
+          }
+          if (needsRebuild) {
+            el.innerHTML = parts.join('');
+          }
+        } else {
+          // Different structure — full rebuild
+          el.innerHTML = parts.join('');
         }
       });
 
