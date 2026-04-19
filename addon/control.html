@@ -2698,6 +2698,7 @@
 
       // Show settings section for all control types and set checkbox + timer
       pauseSection.style.display = '';
+      pauseSection.classList.add('is-open');
       document.getElementById('control-pause-checkbox').checked = editingInactive;
       document.getElementById('pause-timer-row').style.display = editingInactive ? 'flex' : 'none';
       initPauseTimer(ctrl.inactive_until);
