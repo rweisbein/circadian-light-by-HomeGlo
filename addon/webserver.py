@@ -6069,8 +6069,8 @@ class LightDesignerServer:
                         else None
                     )
                     config = motion_config.to_dict() if motion_config else {}
-                    config_areas = config.get("areas", [])
-                    is_configured = bool(config_areas)
+                    config_scopes = config.get("scopes", [])
+                    is_configured = any(s.get("areas") for s in config_scopes)
                 elif category == "contact_sensor":
                     # Look up by device_id for contact sensors
                     contact_config = (
@@ -6079,8 +6079,8 @@ class LightDesignerServer:
                         else None
                     )
                     config = contact_config.to_dict() if contact_config else {}
-                    config_areas = config.get("areas", [])
-                    is_configured = bool(config_areas)
+                    config_scopes = config.get("scopes", [])
+                    is_configured = any(s.get("areas") for s in config_scopes)
                 else:
                     # Look up by ieee for switches
                     config = configured_switches.get(ieee, {})
@@ -6144,7 +6144,7 @@ class LightDesignerServer:
                 control_data["inactive"] = config.get("inactive", False)
                 control_data["inactive_until"] = config.get("inactive_until")
                 if category in ("motion_sensor", "contact_sensor"):
-                    control_data["areas"] = config.get("areas", [])
+                    control_data["scopes"] = config.get("scopes", [])
                     control_data["cooldown"] = config.get("cooldown", 0)
                     control_data["trigger_entities"] = config.get(
                         "trigger_entities", []
@@ -6216,7 +6216,7 @@ class LightDesignerServer:
                             "illuminance": None,
                             "inactive": config.get("inactive", False),
                             "inactive_until": config.get("inactive_until"),
-                            "areas": config.get("areas", []),
+                            "scopes": config.get("scopes", []),
                             "cooldown": config.get("cooldown", 0),
                         }
                     )
@@ -6248,7 +6248,7 @@ class LightDesignerServer:
                             "illuminance": None,
                             "inactive": config.get("inactive", False),
                             "inactive_until": config.get("inactive_until"),
-                            "areas": config.get("areas", []),
+                            "scopes": config.get("scopes", []),
                             "cooldown": config.get("cooldown", 0),
                         }
                     )
