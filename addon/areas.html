@@ -196,8 +196,7 @@
       color: var(--muted);
     }
 
-    @keyframes fade-pulse { 0%,100% { opacity: 0.9; } 50% { opacity: 0.4; } }
-    .timer-fade { color: #e2e8f0; opacity: 0.9; animation: fade-pulse 2.5s ease-in-out infinite; }
+    .timer-fade { color: #e2e8f0; animation: timer-motion-flash 3s step-end infinite; }
 
     /* Status badges */
     .status-badge {
@@ -302,6 +301,9 @@
     .timer-boost {
       color: #e2e8f0;
       opacity: 0.9;
+    }
+    .timer-boost-flash {
+      animation: timer-motion-flash 3s step-end infinite;
     }
 
     .timer-frozen {
@@ -416,23 +418,50 @@
       font-size: 0.82rem;
       opacity: 0.8;
       white-space: nowrap;
-      flex-shrink: 0;
-      margin-left: auto;
-      margin-right: 16px;
     }
 
+    /* Active status (row 1, right of area name) */
+    .row-active-status {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.7rem;
+      color: #e2e8f0;
+      white-space: nowrap;
+      flex-shrink: 0;
+      margin-right: 16px;
+    }
+    .row-active-status:empty { display: none; }
+    .row-active-status > span { background: rgba(0,0,0,0.5); border-radius: 3px; padding: 1px 5px; }
+
+    /* Schedule row (row 3, below slider) */
     .row-status-row {
       display: flex;
       align-items: center;
-      justify-content: flex-end;
-      gap: 5px;
-      padding: 0 16px 3px 16px;
+      justify-content: space-between;
+      padding: 0 16px 3px 0;
     }
-    .row-status-row:empty { display: none; }
 
-    .row-timer { font-size: 0.7rem; color: #e2e8f0; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; }
-    .row-timer:empty { display: none; }
-    .row-timer > span { background: rgba(0,0,0,0.5); border-radius: 3px; padding: 1px 5px; }
+    .row-schedule-left {
+      font-size: 0.82rem;
+      opacity: 0.8;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .row-schedule-left:empty { display: none; }
+
+    .row-schedule-right {
+      font-size: 0.7rem;
+      color: #e2e8f0;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+    .row-schedule-right:empty { display: none; }
+    .row-schedule-right > span { background: rgba(0,0,0,0.5); border-radius: 3px; padding: 1px 5px; }
 
     /* Row middle: stacked name + slider column */
     .row-middle {
@@ -1400,9 +1429,10 @@
     }
 
     function updateHomeTimers() {
-      // Update all timer badge spans in-place without re-rendering (no API calls)
-      document.querySelectorAll('[data-area-timer]').forEach(el => {
-        const areaId = el.getAttribute('data-area-timer');
+      // Update active status (row 1) and schedule (row 3) separately
+      // Active status: fade, motion, boost, frozen (current state)
+      document.querySelectorAll('[data-area-active]').forEach(el => {
+        const areaId = el.getAttribute('data-area-active');
         const status = areaStatus[areaId] || {};
         const hasMotion = status.motion_expires_at && status.motion_expires_at !== 'forever';
         const isBoosted = status.boosted || false;
@@ -1411,34 +1441,16 @@
 
         const parts = [];
 
-        // Fade indicator: arrow + target + countdown
-        const fadeDir = status.fade_direction;  // 'in' or 'out' or null
+        // Fade indicator: arrow + compact countdown
+        const fadeDir = status.fade_direction;
         if (fadeDir) {
           const fadeIcon = fadeDir === 'in' ? '\u25B2' : '\u25BC';
-          const target = status.fade_target_preset || (fadeDir === 'out' ? 'off' : 'circadian');
           const remaining = status.fade_remaining;
           let countdown = '';
           if (remaining != null && remaining > 0) {
-            const m = Math.floor(remaining / 60);
-            const s = remaining % 60;
-            countdown = m > 0 ? `${m}m ${s}s` : `${s}s`;
+            countdown = remaining >= 60 ? `${Math.round(remaining / 60)}m` : `${remaining}s`;
           }
-          parts.push(`<span class="timer-fade">${fadeIcon} ${target} ${countdown}</span>`);
-        }
-
-        // Auto schedule pill — show only the nearest one, skip entirely during fade
-        const nxtOn = fadeDir ? null : status.next_auto_on;
-        const nxtOff = fadeDir ? null : status.next_auto_off;
-        if (nxtOn && nxtOff) {
-          // Compare chronologically: fire_offset * 24 + decimal_hour
-          const onAt = (nxtOn.fire_offset ?? nxtOn.offset ?? 999) * 24 + (nxtOn.decimal_hour ?? 0);
-          const offAt = (nxtOff.fire_offset ?? nxtOff.offset ?? 999) * 24 + (nxtOff.decimal_hour ?? 0);
-          const onOff = onAt <= offAt ? ['on', nxtOn] : ['off', nxtOff];
-          parts.push(formatAutoSchedulePill(onOff[1], onOff[0]));
-        } else if (nxtOn) {
-          parts.push(formatAutoSchedulePill(nxtOn, 'on'));
-        } else if (nxtOff) {
-          parts.push(formatAutoSchedulePill(nxtOff, 'off'));
+          parts.push(`<span class="timer-fade">${fadeIcon} ${countdown}</span>`);
         }
 
         // Motion + boost (combined or separate)
@@ -1448,15 +1460,19 @@
         } else {
           if (hasMotion) {
             const remaining = formatCountdown(status.motion_expires_at);
-            if (remaining) parts.push(`<span class="timer-motion${warnClass}">\u25CF ${remaining}</span>`);
+            if (remaining) parts.push(`<span class="timer-motion${warnClass}">${remaining}</span>`);
           }
           if (isBoosted && status.boost_brightness && !isMotionCoupled) {
             let text = '\u26A1';
+            let boostFlash = '';
             if (status.boost_expires_at !== 'forever' && status.boost_expires_at) {
               const remaining = formatCountdown(status.boost_expires_at);
-              if (remaining) text += ` ${remaining}`;
+              if (remaining) {
+                text += ` ${remaining}`;
+                boostFlash = ' timer-boost-flash';
+              }
             }
-            parts.push(`<span class="timer-boost">${text}</span>`);
+            parts.push(`<span class="timer-boost${boostFlash}">${text}</span>`);
           }
         }
 
@@ -1466,14 +1482,43 @@
         }
 
         el.innerHTML = parts.join('');
-        // Toggle status row visibility + adjust bottom spacing
-        const statusRow = el.closest('.row-status-row');
-        if (statusRow) {
-          const hasContent = parts.length > 0;
-          statusRow.style.display = hasContent ? '' : 'none';
-          const rowMiddle = statusRow.closest('.row-middle');
-          if (rowMiddle) rowMiddle.style.paddingBottom = hasContent ? '0' : '';
+      });
+
+      // Schedule row (row 3): bed/wake left, auto on/off right
+      document.querySelectorAll('[data-area-schedule]').forEach(el => {
+        const areaId = el.getAttribute('data-area-schedule');
+        const status = areaStatus[areaId] || {};
+        const fadeDir = status.fade_direction;
+
+        // Right side: auto schedule (skip during fade)
+        const scheduleEl = el.querySelector('.row-schedule-right');
+        if (scheduleEl) {
+          const scheduleParts = [];
+          const nxtOn = fadeDir ? null : status.next_auto_on;
+          const nxtOff = fadeDir ? null : status.next_auto_off;
+          if (nxtOn && nxtOff) {
+            const onAt = (nxtOn.fire_offset ?? nxtOn.offset ?? 999) * 24 + (nxtOn.decimal_hour ?? 0);
+            const offAt = (nxtOff.fire_offset ?? nxtOff.offset ?? 999) * 24 + (nxtOff.decimal_hour ?? 0);
+            const onOff = onAt <= offAt ? ['on', nxtOn] : ['off', nxtOff];
+            scheduleParts.push(formatAutoSchedulePill(onOff[1], onOff[0]));
+          } else if (nxtOn) {
+            scheduleParts.push(formatAutoSchedulePill(nxtOn, 'on'));
+          } else if (nxtOff) {
+            scheduleParts.push(formatAutoSchedulePill(nxtOff, 'off'));
+          }
+          scheduleEl.innerHTML = scheduleParts.join('');
         }
+
+        // Left side: bed/wake (already rendered as static HTML)
+        const leftEl = el.querySelector('.row-schedule-left');
+
+        // Show/hide row based on content
+        const hasLeft = leftEl && leftEl.innerHTML.trim().length > 0;
+        const hasRight = scheduleEl && scheduleEl.innerHTML.trim().length > 0;
+        const hasContent = hasLeft || hasRight;
+        el.style.display = hasContent ? '' : 'none';
+        const rowMiddle = el.closest('.row-middle');
+        if (rowMiddle) rowMiddle.style.paddingBottom = hasContent ? '0' : '';
       });
     }
 
@@ -2528,14 +2573,15 @@
             <div class="row-middle-top">
               <span class="area-row-name" onclick="openAreaModal('${area.area_id}')">${area.name}</span>
               ${mismatchDot}
-              ${phaseMidpoint}
+              <span class="row-active-status" data-area-active="${area.area_id}"></span>
             </div>
             <div class="row-slider-track" data-area-id="${area.area_id}" data-bmin="${area.min_brightness ?? 1}" data-bmax="${area.max_brightness ?? 100}" data-cmin="${area.min_color_temp ?? 2200}" data-cmax="${area.max_color_temp ?? 6500}">
               <div class="row-slider-fill"></div>
               <div class="row-slider-thumb" style="left: ${sliderPct.toFixed(1)}%"></div>
             </div>
-            <div class="row-status-row">
-              <span class="row-timer" data-area-timer="${area.area_id}" data-zone-name="${area.zone_name || ''}"></span>
+            <div class="row-status-row" data-area-schedule="${area.area_id}" data-zone-name="${area.zone_name || ''}">
+              <span class="row-schedule-left">${phaseMidpoint}</span>
+              <span class="row-schedule-right" data-area-timer="${area.area_id}"></span>
             </div>
           </div>
           ${rightControls}
