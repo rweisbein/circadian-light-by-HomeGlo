@@ -1780,15 +1780,9 @@
         e.preventDefault();
         try { chartDiv.releasePointerCapture(e.pointerId); } catch (err) {}
         chartDiv.style.cursor = '';
-        const now = _chartDrag.nowHour;
-        const slope = _chartDrag.phaseSlopeSigned;
-        let Hdrag = _chartDrag.dragHour;
-        if (Hdrag < _chartDrag.phaseMin) Hdrag += 24;
-        const nowAligned = now < _chartDrag.phaseMin ? now + 24 : now;
-        const position = 100 / (1 + Math.exp(-slope * (nowAligned - Hdrag)));
-        const pos = Math.round(Math.max(0, Math.min(100, position)));
+        const mid = _chartDrag.dragHour;
         _chartDrag.active = false;
-        executeSetPosition(pos, 'step');
+        executeSetMidpoint(mid);
       }
 
       chartDiv.addEventListener('pointerdown', onDown);
@@ -1849,12 +1843,18 @@
         });
       }
 
-      // Natural-light target curve (muted, sits above bulb curve during day, merges at night)
+      // Natural-light target curve — only drawn where bulb/natural diverge (>=1%).
+      // Uses null breaks so the dotted line disappears before sunrise / after sunset
+      // and at any other point where the two curves coincide.
       if (hasDivergence) {
+        const maskedNatural = hours.map((h, i) =>
+          (brightnessPct[i] - bulbPct[i]) >= 1.0 ? brightnessPct[i] : null
+        );
         traces.push({
           type: 'scatter', mode: 'lines',
-          x: hours, y: brightnessPct,
+          x: hours, y: maskedNatural,
           line: { width: 1.5, color: 'rgba(220, 220, 220, 0.55)', dash: 'dot' },
+          connectgaps: false,
           hoverinfo: 'skip', showlegend: false
         });
       }
@@ -3149,6 +3149,39 @@
         }
       } catch (err) {
         console.error('Error executing circadian_adjust:', err);
+      }
+    }
+
+    async function executeSetMidpoint(midpoint) {
+      if (!selectedArea) return;
+      const payload = { area_id: selectedArea.area_id, action: 'set_midpoint', midpoint: midpoint };
+      try {
+        const response = await fetch(basePath + '/api/area/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (response.ok) {
+          setTimeout(async () => {
+            try {
+              const [res, _preview] = await Promise.all([
+                fetch(basePath + `/api/area-status?area_id=${encodeURIComponent(selectedArea.area_id)}`),
+                fetchSliderPreview(selectedArea.area_id),
+              ]);
+              if (res.ok) {
+                const singleStatus = await res.json();
+                Object.assign(areaStatus, singleStatus);
+              }
+              updateContent();
+              renderMiniChartForArea(selectedArea.area_id);
+              updateAllSliders();
+            } catch (err) {
+              console.error('Error refreshing after set_midpoint:', err);
+            }
+          }, 300);
+        }
+      } catch (err) {
+        console.error('Error executing set_midpoint:', err);
       }
     }
 

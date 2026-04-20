@@ -5608,6 +5608,9 @@ class HomeAssistantWebSocketClient:
             value = kwargs.get("value")
             mode = kwargs.get("mode", "step")
             await self.primitives.set_position(area_id, value, mode, "webserver")
+        elif service == "set_midpoint":
+            midpoint = kwargs.get("midpoint")
+            await self.primitives.set_midpoint(area_id, midpoint, "webserver")
         elif service == "circadian_adjust":
             target = kwargs.get("target_brightness")
             await self.primitives.circadian_adjust(area_id, target, "webserver")

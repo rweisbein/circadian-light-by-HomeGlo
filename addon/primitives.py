@@ -1136,6 +1136,53 @@ class CircadianLightPrimitives:
                 f"set_position state updated (lights off): {result.brightness}%, {result.color_temp}K"
             )
 
+    async def set_midpoint(
+        self,
+        area_id: str,
+        midpoint: float,
+        source: str = "service_call",
+        _send_command: bool = True,
+    ):
+        """Set brightness_mid and color_mid directly (no position round-trip).
+
+        Used by chart drag: the user's drag position IS the midpoint, so we skip
+        the inverse-logistic round-trip (which loses precision near asymptotes
+        and is distorted by bed_brightness/wake_brightness shifts).
+
+        Args:
+            area_id: The area ID to control
+            midpoint: Hour (0-24) to set as brightness_mid and color_mid
+            source: Source of the action
+            _send_command: Whether to send light commands
+        """
+        area_state = self._get_area_state(area_id)
+        if not area_state.is_circadian:
+            logger.debug(
+                f"[{source}] set_midpoint ignored for area {area_id} (not in circadian mode)"
+            )
+            return
+
+        if area_state.frozen_at is not None:
+            self._unfreeze_internal(area_id, source)
+            area_state = self._get_area_state(area_id)
+
+        mid = float(midpoint) % 24
+        self._update_area_state(
+            area_id,
+            {
+                "brightness_mid": mid,
+                "color_mid": mid,
+                "color_override": None,
+                "color_override_set_at": None,
+            },
+        )
+        logger.info(f"[{source}] set_midpoint({mid:.3f}) for area {area_id}")
+
+        if _send_command and area_state.is_on:
+            await self.client.update_lights_in_circadian_mode(
+                area_id, log_periodic=True
+            )
+
     # -------------------------------------------------------------------------
     # Per-axis override up/down (brightness and color buttons)
     # -------------------------------------------------------------------------

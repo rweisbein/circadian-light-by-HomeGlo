@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.97
+- **Drag-release fix**: Chart handle now sends the dragged midpoint directly via new `set_midpoint` backend action (primitives.set_midpoint → area_state). Old path routed through `set_position` which lost precision near the asymptote and was distorted by `bed_brightness` / `wake_brightness` shifts (symptom: dragging bed rightward snapped to ~now-time on release). Release now lands exactly where the user let go.
+- **Natural-light curve masking**: Muted dotted curve now only renders at hours where `natural - bulbs ≥ 1%`, so it disappears before sunrise and after sunset (and anywhere else the two coincide) instead of drawing a flat segment along the bulb curve.
+
 ## 1.2.96
 - **Draggable phase handle on chart**: A colored circle at the top of the active-phase midpoint line can now be dragged (wake during ascend, blue; bed during descend, yellow). Live preview: graph re-renders during drag, Bright% / Color% hero labels update to reflect the new midpoint. On release, the corresponding curve-space position is sent via `set_position` (step mode). Drag is clamped to the active phase window; the inactive line stays locked. Original wake/bed dotted lines remain visible so the delta from the configured time reads at a glance.
 

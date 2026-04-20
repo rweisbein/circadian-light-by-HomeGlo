@@ -4775,6 +4775,7 @@ class LightDesignerServer:
             "set_britelite",
             "set_circadian",
             "set_position",
+            "set_midpoint",
             "circadian_adjust",
         }
 
@@ -4834,6 +4835,13 @@ class LightDesignerServer:
                     )
                 extra_kwargs["value"] = float(value)
                 extra_kwargs["mode"] = data.get("mode", "step")
+            elif action == "set_midpoint":
+                midpoint = data.get("midpoint")
+                if midpoint is None:
+                    return web.json_response(
+                        {"error": "midpoint required for set_midpoint"}, status=400
+                    )
+                extra_kwargs["midpoint"] = float(midpoint)
             elif action == "circadian_adjust":
                 value = data.get("value")
                 if value is None:
