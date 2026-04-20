@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.90
+- **Lights card redesign**: Renamed "Brightness" to "Lights". Hero shows Area Brightness up top with a `curve · adjustments` breadcrumb, so the big number's provenance is one glance away.
+- **Adjustments split into Tuning / Activity zones**: Tuning holds the user-set sliders (Solar exposure, Room balance); Activity holds transient effects (User brightened, Boost, Dimming, Auto-on fade). Zero-value activity rows collapse automatically with a "None active" placeholder when the zone is quiet.
+- **Per-light row cleanup**: Impact and CT deltas render as `↑N%` / `↓N%` (0 becomes `—`). Purpose now reads as a pill instead of a dotted-underline link. Column headers unified to small-caps gray; the orange arrow is reserved for the active sort.
+
 ## 1.2.89
 - **Sensor impact labels**: Per-scope tokens joined with `+` — e.g. "On + 1m boost", "5m + Alert". Clearer multi-reach representation.
 - **Control detail deep-link**: Navigating from area detail pre-expands reach cards containing that area, highlights the source area chip. Back button returns to area detail with Controls card open and scrolled into view.

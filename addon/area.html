@@ -681,13 +681,72 @@
     /* Light brightness column headers — same grid as data rows for alignment */
     .tune-light-col-super { display: grid; grid-template-columns: 1fr 1fr 42px 42px 42px; padding: 6px 14px 0; gap: 0 4px; }
     .tune-light-super-label { grid-column: 3 / 5; text-align: center; font-size: 0.6rem; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.05em; }
-    .tune-light-col-headers { display: grid; grid-template-columns: 1fr 1fr 42px 42px 42px; padding: 2px 14px 0; gap: 0 4px; font-size: 0.65rem; color: var(--muted2); border-bottom: 1px solid var(--line); }
+    .tune-light-col-headers { display: grid; grid-template-columns: 1fr 1fr 42px 42px 42px; padding: 4px 14px; gap: 0 4px; font-size: 0.6rem; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--line); }
     .tune-light-col-headers span:nth-child(n+3) { text-align: right; }
     .tune-light-sort { cursor: pointer; transition: color 0.15s; }
     .tune-light-sort:hover { color: var(--text); }
-    .tune-light-sort.active-sort { color: var(--accent); }
-    .tune-light-sort-final { color: var(--text); font-weight: 600; }
+    /* Active sort: keep text neutral, show orange arrow after the label */
+    .tune-light-sort.active-sort { color: var(--muted); }
+    .tune-light-sort.active-sort::after { content: " \2195"; color: var(--accent); margin-left: 3px; font-size: 0.7em; }
+    .tune-light-sort-final { /* no longer bold/white — value carries the weight */ }
     .tune-light-ct { font-size: 0.82rem; color: var(--muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+
+    /* Purpose as a pill (drop the link-looking underline) */
+    .tune-light-behaviour {
+      display: inline-block;
+      padding: 1px 7px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      text-decoration: none !important;
+      color: var(--muted);
+      font-size: 0.72rem;
+      line-height: 1.3;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .tune-light-behaviour:hover { color: var(--text); border-color: var(--text); }
+
+    /* Hide the redundant Adjustments super-label above per-light columns */
+    .tune-light-col-super { display: none !important; }
+
+    /* ── Lights card hero + zones ── */
+    .tune-hero-block { padding: 12px 14px 4px; }
+    .tune-hero-label {
+      font-size: 0.65rem; font-weight: 500; color: var(--muted2);
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .tune-hero-val {
+      font-size: 1.8rem; font-weight: 700; color: var(--text);
+      font-variant-numeric: tabular-nums; line-height: 1.1; margin-top: 2px;
+    }
+    .tune-hero-breadcrumb {
+      font-size: 0.78rem; color: var(--muted); margin-top: 3px;
+      font-variant-numeric: tabular-nums;
+    }
+    .tune-hero-breadcrumb .tune-hero-dot { margin: 0 5px; color: var(--muted2); }
+
+    /* Adjustments toggle row sits between hero and details */
+    .tune-adj-toggle {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 9px 14px; cursor: pointer; user-select: none;
+      font-size: 0.82rem; color: var(--muted);
+      border-top: 1px solid var(--line); margin-top: 10px;
+    }
+    .tune-adj-toggle:hover { color: var(--text); }
+    .tune-adj-toggle .tune-adj-chevron-el { transition: transform 0.2s; display: inline-block; }
+
+    /* Zone labels inside the adjustments details */
+    .tune-zone-label {
+      font-size: 0.6rem; font-weight: 500; color: var(--muted2);
+      text-transform: uppercase; letter-spacing: 0.08em;
+      padding: 10px 14px 2px;
+    }
+    .tune-activity-empty {
+      padding: 2px 14px 4px 30px; font-size: 0.75rem;
+      color: var(--muted2); font-style: italic;
+    }
   </style>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
   <script src="./shared.js"></script>
@@ -2938,6 +2997,24 @@
       return '0';
     }
 
+    // Arrow-style delta for per-light rows: ↑N% / ↓N% / — when zero
+    function formatImpactArrow(val) {
+      if (val > 0) return '\u2191' + val + '%';
+      if (val < 0) return '\u2193' + Math.abs(val) + '%';
+      return '\u2014';
+    }
+
+    // Inverse — parses arrow notation for sorting
+    function parseImpactArrow(s) {
+      if (!s) return 0;
+      s = s.trim();
+      if (s === '\u2014') return 0;
+      const c = s.charAt(0);
+      const sign = c === '\u2193' ? -1 : 1;
+      const num = parseFloat(s.replace(/[^\d.]/g, '')) || 0;
+      return sign * num;
+    }
+
     let lightSortOrder = 'name';
     let lightSortAsc = true;
 
@@ -3457,15 +3534,15 @@
         const elImpact = document.getElementById('tune-light-impact-' + light.idx);
         if (elImpact) {
           const behavImpact = Math.round(afterFilter) - areaBri;
-          elImpact.textContent = formatImpact(behavImpact) + '%';
+          elImpact.textContent = formatImpactArrow(behavImpact);
         }
         const elCt = document.getElementById('tune-light-ct-' + light.idx);
         if (elCt) {
           if (!ts.ctEnabled || ctFactor === 1.0) {
-            elCt.textContent = '0%';
+            elCt.textContent = '\u2014';
           } else {
             const ctImpact = Math.round(afterCt) - Math.round(afterFilter);
-            elCt.textContent = formatImpact(ctImpact) + '%';
+            elCt.textContent = formatImpactArrow(ctImpact);
           }
         }
         const elMeta = document.getElementById('tune-meta-' + light.idx);
@@ -3500,16 +3577,15 @@
       const elOverrideRow = document.getElementById('tune-det-override-row');
       const elOverrideVal = document.getElementById('tune-det-override-val');
       const elOverrideLabel = document.getElementById('tune-det-override-label');
+      const overrideRounded = Math.round(briOverride);
       if (elOverrideRow) {
-        const rounded = Math.round(briOverride);
-        if (elOverrideLabel) elOverrideLabel.textContent = rounded < 0 ? 'User dimmed' : 'User brightened';
-        if (elOverrideVal) elOverrideVal.textContent = formatImpact(rounded) + '%';
+        if (elOverrideLabel) elOverrideLabel.textContent = overrideRounded < 0 ? 'User dimmed' : 'User brightened';
+        if (elOverrideVal) elOverrideVal.textContent = formatImpact(overrideRounded) + '%';
       }
 
       // Dim row (motion warning)
       const elDimRow = document.getElementById('tune-det-dim-row');
       const elDimVal = document.getElementById('tune-det-dim-val');
-      // Dimming row always visible
       if (elDimVal) elDimVal.textContent = formatImpact(dimImpact) + '%';
 
       // Fade row
@@ -3521,6 +3597,14 @@
       if (elFadeVal) {
         elFadeVal.textContent = formatImpact(fadeDelta) + '%';
       }
+
+      // Collapse zero-value activity rows; show placeholder when all are zero
+      updateActivityVisibility({
+        override: overrideRounded,
+        boost: boostAmount,
+        dim: dimImpact,
+        fade: fadeDelta,
+      });
 
       const elBriHeader = document.getElementById('tune-brightness-header-val');
       if (elBriHeader) elBriHeader.textContent = areaBri + '%';
@@ -3574,8 +3658,15 @@
           return lightSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
         }
         const colMap = { impact: '.tune-light-impact', ct: '.tune-light-ct', final: '.tune-light-bri' };
-        va = parseFloat(a.querySelector(colMap[lightSortOrder])?.textContent) || 0;
-        vb = parseFloat(b.querySelector(colMap[lightSortOrder])?.textContent) || 0;
+        const aText = a.querySelector(colMap[lightSortOrder])?.textContent || '';
+        const bText = b.querySelector(colMap[lightSortOrder])?.textContent || '';
+        if (lightSortOrder === 'impact' || lightSortOrder === 'ct') {
+          va = parseImpactArrow(aText);
+          vb = parseImpactArrow(bText);
+        } else {
+          va = parseFloat(aText) || 0;
+          vb = parseFloat(bText) || 0;
+        }
         return lightSortAsc ? va - vb : vb - va;
       });
 
@@ -3694,18 +3785,29 @@
       const briExpanded = _pageFrom === 'tune' || (_persistCards && localStorage.getItem('tune_details_expanded') === 'true');
       let bhtml = '<div class="tune-brightness-header" onclick="toggleBrightnessBody()">';
       bhtml += '<span class="tune-brightness-chevron" id="tune-brightness-chevron">&#x203A;</span>';
-      bhtml += '<span class="tune-brightness-title">Brightness</span>';
+      bhtml += '<span class="tune-brightness-title">Lights</span>';
       bhtml += '<span class="tune-brightness-val" id="tune-brightness-header-val">--</span>';
       bhtml += '</div>';
       bhtml += '<div class="tune-brightness-body" id="tune-brightness-body">';
-      bhtml += '<div class="tune-bk-row" style="padding-left:14px;"><span class="tune-bk-label">Circadian curve</span>'
-        + '<span class="tune-bk-total" id="tune-det-base-total">' + baseBri + '%</span></div>';
-      // Adjustments summary row (clickable to expand details)
-      bhtml += '<div class="tune-bk-row" style="padding-left:14px;cursor:pointer;" onclick="toggleAdjustmentDetails()">'
-        + '<span class="tune-bk-label">Adjustments <span id="tune-adj-chevron" style="font-size:0.8rem;">&#x203A;</span></span>'
-        + '<span class="tune-bk-total" id="tune-det-adj-net">0%</span></div>';
-      // Collapsible detail rows
+      // Hero: Area Brightness with breadcrumb equation
+      bhtml += '<div class="tune-hero-block">';
+      bhtml += '<div class="tune-hero-label">Area Brightness</div>';
+      bhtml += '<div class="tune-hero-val" id="tune-det-final-val">--</div>';
+      bhtml += '<div class="tune-hero-breadcrumb">'
+        + '<span id="tune-det-base-total">' + baseBri + '%</span> curve'
+        + '<span class="tune-hero-dot">\u00B7</span>'
+        + '<span id="tune-det-adj-net">0%</span> adjustments'
+        + '</div>';
+      bhtml += '</div>';
+      // Adjustments toggle (click to expand details)
+      bhtml += '<div class="tune-adj-toggle" onclick="toggleAdjustmentDetails()">'
+        + '<span>Adjustments</span>'
+        + '<span class="tune-adj-chevron-el" id="tune-adj-chevron">&#x203A;</span>'
+        + '</div>';
+      // Collapsible detail rows with Tuning / Activity zones
       bhtml += '<div id="tune-adj-details" style="display:none;">';
+      // --- TUNING zone ---
+      bhtml += '<div class="tune-zone-label">Tuning</div>';
       // Solar exposure with inline slider
       bhtml += '<div class="tune-control-row"><span class="tune-control-left"><span class="tune-control-label">Solar exposure</span>'
         + '<span class="tune-control-reset" id="tune-reset-solar">reset</span></span>'
@@ -3721,22 +3823,25 @@
       bhtml += '<div class="tune-slider-row">'
         + '<input type="range" class="tune-inline-slider tune-inline-slider--light" id="tune-slider-lumen" min="0" max="8" step="1" value="' + lumenStep + '">'
         + '<span class="tune-slider-word" id="tune-lumen-word">' + LUMEN_STEPS[lumenStep].label + (function(f){ if(Math.abs(f-1)<0.005) return ''; var p=Math.round((f-1)*100); return (p>0?' +':' ')+p+'%'; })(factor) + '</span></div>';
-      bhtml += '<div class="tune-bk-row" id="tune-det-override-row"><span class="tune-bk-label" id="tune-det-override-label">User brightened</span>'
+      // --- ACTIVITY zone ---
+      bhtml += '<div class="tune-zone-label">Activity</div>';
+      bhtml += '<div id="tune-activity-list">';
+      bhtml += '<div class="tune-bk-row tune-activity-row" id="tune-det-override-row"><span class="tune-bk-label" id="tune-det-override-label">User brightened</span>'
         + '<span class="tune-bk-total" id="tune-det-override-val">0%</span></div>';
-      bhtml += '<div class="tune-bk-row"><span class="tune-bk-label">Boost</span>'
+      bhtml += '<div class="tune-bk-row tune-activity-row" id="tune-det-boost-row"><span class="tune-bk-label">Boost</span>'
         + '<span class="tune-bk-total" id="tune-det-boost-val">0%</span></div>';
-      bhtml += '<div class="tune-bk-row" id="tune-det-dim-row"><span class="tune-bk-label">Dimming</span>'
+      bhtml += '<div class="tune-bk-row tune-activity-row" id="tune-det-dim-row"><span class="tune-bk-label">Dimming</span>'
         + '<span class="tune-bk-total" id="tune-det-dim-val">0%</span></div>';
-      bhtml += '<div class="tune-bk-row"><span class="tune-bk-label" id="tune-det-fade-label">Auto-on fade</span>'
+      bhtml += '<div class="tune-bk-row tune-activity-row" id="tune-det-fade-row"><span class="tune-bk-label" id="tune-det-fade-label">Auto-on fade</span>'
         + '<span class="tune-bk-total" id="tune-det-fade-val">0%</span></div>';
+      bhtml += '<div class="tune-activity-empty" id="tune-activity-empty" style="display:none;">None active</div>';
+      bhtml += '</div>';
       bhtml += '</div>'; // end tune-adj-details
-      bhtml += '<div class="tune-area-total"><div class="tune-bk-row" style="padding-left:14px;"><span class="tune-bk-label primary">Area Brightness</span>'
-        + '<span class="tune-bk-total final" id="tune-det-final-val">--</span></div></div>';
       bhtml += '<div class="section-action-bar" id="tune-action-bar" style="display:none;">';
       bhtml += '<button class="section-cancel-btn" onclick="cancelBrightnessChanges()">Cancel</button>';
       bhtml += '<button class="section-save-btn" onclick="saveBrightnessChanges()">Save</button>';
       bhtml += '</div>';
-      // Per-Light sub-section (merged from separate Lights card)
+      // Per-Light sub-section (content merged from separate Lights card)
       bhtml += '<div id="tune-lights-inline"></div>';
       bhtml += '</div>';
       brightnessCard.innerHTML = bhtml;
@@ -3746,7 +3851,7 @@
 
       // ── Per-Light sub-section (inside Brightness card) ──
       const lightsCard = document.getElementById('tune-lights-inline');
-      let lhtml = '<div class="tune-group-label" style="margin-top:8px;">Lights</div>';
+      let lhtml = '';
 
       // Feedback target selector — goes into Controls card
       const currentFeedback = areaInfo.feedback_target || null;
@@ -3790,12 +3895,11 @@
       if (sortedLights.length === 0) {
         lhtml += '<div style="padding:10px 14px;color:var(--muted2);font-size:0.82rem;">No lights found</div>';
       } else {
-        lhtml += '<div class="tune-light-col-super"><span></span><span></span><span class="tune-light-super-label">Adjustments</span></div>';
         lhtml += '<div class="tune-light-col-headers">'
-          + '<span class="tune-light-sort" data-sort="name">light name</span>'
+          + '<span class="tune-light-sort" data-sort="name">light</span>'
           + '<span class="tune-light-sort" data-sort="behaviour">purpose</span>'
-          + '<span class="tune-light-sort" data-sort="impact">purpose</span>'
-          + '<span class="tune-light-sort" data-sort="ct">CT</span>'
+          + '<span class="tune-light-sort" data-sort="impact">impact</span>'
+          + '<span class="tune-light-sort" data-sort="ct">ct</span>'
           + '<span class="tune-light-sort tune-light-sort-final" data-sort="final">final</span>'
           + '</div>';
         for (const light of lightsArr) {
@@ -4143,6 +4247,25 @@
       const isHidden = details.style.display === 'none';
       details.style.display = isHidden ? '' : 'none';
       if (chevron) chevron.style.transform = isHidden ? 'rotate(90deg)' : '';
+    }
+
+    function updateActivityVisibility(vals) {
+      const rows = {
+        override: document.getElementById('tune-det-override-row'),
+        boost: document.getElementById('tune-det-boost-row'),
+        dim: document.getElementById('tune-det-dim-row'),
+        fade: document.getElementById('tune-det-fade-row'),
+      };
+      let anyActive = false;
+      for (const key of Object.keys(rows)) {
+        const row = rows[key];
+        if (!row) continue;
+        const isActive = Math.round(vals[key] || 0) !== 0;
+        row.style.display = isActive ? '' : 'none';
+        if (isActive) anyActive = true;
+      }
+      const empty = document.getElementById('tune-activity-empty');
+      if (empty) empty.style.display = anyActive ? 'none' : '';
     }
 
     function toggleControlsBody() {
