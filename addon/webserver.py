@@ -3213,6 +3213,11 @@ class LightDesignerServer:
                             lux_tracker.get_condition_multiplier(), 2
                         ),
                         "angle_factor": round(lux_tracker.get_angle_factor(), 3),
+                        "sun_saturation": lux_tracker.get_sun_saturation(),
+                        "sun_saturation_ramp": lux_tracker.get_sun_saturation_ramp(),
+                        "max_summer_elevation": round(
+                            lux_tracker.get_max_summer_elevation(), 1
+                        ),
                         "outdoor_source_entity": (
                             lux_tracker.get_sensor_entity()
                             if outdoor_source == "lux"

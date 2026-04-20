@@ -498,6 +498,18 @@ def get_angle_factor() -> float:
     return _compute_elev_factor()
 
 
+def get_sun_saturation() -> int:
+    return _sun_saturation
+
+
+def get_sun_saturation_ramp() -> str:
+    return _sun_saturation_ramp
+
+
+def get_max_summer_elevation() -> float:
+    return _max_summer_elevation
+
+
 def get_condition_multiplier() -> float:
     """Return the current condition multiplier based on source."""
     if (

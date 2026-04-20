@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.95
+- **Dual-curve chart: bulbs vs. natural light**: Colorful gradient curve now represents actual bulb output (after sun dimming). A muted dotted line shows the room's natural-light target; the two merge at night when sun isn't dimming anything. Peak-of-divergence labels "natural light" and "bulbs" anchor meaning; hover shows both values (e.g., `bulbs 47% · natural 82%`).
+- **Projection math**: Per-hour sun angle uses `getSunElevationAtHour` calibrated to the area's current `sun_bright_factor` anchor. Honors `sun_saturation` + `sun_saturation_ramp` (linear/squared) settings. Backend now exposes these three fields in `/api/area-status`.
+
 ## 1.2.94
 - **Curve card headline (Phase A)**: Curve card is now always-open — no chevron, no toggle. Graph sits on top, Bright + Color sliders pulled inside the card body directly beneath it. The standalone Circadian slider is gone; circadian-on/off still uses the Enable overlay over the slider row.
 

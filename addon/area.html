@@ -1629,20 +1629,55 @@
       return cct;
     }
 
+    // Backend-matching sun angle factor (mirrors lux_tracker._compute_elev_factor).
+    // Uses per-hour sun elevation with saturation/ramp settings from cachedSunTimes.
+    function computeSunBrightAngleAt(hour, sunTimes) {
+      if (!sunTimes) return 0;
+      const lat = cachedConfig?.latitude ?? 35.0;
+      const lon = cachedConfig?.longitude ?? -78.6;
+      const elev = getSunElevationAtHour(hour, lat, lon);
+      if (elev <= 0) return 0;
+      const maxElev = sunTimes.maxSummerElevation ?? 78.0;
+      const sat = sunTimes.sunSaturation ?? 40;
+      const ramp = sunTimes.sunSaturationRamp ?? 'squared';
+      const threshold = maxElev * sat / 100.0;
+      if (threshold <= 0) return 1.0;
+      const raw = Math.min(1.0, elev / threshold);
+      return ramp === 'squared' ? raw * raw : raw;
+    }
+
+    // Bulb output = room target × projected sun_bright_factor at hour.
+    // Anchor "now" to backend's live sun_bright_factor; shape across day via sun angle.
+    function calcBulbBrightnessAt(hour, sunTimes, currentHour, roomPct) {
+      if (!sunTimes) return roomPct;
+      const sbfNow = sunTimes.sunBrightFactorNow ?? 1.0;
+      if (sbfNow >= 0.99) return roomPct;   // no dimming now → bulbs = room
+      const angleNow = computeSunBrightAngleAt(currentHour, sunTimes);
+      if (angleNow < 0.01) return roomPct;  // night now → can't calibrate
+      const angleH = computeSunBrightAngleAt(hour, sunTimes);
+      const dimmingNow = 1.0 - sbfNow;
+      const dimmingH = dimmingNow * (angleH / angleNow);
+      const factor = Math.max(0, 1.0 - dimmingH);
+      return roomPct * factor;
+    }
+
     function calcMiniCurveData(cfg, state, sunTimes, currentHour) {
       const numSamples = 240;
       const hours = [];
       const brightnessPct = [];
+      const bulbPct = [];
       const cct = [];
 
       for (let i = 0; i < numSamples; i++) {
         const h = (i / numSamples) * 24;
         hours.push(h);
-        brightnessPct.push(calcMiniBrightness(h, cfg, state, currentHour) * 100);
+        const room = calcMiniBrightness(h, cfg, state, currentHour) * 100;
+        brightnessPct.push(room);
+        bulbPct.push(calcBulbBrightnessAt(h, sunTimes, currentHour, room));
         cct.push(calcMiniColor(h, cfg, state, sunTimes, currentHour));
       }
 
-      return { hours, brightnessPct, cct };
+      return { hours, brightnessPct, bulbPct, cct };
     }
 
     // ============================================================
@@ -1679,20 +1714,37 @@
     function renderMiniChart(cfg, state, sunTimes, currentHour, isActive, adjustedTimes) {
       if (!cfg || !sunTimes) return;
 
-      const data = calcMiniCurveData(cfg, state, sunTimes, currentHour);
-      const { hours, brightnessPct, cct } = data;
+      // Source per-area sun_bright_factor from live status (not cached globally)
+      const areaLive = (selectedArea && areaStatus) ? (areaStatus[selectedArea.area_id] || {}) : {};
+      const sbfNow = areaLive.sun_bright_factor ?? sunTimes.sunBrightFactorNow ?? 1.0;
+      const curveSunTimes = Object.assign({}, sunTimes, { sunBrightFactorNow: sbfNow });
+
+      const data = calcMiniCurveData(cfg, state, curveSunTimes, currentHour);
+      const { hours, brightnessPct, bulbPct, cct } = data;
+
+      // Divergence detector: is there a meaningful bulb/natural gap anywhere today?
+      let maxDivergence = 0;
+      let maxDivergenceIdx = 0;
+      for (let i = 0; i < hours.length; i++) {
+        const d = brightnessPct[i] - bulbPct[i];
+        if (d > maxDivergence) {
+          maxDivergence = d;
+          maxDivergenceIdx = i;
+        }
+      }
+      const hasDivergence = maxDivergence > 1.0;
 
       const traces = [];
 
-      // Color-gradient brightness curve (filled + line segments)
+      // Color-gradient BULB curve (filled + line segments) — what bulbs output after sun dimming
       const step = 2;
       for (let i = step; i < hours.length; i += step) {
         const color = cctToRGB(cct[i]);
         const fillColor = colorWithAlpha(color, 0.5);
         const x0 = hours[i - step];
         const x1 = hours[i];
-        const y0 = brightnessPct[i - step];
-        const y1 = brightnessPct[i];
+        const y0 = bulbPct[i - step];
+        const y1 = bulbPct[i];
 
         // Filled area under curve
         traces.push({
@@ -1711,10 +1763,26 @@
         });
       }
 
-      // Hover trace — CCT-colored tooltips
-      const hoverDetails = brightnessPct.map((v, i) =>
-        `${formatHourLabel(hours[i])} • ${Math.round(v)}% • ${Math.round(cct[i])}K`
-      );
+      // Natural-light target curve (muted, sits above bulb curve during day, merges at night)
+      if (hasDivergence) {
+        traces.push({
+          type: 'scatter', mode: 'lines',
+          x: hours, y: brightnessPct,
+          line: { width: 1.5, color: 'rgba(220, 220, 220, 0.55)', dash: 'dot' },
+          hoverinfo: 'skip', showlegend: false
+        });
+      }
+
+      // Hover trace — CCT-colored tooltips showing bulbs + natural light
+      const hoverDetails = hours.map((h, i) => {
+        const bulbV = Math.round(bulbPct[i]);
+        const roomV = Math.round(brightnessPct[i]);
+        const k = Math.round(cct[i]);
+        if (Math.abs(roomV - bulbV) < 1) {
+          return `${formatHourLabel(h)} • ${bulbV}% • ${k}K`;
+        }
+        return `${formatHourLabel(h)} • bulbs ${bulbV}% · natural ${roomV}% • ${k}K`;
+      });
       const hoverBgColors = cct.map(k => colorWithAlpha(cctToRGB(k), 0.92));
       const hoverTextColors = cct.map(k => readableTextColor(cctToRGB(k)));
       const hoverBorderColors = cct.map(k => colorWithAlpha(cctToRGB(k), 0.65));
@@ -1732,8 +1800,9 @@
         }
       });
 
-      // Live position marker (large size, outline color depends on active state)
-      const markerBri = calcMiniBrightness(currentHour, cfg, state, currentHour) * 100;
+      // Live position marker (on the bulb curve since that's the colorful one)
+      const markerRoom = calcMiniBrightness(currentHour, cfg, state, currentHour) * 100;
+      const markerBri = calcBulbBrightnessAt(currentHour, curveSunTimes, currentHour, markerRoom);
       const markerCCT = calcMiniColor(currentHour, cfg, state, sunTimes, currentHour);
       const markerColor = cctToRGB(markerCCT);
       const markerOutline = isActive ? '#fff' : '#000';
@@ -1879,6 +1948,23 @@
         font: { size: 10, color: cursorColor },
         align: 'center'
       });
+
+      // Curve labels — anchor at peak divergence when the two curves are meaningfully apart
+      if (hasDivergence) {
+        const divX = hours[maxDivergenceIdx];
+        const divRoomY = brightnessPct[maxDivergenceIdx];
+        const divBulbY = bulbPct[maxDivergenceIdx];
+        annotations.push({
+          x: divX, y: divRoomY, xref: 'x', yref: 'y',
+          text: 'natural light', showarrow: false, yshift: 10,
+          font: { size: 9, color: 'rgba(220, 220, 220, 0.7)' }
+        });
+        annotations.push({
+          x: divX, y: divBulbY, xref: 'x', yref: 'y',
+          text: 'bulbs', showarrow: false, yshift: -10,
+          font: { size: 9, color: 'rgba(220, 220, 220, 0.85)' }
+        });
+      }
 
       const layout = {
         paper_bgcolor: '#0a0a0a',
@@ -2361,6 +2447,10 @@
           if (firstStatus) {
             const actualNorm = firstStatus.outdoor_normalized ?? firstStatus.sun_factor ?? 0;
             cachedSunTimes.outdoorNormalized = actualNorm;
+            cachedSunTimes.sunSaturation = firstStatus.sun_saturation ?? 40;
+            cachedSunTimes.sunSaturationRamp = firstStatus.sun_saturation_ramp ?? 'squared';
+            cachedSunTimes.maxSummerElevation = firstStatus.max_summer_elevation ?? 78.0;
+            cachedSunTimes.sunBrightFactorNow = firstStatus.sun_bright_factor ?? 1.0;
             // Derive condition multiplier from current reading vs clear-sky at current hour
             const now = new Date();
             const currentHour = now.getHours() + now.getMinutes() / 60;
@@ -2455,6 +2545,10 @@
               if (cachedSunTimes && cachedConfig) {
                 const actualNorm = ls0.outdoor_normalized ?? ls0.sun_factor ?? 0;
                 cachedSunTimes.outdoorNormalized = actualNorm;
+                cachedSunTimes.sunSaturation = ls0.sun_saturation ?? 40;
+                cachedSunTimes.sunSaturationRamp = ls0.sun_saturation_ramp ?? 'squared';
+                cachedSunTimes.maxSummerElevation = ls0.max_summer_elevation ?? 78.0;
+                cachedSunTimes.sunBrightFactorNow = ls0.sun_bright_factor ?? 1.0;
                 const now = new Date();
                 const currentHour = now.getHours() + now.getMinutes() / 60;
                 const lat = cachedConfig.latitude || 35.0;
