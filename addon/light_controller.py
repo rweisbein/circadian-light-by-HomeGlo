@@ -1071,6 +1071,7 @@ class ZigBeeController(LightController):
                 if (
                     group_name.startswith("Circadian_")
                     and not group_name.startswith("Circadian_Reach_")
+                    and not group_name.startswith("Circadian_Batch_")
                     and group_name not in expected_group_names
                 ):
                     # Remove members before deleting so devices clear the group ID

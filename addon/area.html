@@ -1100,6 +1100,15 @@
     let selectedArea = null;
     let areaStatus = {};
     let zoneStates = {};
+
+    // Page entry mode — determines card persistence behavior
+    // 'home': restore from localStorage, save toggles
+    // 'focused': force target card open, rest collapsed, no persistence
+    const _pageParams = new URLSearchParams(window.location.search);
+    const _pageFrom = _pageParams.get('from');
+    const _pageFocus = _pageParams.get('focus');
+    const _pageMode = (!_pageFrom && !_pageFocus) ? 'home' : 'focused';
+    const _persistCards = _pageMode === 'home';
     let cachedConfig = null;
     let cachedSunTimes = null;
     let cachedGlozones = {};
@@ -3682,7 +3691,7 @@
 
       // ── Brightness card ──
       const brightnessCard = document.getElementById('tune-brightness-card');
-      const briExpanded = false; // always start collapsed
+      const briExpanded = _pageFrom === 'tune' || (_persistCards && localStorage.getItem('tune_details_expanded') === 'true');
       let bhtml = '<div class="tune-brightness-header" onclick="toggleBrightnessBody()">';
       bhtml += '<span class="tune-brightness-chevron" id="tune-brightness-chevron">&#x203A;</span>';
       bhtml += '<span class="tune-brightness-title">Brightness</span>';
@@ -3768,7 +3777,12 @@
       const controlsListHtml = renderAreaControlsList();
       if (controlsBody) controlsBody.innerHTML = controlsListHtml + (controlsListHtml ? '<div class="ctrl-list-divider"></div>' : '') + fbhtml;
       const controlsCard = document.getElementById('tune-controls-card');
-      if (controlsCard) controlsCard.style.display = '';
+      if (controlsCard) {
+        controlsCard.style.display = '';
+        if (_persistCards && localStorage.getItem('tune_controls_expanded') === 'true') {
+          controlsCard.classList.add('is-open');
+        }
+      }
       const countEl = document.getElementById('tune-controls-count');
       if (countEl) countEl.textContent = areaControls.length > 0 ? areaControls.length : '';
 
@@ -4049,10 +4063,57 @@
       return icons[category] || '';
     }
 
+    function isAlertOnly(ctrl) {
+      const scopes = ctrl._matchingScopes || [];
+      return scopes.length > 0 && scopes.every(s => s.mode === 'alert');
+    }
+
+    function isAllDisabled(ctrl) {
+      const scopes = ctrl._matchingScopes || [];
+      return scopes.length > 0 && scopes.every(s => !s.mode || s.mode === 'disabled');
+    }
+
+    function isSwitchSolo(ctrl) {
+      if (ctrl.category !== 'switch') return false;
+      const scopes = ctrl._matchingScopes || [];
+      return scopes.every(s => (s.areas || []).length <= 1);
+    }
+
+    function controlSortKey(ctrl) {
+      // Paused/disabled sink to bottom
+      if (ctrl.inactive) return [90, 0, ctrl.name.toLowerCase()];
+      if (ctrl.category !== 'switch' && isAllDisabled(ctrl)) return [91, 0, ctrl.name.toLowerCase()];
+
+      const catOrder = { 'switch': 0, 'motion_sensor': 1, 'camera': 2, 'contact_sensor': 3 };
+      const cat = catOrder[ctrl.category] ?? 4;
+
+      if (ctrl.category === 'switch') {
+        // Solo switches first, then non-solo
+        const solo = isSwitchSolo(ctrl) ? 0 : 1;
+        return [cat, solo, ctrl.name.toLowerCase()];
+      }
+      // Sensors: alert-only last within category
+      const alertLast = isAlertOnly(ctrl) ? 1 : 0;
+      return [cat, alertLast, ctrl.name.toLowerCase()];
+    }
+
+    function sortAreaControls(controls) {
+      return [...controls].sort((a, b) => {
+        const ka = controlSortKey(a);
+        const kb = controlSortKey(b);
+        for (let i = 0; i < ka.length; i++) {
+          if (ka[i] < kb[i]) return -1;
+          if (ka[i] > kb[i]) return 1;
+        }
+        return 0;
+      });
+    }
+
     function renderAreaControlsList() {
       if (!areaControls || areaControls.length === 0) return '';
+      const sorted = sortAreaControls(areaControls);
       let html = '';
-      for (const ctrl of areaControls) {
+      for (const ctrl of sorted) {
         const icon = controlCategoryIcon(ctrl.category);
         const impact = controlImpactLabel(ctrl);
         const pausedBadge = ctrl.inactive ? '<span class="ctrl-paused-badge">paused</span>' : '';
@@ -4072,7 +4133,7 @@
       const card = document.querySelector('.tune-brightness-card');
       if (!card) return;
       const isOpen = card.classList.toggle('is-open');
-      localStorage.setItem('tune_details_expanded', isOpen ? 'true' : 'false');
+      if (_persistCards) localStorage.setItem('tune_details_expanded', isOpen ? 'true' : 'false');
     }
 
     function toggleAdjustmentDetails() {
@@ -4088,13 +4149,14 @@
       const card = document.querySelector('.tune-controls-card');
       if (!card) return;
       card.classList.toggle('is-open');
+      if (_persistCards) localStorage.setItem('tune_controls_expanded', card.classList.contains('is-open') ? 'true' : 'false');
     }
 
     function toggleLightsBody() {
       const card = document.querySelector('.tune-lights-card');
       if (!card) return;
       const isOpen = card.classList.toggle('is-open');
-      localStorage.setItem('tune_lights_expanded', isOpen ? 'true' : 'false');
+      if (_persistCards) localStorage.setItem('tune_lights_expanded', isOpen ? 'true' : 'false');
     }
 
     // ============================================================
@@ -4110,7 +4172,7 @@
       if (!card) return;
       card.classList.toggle('is-open');
       const isOpen = card.classList.contains('is-open');
-      localStorage.setItem('chart_collapsed', isOpen ? 'false' : 'true');
+      if (_persistCards) localStorage.setItem('chart_collapsed', isOpen ? 'false' : 'true');
       // Trigger chart resize when opening (Plotly needs this)
       if (isOpen) {
         setTimeout(() => {
@@ -4123,11 +4185,11 @@
     function initChartCardState() {
       const card = document.getElementById('chart-card');
       if (!card) return;
-      // Default collapsed; open if localStorage says so
-      const stored = localStorage.getItem('chart_collapsed');
-      if (stored === 'false') {
-        card.classList.add('is-open');
+      if (_persistCards) {
+        const stored = localStorage.getItem('chart_collapsed');
+        if (stored === 'false') card.classList.add('is-open');
       }
+      // Focused mode: stays collapsed (default)
     }
 
     function handleDeepLink() {
@@ -4180,7 +4242,7 @@
       }
       card.classList.toggle('is-open');
       const isOpen = card.classList.contains('is-open');
-      localStorage.setItem('auto_' + type + '_collapsed', isOpen ? 'false' : 'true');
+      if (_persistCards) localStorage.setItem('auto_' + type + '_collapsed', isOpen ? 'false' : 'true');
       updateAutoHeaderText(type);
       updateAutoOverrideIndicator(type);
     }
@@ -4202,9 +4264,12 @@
           // Enabled toggle
           document.getElementById('auto-' + type + '-enabled').checked = settings[prefix + '_enabled'] || false;
 
-          // Always start closed
           const card = document.getElementById('auto-' + type + '-card');
-          card?.classList.remove('is-open');
+          if (_persistCards && localStorage.getItem('auto_' + type + '_collapsed') === 'false') {
+            card?.classList.add('is-open');
+          } else {
+            card?.classList.remove('is-open');
+          }
 
           // Light preset (on only)
           if (type === 'on') {

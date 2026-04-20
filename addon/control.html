@@ -1886,7 +1886,7 @@
             starHtml = `<span class="${starClass}" onclick="event.stopPropagation(); setFeedbackArea(${idx}, '${areaId}')" title="Feedback target">&#9733;</span>`;
           }
           return `
-            <span class="area-chip">
+            <span class="area-chip" data-area-id="${areaId}">
               ${starHtml}${areaName}
               <button class="area-chip-remove" onclick="removeAreaFromScope(${idx}, '${areaId}')">&times;</button>
             </span>
@@ -2279,7 +2279,7 @@
           const area = allAreas.find(a => a.area_id === areaId);
           const areaName = area ? area.name : areaId;
           return `
-            <span class="area-chip">
+            <span class="area-chip" data-area-id="${areaId}">
               ${areaName}
               <button class="area-chip-remove" onclick="removeAreaFromMotionScope(${idx}, '${areaId}')">&times;</button>
             </span>
@@ -2776,6 +2776,23 @@
         }
 
         renderScopesEditor();
+      }
+
+      // Highlight area chips matching the area we navigated from
+      const hlParams = new URLSearchParams(window.location.search);
+      const hlAreaId = hlParams.get('from') === 'area' ? hlParams.get('id') : null;
+      if (hlAreaId) {
+        setTimeout(() => {
+          document.querySelectorAll(`.area-chip[data-area-id="${hlAreaId}"]`).forEach(chip => {
+            chip.style.transition = 'border-color 0.3s, background 0.3s';
+            chip.style.borderColor = 'var(--accent)';
+            chip.style.background = 'rgba(254,172,96,0.15)';
+            setTimeout(() => {
+              chip.style.borderColor = '';
+              chip.style.background = '';
+            }, 2000);
+          });
+        }, 100);
       }
     }
 

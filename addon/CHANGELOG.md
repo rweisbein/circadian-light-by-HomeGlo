@@ -1,8 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
-## 1.2.88
+## 1.2.89
 - **Sensor impact labels**: Per-scope tokens joined with `+` — e.g. "On + 1m boost", "5m + Alert". Clearer multi-reach representation.
-- **Control detail deep-link**: Navigating from area detail pre-expands reach cards containing that area. Back button returns to area detail with Controls card open and scrolled into view.
+- **Control detail deep-link**: Navigating from area detail pre-expands reach cards containing that area, highlights the source area chip. Back button returns to area detail with Controls card open and scrolled into view.
+- **Controls list sorting**: Switches first (solo before non-solo), then motion/camera/contact (alert-only last). Paused and disabled sink to bottom.
+- **Card state persistence**: All area detail cards (chart, brightness, controls, lights, auto on/off) save expand/collapse to localStorage when arriving from home page. Focused entry points (tune, control detail, deep links) force only the target card open, keep rest collapsed, and don't write to localStorage.
+- **Batch group sync fix**: Per-area group sync no longer deletes batch groups — prevents unnecessary delete+recreate cycle on restart.
 
 ## 1.2.87
 - **Switch reach labels**: Switch impact now shows per-reach area context — "Solo", "+ Kitchen", "Solo | Kitchen +2" — using feedback primary area when restrict-to-primary is enabled.
