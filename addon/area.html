@@ -685,9 +685,10 @@
     .tune-light-col-headers span:nth-child(n+3) { text-align: right; }
     .tune-light-sort { cursor: pointer; transition: color 0.15s; }
     .tune-light-sort:hover { color: var(--text); }
-    /* Active sort: keep text neutral, show orange arrow after the label */
+    /* Active sort: keep text neutral, show orange directional arrow after the label */
     .tune-light-sort.active-sort { color: var(--muted); }
-    .tune-light-sort.active-sort::after { content: " \2195"; color: var(--accent); margin-left: 3px; font-size: 1.3em; vertical-align: -2px; line-height: 1; }
+    .tune-light-sort.active-sort.sort-asc::after { content: " \2191"; color: var(--accent); margin-left: 3px; font-size: 1.1em; vertical-align: -1px; line-height: 1; }
+    .tune-light-sort.active-sort.sort-desc::after { content: " \2193"; color: var(--accent); margin-left: 3px; font-size: 1.1em; vertical-align: -1px; line-height: 1; }
     .tune-light-sort-final { /* no longer bold/white — value carries the weight */ }
     .tune-light-ct { font-size: 0.82rem; color: var(--muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
     .tune-light-breakdown { font-size: 0.7rem; color: var(--muted2); padding: 2px 14px 0 14px; font-variant-numeric: tabular-nums; }
@@ -730,12 +731,17 @@
     .tune-hero-breadcrumb .tune-hero-dot { margin: 0 5px; color: var(--muted2); }
 
     /* Inline disclosure chevron at end of breadcrumb */
-    .tune-adj-chevron-inline {
-      display: inline-block; margin-left: 6px; cursor: pointer;
-      color: var(--muted); transition: transform 0.2s, color 0.15s;
-      font-size: 1em; line-height: 1;
+    .tune-adj-target {
+      display: inline-flex; align-items: center; cursor: pointer; user-select: none;
+      padding: 8px 8px 8px 4px; margin: -8px -8px -8px -4px;
+      color: var(--muted); transition: color 0.15s;
     }
-    .tune-adj-chevron-inline:hover { color: var(--text); }
+    .tune-adj-target:hover { color: var(--text); }
+    .tune-adj-chevron-inline {
+      display: inline-block; margin-left: 6px;
+      transition: transform 0.2s;
+      font-size: 1.1em; line-height: 1;
+    }
 
     /* Adjustments details sit directly under the hero — no left rule needed */
     #tune-adj-details { padding-bottom: 4px; }
@@ -3028,7 +3034,7 @@
       return sign * num;
     }
 
-    let lightSortOrder = 'name';
+    let lightSortOrder = 'behaviour';
     let lightSortAsc = true;
 
     let tuneState = {
@@ -3672,7 +3678,12 @@
         if (lightSortOrder === 'behaviour') {
           va = a.querySelector('.tune-light-behaviour')?.textContent || '';
           vb = b.querySelector('.tune-light-behaviour')?.textContent || '';
-          return lightSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+          const cmp = lightSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+          if (cmp !== 0) return cmp;
+          // Tiebreak by name (always ascending)
+          const na = a.querySelector('.tune-light-name')?.textContent || '';
+          const nb = b.querySelector('.tune-light-name')?.textContent || '';
+          return na.localeCompare(nb);
         }
         const colMap = { impact: '.tune-light-impact', final: '.tune-light-bri' };
         const aText = a.querySelector(colMap[lightSortOrder])?.textContent || '';
@@ -3689,11 +3700,14 @@
 
       items.forEach(item => list.appendChild(item));
 
-      // Update active-sort class on headers
+      // Update active-sort class + direction on headers
       const card = list.closest('.tune-lights-card') || list.closest('#tune-lights-inline') || list.closest('.tune-lights-body')?.parentElement;
       if (card) {
         card.querySelectorAll('.tune-light-sort').forEach(h => {
-          h.classList.toggle('active-sort', h.dataset.sort === lightSortOrder);
+          const isActive = h.dataset.sort === lightSortOrder;
+          h.classList.toggle('active-sort', isActive);
+          h.classList.toggle('sort-asc', isActive && lightSortAsc);
+          h.classList.toggle('sort-desc', isActive && !lightSortAsc);
         });
       }
     }
@@ -3815,8 +3829,10 @@
       bhtml += '<div class="tune-hero-breadcrumb">'
         + '<span id="tune-det-base-total">' + baseBri + '%</span> curve'
         + '<span class="tune-hero-dot">\u00B7</span>'
+        + '<span class="tune-adj-target" onclick="toggleAdjustmentDetails(event)">'
         + '<span id="tune-det-adj-net">0%</span> adjustments'
-        + '<span class="tune-adj-chevron-inline" id="tune-adj-chevron" onclick="toggleAdjustmentDetails(event)" style="' + (adjOpenInit ? 'transform:rotate(90deg);' : '') + '">&#x203A;</span>'
+        + '<span class="tune-adj-chevron-inline" id="tune-adj-chevron" style="' + (adjOpenInit ? 'transform:rotate(90deg);' : '') + '">&#x203A;</span>'
+        + '</span>'
         + '</div>';
       bhtml += '</div>';
       // Collapsible detail rows with Tuning / Activity zones

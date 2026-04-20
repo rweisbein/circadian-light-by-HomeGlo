@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.93
+- **Bigger Adjustments touch target**: Whole "↓N% adjustments ›" group is now one tap target with mobile-friendly padding, not just the chevron glyph.
+- **Directional sort arrow**: Sort indicator now shows ↑ or ↓ based on current direction (was the bidirectional ↕, which rendered as a tofu box on some fonts).
+- **Default sort = Purpose**: Per-light table opens sorted by Purpose, with name as tiebreak — keeps lights of the same purpose grouped and alphabetized within.
+
 ## 1.2.92
 - **Inline Adjustments disclosure**: Chevron moved to end of the hero breadcrumb (`91% curve · ↓45% adjustments ›`). Defaults closed; click expands Tuning + Activity rows below. Removed the redundant "Adjustments" header row and the left rule.
 - **Arrow notation in breadcrumb**: Adjustments value now reads `↓N%` / `↑N%` for consistency with per-light rows. Stays as `0%` (not `—`) when net is zero so the chevron remains anchored.
