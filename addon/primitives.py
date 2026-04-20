@@ -2633,7 +2633,7 @@ class CircadianLightPrimitives:
                         pass  # Already fired
                     else:
                         # "Only if untouched" check — auto-off only fires if
-                        # auto-on turned lights on today and no user action since
+                        # lights haven't been touched since the last auto-on
                         if settings.get("auto_off_only_untouched", False):
                             auto_on_fired = self._auto_fired.get(area_id, {}).get(
                                 "auto_on", {}
@@ -2641,11 +2641,11 @@ class CircadianLightPrimitives:
                             auto_on_date = auto_on_fired.get("date")
 
                             should_skip = False
-                            if auto_on_date != today_str:
-                                # Auto-on hasn't fired today — no valid trigger
+                            if not auto_on_date:
+                                # Auto-on has never fired — no valid trigger
                                 logger.info(
                                     f"[auto_off] Skipping {area_id}: untouched guard active "
-                                    f"but auto_on has not fired today"
+                                    f"but auto_on has never fired"
                                 )
                                 should_skip = True
                             else:
