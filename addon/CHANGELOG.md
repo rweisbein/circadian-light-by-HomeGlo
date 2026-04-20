@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.94
+- **Curve card headline (Phase A)**: Curve card is now always-open — no chevron, no toggle. Graph sits on top, Bright + Color sliders pulled inside the card body directly beneath it. The standalone Circadian slider is gone; circadian-on/off still uses the Enable overlay over the slider row.
+
 ## 1.2.93
 - **Bigger Adjustments touch target**: Whole "↓N% adjustments ›" group is now one tap target with mobile-friendly padding, not just the chevron glyph.
 - **Directional sort arrow**: Sort indicator now shows ↑ or ↓ based on current direction (was the bidirectional ↕, which rendered as a tofu box on some fonts).

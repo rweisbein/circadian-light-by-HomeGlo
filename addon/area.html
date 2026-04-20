@@ -494,6 +494,12 @@
     .auto-sched-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
     .auto-sched-card.is-open .auto-sched-chevron { transform: rotate(90deg); }
 
+    /* Headline variant: always-open card, no chevron, static header */
+    .auto-sched-card--headline.is-open .auto-sched-body { max-height: none; }
+    .auto-sched-header--static { cursor: default; }
+    .curve-controls-wrap { position: relative; padding: 4px 14px 12px 14px; }
+    .curve-controls-wrap .adjust-section { margin-bottom: 0; }
+
     /* Unified field row — label left, content right */
     .auto-sched-field { display: flex; align-items: flex-start; gap: 8px; padding: 5px 14px 5px 14px; }
     .auto-sched-field-label { font-size: 0.78rem; color: var(--muted); min-width: 4.5em; flex-shrink: 0; padding-top: 1px; line-height: 1.4; }
@@ -859,103 +865,79 @@
       </div>
     </div>
 
-    <div id="circadian-content-wrap" style="position: relative;">
-    <div class="adjust-section">
-      <div class="adjust-slider-row">
-        <div class="slider-group">
-          <div class="slider-section-label">Circadian</div>
-          <div class="slider-label slider-hero" id="slider-hero-circadian">Bed 10p</div>
-          <div class="slider-group-inner">
-            <div class="slider-column">
-              <div class="slider-extreme" id="circ-max" onclick="executeSetPosition(100,'step')">britelite</div>
-              <div class="slider-track" data-mode="step">
-                <div class="slider-fill"></div>
-                <div class="slider-thumb"></div>
-              </div>
-              <div class="slider-extreme" id="circ-min" onclick="executeSetPosition(0,'step')">nitelite</div>
-            </div>
-            <div class="step-buttons">
-              <button class="step-btn" onclick="executeAction('step_up')" title="Step up">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
-              </button>
-              <button class="step-btn" onclick="executeAction('step_down')" title="Step down">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-              </button>
-            </div>
-          </div>
-        </div>
-        <div class="slider-group">
-          <div class="slider-section-label">Bright</div>
-          <div class="slider-label slider-hero" id="slider-hero-brightness">78%</div>
-          <div class="slider-group-inner">
-            <div class="slider-column">
-              <div class="slider-extreme" id="bright-max" onclick="executeSetPosition(100,'brightness')">brightest</div>
-              <div class="slider-track" data-mode="brightness">
-                <div class="slider-fill"></div>
-                <div class="slider-thumb"></div>
-              </div>
-              <div class="slider-extreme" id="bright-min" onclick="executeSetPosition(0,'brightness')">dimmest</div>
-            </div>
-            <div class="step-buttons">
-              <button class="step-btn" onclick="executeAction('bright_up')" title="Brighten">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
-              </button>
-              <button class="step-btn" onclick="executeAction('bright_down')" title="Dim">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-              </button>
-            </div>
-          </div>
-        </div>
-        <div class="slider-group">
-          <div class="slider-section-label">Color</div>
-          <div class="slider-label slider-hero" id="slider-hero-color">2910K</div>
-          <div class="slider-group-inner">
-            <div class="slider-column">
-              <div class="slider-extreme" id="color-max" onclick="executeSetPosition(100,'color')">coolest</div>
-              <div class="slider-track" data-mode="color">
-                <div class="slider-fill"></div>
-                <div class="slider-thumb"></div>
-              </div>
-              <div class="slider-extreme" id="color-min" onclick="executeSetPosition(0,'color')">warmest</div>
-            </div>
-            <div class="step-buttons">
-              <button class="step-btn" onclick="executeAction('color_up')" title="Cooler">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
-              </button>
-              <button class="step-btn" onclick="executeAction('color_down')" title="Warmer">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <button class="enable-circadian-btn" id="enable-circadian-btn"
-            style="display:none;" onclick="executeAction('circadian_on')">
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="5"/>
-        <line x1="12" y1="1" x2="12" y2="3"/>
-        <line x1="12" y1="21" x2="12" y2="23"/>
-        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-        <line x1="1" y1="12" x2="3" y2="12"/>
-        <line x1="21" y1="12" x2="23" y2="12"/>
-        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-      </svg>
-      Enable
-    </button>
-    </div>
-
     <!-- Cards Section (curve + auto schedule) -->
     <div id="auto-sched-section" class="auto-sched-section" style="display:none;">
-    <div class="auto-sched-card" id="chart-card">
-      <div class="auto-sched-header" onclick="toggleChartCard()">
-        <span class="auto-sched-chevron" id="chart-chevron">&#x203A;</span>
+    <div class="auto-sched-card auto-sched-card--headline is-open" id="chart-card">
+      <div class="auto-sched-header auto-sched-header--static">
         <span class="auto-sched-title">Curve</span>
       </div>
       <div class="auto-sched-body" id="chart-body">
         <div id="mini-chart"></div>
+        <div id="circadian-content-wrap" class="curve-controls-wrap">
+          <div class="adjust-section">
+            <div class="adjust-slider-row">
+              <div class="slider-group">
+                <div class="slider-section-label">Bright</div>
+                <div class="slider-label slider-hero" id="slider-hero-brightness">78%</div>
+                <div class="slider-group-inner">
+                  <div class="slider-column">
+                    <div class="slider-extreme" id="bright-max" onclick="executeSetPosition(100,'brightness')">brightest</div>
+                    <div class="slider-track" data-mode="brightness">
+                      <div class="slider-fill"></div>
+                      <div class="slider-thumb"></div>
+                    </div>
+                    <div class="slider-extreme" id="bright-min" onclick="executeSetPosition(0,'brightness')">dimmest</div>
+                  </div>
+                  <div class="step-buttons">
+                    <button class="step-btn" onclick="executeAction('bright_up')" title="Brighten">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
+                    </button>
+                    <button class="step-btn" onclick="executeAction('bright_down')" title="Dim">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="slider-group">
+                <div class="slider-section-label">Color</div>
+                <div class="slider-label slider-hero" id="slider-hero-color">2910K</div>
+                <div class="slider-group-inner">
+                  <div class="slider-column">
+                    <div class="slider-extreme" id="color-max" onclick="executeSetPosition(100,'color')">coolest</div>
+                    <div class="slider-track" data-mode="color">
+                      <div class="slider-fill"></div>
+                      <div class="slider-thumb"></div>
+                    </div>
+                    <div class="slider-extreme" id="color-min" onclick="executeSetPosition(0,'color')">warmest</div>
+                  </div>
+                  <div class="step-buttons">
+                    <button class="step-btn" onclick="executeAction('color_up')" title="Cooler">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
+                    </button>
+                    <button class="step-btn" onclick="executeAction('color_down')" title="Warmer">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button class="enable-circadian-btn" id="enable-circadian-btn"
+                  style="display:none;" onclick="executeAction('circadian_on')">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="5"/>
+              <line x1="12" y1="1" x2="12" y2="3"/>
+              <line x1="12" y1="21" x2="12" y2="23"/>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+              <line x1="1" y1="12" x2="3" y2="12"/>
+              <line x1="21" y1="12" x2="23" y2="12"/>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            </svg>
+            Enable
+          </button>
+        </div>
       </div>
     </div>
     <div class="auto-sched-card" id="auto-on-card">
