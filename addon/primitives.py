@@ -1136,49 +1136,113 @@ class CircadianLightPrimitives:
                 f"set_position state updated (lights off): {result.brightness}%, {result.color_temp}K"
             )
 
-    async def set_midpoint(
+    async def set_phase_time(
         self,
         area_id: str,
-        midpoint: float,
+        target_time: float,
         source: str = "service_call",
         _send_command: bool = True,
     ):
-        """Set brightness_mid and color_mid directly (no position round-trip).
-
-        Used by chart drag: the user's drag position IS the midpoint, so we skip
-        the inverse-logistic round-trip (which loses precision near asymptotes
-        and is distorted by bed_brightness/wake_brightness shifts).
-
-        Args:
-            area_id: The area ID to control
-            midpoint: Hour (0-24) to set as brightness_mid and color_mid
-            source: Source of the action
-            _send_command: Whether to send light commands
+        """Set wake or bed TIME — the hour at which the curve reaches wake_brightness /
+        bed_brightness. Internally converts to the shifted sigmoid midpoint so that
+        the user-facing time matches where brightness = wake_brightness / bed_brightness
+        (which is earlier than the midpoint when that percent is <50, later when >50).
         """
         area_state = self._get_area_state(area_id)
         if not area_state.is_circadian:
-            logger.debug(
-                f"[{source}] set_midpoint ignored for area {area_id} (not in circadian mode)"
-            )
             return
-
         if area_state.frozen_at is not None:
             self._unfreeze_internal(area_id, source)
             area_state = self._get_area_state(area_id)
 
-        mid = float(midpoint) % 24
+        config = self._get_config(area_id)
+        hour = get_current_hour()
+
+        from brain import compute_shifted_midpoint
+
+        in_ascend, _h48, t_ascend, t_descend, slope = CircadianLight.get_phase_info(
+            hour, config
+        )
+        bri_pct = config.wake_brightness if in_ascend else config.bed_brightness
+        b_min_norm = config.min_brightness / 100.0
+        b_max_norm = config.max_brightness / 100.0
+
+        target_h48 = float(target_time)
+        if in_ascend:
+            while target_h48 < t_ascend:
+                target_h48 += 24
+            while target_h48 > t_descend:
+                target_h48 -= 24
+        else:
+            descend_end = t_ascend + 24
+            while target_h48 < t_descend:
+                target_h48 += 24
+            while target_h48 > descend_end:
+                target_h48 -= 24
+
+        shifted_mid = (
+            compute_shifted_midpoint(
+                target_h48, bri_pct, slope, b_min_norm, b_max_norm
+            )
+            % 24
+        )
         self._update_area_state(
             area_id,
             {
-                "brightness_mid": mid,
-                "color_mid": mid,
+                "brightness_mid": shifted_mid,
+                "color_mid": shifted_mid,
                 "color_override": None,
                 "color_override_set_at": None,
             },
         )
-        logger.info(f"[{source}] set_midpoint({mid:.3f}) for area {area_id}")
-
+        logger.info(
+            f"[{source}] set_phase_time({float(target_time):.3f}) for area {area_id}: mid={shifted_mid:.3f}"
+        )
         if _send_command and area_state.is_on:
+            await self.client.update_lights_in_circadian_mode(
+                area_id, log_periodic=True
+            )
+
+    async def reset_brightness_override(
+        self, area_id: str, source: str = "service_call", _send_command: bool = True
+    ):
+        """Clear brightness_override back to None (pure curve + pipeline)."""
+        area_state = self._get_area_state(area_id)
+        self._update_area_state(
+            area_id,
+            {"brightness_override": None, "brightness_override_set_at": None},
+        )
+        logger.info(f"[{source}] reset_brightness_override for area {area_id}")
+        if _send_command and area_state.is_on and area_state.is_circadian:
+            await self.client.update_lights_in_circadian_mode(
+                area_id, log_periodic=True
+            )
+
+    async def reset_color_override(
+        self, area_id: str, source: str = "service_call", _send_command: bool = True
+    ):
+        """Clear color_override back to None."""
+        area_state = self._get_area_state(area_id)
+        self._update_area_state(
+            area_id,
+            {"color_override": None, "color_override_set_at": None},
+        )
+        logger.info(f"[{source}] reset_color_override for area {area_id}")
+        if _send_command and area_state.is_on and area_state.is_circadian:
+            await self.client.update_lights_in_circadian_mode(
+                area_id, log_periodic=True
+            )
+
+    async def reset_phase(
+        self, area_id: str, source: str = "service_call", _send_command: bool = True
+    ):
+        """Clear brightness_mid/color_mid back to None (configured wake/bed time)."""
+        area_state = self._get_area_state(area_id)
+        self._update_area_state(
+            area_id, {"brightness_mid": None, "color_mid": None}
+        )
+        logger.info(f"[{source}] reset_phase for area {area_id}")
+        if _send_command and area_state.is_on and area_state.is_circadian:
             await self.client.update_lights_in_circadian_mode(
                 area_id, log_periodic=True
             )

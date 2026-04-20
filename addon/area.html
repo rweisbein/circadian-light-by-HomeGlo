@@ -298,122 +298,87 @@
 
     /* Adjust sliders (from modal - exact same styling) */
     .adjust-section {
-      margin-bottom: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 4px 4px 2px;
       -webkit-user-select: none;
       user-select: none;
     }
-    .adjust-slider-row {
-      display: flex;
-      align-items: stretch;
-      justify-content: center;
-      gap: 24px;
-    }
-    .slider-group {
+    .hslider-row {
       display: flex;
       flex-direction: column;
-      align-items: center;
-      gap: 2px;
-      flex: 1;
-      min-width: 0;
+      gap: 4px;
     }
-    .slider-group-inner {
+    .hslider-header {
       display: flex;
-      align-items: center;
-      gap: 6px;
+      align-items: baseline;
+      gap: 8px;
     }
-    .step-buttons { display: flex; flex-direction: column; gap: 6px; align-self: center; }
-    .step-btn { width: 28px; height: 28px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(30,30,30,0.9); color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; padding: 0; }
-    .step-btn:hover { border-color: rgba(255,255,255,0.35); background: rgba(50,50,50,0.9); color: var(--text); }
-    .step-btn:active { background: rgba(70,70,70,0.9); }
-    .step-btn svg { width: 14px; height: 14px; }
-    .slider-column {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 2px;
-    }
-    .slider-label {
-      font-size: 0.85rem;
+    .hslider-label {
+      font-size: 0.62rem;
       font-weight: 600;
-      color: var(--text);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    .slider-section-label {
-      font-size: 0.6rem;
+      color: var(--muted2);
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      color: var(--muted2);
-      text-align: center;
+      min-width: 42px;
     }
-    .slider-hero {
-      font-size: 1.1rem;
-      text-transform: none;
-      letter-spacing: 0;
+    .hslider-value {
+      font-size: 1rem;
+      font-weight: 500;
+      color: var(--text);
+    }
+    .hslider-reset {
+      margin-left: auto;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.15);
+      color: var(--muted2);
+      width: 22px;
+      height: 22px;
+      border-radius: 11px;
+      cursor: pointer;
+      padding: 0;
+      font-size: 0.85rem;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s, border-color 0.15s, opacity 0.15s;
+    }
+    .hslider-reset:hover {
+      color: var(--text);
+      border-color: rgba(255,255,255,0.35);
+    }
+    .hslider-reset.hidden {
+      opacity: 0;
+      pointer-events: none;
     }
     .slider-track {
       position: relative;
-      width: 14px;
-      height: 107px;
+      width: 100%;
+      height: 12px;
       background: rgba(255,255,255,0.08);
-      border-radius: 9px;
+      border-radius: 6px;
       cursor: pointer;
       touch-action: none;
       overflow: visible;
     }
-    .slider-fill {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      background: rgba(0,0,0,0.55);
-      pointer-events: none;
-      transition: height 0.15s ease;
-      border-radius: 9px 9px 0 0;
-      overflow: hidden;
-    }
     .slider-thumb {
       position: absolute;
-      left: 50%;
-      width: 24px;
-      height: 24px;
+      top: 50%;
+      width: 22px;
+      height: 22px;
       border-radius: 50%;
       background: #fff;
       border: 2px solid rgba(255,255,255,0.8);
       box-shadow: 0 1px 6px rgba(0,0,0,0.4);
-      transform: translate(-50%, 50%);
+      transform: translate(-50%, -50%);
       pointer-events: none;
-      transition: bottom 0.15s ease, background 0.15s ease;
+      transition: left 0.15s ease, background 0.15s ease;
       z-index: 2;
     }
-    .slider-track.dragging .slider-fill,
     .slider-track.dragging .slider-thumb {
       transition: none;
-    }
-    .slider-extreme {
-      font-size: 0.6rem;
-      color: var(--muted);
-      cursor: pointer;
-      padding: 2px 0;
-      letter-spacing: 0.02em;
-      opacity: 0.8;
-      transition: color 0.15s, opacity 0.15s;
-    }
-    .slider-extreme:hover {
-      color: var(--accent);
-      opacity: 1;
-    }
-    /* Top extreme (before track): extra space below for thumb */
-    .slider-extreme + .slider-track {
-      margin-top: 0;
-    }
-    .slider-column > .slider-extreme:first-child {
-      padding-bottom: 11px;
-      margin-top: 3px;
-    }
-    /* Bottom extreme (after track): extra space above for thumb */
-    .slider-track + .slider-extreme {
-      padding-top: 10px;
     }
     /* Circadian-off overlay */
     .circadian-off-overlay::after {
@@ -455,12 +420,7 @@
 
     /* Mobile adjustments */
     @media (max-width: 480px) {
-      .adjust-slider-row {
-        gap: 20px;
-      }
-      .slider-track {
-        height: 90px;
-      }
+      .adjust-section { gap: 8px; }
     }
 
     /* Auto schedule section */
@@ -875,50 +835,34 @@
         <div id="mini-chart"></div>
         <div id="circadian-content-wrap" class="curve-controls-wrap">
           <div class="adjust-section">
-            <div class="adjust-slider-row">
-              <div class="slider-group">
-                <div class="slider-section-label">Bright</div>
-                <div class="slider-label slider-hero" id="slider-hero-brightness">78%</div>
-                <div class="slider-group-inner">
-                  <div class="slider-column">
-                    <div class="slider-extreme" id="bright-max" onclick="executeSetPosition(100,'brightness')">brightest</div>
-                    <div class="slider-track" data-mode="brightness">
-                      <div class="slider-fill"></div>
-                      <div class="slider-thumb"></div>
-                    </div>
-                    <div class="slider-extreme" id="bright-min" onclick="executeSetPosition(0,'brightness')">dimmest</div>
-                  </div>
-                  <div class="step-buttons">
-                    <button class="step-btn" onclick="executeAction('bright_up')" title="Brighten">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
-                    </button>
-                    <button class="step-btn" onclick="executeAction('bright_down')" title="Dim">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                    </button>
-                  </div>
-                </div>
+            <div class="hslider-row">
+              <div class="hslider-header">
+                <span class="hslider-label">Bright</span>
+                <span class="hslider-value" id="slider-hero-brightness">78%</span>
+                <button class="hslider-reset hidden" id="reset-brightness" onclick="executeAction('reset_brightness_override')" title="Reset brightness">&#x21BA;</button>
               </div>
-              <div class="slider-group">
-                <div class="slider-section-label">Color</div>
-                <div class="slider-label slider-hero" id="slider-hero-color">2910K</div>
-                <div class="slider-group-inner">
-                  <div class="slider-column">
-                    <div class="slider-extreme" id="color-max" onclick="executeSetPosition(100,'color')">coolest</div>
-                    <div class="slider-track" data-mode="color">
-                      <div class="slider-fill"></div>
-                      <div class="slider-thumb"></div>
-                    </div>
-                    <div class="slider-extreme" id="color-min" onclick="executeSetPosition(0,'color')">warmest</div>
-                  </div>
-                  <div class="step-buttons">
-                    <button class="step-btn" onclick="executeAction('color_up')" title="Cooler">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
-                    </button>
-                    <button class="step-btn" onclick="executeAction('color_down')" title="Warmer">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                    </button>
-                  </div>
-                </div>
+              <div class="slider-track" data-mode="brightness">
+                <div class="slider-thumb"></div>
+              </div>
+            </div>
+            <div class="hslider-row">
+              <div class="hslider-header">
+                <span class="hslider-label">Color</span>
+                <span class="hslider-value" id="slider-hero-color">2910K</span>
+                <button class="hslider-reset hidden" id="reset-color" onclick="executeAction('reset_color_override')" title="Reset color">&#x21BA;</button>
+              </div>
+              <div class="slider-track" data-mode="color">
+                <div class="slider-thumb"></div>
+              </div>
+            </div>
+            <div class="hslider-row">
+              <div class="hslider-header">
+                <span class="hslider-label" id="slider-label-phase">Wake</span>
+                <span class="hslider-value" id="slider-hero-phase">—</span>
+                <button class="hslider-reset hidden" id="reset-phase" onclick="executeAction('reset_phase')" title="Reset wake/bed time">&#x21BA;</button>
+              </div>
+              <div class="slider-track" data-mode="phase">
+                <div class="slider-thumb"></div>
               </div>
             </div>
           </div>
@@ -1780,9 +1724,9 @@
         e.preventDefault();
         try { chartDiv.releasePointerCapture(e.pointerId); } catch (err) {}
         chartDiv.style.cursor = '';
-        const mid = _chartDrag.dragHour;
+        const targetTime = _chartDrag.dragHour;
         _chartDrag.active = false;
-        executeSetMidpoint(mid);
+        executeSetPhaseTime(targetTime);
       }
 
       chartDiv.addEventListener('pointerdown', onDown);
@@ -2183,51 +2127,101 @@
       const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
 
       const curveFrac = bMax > bMin ? Math.max(0, Math.min(100, (currentBri - bMin) / (bMax - bMin) * 100)) : 50;
-      // Color slider: prefer API kelvin (handles direct additive override + decay)
       const effectiveCCT = areaState.api_kelvin != null ? areaState.api_kelvin : currentCCT;
       const cctFrac = cMax > cMin ? Math.max(0, Math.min(100, (effectiveCCT - cMin) / (cMax - cMin) * 100)) : 50;
-      // Circadian slider uses actual_brightness (same as home page — reflects fade, sun bright, etc.)
-      const actualBriMapped = areaState.actual_brightness != null
-        ? (bMax > bMin ? Math.max(0, Math.min(100, (areaState.actual_brightness - bMin) / (bMax - bMin) * 100)) : 50)
-        : curveFrac;
-      const gloFrac = actualBriMapped;
-      // Brightness slider uses actual_brightness raw (0-100 scale)
       const briFrac = areaState.actual_brightness != null ? areaState.actual_brightness : curveFrac;
 
       const effRange = getEffectiveColorRange(cfg, currentHour, areaState.color_override);
 
+      const phaseCtx = buildPhaseCtx(cfg, areaState, currentHour);
+
       document.querySelectorAll('.slider-track').forEach(track => {
         if (track.classList.contains('dragging')) return;
         const mode = track.dataset.mode;
-        track.style.background = buildTrackGradient(mode, cfg, currentBri, currentCCT, effRange);
-        const pct = mode === 'step' ? gloFrac : mode === 'brightness' ? briFrac : cctFrac;
-        // Brightness thumb uses actual brightness; color thumb uses effective CCT
-        const thumbBri = mode === 'brightness' ? (areaState.actual_brightness ?? currentBri) : currentBri;
-        const thumbCCT = mode === 'color' ? effectiveCCT : currentCCT;
+        let pct, thumbBri, thumbCCT;
+        if (mode === 'brightness') {
+          pct = briFrac;
+          thumbBri = areaState.actual_brightness ?? currentBri;
+          thumbCCT = currentCCT;
+        } else if (mode === 'color') {
+          pct = cctFrac;
+          thumbBri = currentBri;
+          thumbCCT = effectiveCCT;
+        } else if (mode === 'phase') {
+          if (!phaseCtx) return;
+          pct = phaseCtx.currentTargetPct;
+          thumbBri = currentBri;
+          thumbCCT = currentCCT;
+        } else {
+          return;
+        }
+        track.style.background = buildTrackGradient(mode, cfg, currentBri, currentCCT, effRange, phaseCtx);
         applyOneSlider(track, pct, thumbBri, thumbCCT, mode);
       });
 
-      // Update hero values on slider headers
       const heroBri = document.getElementById('slider-hero-brightness');
       if (heroBri) heroBri.textContent = Math.round(areaState.actual_brightness ?? currentBri) + '%';
 
       const heroColor = document.getElementById('slider-hero-color');
       if (heroColor) heroColor.textContent = Math.round(effectiveCCT) + 'K';
 
-      const heroCirc = document.getElementById('slider-hero-circadian');
-      if (heroCirc) {
-        const status = areaStatus[selectedArea?.area_id] || {};
-        const phase = status.phase;
-        const midpoint = status.phase_midpoint;
-        if (phase && midpoint != null) {
-          let hr = Math.floor(midpoint) % 24;
-          const min = Math.round((midpoint % 1) * 60);
-          const suffix = hr < 12 ? 'a' : 'p';
-          if (hr === 0) hr = 12; else if (hr > 12) hr -= 12;
-          const timeStr = min === 0 ? `${hr}${suffix}` : `${hr}:${String(min).padStart(2,'0')}${suffix}`;
-          heroCirc.textContent = `${phase === 'wake' ? 'Wake' : 'Bed'} ${timeStr}`;
-        }
+      const phaseLabel = document.getElementById('slider-label-phase');
+      const heroPhase = document.getElementById('slider-hero-phase');
+      if (phaseCtx) {
+        if (phaseLabel) phaseLabel.textContent = phaseCtx.cursorInAscend ? 'Wake' : 'Bed';
+        if (heroPhase) heroPhase.textContent = formatPhaseTime(phaseCtx.currentTargetTime);
+      } else {
+        if (heroPhase) heroPhase.textContent = '—';
       }
+
+      // Toggle reset buttons visibility based on override/mid state
+      const rBri = document.getElementById('reset-brightness');
+      if (rBri) rBri.classList.toggle('hidden', areaState.brightness_override == null);
+      const rCol = document.getElementById('reset-color');
+      if (rCol) rCol.classList.toggle('hidden', areaState.color_override == null);
+      const rPh = document.getElementById('reset-phase');
+      if (rPh) rPh.classList.toggle('hidden', areaState.brightness_mid == null && areaState.color_mid == null);
+    }
+
+    function buildPhaseCtx(cfg, areaState, currentHour) {
+      const tAscend = cfg.ascend_start;
+      let tDescend = cfg.descend_start;
+      if (tDescend <= tAscend) tDescend += 24;
+      const h48 = currentHour < tAscend ? currentHour + 24 : currentHour;
+      const cursorInAscend = h48 >= tAscend && h48 < tDescend;
+      const phaseMin = cursorInAscend ? tAscend : tDescend;
+      const phaseMax = cursorInAscend ? tDescend : tAscend + 24;
+      // Current target time (user-facing wake/bed time): adjusted_* or config
+      const status = areaStatus[selectedArea?.area_id] || {};
+      let targetH48;
+      if (cursorInAscend) {
+        const adj = status.adjusted_wake_time;
+        targetH48 = adj != null ? (adj < tAscend ? adj + 24 : adj) : (cfg.wake_time < tAscend ? cfg.wake_time + 24 : cfg.wake_time);
+      } else {
+        const adj = status.adjusted_bed_time;
+        const baseBed = cfg.bed_time < tAscend ? cfg.bed_time + 24 : cfg.bed_time;
+        const adjH48 = adj != null ? (adj < tAscend ? adj + 24 : adj) : baseBed;
+        targetH48 = adjH48;
+      }
+      const currentTargetPct = Math.max(0, Math.min(100, (targetH48 - phaseMin) / (phaseMax - phaseMin) * 100));
+      const currentTargetTime = ((targetH48 % 24) + 24) % 24;
+      return { cursorInAscend, phaseMin, phaseMax, currentTargetPct, currentTargetTime, areaState, currentHour };
+    }
+
+    function formatPhaseTime(h) {
+      if (h == null) return '—';
+      h = ((h % 24) + 24) % 24;
+      let hr = Math.floor(h);
+      const min = Math.round((h - hr) * 60);
+      const suffix = hr < 12 ? 'a' : 'p';
+      if (hr === 0) hr = 12; else if (hr > 12) hr -= 12;
+      return min === 0 ? `${hr}${suffix}` : `${hr}:${String(min).padStart(2,'0')}${suffix}`;
+    }
+
+    function pctToPhaseTargetTime(pct, phaseCtx) {
+      if (!phaseCtx) return null;
+      const h48 = phaseCtx.phaseMin + (phaseCtx.phaseMax - phaseCtx.phaseMin) * pct / 100;
+      return ((h48 % 24) + 24) % 24;
     }
 
     function formatHourToTime(h) {
@@ -2336,39 +2330,57 @@
       return { effMin, effMax };
     }
 
-    function buildTrackGradient(mode, cfg, currentBri, currentCCT, effectiveColorRange) {
+    function buildTrackGradient(mode, cfg, currentBri, currentCCT, effectiveColorRange, phaseCtx) {
       const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
-      // Use full config range for step/color — slider can reach any CCT via color_override
       const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
       const stops = [];
-      const n = 6;
-      for (let i = 0; i <= n; i++) {
-        const frac = i / n;
-        let color;
-        if (mode === 'color') {
-          const k = cMin + (cMax - cMin) * frac;
-          color = cctToRGB(k);
-        } else if (mode === 'brightness') {
-          const b = frac * 100;
-          color = tintColorByBrightness(cctToRGB(currentCCT), b);
-        } else {
-          const b = bMin + (bMax - bMin) * frac;
-          const k = cMin + (cMax - cMin) * frac;
-          color = tintColorByBrightness(cctToRGB(k), b);
+      if (mode === 'phase' && phaseCtx) {
+        // Sample across phase window: for each candidate wake/bed time, compute
+        // what brightness+color the bulbs would hit at NOW, then paint that.
+        const n = 10;
+        const { areaState, currentHour, phaseMin, phaseMax } = phaseCtx;
+        for (let i = 0; i <= n; i++) {
+          const frac = i / n;
+          const candidateTargetH48 = phaseMin + (phaseMax - phaseMin) * frac;
+          const candidateMid = computeCandidateShiftedMid(candidateTargetH48, cfg, phaseCtx.cursorInAscend) % 24;
+          const fakeState = { ...areaState, brightness_mid: candidateMid, color_mid: candidateMid };
+          const b = calcMiniBrightness(currentHour, cfg, fakeState, currentHour) * 100;
+          const k = calcMiniColor(currentHour, cfg, fakeState, cachedSunTimes, currentHour);
+          const color = tintColorByBrightness(cctToRGB(k), b);
+          stops.push(color + ' ' + Math.round(frac * 100) + '%');
         }
-        stops.push(color + ' ' + Math.round(frac * 100) + '%');
+      } else {
+        const n = 8;
+        for (let i = 0; i <= n; i++) {
+          const frac = i / n;
+          let color;
+          if (mode === 'color') {
+            const k = cMin + (cMax - cMin) * frac;
+            color = cctToRGB(k);
+          } else {
+            const b = frac * 100;
+            color = tintColorByBrightness(cctToRGB(currentCCT), b);
+          }
+          stops.push(color + ' ' + Math.round(frac * 100) + '%');
+        }
       }
-      return 'linear-gradient(to top, ' + stops.join(', ') + ')';
+      return 'linear-gradient(to right, ' + stops.join(', ') + ')';
+    }
+
+    function computeCandidateShiftedMid(targetH48, cfg, inAscend) {
+      const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.wake_speed))];
+      const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.bed_speed))];
+      const bMinNorm = cfg.min_brightness / 100;
+      const bMaxNorm = cfg.max_brightness / 100;
+      const briPct = inAscend ? cfg.wake_brightness : cfg.bed_brightness;
+      const slope = inAscend ? kAscend : -kDescend;
+      return computeShiftedMidpoint(targetH48, briPct, slope, bMinNorm, bMaxNorm);
     }
 
     function applyOneSlider(track, pct, bri, cct, mode) {
-      const fill = track.querySelector('.slider-fill');
       const thumb = track.querySelector('.slider-thumb');
-      if (!fill || !thumb) return;
-      // Dim overlay: covers from top down to thumb position
-      fill.style.height = (100 - pct) + '%';
-      // Thumb position and color
-      thumb.style.bottom = pct + '%';
+      if (!thumb) return;
+      thumb.style.left = pct + '%';
       const color = cctToRGB(cct);
       const tinted = mode === 'color' ? color : tintColorByBrightness(color, bri);
       thumb.style.background = tinted;
@@ -2377,8 +2389,8 @@
 
     function getPositionFromPointer(track, e) {
       const rect = track.getBoundingClientRect();
-      const y = Math.max(0, Math.min(1, (rect.bottom - e.clientY) / rect.height));
-      return y * 100;
+      const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      return x * 100;
     }
 
     function updateSliderFill(el) {
@@ -2413,19 +2425,14 @@
           e.preventDefault();
           track.classList.remove('dragging');
           sliderInteracting = false;
-          if (lastPos !== null) {
-            let sendPos = lastPos;
-            if (mode === 'step') {
-              // Circadian slider shows actual brightness (post-pipeline),
-              // but set_position expects curve-space position. Convert by
-              // undoing pipeline factors (sun_bright × area_factor).
-              const status = areaStatus[selectedArea?.area_id] || {};
-              const sunFactor = status.sun_bright_factor ?? 1.0;
-              const areaFactor = status.area_factor ?? 1.0;
-              const denom = Math.max(0.01, sunFactor * areaFactor);
-              sendPos = Math.min(100, lastPos / denom);
-            }
-            executeSetPosition(Math.round(sendPos), mode);
+          if (lastPos === null) return;
+          if (mode === 'phase') {
+            const ctx = getSliderCfgAndState();
+            const phaseCtx = ctx ? buildPhaseCtx(ctx.cfg, ctx.areaState, ctx.currentHour) : null;
+            const targetTime = pctToPhaseTargetTime(lastPos, phaseCtx);
+            if (targetTime != null) executeSetPhaseTime(targetTime);
+          } else {
+            executeSetPosition(Math.round(lastPos), mode);
           }
         }
 
@@ -2479,14 +2486,30 @@
       const dragMode = track.dataset.mode;
       const ctx = getSliderCfgAndState();
       if (!ctx) return;
-      const { cfg, areaState } = ctx;
-      const now = new Date();
-      const currentHour = now.getHours() + now.getMinutes() / 60;
+      const { cfg, areaState, currentHour } = ctx;
 
       const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
       const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
       const currentBri = calcMiniBrightness(currentHour, cfg, areaState, currentHour) * 100;
       const currentCCT = calcMiniColor(currentHour, cfg, areaState, cachedSunTimes, currentHour);
+
+      const effRange = getEffectiveColorRange(cfg, currentHour, areaState.color_override);
+      const phaseCtx = buildPhaseCtx(cfg, areaState, currentHour);
+
+      if (dragMode === 'phase') {
+        if (!phaseCtx) return;
+        const targetH48 = phaseCtx.phaseMin + (phaseCtx.phaseMax - phaseCtx.phaseMin) * position / 100;
+        const candidateMid = computeCandidateShiftedMid(targetH48, cfg, phaseCtx.cursorInAscend) % 24;
+        const fakeState = { ...areaState, brightness_mid: candidateMid, color_mid: candidateMid };
+        const previewBri = calcMiniBrightness(currentHour, cfg, fakeState, currentHour) * 100;
+        const previewCCT = calcMiniColor(currentHour, cfg, fakeState, cachedSunTimes, currentHour);
+        track.style.background = buildTrackGradient(dragMode, cfg, previewBri, previewCCT, effRange, phaseCtx);
+        applyOneSlider(track, position, previewBri, previewCCT, dragMode);
+        // Live label update during drag
+        const heroPhase = document.getElementById('slider-hero-phase');
+        if (heroPhase) heroPhase.textContent = formatPhaseTime(((targetH48 % 24) + 24) % 24);
+        return;
+      }
 
       let previewBri, previewCCT;
       if (dragMode === 'brightness') {
@@ -2496,22 +2519,13 @@
         previewBri = currentBri;
         previewCCT = cMin + (cMax - cMin) * position / 100;
       } else {
-        // Step/banner: use preview points from backend
-        previewBri = bMin + (bMax - bMin) * position / 100;
-        previewCCT = sliderPreviewPoints
-          ? kelvinAtBrightness(previewBri, sliderPreviewPoints)
-          : currentCCT;
+        return;
       }
 
       const briFrac = bMax > bMin ? Math.max(0, Math.min(100, (previewBri - bMin) / (bMax - bMin) * 100)) : 50;
       const cctFrac = cMax > cMin ? Math.max(0, Math.min(100, (previewCCT - cMin) / (cMax - cMin) * 100)) : 50;
-      const gloFrac = briFrac;
-
-      const effRange = getEffectiveColorRange(cfg, currentHour, areaState.color_override);
-
-      // Only update the dragged slider during preview (prevent cross-talk)
-      const pct = dragMode === 'step' ? gloFrac : dragMode === 'brightness' ? briFrac : cctFrac;
-      track.style.background = buildTrackGradient(dragMode, cfg, previewBri, previewCCT, effRange);
+      const pct = dragMode === 'brightness' ? briFrac : cctFrac;
+      track.style.background = buildTrackGradient(dragMode, cfg, previewBri, previewCCT, effRange, phaseCtx);
       applyOneSlider(track, pct, previewBri, previewCCT, dragMode);
     }
 
@@ -2990,8 +3004,13 @@
           : (status.adjusted_bed_time ?? null),
       };
       if (isDragActive) {
-        areaState.brightness_mid = _chartDrag.dragHour;
-        areaState.color_mid = _chartDrag.dragHour;
+        const tAscendCfg = cfg.ascend_start;
+        let tDescendCfg = cfg.descend_start;
+        if (tDescendCfg <= tAscendCfg) tDescendCfg += 24;
+        const dragH48 = _chartDrag.dragHour < tAscendCfg ? _chartDrag.dragHour + 24 : _chartDrag.dragHour;
+        const shiftedMid = computeCandidateShiftedMid(dragH48, cfg, _chartDrag.cursorInAscend) % 24;
+        areaState.brightness_mid = shiftedMid;
+        areaState.color_mid = shiftedMid;
       }
       renderMiniChart(cfg, areaState, cachedSunTimes, currentHour, isActive, adjustedTimes);
 
@@ -3152,9 +3171,9 @@
       }
     }
 
-    async function executeSetMidpoint(midpoint) {
+    async function executeSetPhaseTime(targetTime) {
       if (!selectedArea) return;
-      const payload = { area_id: selectedArea.area_id, action: 'set_midpoint', midpoint: midpoint };
+      const payload = { area_id: selectedArea.area_id, action: 'set_phase_time', target_time: targetTime };
       try {
         const response = await fetch(basePath + '/api/area/action', {
           method: 'POST',
@@ -3176,12 +3195,12 @@
               renderMiniChartForArea(selectedArea.area_id);
               updateAllSliders();
             } catch (err) {
-              console.error('Error refreshing after set_midpoint:', err);
+              console.error('Error refreshing after set_phase_time:', err);
             }
           }, 300);
         }
       } catch (err) {
-        console.error('Error executing set_midpoint:', err);
+        console.error('Error executing set_phase_time:', err);
       }
     }
 

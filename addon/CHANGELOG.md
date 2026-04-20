@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.98
+- **Horizontal slider stack**: Curve card's vertical Bright + Color sliders replaced with three horizontal rows: **Bright**, **Color**, and **Wake|Bed** (label swaps with phase). Each row has a header (label + hero value + reset ↺) and a gradient track. Reset buttons appear only when there's something to reset: clearing `brightness_override`, `color_override`, or `brightness_mid`/`color_mid` respectively.
+- **Phase slider semantics**: The new wake/bed slider represents the **user-facing target time** (e.g., "10p bedtime") — internally converted to the shifted sigmoid midpoint so that at the target time brightness equals `wake_brightness` / `bed_brightness`. Gradient samples 10 points across the phase window and previews what the bulbs would look like **right now** if wake/bed were set to each candidate.
+- **`set_phase_time` backend action**: Replaces the short-lived `set_midpoint` action. Accepts target time (user-facing) and calls `compute_shifted_midpoint` internally. Chart drag and phase slider both route through this — drag release now lands exactly on the user-facing time, regardless of `wake_brightness` / `bed_brightness` shift.
+- **Per-slider reset actions**: New `reset_brightness_override`, `reset_color_override`, `reset_phase` primitives. Each clears the relevant fields and re-applies lights.
+
 ## 1.2.97
 - **Drag-release fix**: Chart handle now sends the dragged midpoint directly via new `set_midpoint` backend action (primitives.set_midpoint → area_state). Old path routed through `set_position` which lost precision near the asymptote and was distorted by `bed_brightness` / `wake_brightness` shifts (symptom: dragging bed rightward snapped to ~now-time on release). Release now lands exactly where the user let go.
 - **Natural-light curve masking**: Muted dotted curve now only renders at hours where `natural - bulbs ≥ 1%`, so it disappears before sunrise and after sunset (and anywhere else the two coincide) instead of drawing a flat segment along the bulb curve.

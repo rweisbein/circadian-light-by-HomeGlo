@@ -5608,9 +5608,15 @@ class HomeAssistantWebSocketClient:
             value = kwargs.get("value")
             mode = kwargs.get("mode", "step")
             await self.primitives.set_position(area_id, value, mode, "webserver")
-        elif service == "set_midpoint":
-            midpoint = kwargs.get("midpoint")
-            await self.primitives.set_midpoint(area_id, midpoint, "webserver")
+        elif service == "set_phase_time":
+            target_time = kwargs.get("target_time")
+            await self.primitives.set_phase_time(area_id, target_time, "webserver")
+        elif service == "reset_brightness_override":
+            await self.primitives.reset_brightness_override(area_id, "webserver")
+        elif service == "reset_color_override":
+            await self.primitives.reset_color_override(area_id, "webserver")
+        elif service == "reset_phase":
+            await self.primitives.reset_phase(area_id, "webserver")
         elif service == "circadian_adjust":
             target = kwargs.get("target_brightness")
             await self.primitives.circadian_adjust(area_id, target, "webserver")
