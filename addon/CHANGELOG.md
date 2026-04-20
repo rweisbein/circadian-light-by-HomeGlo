@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.91
+- **Single Impact column**: Per-light Purpose-impact and CT-impact merged into one Impact value. Drilldown breakdown ("Purpose ↓N% · CT ↑N%") shows in the row's expanded view.
+- **Adjustments chevron beside label**: Chevron now sits immediately left of "Adjustments" so the disclosure affordance is obvious.
+- **Lights table separated from Adjustments**: Tuning/Activity zones now visually nested inside Adjustments (left rule); per-light table sits below its own divider as a sibling block.
+- **Zone-label spacing aligned**: TUNING and ACTIVITY now have matching gap to their first child.
+- **Bigger active-sort arrow**: ↕ enlarged so it reads as an arrow rather than two dots.
+
 ## 1.2.90
 - **Lights card redesign**: Renamed "Brightness" to "Lights". Hero shows Area Brightness up top with a `curve · adjustments` breadcrumb, so the big number's provenance is one glance away.
 - **Adjustments split into Tuning / Activity zones**: Tuning holds the user-set sliders (Solar exposure, Room balance); Activity holds transient effects (User brightened, Boost, Dimming, Auto-on fade). Zero-value activity rows collapse automatically with a "None active" placeholder when the zone is quiet.

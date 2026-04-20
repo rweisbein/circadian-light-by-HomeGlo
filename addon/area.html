@@ -617,7 +617,7 @@
     .tune-lights-card.is-open .tune-lights-body { max-height: 1000px; opacity: 1; padding-bottom: 8px; }
     .tune-light-item { padding: 0 14px; border-bottom: 1px solid var(--line); }
     .tune-light-item:last-child { border-bottom: none; }
-    .tune-light-summary { display: grid; grid-template-columns: 1fr 1fr 42px 42px 42px; align-items: baseline; padding: 8px 0; gap: 0 4px; }
+    .tune-light-summary { display: grid; grid-template-columns: 1fr 1fr 56px 56px; align-items: baseline; padding: 8px 0; gap: 0 4px; }
     .tune-light-name { font-size: 0.82rem; color: var(--text); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .tune-light-behaviour { font-size: 0.75rem; color: var(--muted); cursor: pointer; white-space: nowrap; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
     .tune-light-behaviour:hover { color: var(--accent); }
@@ -679,17 +679,19 @@
     .tune-light-dropdown-meta { font-size: 0.7rem; color: var(--muted2); margin-top: 2px; }
 
     /* Light brightness column headers — same grid as data rows for alignment */
-    .tune-light-col-super { display: grid; grid-template-columns: 1fr 1fr 42px 42px 42px; padding: 6px 14px 0; gap: 0 4px; }
+    .tune-light-col-super { display: grid; grid-template-columns: 1fr 1fr 56px 56px; padding: 6px 14px 0; gap: 0 4px; }
     .tune-light-super-label { grid-column: 3 / 5; text-align: center; font-size: 0.6rem; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.05em; }
-    .tune-light-col-headers { display: grid; grid-template-columns: 1fr 1fr 42px 42px 42px; padding: 4px 14px; gap: 0 4px; font-size: 0.6rem; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--line); }
+    .tune-light-col-headers { display: grid; grid-template-columns: 1fr 1fr 56px 56px; padding: 4px 14px; gap: 0 4px; font-size: 0.6rem; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--line); }
     .tune-light-col-headers span:nth-child(n+3) { text-align: right; }
     .tune-light-sort { cursor: pointer; transition: color 0.15s; }
     .tune-light-sort:hover { color: var(--text); }
     /* Active sort: keep text neutral, show orange arrow after the label */
     .tune-light-sort.active-sort { color: var(--muted); }
-    .tune-light-sort.active-sort::after { content: " \2195"; color: var(--accent); margin-left: 3px; font-size: 0.7em; }
+    .tune-light-sort.active-sort::after { content: " \2195"; color: var(--accent); margin-left: 3px; font-size: 1.3em; vertical-align: -2px; line-height: 1; }
     .tune-light-sort-final { /* no longer bold/white — value carries the weight */ }
     .tune-light-ct { font-size: 0.82rem; color: var(--muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+    .tune-light-breakdown { font-size: 0.7rem; color: var(--muted2); padding: 2px 14px 0 14px; font-variant-numeric: tabular-nums; }
+    .tune-light-breakdown:empty { display: none; }
 
     /* Purpose as a pill (drop the link-looking underline) */
     .tune-light-behaviour {
@@ -729,24 +731,30 @@
 
     /* Adjustments toggle row sits between hero and details */
     .tune-adj-toggle {
-      display: flex; align-items: center; justify-content: space-between;
+      display: flex; align-items: center; gap: 6px;
       padding: 9px 14px; cursor: pointer; user-select: none;
       font-size: 0.82rem; color: var(--muted);
       border-top: 1px solid var(--line); margin-top: 10px;
     }
     .tune-adj-toggle:hover { color: var(--text); }
-    .tune-adj-toggle .tune-adj-chevron-el { transition: transform 0.2s; display: inline-block; }
+    .tune-adj-toggle .tune-adj-chevron-el { transition: transform 0.2s; display: inline-block; font-size: 0.95em; }
+
+    /* Indent the adjustments details so Tuning/Activity visually nest under the toggle */
+    #tune-adj-details { border-left: 2px solid var(--line); margin: 0 14px 6px; padding-left: 4px; }
 
     /* Zone labels inside the adjustments details */
     .tune-zone-label {
       font-size: 0.6rem; font-weight: 500; color: var(--muted2);
       text-transform: uppercase; letter-spacing: 0.08em;
-      padding: 10px 14px 2px;
+      padding: 10px 14px 4px;
     }
     .tune-activity-empty {
-      padding: 2px 14px 4px 30px; font-size: 0.75rem;
+      padding: 8px 14px 4px 30px; font-size: 0.75rem;
       color: var(--muted2); font-style: italic;
     }
+
+    /* Per-light section gets its own visual frame, distinct from Adjustments */
+    #tune-lights-inline { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 4px; }
   </style>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
   <script src="./shared.js"></script>
@@ -3531,18 +3539,19 @@
             elBri.textContent = finalVal + '%';
           }
         }
+        const behavImpact = Math.round(afterFilter) - areaBri;
+        const ctImpact = (ts.ctEnabled && ctFactor !== 1.0) ? (Math.round(afterCt) - Math.round(afterFilter)) : 0;
+        const totalImpact = behavImpact + ctImpact;
         const elImpact = document.getElementById('tune-light-impact-' + light.idx);
-        if (elImpact) {
-          const behavImpact = Math.round(afterFilter) - areaBri;
-          elImpact.textContent = formatImpactArrow(behavImpact);
-        }
-        const elCt = document.getElementById('tune-light-ct-' + light.idx);
-        if (elCt) {
-          if (!ts.ctEnabled || ctFactor === 1.0) {
-            elCt.textContent = '\u2014';
+        if (elImpact) elImpact.textContent = formatImpactArrow(totalImpact);
+        const elBreakdown = document.getElementById('tune-light-breakdown-' + light.idx);
+        if (elBreakdown) {
+          if (totalImpact === 0) {
+            elBreakdown.textContent = '';
           } else {
-            const ctImpact = Math.round(afterCt) - Math.round(afterFilter);
-            elCt.textContent = formatImpactArrow(ctImpact);
+            const parts = ['Purpose ' + formatImpactArrow(behavImpact)];
+            if (ctImpact !== 0) parts.push('CT ' + formatImpactArrow(ctImpact));
+            elBreakdown.textContent = parts.join(' \u00B7 ');
           }
         }
         const elMeta = document.getElementById('tune-meta-' + light.idx);
@@ -3657,10 +3666,10 @@
           vb = b.querySelector('.tune-light-behaviour')?.textContent || '';
           return lightSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
         }
-        const colMap = { impact: '.tune-light-impact', ct: '.tune-light-ct', final: '.tune-light-bri' };
+        const colMap = { impact: '.tune-light-impact', final: '.tune-light-bri' };
         const aText = a.querySelector(colMap[lightSortOrder])?.textContent || '';
         const bText = b.querySelector(colMap[lightSortOrder])?.textContent || '';
-        if (lightSortOrder === 'impact' || lightSortOrder === 'ct') {
+        if (lightSortOrder === 'impact') {
           va = parseImpactArrow(aText);
           vb = parseImpactArrow(bText);
         } else {
@@ -3801,8 +3810,8 @@
       bhtml += '</div>';
       // Adjustments toggle (click to expand details)
       bhtml += '<div class="tune-adj-toggle" onclick="toggleAdjustmentDetails()">'
-        + '<span>Adjustments</span>'
         + '<span class="tune-adj-chevron-el" id="tune-adj-chevron">&#x203A;</span>'
+        + '<span>Adjustments</span>'
         + '</div>';
       // Collapsible detail rows with Tuning / Activity zones
       bhtml += '<div id="tune-adj-details" style="display:none;">';
@@ -3899,7 +3908,6 @@
           + '<span class="tune-light-sort" data-sort="name">light</span>'
           + '<span class="tune-light-sort" data-sort="behaviour">purpose</span>'
           + '<span class="tune-light-sort" data-sort="impact">impact</span>'
-          + '<span class="tune-light-sort" data-sort="ct">ct</span>'
           + '<span class="tune-light-sort tune-light-sort-final" data-sort="final">final</span>'
           + '</div>';
         for (const light of lightsArr) {
@@ -3911,11 +3919,11 @@
             + '<span class="tune-light-name" title="' + light.entity_id + '">' + light.name + '</span>'
             + '<span class="tune-light-behaviour" id="tune-light-preset-label-' + light.idx + '" data-idx="' + light.idx + '">' + light.filterName + '</span>'
             + '<span class="tune-light-impact" id="tune-light-impact-' + light.idx + '"></span>'
-            + '<span class="tune-light-ct" id="tune-light-ct-' + light.idx + '"></span>'
             + '<span class="tune-light-bri" id="tune-light-bri-' + light.idx + '"></span>'
             + '</div>';
           lhtml += '<div class="tune-light-expanded" id="tune-light-exp-' + light.idx + '" style="display:none;">'
             + triggerHtml
+            + '<div class="tune-light-breakdown" id="tune-light-breakdown-' + light.idx + '"></div>'
             + '<span class="tune-light-meta" id="tune-meta-' + light.idx + '">' + meta + '</span>'
             + '</div>';
           lhtml += '</div>';
