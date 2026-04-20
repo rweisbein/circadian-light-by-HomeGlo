@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.99
+- **Bed slider wrap fix**: After release, bed slider no longer jumps to far-left when the target time sits across midnight. `buildPhaseCtx` now wraps the adjusted time into the phase window `[phaseMin, phaseMax]` directly instead of checking against `tAscend`.
+- **Phase gradient accuracy**: Phase slider gradient now computes bri/color via direct logistic from the raw shifted midpoint, bypassing `calcMiniBrightness` / `calcMiniColor` whose `liftMidpointToPhase` wraps painted the wrong tone near the edges (e.g., bed at noon with low `bed_brightness` rendered white instead of near-black).
+
 ## 1.2.98
 - **Horizontal slider stack**: Curve card's vertical Bright + Color sliders replaced with three horizontal rows: **Bright**, **Color**, and **Wake|Bed** (label swaps with phase). Each row has a header (label + hero value + reset ↺) and a gradient track. Reset buttons appear only when there's something to reset: clearing `brightness_override`, `color_override`, or `brightness_mid`/`color_mid` respectively.
 - **Phase slider semantics**: The new wake/bed slider represents the **user-facing target time** (e.g., "10p bedtime") — internally converted to the shifted sigmoid midpoint so that at the target time brightness equals `wake_brightness` / `bed_brightness`. Gradient samples 10 points across the phase window and previews what the bulbs would look like **right now** if wake/bed were set to each candidate.

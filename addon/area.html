@@ -2191,18 +2191,12 @@
       const cursorInAscend = h48 >= tAscend && h48 < tDescend;
       const phaseMin = cursorInAscend ? tAscend : tDescend;
       const phaseMax = cursorInAscend ? tDescend : tAscend + 24;
-      // Current target time (user-facing wake/bed time): adjusted_* or config
       const status = areaStatus[selectedArea?.area_id] || {};
-      let targetH48;
-      if (cursorInAscend) {
-        const adj = status.adjusted_wake_time;
-        targetH48 = adj != null ? (adj < tAscend ? adj + 24 : adj) : (cfg.wake_time < tAscend ? cfg.wake_time + 24 : cfg.wake_time);
-      } else {
-        const adj = status.adjusted_bed_time;
-        const baseBed = cfg.bed_time < tAscend ? cfg.bed_time + 24 : cfg.bed_time;
-        const adjH48 = adj != null ? (adj < tAscend ? adj + 24 : adj) : baseBed;
-        targetH48 = adjH48;
-      }
+      const adj = cursorInAscend ? status.adjusted_wake_time : status.adjusted_bed_time;
+      const base = cursorInAscend ? cfg.wake_time : cfg.bed_time;
+      let targetH48 = adj != null ? adj : base;
+      while (targetH48 < phaseMin) targetH48 += 24;
+      while (targetH48 > phaseMax) targetH48 -= 24;
       const currentTargetPct = Math.max(0, Math.min(100, (targetH48 - phaseMin) / (phaseMax - phaseMin) * 100));
       const currentTargetTime = ((targetH48 % 24) + 24) % 24;
       return { cursorInAscend, phaseMin, phaseMax, currentTargetPct, currentTargetTime, areaState, currentHour };
@@ -2336,16 +2330,24 @@
       const stops = [];
       if (mode === 'phase' && phaseCtx) {
         // Sample across phase window: for each candidate wake/bed time, compute
-        // what brightness+color the bulbs would hit at NOW, then paint that.
+        // what brightness+color the bulbs would hit at NOW via direct logistic
+        // (skip calcMiniBrightness — its liftMidpointToPhase wraps misbehave at edges).
         const n = 10;
-        const { areaState, currentHour, phaseMin, phaseMax } = phaseCtx;
+        const { currentHour, phaseMin, phaseMax, cursorInAscend } = phaseCtx;
+        const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.wake_speed))];
+        const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.bed_speed))];
+        const slopeSigned = cursorInAscend ? kAscend : -kDescend;
+        const bMinNorm = bMin / 100, bMaxNorm = bMax / 100;
+        const now48 = currentHour < cfg.ascend_start ? currentHour + 24 : currentHour;
         for (let i = 0; i <= n; i++) {
           const frac = i / n;
           const candidateTargetH48 = phaseMin + (phaseMax - phaseMin) * frac;
-          const candidateMid = computeCandidateShiftedMid(candidateTargetH48, cfg, phaseCtx.cursorInAscend) % 24;
-          const fakeState = { ...areaState, brightness_mid: candidateMid, color_mid: candidateMid };
-          const b = calcMiniBrightness(currentHour, cfg, fakeState, currentHour) * 100;
-          const k = calcMiniColor(currentHour, cfg, fakeState, cachedSunTimes, currentHour);
+          const shiftedMid = computeCandidateShiftedMid(candidateTargetH48, cfg, cursorInAscend);
+          const briNorm = bMinNorm + (bMaxNorm - bMinNorm) / (1 + Math.exp(-slopeSigned * (now48 - shiftedMid)));
+          const b = Math.max(0, Math.min(100, briNorm * 100));
+          // Color follows same midpoint: normalized 0..1 logistic, mapped to [cMin, cMax]
+          const ct = 1 / (1 + Math.exp(-slopeSigned * (now48 - shiftedMid)));
+          const k = cMin + (cMax - cMin) * ct;
           const color = tintColorByBrightness(cctToRGB(k), b);
           stops.push(color + ' ' + Math.round(frac * 100) + '%');
         }
@@ -2499,13 +2501,17 @@
       if (dragMode === 'phase') {
         if (!phaseCtx) return;
         const targetH48 = phaseCtx.phaseMin + (phaseCtx.phaseMax - phaseCtx.phaseMin) * position / 100;
-        const candidateMid = computeCandidateShiftedMid(targetH48, cfg, phaseCtx.cursorInAscend) % 24;
-        const fakeState = { ...areaState, brightness_mid: candidateMid, color_mid: candidateMid };
-        const previewBri = calcMiniBrightness(currentHour, cfg, fakeState, currentHour) * 100;
-        const previewCCT = calcMiniColor(currentHour, cfg, fakeState, cachedSunTimes, currentHour);
+        const shiftedMid = computeCandidateShiftedMid(targetH48, cfg, phaseCtx.cursorInAscend);
+        const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.wake_speed))];
+        const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.bed_speed))];
+        const slopeSigned = phaseCtx.cursorInAscend ? kAscend : -kDescend;
+        const bMinNorm = bMin / 100, bMaxNorm = bMax / 100;
+        const now48 = currentHour < cfg.ascend_start ? currentHour + 24 : currentHour;
+        const ct = 1 / (1 + Math.exp(-slopeSigned * (now48 - shiftedMid)));
+        const previewBri = Math.max(0, Math.min(100, (bMinNorm + (bMaxNorm - bMinNorm) * ct) * 100));
+        const previewCCT = cMin + (cMax - cMin) * ct;
         track.style.background = buildTrackGradient(dragMode, cfg, previewBri, previewCCT, effRange, phaseCtx);
         applyOneSlider(track, position, previewBri, previewCCT, dragMode);
-        // Live label update during drag
         const heroPhase = document.getElementById('slider-hero-phase');
         if (heroPhase) heroPhase.textContent = formatPhaseTime(((targetH48 % 24) + 24) % 24);
         return;
