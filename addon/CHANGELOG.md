@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.88
+- **Sensor impact labels**: Per-scope tokens joined with `+` — e.g. "On + 1m boost", "5m + Alert". Clearer multi-reach representation.
+- **Control detail deep-link**: Navigating from area detail pre-expands reach cards containing that area. Back button returns to area detail with Controls card open and scrolled into view.
+
 ## 1.2.87
 - **Switch reach labels**: Switch impact now shows per-reach area context — "Solo", "+ Kitchen", "Solo | Kitchen +2" — using feedback primary area when restrict-to-primary is enabled.
 

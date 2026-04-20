@@ -1040,7 +1040,7 @@
         return;
       }
       if (params.get('from') === 'area' && params.get('id')) {
-        window.location.href = basePath + '/area/' + encodeURIComponent(params.get('id'));
+        window.location.href = basePath + '/area/' + encodeURIComponent(params.get('id')) + '?focus=controls';
         return;
       }
       if (window.history.length > 1 && document.referrer) {
@@ -2734,6 +2734,18 @@
         motionSection.style.display = '';
           document.getElementById('magic-section').style.display = 'none';
         renderMotionScopesEditor();
+
+        // Pre-expand reaches containing the area we navigated from
+        const fromParams = new URLSearchParams(window.location.search);
+        if (fromParams.get('from') === 'area' && fromParams.get('id')) {
+          const fromAreaId = fromParams.get('id');
+          editingMotionScopes.forEach((s, idx) => {
+            if (s.areas && s.areas.includes(fromAreaId)) {
+              _motionScopeExpanded.add(idx);
+            }
+          });
+          if (_motionScopeExpanded.size > 0) renderMotionScopesEditor();
+        }
 
         // Show sensitivity row for ZHA motion sensors
         const sensitivityRow = document.getElementById('sensitivity-row');

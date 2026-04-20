@@ -4007,30 +4007,26 @@
       return parts.join(' | ');
     }
 
+    function sensorScopeToken(scope) {
+      if (!scope.mode || scope.mode === 'disabled') return null;
+      if (scope.mode === 'alert') return 'Alert';
+      if (scope.mode === 'on_only') {
+        return scope.boost_enabled ? 'On boost' : 'On';
+      }
+      // on_off — duration implies "turns on"
+      const dur = formatDuration(scope.duration || 60);
+      return scope.boost_enabled ? dur + ' boost' : dur;
+    }
+
     function controlImpactLabel(ctrl) {
       const scopes = ctrl._matchingScopes || [];
       if (ctrl.category === 'switch') {
         return switchImpactLabel(ctrl);
       }
       if (!scopes.length) return '';
-      // Merge effects across all matching scopes
-      let hasOn = false, hasAlert = false, hasBoost = false, allDisabled = true;
-      let offDuration = null;
-      for (const s of scopes) {
-        if (!s.mode || s.mode === 'disabled') continue;
-        allDisabled = false;
-        if (s.mode === 'on_only' || s.mode === 'on_off') hasOn = true;
-        if (s.mode === 'on_off' && offDuration === null) offDuration = s.duration || 60;
-        if (s.boost_enabled) hasBoost = true;
-        if (s.mode === 'alert') hasAlert = true;
-      }
-      if (allDisabled) return '<span style="color:var(--muted2)">Disabled</span>';
-      const parts = [];
-      if (hasOn) parts.push('On');
-      if (offDuration !== null) parts.push(formatDuration(offDuration));
-      if (hasBoost) parts.push('Boost');
-      if (hasAlert) parts.push('Alert');
-      return parts.join(' \u00b7 ');
+      const tokens = scopes.map(sensorScopeToken).filter(Boolean);
+      if (tokens.length === 0) return '<span style="color:var(--muted2)">Disabled</span>';
+      return tokens.join(' + ');
     }
 
     function formatDuration(seconds) {
@@ -4146,14 +4142,22 @@
           targetCard = document.getElementById('auto-on-card');
         } else if (focus === 'auto_off') {
           targetCard = document.getElementById('auto-off-card');
+        } else if (focus === 'controls') {
+          targetCard = document.getElementById('tune-controls-card');
         }
         if (targetCard) {
           // Open the card if closed
-          const type = focus === 'auto_on' ? 'on' : 'off';
-          if (!targetCard.classList.contains('is-open')) {
-            targetCard.classList.add('is-open');
+          if (focus === 'auto_on' || focus === 'auto_off') {
+            const type = focus === 'auto_on' ? 'on' : 'off';
+            if (!targetCard.classList.contains('is-open')) {
+              targetCard.classList.add('is-open');
+            }
+            updateAutoHeaderText(type);
+          } else if (focus === 'controls') {
+            if (!targetCard.classList.contains('is-open')) {
+              targetCard.classList.add('is-open');
+            }
           }
-          updateAutoHeaderText(type);
           // Scroll into view
           targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
           // Brief highlight
