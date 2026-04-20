@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.100
+- **Bonded Auto panel**: Auto On and Auto Off now share a single outer shell (one border, one rounded corner) with a thin divider between. Each sub-section retains its own toggle + collapsible body, so deep-links to `?focus=auto_on` or `?focus=auto_off` still open exactly one side. Focus highlight flashes both the bonded border and the target sub-card's background so it's obvious which side was deep-linked to.
+
 ## 1.2.99
 - **Bed slider wrap fix**: After release, bed slider no longer jumps to far-left when the target time sits across midnight. `buildPhaseCtx` now wraps the adjusted time into the phase window `[phaseMin, phaseMax]` directly instead of checking against `tAscend`.
 - **Phase gradient accuracy**: Phase slider gradient now computes bri/color via direct logistic from the raw shifted midpoint, bypassing `calcMiniBrightness` / `calcMiniColor` whose `liftMidpointToPhase` wraps painted the wrong tone near the edges (e.g., bed at noon with low `bed_brightness` rendered white instead of near-black).

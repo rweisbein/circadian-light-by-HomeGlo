@@ -426,6 +426,11 @@
     /* Auto schedule section */
     .auto-sched-section { margin: 8px 0 8px; display: flex; flex-direction: column; gap: 8px; }
     .auto-sched-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; transition: border-color 0.2s; }
+    /* Bonded Auto panel: single outer shell wrapping On + Off sub-sections */
+    .auto-sched-bonded { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; transition: border-color 0.2s; }
+    .auto-sched-card--sub { background: transparent; border: none; border-radius: 0; transition: background 0.3s; }
+    .auto-sched-card--sub + .auto-sched-card--sub { border-top: 1px solid var(--line); }
+    .auto-sched-card--sub.focus-flash { background: rgba(254, 172, 96, 0.08); }
     .auto-sched-header { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 14px; user-select: none; }
     .auto-sched-title { font-size: 1.0rem; font-weight: 600; color: var(--text); }
     .auto-sched-toggle { position: relative; width: 32px; height: 16px; }
@@ -884,7 +889,8 @@
         </div>
       </div>
     </div>
-    <div class="auto-sched-card" id="auto-on-card">
+    <div class="auto-sched-bonded" id="auto-bonded-panel">
+    <div class="auto-sched-card auto-sched-card--sub" id="auto-on-card">
         <div class="auto-sched-header" onclick="toggleAutoBody('on')">
           <span class="auto-sched-chevron" id="auto-on-chevron">&#x203A;</span>
           <span class="auto-sched-title">Auto On</span>
@@ -988,7 +994,7 @@
         </div>
       </div>
 
-    <div class="auto-sched-card" id="auto-off-card">
+    <div class="auto-sched-card auto-sched-card--sub" id="auto-off-card">
         <div class="auto-sched-header" onclick="toggleAutoBody('off')">
           <span class="auto-sched-chevron" id="auto-off-chevron">&#x203A;</span>
           <span class="auto-sched-title">Auto Off</span>
@@ -1077,6 +1083,7 @@
           </div>
          </div>
         </div>
+      </div>
       </div>
     </div>
 
@@ -4670,12 +4677,19 @@
           }
           // Scroll into view
           targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          // Brief highlight
-          targetCard.style.transition = 'border-color 0.3s';
-          targetCard.style.borderColor = 'var(--accent)';
-          setTimeout(() => {
-            targetCard.style.borderColor = '';
-          }, 2000);
+          // Brief highlight — flash the sub-card's background + the outer bonded border
+          const outer = targetCard.classList.contains('auto-sched-card--sub')
+            ? document.getElementById('auto-bonded-panel')
+            : targetCard;
+          if (targetCard.classList.contains('auto-sched-card--sub')) {
+            targetCard.classList.add('focus-flash');
+            setTimeout(() => targetCard.classList.remove('focus-flash'), 2000);
+          }
+          if (outer) {
+            outer.style.transition = 'border-color 0.3s';
+            outer.style.borderColor = 'var(--accent)';
+            setTimeout(() => { outer.style.borderColor = ''; }, 2000);
+          }
         }
       }, 500);
     }
