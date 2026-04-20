@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.96
+- **Draggable phase handle on chart**: A colored circle at the top of the active-phase midpoint line can now be dragged (wake during ascend, blue; bed during descend, yellow). Live preview: graph re-renders during drag, Bright% / Color% hero labels update to reflect the new midpoint. On release, the corresponding curve-space position is sent via `set_position` (step mode). Drag is clamped to the active phase window; the inactive line stays locked. Original wake/bed dotted lines remain visible so the delta from the configured time reads at a glance.
+
 ## 1.2.95
 - **Dual-curve chart: bulbs vs. natural light**: Colorful gradient curve now represents actual bulb output (after sun dimming). A muted dotted line shows the room's natural-light target; the two merge at night when sun isn't dimming anything. Peak-of-divergence labels "natural light" and "bulbs" anchor meaning; hover shows both values (e.g., `bulbs 47% · natural 82%`).
 - **Projection math**: Per-hour sun angle uses `getSunElevationAtHour` calibrated to the area's current `sun_bright_factor` anchor. Honors `sun_saturation` + `sun_saturation_ramp` (linear/squared) settings. Backend now exposes these three fields in `/api/area-status`.

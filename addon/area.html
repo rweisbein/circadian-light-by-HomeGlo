@@ -1711,6 +1711,92 @@
       return remMin > 0 ? `${hr}h ${remMin}m` : `${hr}h`;
     }
 
+    // Drag state for chart midpoint handle
+    let _chartDrag = {
+      active: false,
+      dragHour: null,
+      phaseMin: null,
+      phaseMax: null,
+      phaseSlopeSigned: null,
+      nowHour: null,
+      cursorInAscend: null,
+      initialized: false,
+    };
+
+    // Expose active-phase geometry for drag handlers to read/clamp on move
+    let _chartGeom = { activeMidHour: null, phaseMin: null, phaseMax: null, phaseSlopeSigned: null, nowHour: null, cursorInAscend: null };
+
+    function setupChartDragHandlers() {
+      const chartDiv = document.getElementById('mini-chart');
+      if (!chartDiv || _chartDrag.initialized) return;
+      _chartDrag.initialized = true;
+
+      function pixelToDataX(clientX) {
+        const fl = chartDiv._fullLayout;
+        if (!fl || !fl.xaxis) return null;
+        const rect = chartDiv.getBoundingClientRect();
+        const relX = clientX - rect.left - fl.xaxis._offset;
+        if (relX < 0 || relX > fl.xaxis._length) return null;
+        return (relX / fl.xaxis._length) * 24;
+      }
+      function dataXToClientPixel(dataX) {
+        const fl = chartDiv._fullLayout;
+        if (!fl || !fl.xaxis) return null;
+        const rect = chartDiv.getBoundingClientRect();
+        return rect.left + fl.xaxis._offset + (dataX / 24) * fl.xaxis._length;
+      }
+
+      function onDown(e) {
+        if (_chartGeom.activeMidHour == null) return;
+        const handlePx = dataXToClientPixel(_chartGeom.activeMidHour);
+        if (handlePx == null) return;
+        if (Math.abs(e.clientX - handlePx) > 24) return;
+        e.preventDefault();
+        try { chartDiv.setPointerCapture(e.pointerId); } catch (err) {}
+        _chartDrag.active = true;
+        _chartDrag.dragHour = _chartGeom.activeMidHour;
+        _chartDrag.phaseMin = _chartGeom.phaseMin;
+        _chartDrag.phaseMax = _chartGeom.phaseMax;
+        _chartDrag.phaseSlopeSigned = _chartGeom.phaseSlopeSigned;
+        _chartDrag.nowHour = _chartGeom.nowHour;
+        _chartDrag.cursorInAscend = _chartGeom.cursorInAscend;
+        chartDiv.style.cursor = 'grabbing';
+      }
+      function onMove(e) {
+        if (!_chartDrag.active) return;
+        e.preventDefault();
+        const dataX = pixelToDataX(e.clientX);
+        if (dataX == null) return;
+        const phaseMid = (_chartDrag.phaseMin + _chartDrag.phaseMax) / 2;
+        let dragX = dataX;
+        if (Math.abs(dragX + 24 - phaseMid) < Math.abs(dragX - phaseMid)) dragX += 24;
+        if (Math.abs(dragX - 24 - phaseMid) < Math.abs(dragX - phaseMid)) dragX -= 24;
+        dragX = Math.max(_chartDrag.phaseMin + 0.05, Math.min(_chartDrag.phaseMax - 0.05, dragX));
+        _chartDrag.dragHour = ((dragX % 24) + 24) % 24;
+        if (selectedArea) renderMiniChartForArea(selectedArea.area_id);
+      }
+      function onUp(e) {
+        if (!_chartDrag.active) return;
+        e.preventDefault();
+        try { chartDiv.releasePointerCapture(e.pointerId); } catch (err) {}
+        chartDiv.style.cursor = '';
+        const now = _chartDrag.nowHour;
+        const slope = _chartDrag.phaseSlopeSigned;
+        let Hdrag = _chartDrag.dragHour;
+        if (Hdrag < _chartDrag.phaseMin) Hdrag += 24;
+        const nowAligned = now < _chartDrag.phaseMin ? now + 24 : now;
+        const position = 100 / (1 + Math.exp(-slope * (nowAligned - Hdrag)));
+        const pos = Math.round(Math.max(0, Math.min(100, position)));
+        _chartDrag.active = false;
+        executeSetPosition(pos, 'step');
+      }
+
+      chartDiv.addEventListener('pointerdown', onDown);
+      chartDiv.addEventListener('pointermove', onMove);
+      chartDiv.addEventListener('pointerup', onUp);
+      chartDiv.addEventListener('pointercancel', onUp);
+    }
+
     function renderMiniChart(cfg, state, sunTimes, currentHour, isActive, adjustedTimes) {
       if (!cfg || !sunTimes) return;
 
@@ -1855,6 +1941,44 @@
           line: { color: 'rgba(255, 230, 128, 0.55)', width: 1.5 }
         });
       }
+
+      // Active-phase geometry + draggable handle
+      const tAscendGeom = cfg.ascend_start;
+      let tDescendGeom = cfg.descend_start;
+      if (tDescendGeom <= tAscendGeom) tDescendGeom += 24;
+      const kAscendGeom = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.wake_speed))];
+      const kDescendGeom = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.bed_speed))];
+      const cursorH48Geom = currentHour < tAscendGeom ? currentHour + 24 : currentHour;
+      const cursorInAscendGeom = cursorH48Geom >= tAscendGeom && cursorH48Geom < tDescendGeom;
+
+      let activeMidHour, phaseMin, phaseMax, phaseSlopeSigned, handleFill;
+      if (cursorInAscendGeom) {
+        activeMidHour = hasAdjWake ? wrap24(adjustedTimes.wake) : wakeTime;
+        phaseMin = tAscendGeom;
+        phaseMax = tDescendGeom;
+        phaseSlopeSigned = kAscendGeom;
+        handleFill = '#5cb3ff';
+      } else {
+        activeMidHour = hasAdjBed ? wrap24(adjustedTimes.bed) : bedTime;
+        phaseMin = tDescendGeom;
+        phaseMax = tAscendGeom + 24;
+        phaseSlopeSigned = -kDescendGeom;
+        handleFill = '#ffe680';
+      }
+      _chartGeom = { activeMidHour, phaseMin, phaseMax, phaseSlopeSigned, nowHour: currentHour, cursorInAscend: cursorInAscendGeom };
+
+      traces.push({
+        type: 'scatter', mode: 'markers',
+        x: [activeMidHour], y: [100],
+        marker: {
+          size: 16, color: handleFill, symbol: 'circle',
+          line: { width: 2, color: '#0a0a0a' },
+        },
+        cliponaxis: false,
+        hovertext: 'drag to shift ' + (cursorInAscendGeom ? 'wake' : 'bed'),
+        hoverinfo: 'text',
+        showlegend: false,
+      });
 
       // Sunrise/sunset vertical ticks (extend to tier 2)
       const sunrise = sunTimes.sunrise;
@@ -2003,6 +2127,7 @@
         responsive: true,
         scrollZoom: false
       });
+      setupChartDragHandlers();
     }
 
     // ============================================================
@@ -2855,11 +2980,29 @@
       }
 
       const isActive = (status.is_on || false) && (status.is_circadian !== false);
+      const isDragActive = _chartDrag.active && selectedArea?.area_id === areaId;
       const adjustedTimes = {
-        wake: status.adjusted_wake_time ?? null,
-        bed: status.adjusted_bed_time ?? null
+        wake: isDragActive && _chartDrag.cursorInAscend
+          ? _chartDrag.dragHour
+          : (status.adjusted_wake_time ?? null),
+        bed: isDragActive && !_chartDrag.cursorInAscend
+          ? _chartDrag.dragHour
+          : (status.adjusted_bed_time ?? null),
       };
+      if (isDragActive) {
+        areaState.brightness_mid = _chartDrag.dragHour;
+        areaState.color_mid = _chartDrag.dragHour;
+      }
       renderMiniChart(cfg, areaState, cachedSunTimes, currentHour, isActive, adjustedTimes);
+
+      if (isDragActive) {
+        const newBri = calcMiniBrightness(currentHour, cfg, areaState, currentHour) * 100;
+        const newCCT = calcMiniColor(currentHour, cfg, areaState, cachedSunTimes, currentHour);
+        const heroBri = document.getElementById('slider-hero-brightness');
+        if (heroBri) heroBri.textContent = Math.round(newBri) + '%';
+        const heroColor = document.getElementById('slider-hero-color');
+        if (heroColor) heroColor.textContent = Math.round(newCCT) + 'K';
+      }
     }
 
 
