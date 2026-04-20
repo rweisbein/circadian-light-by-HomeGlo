@@ -3942,6 +3942,7 @@
         const statusData = statusRes.ok ? await statusRes.json() : {};
 
         // Parse controls that reach this area
+        feedbackRestrictToPrimary = config.feedback_restrict_to_primary ?? false;
         if (controlsRes.ok) {
           const controlsData = await controlsRes.json();
           areaControls = filterControlsForArea(controlsData.controls || [], areaId);
@@ -3955,6 +3956,7 @@
     }
 
     let areaControls = [];
+    let feedbackRestrictToPrimary = false;
 
     function filterControlsForArea(controls, areaId) {
       const result = [];
@@ -3969,10 +3971,46 @@
       return result;
     }
 
+    function areaName(areaId) {
+      const a = areas.find(x => x.area_id === areaId);
+      return a ? a.name : areaId;
+    }
+
+    function switchImpactLabel(ctrl) {
+      const scopes = ctrl._matchingScopes || [];
+      const currentAreaId = selectedArea ? selectedArea.area_id : '';
+      const parts = [];
+      for (const scope of scopes) {
+        const others = (scope.areas || []).filter(id => id !== currentAreaId);
+        if (others.length === 0) {
+          parts.push('Solo');
+        } else {
+          // Pick the "featured" area name
+          let featured = null;
+          if (feedbackRestrictToPrimary && scope.feedback_area && others.includes(scope.feedback_area)) {
+            featured = scope.feedback_area;
+          }
+          if (!featured) {
+            // First alphabetically by name
+            featured = others.sort((a, b) => areaName(a).localeCompare(areaName(b)))[0];
+          }
+          const rest = others.length - 1;
+          if (rest === 0) {
+            parts.push('+ ' + areaName(featured));
+          } else if (others.length <= 2) {
+            parts.push('+ ' + others.sort((a, b) => areaName(a).localeCompare(areaName(b))).map(id => areaName(id)).join(', '));
+          } else {
+            parts.push(areaName(featured) + ' +' + rest);
+          }
+        }
+      }
+      return parts.join(' | ');
+    }
+
     function controlImpactLabel(ctrl) {
       const scopes = ctrl._matchingScopes || [];
       if (ctrl.category === 'switch') {
-        return 'Circadian';
+        return switchImpactLabel(ctrl);
       }
       if (!scopes.length) return '';
       // Merge effects across all matching scopes

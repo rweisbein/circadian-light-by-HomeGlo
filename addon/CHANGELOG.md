@@ -1,7 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.87
+- **Switch reach labels**: Switch impact now shows per-reach area context — "Solo", "+ Kitchen", "Solo | Kitchen +2" — using feedback primary area when restrict-to-primary is enabled.
+
 ## 1.2.86
-- **Area detail controls list**: Controls card now shows all controls that reach the area — name, category icon, and a compact impact label (e.g. "On · 5m · Boost", "Circadian"). Click navigates to control detail with back-to-area support. Count shown in collapsed header.
+- **Area detail controls list**: Controls card now shows all controls that reach the area — name, category icon, and a compact impact label (e.g. "On · 5m · Boost"). Click navigates to control detail with back-to-area support. Count shown in collapsed header.
 
 ## 1.2.83
 - **Camera as separate control type**: Cameras now show as "Camera" with a camera icon in the controls list, distinct from "Motion" sensors. Backend handling unchanged (same data model and event processing).
