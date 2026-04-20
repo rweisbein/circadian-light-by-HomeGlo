@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.92
+- **Inline Adjustments disclosure**: Chevron moved to end of the hero breadcrumb (`91% curve · ↓45% adjustments ›`). Defaults closed; click expands Tuning + Activity rows below. Removed the redundant "Adjustments" header row and the left rule.
+- **Arrow notation in breadcrumb**: Adjustments value now reads `↓N%` / `↑N%` for consistency with per-light rows. Stays as `0%` (not `—`) when net is zero so the chevron remains anchored.
+- **Individual collapsible header**: New peer-level "Individual" toggle with leading chevron sits above the per-light table. Defaults open; clicking collapses the table.
+- **Open/close state**: Both new toggles persist via the existing `_persistCards` pattern (read/write localStorage only when arriving from home; deep-link entries use hard-coded defaults).
+
 ## 1.2.91
 - **Single Impact column**: Per-light Purpose-impact and CT-impact merged into one Impact value. Drilldown breakdown ("Purpose ↓N% · CT ↑N%") shows in the row's expanded view.
 - **Adjustments chevron beside label**: Chevron now sits immediately left of "Adjustments" so the disclosure affordance is obvious.

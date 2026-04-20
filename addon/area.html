@@ -729,18 +729,16 @@
     }
     .tune-hero-breadcrumb .tune-hero-dot { margin: 0 5px; color: var(--muted2); }
 
-    /* Adjustments toggle row sits between hero and details */
-    .tune-adj-toggle {
-      display: flex; align-items: center; gap: 6px;
-      padding: 9px 14px; cursor: pointer; user-select: none;
-      font-size: 0.82rem; color: var(--muted);
-      border-top: 1px solid var(--line); margin-top: 10px;
+    /* Inline disclosure chevron at end of breadcrumb */
+    .tune-adj-chevron-inline {
+      display: inline-block; margin-left: 6px; cursor: pointer;
+      color: var(--muted); transition: transform 0.2s, color 0.15s;
+      font-size: 1em; line-height: 1;
     }
-    .tune-adj-toggle:hover { color: var(--text); }
-    .tune-adj-toggle .tune-adj-chevron-el { transition: transform 0.2s; display: inline-block; font-size: 0.95em; }
+    .tune-adj-chevron-inline:hover { color: var(--text); }
 
-    /* Indent the adjustments details so Tuning/Activity visually nest under the toggle */
-    #tune-adj-details { border-left: 2px solid var(--line); margin: 0 14px 6px; padding-left: 4px; }
+    /* Adjustments details sit directly under the hero — no left rule needed */
+    #tune-adj-details { padding-bottom: 4px; }
 
     /* Zone labels inside the adjustments details */
     .tune-zone-label {
@@ -753,8 +751,15 @@
       color: var(--muted2); font-style: italic;
     }
 
-    /* Per-light section gets its own visual frame, distinct from Adjustments */
-    #tune-lights-inline { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 4px; }
+    /* Individual section: peer header to "Adjustments" with leading chevron */
+    .tune-individual-toggle {
+      display: flex; align-items: center; gap: 6px;
+      padding: 9px 14px; cursor: pointer; user-select: none;
+      font-size: 0.82rem; color: var(--muted);
+      border-top: 1px solid var(--line); margin-top: 4px;
+    }
+    .tune-individual-toggle:hover { color: var(--text); }
+    .tune-individual-toggle .tune-individual-chevron-el { transition: transform 0.2s; display: inline-block; font-size: 0.95em; }
   </style>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
   <script src="./shared.js"></script>
@@ -3621,10 +3626,13 @@
       const elFinalVal = document.getElementById('tune-det-final-val');
       if (elFinalVal) elFinalVal.textContent = areaBri + '%';
 
-      // Net adjustment row
+      // Net adjustment row — arrow notation, but show "0%" (not "—") so the chevron stays anchored
       const netAdj = areaBri - baseBriPct;
       const elAdjNet = document.getElementById('tune-det-adj-net');
-      if (elAdjNet) elAdjNet.textContent = formatImpact(netAdj) + '%';
+      if (elAdjNet) {
+        if (netAdj === 0) elAdjNet.textContent = '0%';
+        else elAdjNet.textContent = (netAdj > 0 ? '\u2191' : '\u2193') + Math.abs(netAdj) + '%';
+      }
 
       // -- Solar source info (above slider) --
       const sourceInfo = document.getElementById('tune-source-info');
@@ -3792,6 +3800,8 @@
       // ── Brightness card ──
       const brightnessCard = document.getElementById('tune-brightness-card');
       const briExpanded = _pageFrom === 'tune' || (_persistCards && localStorage.getItem('tune_details_expanded') === 'true');
+      const adjOpenInit = _pageFrom === 'tune' || (_persistCards && localStorage.getItem('tune_adj_open') === 'true');
+      const individualOpenInit = _pageFrom === 'tune' || !_persistCards || localStorage.getItem('tune_individual_open') !== 'false';
       let bhtml = '<div class="tune-brightness-header" onclick="toggleBrightnessBody()">';
       bhtml += '<span class="tune-brightness-chevron" id="tune-brightness-chevron">&#x203A;</span>';
       bhtml += '<span class="tune-brightness-title">Lights</span>';
@@ -3806,15 +3816,11 @@
         + '<span id="tune-det-base-total">' + baseBri + '%</span> curve'
         + '<span class="tune-hero-dot">\u00B7</span>'
         + '<span id="tune-det-adj-net">0%</span> adjustments'
+        + '<span class="tune-adj-chevron-inline" id="tune-adj-chevron" onclick="toggleAdjustmentDetails(event)" style="' + (adjOpenInit ? 'transform:rotate(90deg);' : '') + '">&#x203A;</span>'
         + '</div>';
       bhtml += '</div>';
-      // Adjustments toggle (click to expand details)
-      bhtml += '<div class="tune-adj-toggle" onclick="toggleAdjustmentDetails()">'
-        + '<span class="tune-adj-chevron-el" id="tune-adj-chevron">&#x203A;</span>'
-        + '<span>Adjustments</span>'
-        + '</div>';
       // Collapsible detail rows with Tuning / Activity zones
-      bhtml += '<div id="tune-adj-details" style="display:none;">';
+      bhtml += '<div id="tune-adj-details" style="display:' + (adjOpenInit ? '' : 'none') + ';">';
       // --- TUNING zone ---
       bhtml += '<div class="tune-zone-label">Tuning</div>';
       // Solar exposure with inline slider
@@ -3860,7 +3866,11 @@
 
       // ── Per-Light sub-section (inside Brightness card) ──
       const lightsCard = document.getElementById('tune-lights-inline');
-      let lhtml = '';
+      let lhtml = '<div class="tune-individual-toggle" onclick="toggleIndividualSection(event)">'
+        + '<span class="tune-individual-chevron-el" id="tune-individual-chevron" style="' + (individualOpenInit ? 'transform:rotate(90deg);' : '') + '">&#x203A;</span>'
+        + '<span>Individual</span>'
+        + '</div>';
+      lhtml += '<div id="tune-individual-body" style="display:' + (individualOpenInit ? '' : 'none') + ';">';
 
       // Feedback target selector — goes into Controls card
       const currentFeedback = areaInfo.feedback_target || null;
@@ -3935,6 +3945,7 @@
       lhtml += '<button class="section-cancel-btn" onclick="cancelLightsChanges()">Cancel</button>';
       lhtml += '<button class="section-save-btn" onclick="saveLightsChanges()">Save</button>';
       lhtml += '</div>';
+      lhtml += '</div>'; // end #tune-individual-body
       lightsCard.innerHTML = lhtml;
       // Hide the separate lights card (content is now inside brightness card)
       const separateLightsCard = document.getElementById('tune-lights-card');
@@ -4248,13 +4259,26 @@
       if (_persistCards) localStorage.setItem('tune_details_expanded', isOpen ? 'true' : 'false');
     }
 
-    function toggleAdjustmentDetails() {
+    function toggleAdjustmentDetails(event) {
+      if (event) event.stopPropagation();
       const details = document.getElementById('tune-adj-details');
       const chevron = document.getElementById('tune-adj-chevron');
       if (!details) return;
       const isHidden = details.style.display === 'none';
       details.style.display = isHidden ? '' : 'none';
       if (chevron) chevron.style.transform = isHidden ? 'rotate(90deg)' : '';
+      if (_persistCards) localStorage.setItem('tune_adj_open', isHidden ? 'true' : 'false');
+    }
+
+    function toggleIndividualSection(event) {
+      if (event) event.stopPropagation();
+      const body = document.getElementById('tune-individual-body');
+      const chevron = document.getElementById('tune-individual-chevron');
+      if (!body) return;
+      const isHidden = body.style.display === 'none';
+      body.style.display = isHidden ? '' : 'none';
+      if (chevron) chevron.style.transform = isHidden ? 'rotate(90deg)' : '';
+      if (_persistCards) localStorage.setItem('tune_individual_open', isHidden ? 'true' : 'false');
     }
 
     function updateActivityVisibility(vals) {
