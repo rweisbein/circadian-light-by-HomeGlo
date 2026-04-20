@@ -635,7 +635,20 @@
     .tune-brightness-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
     .tune-brightness-card.is-open .tune-brightness-chevron { transform: rotate(90deg); }
     .tune-controls-card.is-open .tune-brightness-chevron { transform: rotate(90deg); }
-    .tune-controls-card.is-open .tune-brightness-body { max-height: 500px; opacity: 1; padding-bottom: 8px; }
+    .tune-controls-card.is-open .tune-brightness-val { opacity: 0; }
+    .tune-controls-card.is-open .tune-brightness-body { max-height: 800px; opacity: 1; padding-bottom: 8px; }
+
+    /* Controls list inside Controls card */
+    .ctrl-list-row { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--line); cursor: pointer; transition: background 0.1s; }
+    .ctrl-list-row:last-child { border-bottom: none; }
+    .ctrl-list-row:active { background: rgba(255,255,255,0.04); }
+    .ctrl-list-icon { flex-shrink: 0; color: var(--muted); display: flex; align-items: center; }
+    .ctrl-list-info { flex: 1; min-width: 0; }
+    .ctrl-list-name { font-size: 0.82rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ctrl-list-name .ctrl-paused-badge { font-size: 0.65rem; font-weight: 400; color: #f90; background: rgba(255,153,0,0.12); padding: 1px 5px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
+    .ctrl-list-impact { flex-shrink: 0; font-size: 0.75rem; color: var(--muted); text-align: right; white-space: nowrap; }
+    .ctrl-list-chevron { flex-shrink: 0; color: var(--muted2); font-size: 0.9rem; }
+    .ctrl-list-divider { border-top: 1px solid var(--line); margin: 0; }
     .tune-brightness-val { margin-left: auto; font-size: 1.1rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; transition: opacity 0.25s; }
     .tune-brightness-card.is-open .tune-brightness-val { opacity: 0; }
     .tune-brightness-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; padding-bottom: 0; }
@@ -1070,6 +1083,7 @@
         <div class="tune-brightness-header" onclick="toggleControlsBody()">
           <span class="tune-brightness-chevron" id="tune-controls-chevron">&#x203A;</span>
           <span class="tune-brightness-title">Controls</span>
+          <span class="tune-brightness-val" id="tune-controls-count" style="font-size:0.85rem;font-weight:500;color:var(--muted);"></span>
         </div>
         <div class="tune-brightness-body" id="tune-controls-body">
         </div>
@@ -3751,9 +3765,12 @@
       fbhtml += '</optgroup>';
       fbhtml += '</select></div>';
       const controlsBody = document.getElementById('tune-controls-body');
-      if (controlsBody) controlsBody.innerHTML = fbhtml;
+      const controlsListHtml = renderAreaControlsList();
+      if (controlsBody) controlsBody.innerHTML = controlsListHtml + (controlsListHtml ? '<div class="ctrl-list-divider"></div>' : '') + fbhtml;
       const controlsCard = document.getElementById('tune-controls-card');
       if (controlsCard) controlsCard.style.display = '';
+      const countEl = document.getElementById('tune-controls-count');
+      if (countEl) countEl.textContent = areaControls.length > 0 ? areaControls.length : '';
 
       lhtml += '<div id="tune-lights-list">';
       if (sortedLights.length === 0) {
@@ -3913,21 +3930,108 @@
 
       try {
         const areaId = selectedArea.area_id;
-        const [filtersRes, configRes, statusRes] = await Promise.all([
+        const [filtersRes, configRes, statusRes, controlsRes] = await Promise.all([
           fetch(basePath + '/api/light-filters'),
           fetch(basePath + '/api/config'),
-          fetch(basePath + '/api/area-status?area_id=' + encodeURIComponent(areaId))
+          fetch(basePath + '/api/area-status?area_id=' + encodeURIComponent(areaId)),
+          fetch(basePath + '/api/controls')
         ]);
         if (!filtersRes.ok || !configRes.ok) { section.style.display = 'none'; return; }
         const filtersData = await filtersRes.json();
         const config = await configRes.json();
         const statusData = statusRes.ok ? await statusRes.json() : {};
 
+        // Parse controls that reach this area
+        if (controlsRes.ok) {
+          const controlsData = await controlsRes.json();
+          areaControls = filterControlsForArea(controlsData.controls || [], areaId);
+        }
+
         renderUnifiedTune(filtersData, config, statusData, areaId);
       } catch (err) {
         section.style.display = 'none';
         console.error('Tune section error:', err);
       }
+    }
+
+    let areaControls = [];
+
+    function filterControlsForArea(controls, areaId) {
+      const result = [];
+      for (const ctrl of controls) {
+        if (!ctrl.scopes || ctrl.scopes.length === 0) continue;
+        // Collect scopes that include this area
+        const matchingScopes = ctrl.scopes.filter(s => s.areas && s.areas.includes(areaId));
+        if (matchingScopes.length > 0) {
+          result.push({ ...ctrl, _matchingScopes: matchingScopes });
+        }
+      }
+      return result;
+    }
+
+    function controlImpactLabel(ctrl) {
+      const scopes = ctrl._matchingScopes || [];
+      if (ctrl.category === 'switch') {
+        return 'Circadian';
+      }
+      if (!scopes.length) return '';
+      // Merge effects across all matching scopes
+      let hasOn = false, hasAlert = false, hasBoost = false, allDisabled = true;
+      let offDuration = null;
+      for (const s of scopes) {
+        if (!s.mode || s.mode === 'disabled') continue;
+        allDisabled = false;
+        if (s.mode === 'on_only' || s.mode === 'on_off') hasOn = true;
+        if (s.mode === 'on_off' && offDuration === null) offDuration = s.duration || 60;
+        if (s.boost_enabled) hasBoost = true;
+        if (s.mode === 'alert') hasAlert = true;
+      }
+      if (allDisabled) return '<span style="color:var(--muted2)">Disabled</span>';
+      const parts = [];
+      if (hasOn) parts.push('On');
+      if (offDuration !== null) parts.push(formatDuration(offDuration));
+      if (hasBoost) parts.push('Boost');
+      if (hasAlert) parts.push('Alert');
+      return parts.join(' \u00b7 ');
+    }
+
+    function formatDuration(seconds) {
+      if (seconds < 60) return seconds + 's';
+      const m = Math.round(seconds / 60);
+      if (m < 60) return m + 'm';
+      const h = Math.floor(m / 60);
+      const rm = m % 60;
+      return rm > 0 ? h + 'h ' + rm + 'm' : h + 'h';
+    }
+
+    function controlCategoryIcon(category) {
+      const size = 16;
+      const icons = {
+        'switch': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="8" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="13" r="1.5" fill="currentColor" stroke="none"/><line x1="10" y1="18" x2="14" y2="18"/></svg>`,
+        'motion_sensor': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 18 A8 8 0 0 1 8 6"/><path d="M5 20 A12 12 0 0 1 5 4"/><circle cx="14" cy="12" r="3" fill="currentColor" stroke="none" opacity="0.6"/><path d="M17 9 A5 5 0 0 1 17 15"/><path d="M20 7 A8 8 0 0 1 20 17"/></svg>`,
+        'camera': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`,
+        'contact_sensor': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="8" height="12" rx="2"/><rect x="14" y="6" width="8" height="12" rx="2"/><line x1="10" y1="11" x2="14" y2="11" stroke-dasharray="2 2"/><line x1="10" y1="13" x2="14" y2="13" stroke-dasharray="2 2"/></svg>`,
+      };
+      return icons[category] || '';
+    }
+
+    function renderAreaControlsList() {
+      if (!areaControls || areaControls.length === 0) return '';
+      let html = '';
+      for (const ctrl of areaControls) {
+        const icon = controlCategoryIcon(ctrl.category);
+        const impact = controlImpactLabel(ctrl);
+        const pausedBadge = ctrl.inactive ? '<span class="ctrl-paused-badge">paused</span>' : '';
+        const encodedId = encodeURIComponent(ctrl.id);
+        const areaId = selectedArea ? encodeURIComponent(selectedArea.area_id) : '';
+        html += `<div class="ctrl-list-row" onclick="window.location.href='${basePath}/control/${encodedId}?from=area&id=${areaId}'">`;
+        html += `<span class="ctrl-list-icon">${icon}</span>`;
+        html += `<span class="ctrl-list-info"><span class="ctrl-list-name">${ctrl.name}${pausedBadge}</span></span>`;
+        html += `<span class="ctrl-list-impact">${impact}</span>`;
+        html += `<span class="ctrl-list-chevron">&#x203A;</span>`;
+        html += `</div>`;
+      }
+      return html;
     }
 
     function toggleBrightnessBody() {

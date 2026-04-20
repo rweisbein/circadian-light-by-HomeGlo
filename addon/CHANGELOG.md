@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.86
+- **Area detail controls list**: Controls card now shows all controls that reach the area — name, category icon, and a compact impact label (e.g. "On · 5m · Boost", "Circadian"). Click navigates to control detail with back-to-area support. Count shown in collapsed header.
+
 ## 1.2.83
 - **Camera as separate control type**: Cameras now show as "Camera" with a camera icon in the controls list, distinct from "Motion" sensors. Backend handling unchanged (same data model and event processing).
 - **Fix deep-link auto card header**: When deep-linking to auto on/off from home page, the expanded card now correctly shows the resolved time instead of the source label.

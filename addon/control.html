@@ -1039,6 +1039,10 @@
         window.location.href = basePath + '/moment/' + encodeURIComponent(params.get('id'));
         return;
       }
+      if (params.get('from') === 'area' && params.get('id')) {
+        window.location.href = basePath + '/area/' + encodeURIComponent(params.get('id'));
+        return;
+      }
       if (window.history.length > 1 && document.referrer) {
         window.history.back();
       } else {
