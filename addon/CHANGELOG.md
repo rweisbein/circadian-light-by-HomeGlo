@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.105
+- **Conditions header polish**: Removed the `border-top` divider above the new `Conditions` mini-header — inside the bonded Auto On + Auto Off shell, the divider fragmented one half of the panel. Added 14px left padding so the `CONDITIONS` label aligns with the other field labels (Light / Time / Fade / Trigger / If) instead of sitting flush to the card edge.
+
 ## 1.2.104
 - **Adjustments label spacing**: Brightness-card hero reads `0% adjustments` again (was `0%adjustments`). The parent `.tune-adj-target` is `display: inline-flex`, which collapses literal whitespace between children; added a `gap: 4px` and split "adjustments" into its own span.
 - **Auto card tweaks** (area detail → Auto On / Auto Off):
