@@ -587,10 +587,6 @@
       flex-direction: row;
       gap: 2px;
     }
-    .row-btn-reset.is-hidden {
-      display: none;
-    }
-
     .row-step-stack .row-btn {
       width: 28px;
       height: 28px;
@@ -670,6 +666,12 @@
       margin-bottom: 16px;
     }
 
+    @media (min-width: 768px) {
+      .zone-group {
+        max-width: 720px;
+      }
+    }
+
     .zone-group:last-child {
       margin-bottom: 0;
     }
@@ -681,7 +683,7 @@
       padding: 8px 8px 8px 8px;
       background: var(--panel);
       border: 1px solid var(--line);
-      border-radius: 8px 8px 0 8px;
+      border-radius: 8px 8px 0 0;
       user-select: none;
       transition: background 0.15s;
       position: relative;
@@ -793,22 +795,18 @@
 
     .zone-chevron-tap {
       cursor: pointer;
-      width: 28px;
-      height: 28px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      border-radius: 4px;
-      border: 1px solid rgba(255,255,255,0.2);
-      background: rgba(30,30,30,0.9);
-      color: var(--muted);
-      transition: border-color 0.15s, background 0.15s;
+      color: inherit;
+      opacity: 0.55;
+      transition: opacity 0.15s;
       flex-shrink: 0;
+      padding: 4px;
     }
 
     .zone-chevron-tap:hover {
-      border-color: rgba(255,255,255,0.4);
-      background: rgba(50,50,50,0.9);
+      opacity: 1;
     }
 
     .zone-chevron {
@@ -848,7 +846,6 @@
       background: var(--card);
       border: 1px solid var(--line);
       border-radius: 0 0 8px 8px;
-      margin-left: 32px;
       margin-top: -1px;
       overflow: hidden;
       transition: max-height 0.3s ease, opacity 0.3s ease, border-width 0.3s ease, margin-top 0.3s ease;
@@ -857,7 +854,6 @@
 
     .zone-content.no-header {
       border-radius: 8px;
-      margin-left: 0;
       margin-top: 0;
     }
 
@@ -898,14 +894,26 @@
       background: #fff; border: 1px solid rgba(0,0,0,0.15);
     }
 
-    /* Red dot: area doesn't match zone (inline after power button) */
+    /* Red dot: area doesn't match zone — tap to reset */
     .mismatch-dot-area {
-      width: 5px;
-      height: 5px;
+      position: relative;
+      width: 10px;
+      height: 10px;
       border-radius: 50%;
       background: rgba(239, 68, 68, 0.9);
       box-shadow: 0 0 0 1px rgba(0,0,0,0.6);
       flex-shrink: 0;
+      margin-left: 10px;
+      cursor: pointer;
+      transition: box-shadow 0.15s;
+    }
+    .mismatch-dot-area::after {
+      content: '';
+      position: absolute;
+      inset: -11px;
+    }
+    .mismatch-dot-area:hover {
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.6), 0 0 0 4px rgba(239, 68, 68, 0.25);
     }
 
     /* Placeholder to keep layout stable when no dot */
@@ -925,14 +933,6 @@
       flex-shrink: 0;
     }
 
-    /* Toolbar menu */
-    .toolbar-menu { position: relative; }
-    .toolbar-menu-btn { background: none; border: none; color: var(--muted); font-size: 1.2rem; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
-    .toolbar-menu-btn:hover { color: var(--text); background: rgba(255,255,255,0.05); }
-    .toolbar-menu-dropdown { display: none; position: absolute; right: 0; top: 100%; min-width: 140px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); z-index: 50; overflow: hidden; }
-    .toolbar-menu-dropdown.visible { display: block; }
-    .toolbar-menu-item { display: block; padding: 8px 16px; color: var(--muted); text-decoration: none; font-size: 0.85rem; }
-    .toolbar-menu-item:hover { color: var(--text); background: rgba(255,255,255,0.05); }
 
     /* Zone reset button — spans full width of row-controls container (2 btn slots) */
     .zone-reset-btn {
@@ -2347,13 +2347,7 @@
             <span class="home-name-heading">${homeName || ''}</span>
             <button class="view-toggle ${viewMode === 'onoff' ? 'active' : ''}" data-view-toggle title="Group by on/off state">On</button>
             <span style="flex: 1;"></span>
-            <div class="toolbar-menu" style="padding-left: 8px;">
-              <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">⋮</button>
-              <div class="toolbar-menu-dropdown" id="toolbar-menu-dropdown">
-                <a href="#" class="toolbar-menu-item" id="organize-link">Organize</a>
-                <a href="#" class="toolbar-menu-item" id="refresh-link">Refresh</a>
-              </div>
-            </div>
+            <a href="#" class="edit-toolbar-link" id="organize-link" style="padding-left: 8px;">Organize</a>
           </div>
         `;
       }
@@ -2477,13 +2471,12 @@
             <div class="zone-header ${isCollapsed ? 'collapsed' : ''} ${allOff ? 'no-tint' : ''}" data-zone="${zoneName}" style="${zoneHeaderStyle}">
               ${zonePowerBtn}
               <div class="zone-name-group" style="color: ${zoneTextColor};">
-                <span style="display: inline-flex; align-items: center; gap: 3px;"><a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" style="color: ${zoneTextColor};">${zoneName}</a>${zoneMismatchDot}</span>
+                <span style="display: inline-flex; align-items: center; gap: 3px;"><a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" style="color: ${zoneTextColor};">${zoneName}</a>${zoneMismatchDot}<span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)" title="${isCollapsed ? 'Expand' : 'Collapse'}">${chevronIcon}</span></span>
                 <span class="zone-phase-label" style="color: ${zoneTextColor};">${getZonePhaseMidpoint(zoneName, sorted) || ''}</span>
-                <span class="zone-type-chip" style="color: ${zoneTextColor};">Zone</span>
+                <span class="zone-type-chip" style="color: ${zoneTextColor};">Rhythm Zone</span>
               </div>
               ${zoneFrozenIndicator}
               <div class="row-controls">
-                <span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)" title="${isCollapsed ? 'Expand' : 'Collapse'}">${chevronIcon}</span>
                 <button class="row-btn" onclick="event.stopPropagation(); glozoneResetFull('${escapedZoneName}')" title="Reset all areas in rhythm zone">${glozoneResetIcon}</button>
               </div>
             </div>
@@ -2679,8 +2672,7 @@
       }
 
       const style = getRowStyle(area);
-      const dirty = isAreaDirty(area);
-      const { leftControls, rightControls } = getRowControls(area, dirty);
+      const { leftControls, rightControls } = getRowControls(area);
       const sliderPct = getSliderPct(area.brightness || 0, area);
       const mismatchDot = getMismatchDot(area);
       const phaseMidpoint = getPhaseMidpoint(area);
@@ -2757,7 +2749,8 @@
     }
 
     function getMismatchDot(area) {
-      return isAreaDirty(area) ? '<span class="mismatch-dot-area"></span>' : '';
+      if (!isAreaDirty(area)) return '';
+      return `<span class="mismatch-dot-area" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_down')" title="Reset to rhythm zone"></span>`;
     }
 
     function resolveEffectiveTime(zc, phase) {
@@ -2876,7 +2869,7 @@
       return { bg: tintedColor, fill, textColor };
     }
 
-    function getRowControls(area, isDirty) {
+    function getRowControls(area) {
       const isOn = area.is_on;
 
       // Power icon
@@ -2890,12 +2883,6 @@
         </div>
       `;
 
-      // Reset icon (rewind arrow) — performs glo_down
-      const resetSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="1 4 1 10 7 10"/>
-        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
-      </svg>`;
-
       // Step up icon (compact chevron)
       const stepUpSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="5 15 12 8 19 15"/>
@@ -2906,10 +2893,8 @@
         <polyline points="5 9 12 16 19 9"/>
       </svg>`;
 
-      const resetHiddenClass = isDirty ? '' : ' is-hidden';
       const rightControls = `
         <div class="row-controls">
-          <button class="row-btn row-btn-reset${resetHiddenClass}" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_down')" title="Reset to rhythm zone">${resetSvg}</button>
           <div class="row-step-stack">
             <button class="row-btn" onclick="event.stopPropagation(); homeStepUp('${area.area_id}')" title="Step up">${stepUpSvg}</button>
             <button class="row-btn" onclick="event.stopPropagation(); homeStepDown('${area.area_id}')" title="Step down">${stepDownSvg}</button>
@@ -2920,13 +2905,7 @@
       return { leftControls, rightControls };
     }
 
-    function toggleToolbarMenu(event) {
-      event.stopPropagation();
-      const dd = document.getElementById('toolbar-menu-dropdown');
-      if (dd) dd.classList.toggle('visible');
-    }
-
-    function updateSliderFill(el) {
+function updateSliderFill(el) {
       const pct = (el.value - el.min) / (el.max - el.min) * 100;
       el.style.setProperty('--fill-pct', pct + '%');
     }
@@ -2935,13 +2914,7 @@
     }
 
     function setupEventListeners() {
-      // Close toolbar menu when clicking outside
-      document.addEventListener('click', () => {
-        const dd = document.getElementById('toolbar-menu-dropdown');
-        if (dd) dd.classList.remove('visible');
-      });
       document.getElementById('areas-container').addEventListener('click', (e) => {
-        if (e.target.id === 'refresh-link') { e.preventDefault(); loadData(); }
         if (e.target.id === 'organize-link') { e.preventDefault(); enterOrganizeMode(); }
         if (e.target.id === 'add-zone-link') { e.preventDefault(); createZoneFromEdit(); }
       });

@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.107
+- **Home page polish round 2**: Follow-ups after reviewing v1.2.106 live.
+  - **Red dot becomes the reset button**: The per-row `↺` reset button is gone. The red mismatch dot (which was already a dirty-state indicator) is now a tap target — 10px dot with a 32×32 invisible hit area, 10px gap from the area name, cursor pointer, hover ring, and tooltip "Reset to rhythm zone". Kills the duplication with the red dot and means row 3 no longer reflows when a row goes dirty/clean.
+  - **Zone header matches area width**: Removed `margin-left: 32px` from `.zone-content` so zone header and its area cards share the same left edge. Zone header border-radius updated from `8px 8px 0 8px` to `8px 8px 0 0` for a clean seam.
+  - **Desktop width cap on zone-group**: Added `max-width: 720px` on `.zone-group` at ≥768px, so the row cluster (slider + right controls) stays tight on wide monitors instead of leaving a big gap right of the slider.
+  - **Naked chevron next to zone name**: Moved the zone expand/collapse chevron out of the right control cluster and inline with the zone name. Stripped the bordered-button chrome; it's now a plain `›` with a muted color and opacity-on-hover. Fixes the visual collision with the row step-down (`∨`) button on area cards.
+  - **`RHYTHM ZONE` chip**: Renamed the small `ZONE` chip under the zone wake/bed time to `RHYTHM ZONE` for clarity (short "Zone" read ambiguously next to area names).
+  - **Direct `Organize` link**: Replaced the toolbar `⋮` dropdown with a direct `Organize` link. Dropped the `Refresh` menu item — the page already auto-refreshes on an interval. Cleaned up dropdown CSS + `toggleToolbarMenu` + outside-click close handler.
+
 ## 1.2.106
 - **Home page polish bundle**: Ten coordinated tweaks to the areas/zones list.
   - **Zone chevron moved inline**: The expand/collapse chevron on zone headers no longer floats on the left as a dark circle — it's now a bordered 28×28 button inside the right-side control cluster, so it doesn't look orphaned when the zone renders with `no-tint` (all-off) background. When a zone header has no power button (no on-areas), a hidden placeholder keeps the control cluster balanced.
