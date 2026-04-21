@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.108
+- **Phase offset hint: compact + recede**: The `(+N)` offset hint next to an area's Wake/Bed time is less crammed on row 3.
+  - Shrunk to `font-size: 0.85em` with `opacity: 0.55`, matching the treatment of the relative-time tip on the next-auto pill. Reads as secondary info instead of competing with the Wake/Bed time itself.
+  - Large offsets (≥60 min) now render as `H:MM` instead of raw minutes: `(+166)` → `(+2:46)`. Same character count, easier to parse as a duration. Sub-hour offsets stay as `(+25)` / `(−25)` for compactness.
+
 ## 1.2.107
 - **Home page polish round 2**: Follow-ups after reviewing v1.2.106 live.
   - **Red dot becomes the reset button**: The per-row `↺` reset button is gone. The red mismatch dot (which was already a dirty-state indicator) is now a tap target — 10px dot with a 32×32 invisible hit area, 10px gap from the area name, cursor pointer, hover ring, and tooltip "Reset to rhythm zone". Kills the duplication with the red dot and means row 3 no longer reflows when a row goes dirty/clean.

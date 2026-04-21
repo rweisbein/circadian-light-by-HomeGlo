@@ -740,7 +740,8 @@
       line-height: 1.4;
     }
     .phase-midpoint-delta {
-      opacity: 0.6;
+      opacity: 0.55;
+      font-size: 0.85em;
       font-variant-numeric: tabular-nums;
       margin-left: 3px;
     }
@@ -2823,7 +2824,9 @@
           const deltaMin = Math.round((midpoint - zoneDefault) * 60);
           if (deltaMin !== 0) {
             const sign = deltaMin > 0 ? '+' : '−';
-            deltaHint = `<span class="phase-midpoint-delta">(${sign}${Math.abs(deltaMin)})</span>`;
+            const abs = Math.abs(deltaMin);
+            const body = abs >= 60 ? `${Math.floor(abs / 60)}:${String(abs % 60).padStart(2, '0')}` : `${abs}`;
+            deltaHint = `<span class="phase-midpoint-delta">(${sign}${body})</span>`;
           }
         }
       }
