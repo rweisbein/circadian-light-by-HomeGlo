@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.102
+- **Phase-anchored to current phase**: The area-detail chart's x-axis now starts at whichever phase is currently active (`ascend_start` during the wake-to-bed stretch, `descend_start` during the bed-to-wake stretch), so the active phase is always on the left of the chart. Previously the anchor was always `ascend_start`, which pushed `now` to the right half of the chart during evening hours.
+- **Inline purpose picker**: Clicking a light's purpose name in the Lights card now opens the purpose picker directly, instead of first expanding the row. Removed the separate trigger button, breakdown line, and meta line that used to live in the expanded row.
+- **Per-row "Now" column**: The picker's header gained a `Now` column showing what each purpose would deliver for *this specific light at the current curve position* (e.g. `23%`). Replaces the hover-preview footer, which resized the dropdown width as you scrolled. Dropdown width is now fixed at 320px.
+- **Impact tooltip**: The per-light `impact` cell now shows a tooltip when impact is non-zero (dotted underline + help cursor), listing both `Purpose ↑X%` and `CT ↑Y%` contributions consistently, regardless of which factor is zero.
+
 ## 1.2.101
 - **Purpose picker tabular + preview**: The per-light purpose picker now lays out options as aligned columns (Purpose / Dim / Bright / Off) with a header row, instead of a sentence per row. Selected row gets a `●` marker. A live preview footer shows what the hovered purpose would do to *this specific light* — e.g. `Accent → Kitchen counter would go to 23% (46% area · −50% at curve pos)` — so you can compare options without doing the math. Reserved a disabled `+ New purpose…` slot at the bottom as a future affordance.
 - **Phase-anchored curve chart**: The area-detail chart now starts its x-axis at `ascend_start` (typically 3a) and spans 24 hours forward, so **wake is always on the left and bed is always on the right**. The bed handle no longer wraps around midnight — dragging to the right edge of the chart now directly targets the late-night hours. All event markers (wake, bed, sunrise, sunset, cursor) shift into the same window; the `now` cursor moves left-to-right across the day.

@@ -595,10 +595,6 @@
     .tune-light-impact { font-size: 0.82rem; color: var(--muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
     .tune-light-bri { font-size: 0.85rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; color: var(--text); position: relative; }
     .tune-capped-star { position: absolute; font-size: 0.7rem; font-weight: 400; color: var(--muted2); margin-left: 1px; }
-    .tune-light-expanded { display: flex; align-items: center; gap: 8px; padding: 0 0 10px; padding-left: 14px; flex-wrap: wrap; }
-    .tune-light-select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; font-size: 0.75rem; cursor: pointer; outline: none; }
-    .tune-light-select:focus { border-color: var(--accent); }
-    .tune-light-meta { font-size: 0.7rem; color: var(--muted2); line-height: 1.4; margin-left: 6px; }
 
     /* Brightness card — alarm-style collapsible */
     .tune-brightness-header { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 14px; user-select: none; }
@@ -641,18 +637,17 @@
     .tune-area-total::before { content: ''; position: absolute; top: 0; right: 14px; width: 3em; border-top: 1px solid rgba(255,255,255,0.15); }
 
     /* Custom behaviour dropdown */
-    .tune-light-dropdown { position: absolute; z-index: 100; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.4); min-width: 288px; overflow: hidden; }
-    .tune-light-dropdown-header { display: grid; grid-template-columns: 14px 1fr 52px 52px 40px; gap: 8px; padding: 8px 12px 6px; font-size: 0.6rem; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--line); }
-    .tune-light-dropdown-header > span:nth-child(3), .tune-light-dropdown-header > span:nth-child(4), .tune-light-dropdown-header > span:nth-child(5) { text-align: right; }
-    .tune-light-dropdown-row { display: grid; grid-template-columns: 14px 1fr 52px 52px 40px; gap: 8px; padding: 9px 12px; cursor: pointer; align-items: center; border-bottom: 1px solid var(--line); }
+    .tune-light-dropdown { position: absolute; z-index: 100; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.4); width: 320px; overflow: hidden; }
+    .tune-light-dropdown-header { display: grid; grid-template-columns: 14px 1fr 44px 44px 36px 48px; gap: 8px; padding: 8px 12px 6px; font-size: 0.6rem; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--line); }
+    .tune-light-dropdown-header > span:nth-child(3), .tune-light-dropdown-header > span:nth-child(4), .tune-light-dropdown-header > span:nth-child(5), .tune-light-dropdown-header > span:nth-child(6) { text-align: right; }
+    .tune-light-dropdown-row { display: grid; grid-template-columns: 14px 1fr 44px 44px 36px 48px; gap: 8px; padding: 9px 12px; cursor: pointer; align-items: center; border-bottom: 1px solid var(--line); }
     .tune-light-dropdown-row:hover { background: rgba(255,255,255,0.05); }
     .tune-light-dropdown-row.selected { background: rgba(254,172,96,0.08); }
     .tune-light-dropdown-dot { color: #feac60; font-size: 0.7rem; line-height: 1; }
-    .tune-light-dropdown-name { font-size: 0.72rem; color: var(--text); text-transform: uppercase; letter-spacing: 0.04em; }
+    .tune-light-dropdown-name { font-size: 0.72rem; color: var(--text); text-transform: uppercase; letter-spacing: 0.04em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .tune-light-dropdown-num { text-align: right; font-size: 0.78rem; color: var(--muted2); font-variant-numeric: tabular-nums; }
+    .tune-light-dropdown-final { text-align: right; font-size: 0.82rem; color: var(--text); font-variant-numeric: tabular-nums; font-weight: 500; }
     .tune-light-dropdown-new { padding: 8px 12px; font-size: 0.72rem; color: var(--muted2); opacity: 0.5; cursor: not-allowed; border-top: 1px dashed var(--line); text-transform: uppercase; letter-spacing: 0.04em; }
-    .tune-light-dropdown-preview { padding: 9px 12px; font-size: 0.7rem; color: var(--muted2); background: rgba(255,255,255,0.03); border-top: 1px solid var(--line); min-height: 18px; line-height: 1.35; }
-    .tune-light-dropdown-preview strong { color: var(--text); font-weight: 600; }
 
     /* Light brightness column headers — same grid as data rows for alignment */
     .tune-light-col-super { display: grid; grid-template-columns: 1fr 1fr 56px 56px; padding: 6px 14px 0; gap: 0 4px; }
@@ -667,8 +662,7 @@
     .tune-light-sort.active-sort.sort-desc::after { content: " \2193"; color: var(--accent); margin-left: 3px; font-size: 1.1em; vertical-align: -1px; line-height: 1; }
     .tune-light-sort-final { /* no longer bold/white — value carries the weight */ }
     .tune-light-ct { font-size: 0.82rem; color: var(--muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
-    .tune-light-breakdown { font-size: 0.7rem; color: var(--muted2); padding: 2px 14px 0 14px; font-variant-numeric: tabular-nums; }
-    .tune-light-breakdown:empty { display: none; }
+    .tune-light-impact-tt { text-decoration: underline dotted; text-underline-offset: 2px; cursor: help; }
 
     /* Purpose as a pill (drop the link-looking underline) */
     .tune-light-behaviour {
@@ -1759,8 +1753,14 @@
       const sbfNow = areaLive.sun_bright_factor ?? sunTimes.sunBrightFactorNow ?? 1.0;
       const curveSunTimes = Object.assign({}, sunTimes, { sunBrightFactorNow: sbfNow });
 
-      // Phase-anchored x-axis: start the chart at ascend_start so bed never wraps.
-      const xAnchor = cfg.ascend_start;
+      // Phase-anchored x-axis: anchor at the START of the current phase, so the
+      // active phase always sits on the left half of the chart.
+      const tAscAnchor = cfg.ascend_start;
+      let tDescAnchor = cfg.descend_start;
+      if (tDescAnchor <= tAscAnchor) tDescAnchor += 24;
+      const curH48 = currentHour < tAscAnchor ? currentHour + 24 : currentHour;
+      const curInAscend = curH48 >= tAscAnchor && curH48 < tDescAnchor;
+      const xAnchor = curInAscend ? tAscAnchor : cfg.descend_start;
       const xEnd = xAnchor + 24;
       const shiftIntoWindow = (h) => {
         if (h == null || !Number.isFinite(h)) return h;
@@ -3373,7 +3373,6 @@
       areaId: null,
       areaInfo: null,
       areaName: '',
-      expandedLightIdx: null,
       boosted: false,
       boostBrightness: 0,
       briOverride: 0,
@@ -3381,20 +3380,6 @@
       fadeProgress: null,
       actualBrightness: null,
     };
-
-    function tunePresetMeta(presets, filterName, nowPct) {
-      const preset = presets[filterName];
-      if (!preset) return '';
-      const atBright = preset.at_bright ?? 100;
-      const atDim = preset.at_dim ?? 100;
-      const offThresh = preset.off_threshold ?? 0;
-      let parts = [];
-      if (nowPct !== undefined) parts.push('now ' + nowPct + '%');
-      parts.push('at dim ' + atDim + '%');
-      parts.push('at bright ' + atBright + '%');
-      if (offThresh > 0) parts.push('off &lt;' + offThresh);
-      return parts.join(' &middot; ');
-    }
 
     function showTuneSave() {
       const el = document.getElementById('tune-save-status');
@@ -3587,8 +3572,6 @@
       for (const light of tuneState.lights) {
         const orig = tuneSnapshot.lightFilters[light.entity_id] || 'Standard';
         light.filterName = orig;
-        const sel = document.querySelector(`.tune-light-select[data-light-idx="${light.idx}"]`);
-        if (sel) sel.textContent = orig + ' \u25BE';
         const labelEl = document.getElementById('tune-light-preset-label-' + light.idx);
         if (labelEl) labelEl.textContent = orig;
         if (!tuneState.areaInfo.light_filters) tuneState.areaInfo.light_filters = {};
@@ -3678,7 +3661,7 @@
       const presets = ts.presets;
       const presetNames = Object.keys(presets);
 
-      // Snapshot state for preview math (set by last recalcTune)
+      // Snapshot state for per-row impact preview (set by last recalcTune)
       const briRange = ts.maxBri - ts.minBri;
       const curvePos = briRange > 0 ? Math.max(0, Math.min(1, (ts.baseBri - ts.minBri) / briRange)) : 0;
       const areaBri = ts._lastAreaBri ?? ts.baseBri;
@@ -3687,18 +3670,7 @@
       const fmtDelta = (v) => v === 0 ? '0' : (v > 0 ? '+' + v : String(v));
       const fmtOff = (t) => (t && t > 0) ? '&lt;' + t : '\u2212';
 
-      const dropdown = document.createElement('div');
-      dropdown.className = 'tune-light-dropdown';
-
-      const header = document.createElement('div');
-      header.className = 'tune-light-dropdown-header';
-      header.innerHTML = '<span></span><span>Purpose</span><span>Dim</span><span>Bright</span><span>Off</span>';
-      dropdown.appendChild(header);
-
-      const preview = document.createElement('div');
-      preview.className = 'tune-light-dropdown-preview';
-
-      const computePreview = (pName) => {
+      const computeFinal = (pName) => {
         const p = presets[pName] || {};
         const atDim = p.at_dim ?? 100;
         const atBright = p.at_bright ?? 100;
@@ -3707,12 +3679,16 @@
         const afterFilter = areaBri * filterMult;
         const afterCt = afterFilter * ctFactor;
         const isOff = afterFilter < offThresh;
-        const finalVal = isOff ? 0 : Math.min(100, Math.round(afterCt));
-        const deltaPct = Math.round((filterMult - 1) * 100);
-        const deltaStr = deltaPct === 0 ? 'no change' : (deltaPct > 0 ? '+' + deltaPct + '%' : deltaPct + '%');
-        return pName + ' \u2192 ' + light.name + ' would go to <strong>' + finalVal + '%</strong> ('
-          + areaBri + '% area &middot; ' + deltaStr + ' at curve pos)';
+        return isOff ? 0 : Math.min(100, Math.round(afterCt));
       };
+
+      const dropdown = document.createElement('div');
+      dropdown.className = 'tune-light-dropdown';
+
+      const header = document.createElement('div');
+      header.className = 'tune-light-dropdown-header';
+      header.innerHTML = '<span></span><span>Purpose</span><span>Dim</span><span>Bright</span><span>Off</span><span>Now</span>';
+      dropdown.appendChild(header);
 
       for (const pName of presetNames) {
         const preset = presets[pName] || {};
@@ -3720,6 +3696,7 @@
         const atBright = preset.at_bright ?? 100;
         const offThresh = preset.off_threshold ?? ts.globalOffThreshold;
         const isSelected = pName === light.filterName;
+        const finalVal = computeFinal(pName);
 
         const row = document.createElement('div');
         row.className = 'tune-light-dropdown-row' + (isSelected ? ' selected' : '');
@@ -3728,8 +3705,8 @@
           + '<span class="tune-light-dropdown-name">' + pName + '</span>'
           + '<span class="tune-light-dropdown-num">' + fmtDelta(atDim - 100) + '</span>'
           + '<span class="tune-light-dropdown-num">' + fmtDelta(atBright - 100) + '</span>'
-          + '<span class="tune-light-dropdown-num">' + fmtOff(offThresh) + '</span>';
-        row.addEventListener('mouseenter', () => { preview.innerHTML = computePreview(pName); });
+          + '<span class="tune-light-dropdown-num">' + fmtOff(offThresh) + '</span>'
+          + '<span class="tune-light-dropdown-final">' + finalVal + '%</span>';
         row.addEventListener('click', () => {
           light.filterName = pName;
           if (!ts.areaInfo.light_filters) ts.areaInfo.light_filters = {};
@@ -3740,9 +3717,6 @@
           }
           const labelEl = document.getElementById('tune-light-preset-label-' + idx);
           if (labelEl) labelEl.textContent = pName;
-          const metaEl = document.getElementById('tune-meta-' + idx);
-          if (metaEl) metaEl.innerHTML = tunePresetMeta(presets, pName);
-          if (anchorEl) anchorEl.textContent = pName + ' \u25BE';
           recalcTune();
           updateTuneButtons();
           closeBehaviourDropdown();
@@ -3755,9 +3729,6 @@
       newSlot.textContent = '+ New purpose\u2026';
       newSlot.title = 'Coming soon';
       dropdown.appendChild(newSlot);
-
-      preview.innerHTML = computePreview(light.filterName);
-      dropdown.appendChild(preview);
 
       document.body.appendChild(dropdown);
 
@@ -3915,19 +3886,17 @@
         const ctImpact = (ts.ctEnabled && ctFactor !== 1.0) ? (Math.round(afterCt) - Math.round(afterFilter)) : 0;
         const totalImpact = behavImpact + ctImpact;
         const elImpact = document.getElementById('tune-light-impact-' + light.idx);
-        if (elImpact) elImpact.textContent = formatImpactArrow(totalImpact);
-        const elBreakdown = document.getElementById('tune-light-breakdown-' + light.idx);
-        if (elBreakdown) {
-          if (totalImpact === 0) {
-            elBreakdown.textContent = '';
+        if (elImpact) {
+          elImpact.textContent = formatImpactArrow(totalImpact);
+          if (totalImpact !== 0) {
+            const tt = 'Purpose ' + formatImpactArrow(behavImpact) + ' \u00B7 CT ' + formatImpactArrow(ctImpact);
+            elImpact.title = tt;
+            elImpact.classList.add('tune-light-impact-tt');
           } else {
-            const parts = ['Purpose ' + formatImpactArrow(behavImpact)];
-            if (ctImpact !== 0) parts.push('CT ' + formatImpactArrow(ctImpact));
-            elBreakdown.textContent = parts.join(' \u00B7 ');
+            elImpact.removeAttribute('title');
+            elImpact.classList.remove('tune-light-impact-tt');
           }
         }
-        const elMeta = document.getElementById('tune-meta-' + light.idx);
-        if (elMeta) elMeta.innerHTML = tunePresetMeta(ts.presets, light.filterName);
       }
 
       const legendEl = document.getElementById('tune-lights-legend');
@@ -4167,7 +4136,6 @@
         areaId: areaId,
         areaInfo: areaInfo,
         areaName: selectedArea.name || '',
-        expandedLightIdx: null,
         boosted: status.boosted || false,
         boostBrightness: status.boost_brightness || 0,
       });
@@ -4298,20 +4266,12 @@
           + '<span class="tune-light-sort tune-light-sort-final" data-sort="final">final</span>'
           + '</div>';
         for (const light of lightsArr) {
-          const meta = tunePresetMeta(presets, light.filterName);
-          const triggerHtml = '<button class="tune-light-select" data-light-idx="' + light.idx + '" onclick="openBehaviourDropdown(' + light.idx + ', this)">' + light.filterName + ' &#x25BE;</button>';
-
           lhtml += '<div class="tune-light-item" data-idx="' + light.idx + '">';
           lhtml += '<div class="tune-light-summary" data-idx="' + light.idx + '">'
             + '<span class="tune-light-name" title="' + light.entity_id + '">' + light.name + '</span>'
             + '<span class="tune-light-behaviour" id="tune-light-preset-label-' + light.idx + '" data-idx="' + light.idx + '">' + light.filterName + '</span>'
             + '<span class="tune-light-impact" id="tune-light-impact-' + light.idx + '"></span>'
             + '<span class="tune-light-bri" id="tune-light-bri-' + light.idx + '"></span>'
-            + '</div>';
-          lhtml += '<div class="tune-light-expanded" id="tune-light-exp-' + light.idx + '" style="display:none;">'
-            + triggerHtml
-            + '<div class="tune-light-breakdown" id="tune-light-breakdown-' + light.idx + '"></div>'
-            + '<span class="tune-light-meta" id="tune-meta-' + light.idx + '">' + meta + '</span>'
             + '</div>';
           lhtml += '</div>';
         }
@@ -4394,24 +4354,12 @@
       // Light accordion + preset selects
       const lightsList = document.getElementById('tune-lights-list');
       if (lightsList) {
-        // Behaviour link clicks toggle expanded area
+        // Behaviour link clicks open purpose picker directly
         lightsList.querySelectorAll('.tune-light-behaviour').forEach(link => {
           link.addEventListener('click', (e) => {
             e.stopPropagation();
             const idx = parseInt(link.dataset.idx);
-            const wasExpanded = tuneState.expandedLightIdx === idx;
-            // Collapse current
-            if (tuneState.expandedLightIdx !== null) {
-              const prev = document.getElementById('tune-light-exp-' + tuneState.expandedLightIdx);
-              if (prev) prev.style.display = 'none';
-            }
-            if (wasExpanded) {
-              tuneState.expandedLightIdx = null;
-            } else {
-              tuneState.expandedLightIdx = idx;
-              const exp = document.getElementById('tune-light-exp-' + idx);
-              if (exp) exp.style.display = 'block';
-            }
+            openBehaviourDropdown(idx, link);
           });
         });
       }
