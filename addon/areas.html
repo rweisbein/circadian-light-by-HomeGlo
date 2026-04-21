@@ -987,8 +987,8 @@
       white-space: nowrap;
     }
     .view-toggle:hover { border-color: rgba(255,255,255,0.4); color: var(--text); }
-    .view-toggle.active { color: #000; border-color: var(--accent); background: var(--accent); }
-    .view-toggle.active:hover { filter: brightness(1.08); }
+    .view-toggle.active { color: var(--accent); border-color: currentColor; background: transparent; }
+    .view-toggle.active:hover { color: var(--accent); filter: brightness(1.12); }
 
     /* Edit mode styles */
     .edit-toolbar { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }

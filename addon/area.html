@@ -125,7 +125,7 @@
       padding: 1px 6px;
       border: 1px solid currentColor;
       border-radius: 10px;
-      opacity: 0.55;
+      opacity: 0.72;
       white-space: nowrap;
       line-height: 1.4;
       color: var(--accent);
@@ -212,13 +212,14 @@
     }
     .control-cluster-label {
       font-size: 0.52rem;
-      font-weight: 600;
-      color: var(--muted);
-      opacity: 0.55;
+      font-weight: 700;
+      color: rgba(255,255,255,0.78);
+      opacity: 1;
       text-transform: uppercase;
       letter-spacing: 0.12em;
       padding: 0 6px;
       line-height: 1;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.45);
     }
 
     /* Toggle switch styles (from modal) */
@@ -700,7 +701,32 @@
     .tune-light-sort.active-sort.sort-desc::after { content: " \2193"; color: var(--accent); margin-left: 3px; font-size: 1.1em; vertical-align: -1px; line-height: 1; }
     .tune-light-sort-final { /* no longer bold/white — value carries the weight */ }
     .tune-light-ct { font-size: 0.82rem; color: var(--muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
-    .tune-light-impact-tt { text-decoration: underline dotted; text-underline-offset: 2px; cursor: help; }
+    .tune-light-impact-info {
+      display: inline-block;
+      margin-left: 4px;
+      font-size: 0.82rem;
+      color: var(--muted2);
+      cursor: pointer;
+      user-select: none;
+      vertical-align: -1px;
+    }
+    .tune-light-impact-info:hover { color: var(--accent); }
+    .tune-light-impact-info.is-open { color: var(--accent); }
+    .tune-light-impact-breakdown {
+      grid-column: 1 / -1;
+      padding: 0 0 8px 0;
+      font-size: 0.7rem;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      color: var(--muted);
+      animation: fadeInBreakdown 0.15s ease-out;
+    }
+    .tune-light-impact-breakdown-key { color: var(--muted2); margin-right: 4px; }
+    .tune-light-impact-breakdown-key + .tune-light-impact-breakdown-key { margin-left: 10px; }
+    @keyframes fadeInBreakdown {
+      from { opacity: 0; transform: translateY(-2px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
 
     /* Purpose as a pill (drop the link-looking underline) */
     .tune-light-behaviour {
@@ -1510,16 +1536,16 @@
       const areaFactor = state.area_factor ?? 1.0;
       curveBri *= areaFactor;
 
-      // Brightness override with decay projection
+      // Brightness override with decay projection — only applies from when it was set
+      // forward, within the active phase (no leak across the next phase boundary)
       const briOverride = state.brightness_override;
       const briSetAt = state.brightness_override_set_at;
       if (briOverride != null && briSetAt != null) {
-        // Determine which phase the override was set in and its expiry
         const setAt48 = briSetAt < tAscend ? briSetAt + 24 : briSetAt;
         const setInAscend = setAt48 >= tAscend && setAt48 < tDescend;
         const expiresAt = setInAscend ? tDescend : tAscend + 24;
         const total = expiresAt - setAt48;
-        if (total > 0 && h48 < expiresAt) {
+        if (total > 0 && h48 >= setAt48 && h48 < expiresAt) {
           const remaining = expiresAt - h48;
           const decay = Math.max(0, Math.min(1, remaining / total));
           curveBri += (briOverride / 100) * decay;
@@ -1601,7 +1627,8 @@
         }
       }
 
-      // Compute effective color override with decay projection
+      // Compute effective color override with decay projection — only applies from when
+      // it was set forward, within the active phase (no leak across the next phase boundary)
       let effectiveColorOverride = null;
       const colorOverride = state.color_override;
       const colorSetAt = state.color_override_set_at;
@@ -1610,7 +1637,7 @@
         const setInAscend = setAt48 >= tAscend && setAt48 < tDescend;
         const expiresAt = setInAscend ? tDescend : tAscend + 24;
         const total = expiresAt - setAt48;
-        if (total > 0 && h48 < expiresAt) {
+        if (total > 0 && h48 >= setAt48 && h48 < expiresAt) {
           const remaining = expiresAt - h48;
           const decay = Math.max(0, Math.min(1, remaining / total));
           effectiveColorOverride = colorOverride * decay;
@@ -1919,41 +1946,82 @@
       const hasAdjWake = adjustedTimes && adjustedTimes.wake != null;
       const hasAdjBed = adjustedTimes && adjustedTimes.bed != null;
 
-      // Wake/bed vertical lines — solid bold wake, solid thinner bed.
-      // When adjusted, original becomes a muted dotted reference; adjusted is the solid primary.
+      // Determine which phase is currently active so the active line reads as primary
+      const tAscendGeom_ = cfg.ascend_start;
+      let tDescendGeom_ = cfg.descend_start;
+      if (tDescendGeom_ <= tAscendGeom_) tDescendGeom_ += 24;
+      const cursorH48Geom_ = currentHour < tAscendGeom_ ? currentHour + 24 : currentHour;
+      const wakeIsActive = cursorH48Geom_ >= tAscendGeom_ && cursorH48Geom_ < tDescendGeom_;
+      const bedIsActive = !wakeIsActive;
+
+      // Find curve y-value at a given hour (for capping inactive line at curve top)
+      const curveYAt = (h) => {
+        const hh = ((h % 24) + 24) % 24;
+        let lo = 0, hi = hours.length - 1;
+        while (lo < hi - 1) {
+          const mid = (lo + hi) >> 1;
+          if (hours[mid] <= hh) lo = mid; else hi = mid;
+        }
+        const span = hours[hi] - hours[lo] || 1;
+        const t = (hh - hours[lo]) / span;
+        return brightnessPct[lo] + (brightnessPct[hi] - brightnessPct[lo]) * t;
+      };
+      // Convert curve y (0–100) to paper y (chart range 0–110, plus paper offset)
+      const yToPaper = (y) => Math.max(0, Math.min(0.91, (y / 110) * 0.91));
+
+      // Wake/bed vertical lines — active phase bold + extends above curve;
+      // inactive phase muted + capped at curve so it reads as background.
       const vLineTop = 0.91;  // ≈ y=100 in data coords (range 0-110)
+      const wakeColor = wakeIsActive ? 'rgba(92, 179, 255, 0.78)' : 'rgba(92, 179, 255, 0.32)';
+      const wakeWidth = wakeIsActive ? 2.5 : 1.25;
+      const bedColor = bedIsActive ? 'rgba(255, 230, 128, 0.78)' : 'rgba(255, 230, 128, 0.32)';
+      const bedWidth = bedIsActive ? 2.5 : 1.25;
+      const wakeTopPaper = wakeIsActive ? vLineTop : yToPaper(curveYAt(wakeTime));
+      const bedTopPaper = bedIsActive ? vLineTop : yToPaper(curveYAt(bedTime));
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: wakeTime, x1: wakeTime, y0: -0.29, y1: vLineTop,
+        x0: wakeTime, x1: wakeTime, y0: -0.29, y1: wakeTopPaper,
         line: hasAdjWake
           ? { color: 'rgba(160, 160, 160, 0.22)', width: 1, dash: 'dot' }
-          : { color: 'rgba(92, 179, 255, 0.7)', width: 2.5 }
+          : { color: wakeColor, width: wakeWidth }
       });
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: bedTime, x1: bedTime, y0: -0.29, y1: vLineTop,
+        x0: bedTime, x1: bedTime, y0: -0.29, y1: bedTopPaper,
         line: hasAdjBed
           ? { color: 'rgba(160, 160, 160, 0.22)', width: 1, dash: 'dot' }
-          : { color: 'rgba(255, 230, 128, 0.55)', width: 1.5 }
+          : { color: bedColor, width: bedWidth }
       });
 
       // Adjusted wake/bed vertical lines (solid, colored) when midpoint is shifted
       if (hasAdjWake) {
         const adjWake = shiftIntoWindow(adjustedTimes.wake);
+        const adjWakeTop = wakeIsActive ? vLineTop : yToPaper(curveYAt(adjWake));
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
-          x0: adjWake, x1: adjWake, y0: -0.29, y1: vLineTop,
-          line: { color: 'rgba(92, 179, 255, 0.7)', width: 2.5 }
+          x0: adjWake, x1: adjWake, y0: -0.29, y1: adjWakeTop,
+          line: { color: wakeColor, width: wakeWidth }
         });
       }
       if (hasAdjBed) {
         const adjBed = shiftIntoWindow(adjustedTimes.bed);
+        const adjBedTop = bedIsActive ? vLineTop : yToPaper(curveYAt(adjBed));
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
-          x0: adjBed, x1: adjBed, y0: -0.29, y1: vLineTop,
-          line: { color: 'rgba(255, 230, 128, 0.55)', width: 1.5 }
+          x0: adjBed, x1: adjBed, y0: -0.29, y1: adjBedTop,
+          line: { color: bedColor, width: bedWidth }
         });
       }
+
+      // Phase wash — faint colored fill across the active half so the active phase reads
+      const activePhaseLeft = wakeIsActive ? tAscendGeom_ : tDescendGeom_;
+      const activePhaseRight = wakeIsActive ? tDescendGeom_ : (tAscendGeom_ + 24);
+      const washColor = wakeIsActive ? 'rgba(92, 179, 255, 0.045)' : 'rgba(255, 230, 128, 0.045)';
+      shapes.push({
+        type: 'rect', xref: 'x', yref: 'paper',
+        x0: activePhaseLeft, x1: activePhaseRight, y0: 0, y1: vLineTop,
+        fillcolor: washColor, line: { width: 0 }, layer: 'below'
+      });
 
       // Active-phase geometry + draggable handle
       const tAscendGeom = cfg.ascend_start;
@@ -1992,6 +2060,24 @@
         return bulbPct[bulbPct.length - 1];
       })();
 
+      // Handle hover: show time + ±delta from default + drag affordance
+      const defaultMidHour = cursorInAscendGeom ? wakeTime : bedTime;
+      const isHandleShifted = cursorInAscendGeom ? hasAdjWake : hasAdjBed;
+      const fmtDelta = (dh) => {
+        const totalMin = Math.round(dh * 60);
+        if (totalMin === 0) return '';
+        const sign = totalMin > 0 ? '+' : '\u2212';
+        const m = Math.abs(totalMin);
+        if (m >= 60) {
+          const h = Math.floor(m / 60), rem = m % 60;
+          return rem ? `${sign}${h}h${rem}m` : `${sign}${h}h`;
+        }
+        return `${sign}${m}m`;
+      };
+      const deltaStr = isHandleShifted ? fmtDelta(activeMidHour - defaultMidHour) : '';
+      const handleLabel = (cursorInAscendGeom ? 'wake' : 'bed') + ' \u00B7 ' + formatHourLabel(activeMidHour)
+        + (deltaStr ? ' (' + deltaStr + ')' : '')
+        + '<br><span style="font-size:10px; opacity:0.7;">drag to shift</span>';
       traces.push({
         type: 'scatter', mode: 'markers',
         x: [activeMidHour], y: [handleY],
@@ -2000,10 +2086,36 @@
           line: { width: 2, color: '#0a0a0a' },
         },
         cliponaxis: false,
-        hovertext: 'drag to shift ' + (cursorInAscendGeom ? 'wake' : 'bed'),
+        hovertext: handleLabel,
         hoverinfo: 'text',
         showlegend: false,
       });
+
+      // Faint tick at the default midpoint when the handle has been shifted, so the user can find home
+      if (isHandleShifted) {
+        const defaultY = (() => {
+          for (let i = 1; i < hours.length; i++) {
+            if (hours[i] >= defaultMidHour) {
+              const span = hours[i] - hours[i - 1];
+              const t = span > 0 ? (defaultMidHour - hours[i - 1]) / span : 0;
+              return bulbPct[i - 1] + t * (bulbPct[i] - bulbPct[i - 1]);
+            }
+          }
+          return bulbPct[bulbPct.length - 1];
+        })();
+        traces.push({
+          type: 'scatter', mode: 'markers',
+          x: [defaultMidHour], y: [defaultY],
+          marker: {
+            size: 7, color: 'rgba(255,255,255,0.0)', symbol: 'circle',
+            line: { width: 1.5, color: 'rgba(255,255,255,0.55)' },
+          },
+          cliponaxis: false,
+          hovertext: 'default ' + (cursorInAscendGeom ? 'wake' : 'bed') + ' \u00B7 ' + formatHourLabel(defaultMidHour),
+          hoverinfo: 'text',
+          showlegend: false,
+        });
+      }
 
       // Sunrise/sunset vertical ticks (extend to tier 2)
       const sunrise = sunTimes.sunrise;
@@ -2029,17 +2141,19 @@
       // Tier 1: Wake/bed labels — move to adjusted position when shifted
       const effectiveWake = hasAdjWake ? shiftIntoWindow(adjustedTimes.wake) : wakeTime;
       const effectiveBed = hasAdjBed ? shiftIntoWindow(adjustedTimes.bed) : bedTime;
+      const wakeLabelColor = wakeIsActive ? '#5cb3ff' : 'rgba(92, 179, 255, 0.45)';
+      const bedLabelColor = bedIsActive ? '#ffe680' : 'rgba(255, 230, 128, 0.45)';
       annotations.push({
         x: effectiveWake, y: -0.33, xref: 'x', yref: 'paper',
         text: hasAdjWake ? 'wake*' : 'wake', showarrow: false,
-        font: { size: 11, color: '#5cb3ff' },
+        font: { size: 11, color: wakeLabelColor },
         hovertext: formatHourLabel(effectiveWake),
         hoverlabel: { bgcolor: '#7fc7ff', bordercolor: '#7fc7ff', font: { color: '#000', size: 12 } }
       });
       annotations.push({
         x: effectiveBed, y: -0.33, xref: 'x', yref: 'paper',
         text: hasAdjBed ? 'bed*' : 'bed', showarrow: false,
-        font: { size: 11, color: '#ffe680' },
+        font: { size: 11, color: bedLabelColor },
         hovertext: formatHourLabel(effectiveBed),
         hoverlabel: { bgcolor: '#ffe680', bordercolor: '#ffe680', font: { color: '#000', size: 12 } }
       });
@@ -2081,15 +2195,27 @@
         line: cursorLineStyle, layer: 'above'
       });
 
-      // Tier 3: Now info pill — time · brightness · kelvin
+      // Tier 3: Now info pill — time · brightness · kelvin (tinted with current cct + brightness alpha)
       const cursorTimeStr = formatHourLabel(cursorHour);
       const nowBriPct = Math.round(markerBri);
       const nowK = Math.round(markerCCT);
       const pillPrefix = isFrozen ? 'frozen · ' : '';
       const pillText = `${pillPrefix}${cursorTimeStr} · ${nowBriPct}% · ${nowK}K`;
-      const pillColor = isFrozen ? 'rgba(120, 190, 240, 0.95)' : 'rgba(230, 230, 230, 0.92)';
-      const pillBg = isFrozen ? 'rgba(40, 60, 90, 0.55)' : 'rgba(40, 40, 40, 0.6)';
-      const pillBorder = isFrozen ? 'rgba(99, 179, 237, 0.55)' : 'rgba(220, 220, 220, 0.32)';
+      let pillColor, pillBg, pillBorder;
+      if (isFrozen) {
+        pillColor = 'rgba(120, 190, 240, 0.95)';
+        pillBg = 'rgba(40, 60, 90, 0.55)';
+        pillBorder = 'rgba(99, 179, 237, 0.55)';
+      } else {
+        const tintRgb = cctToRGB(markerCCT);
+        // Brightness modulates border + bg alpha; keep readable floor
+        const briFrac = Math.max(0, Math.min(1, nowBriPct / 100));
+        const borderAlpha = 0.32 + briFrac * 0.45; // 0.32 → 0.77
+        const bgAlpha = 0.18 + briFrac * 0.22;      // 0.18 → 0.40
+        pillBorder = colorWithAlpha(tintRgb, borderAlpha);
+        pillBg = colorWithAlpha(tintRgb, bgAlpha);
+        pillColor = 'rgba(245, 245, 245, 0.95)';
+      }
       annotations.push({
         x: cursorHour, y: -0.73, xref: 'x', yref: 'paper',
         text: pillText, showarrow: false,
@@ -3412,6 +3538,33 @@
       return '\u2014';
     }
 
+    function renderImpactBreakdown(behav, ct) {
+      return '<span class="tune-light-impact-breakdown-key">Purpose</span>'
+        + '<span>' + formatImpactArrow(behav) + '</span>'
+        + '<span class="tune-light-impact-breakdown-key">CT</span>'
+        + '<span>' + formatImpactArrow(ct) + '</span>';
+    }
+
+    function toggleImpactBreakdown(idx, btn) {
+      const elImpact = document.getElementById('tune-light-impact-' + idx);
+      if (!elImpact) return;
+      const item = elImpact.closest('.tune-light-item');
+      if (!item) return;
+      const existing = item.querySelector('.tune-light-impact-breakdown');
+      if (existing) {
+        existing.remove();
+        btn.classList.remove('is-open');
+        return;
+      }
+      const behav = parseInt(elImpact.dataset.behav || '0', 10);
+      const ct = parseInt(elImpact.dataset.ct || '0', 10);
+      const row = document.createElement('div');
+      row.className = 'tune-light-impact-breakdown';
+      row.innerHTML = renderImpactBreakdown(behav, ct);
+      item.appendChild(row);
+      btn.classList.add('is-open');
+    }
+
     // Inverse — parses arrow notation for sorting
     function parseImpactArrow(s) {
       if (!s) return 0;
@@ -3962,14 +4115,27 @@
         const totalImpact = behavImpact + ctImpact;
         const elImpact = document.getElementById('tune-light-impact-' + light.idx);
         if (elImpact) {
-          elImpact.textContent = formatImpactArrow(totalImpact);
           if (totalImpact !== 0) {
-            const tt = 'Purpose ' + formatImpactArrow(behavImpact) + ' \u00B7 CT ' + formatImpactArrow(ctImpact);
-            elImpact.title = tt;
-            elImpact.classList.add('tune-light-impact-tt');
+            elImpact.innerHTML = formatImpactArrow(totalImpact)
+              + '<span class="tune-light-impact-info" onclick="event.stopPropagation(); toggleImpactBreakdown(' + light.idx + ', this)" aria-label="Show breakdown">\u24D8</span>';
+            elImpact.dataset.behav = behavImpact;
+            elImpact.dataset.ct = ctImpact;
           } else {
-            elImpact.removeAttribute('title');
-            elImpact.classList.remove('tune-light-impact-tt');
+            elImpact.textContent = formatImpactArrow(totalImpact);
+            delete elImpact.dataset.behav;
+            delete elImpact.dataset.ct;
+          }
+          elImpact.removeAttribute('title');
+          const item = elImpact.closest('.tune-light-item');
+          const openRow = item ? item.querySelector('.tune-light-impact-breakdown') : null;
+          if (openRow) {
+            if (totalImpact !== 0) {
+              openRow.innerHTML = renderImpactBreakdown(behavImpact, ctImpact);
+            } else {
+              openRow.remove();
+              const btn = elImpact.querySelector('.tune-light-impact-info');
+              if (btn) btn.classList.remove('is-open');
+            }
           }
         }
       }
@@ -4231,7 +4397,7 @@
       bhtml += '<div class="tune-hero-label">Area Brightness</div>';
       bhtml += '<div class="tune-hero-val" id="tune-det-final-val">--</div>';
       bhtml += '<div class="tune-hero-breadcrumb" onclick="toggleAdjustmentDetails(event)">'
-        + '<span id="tune-det-base-total">' + baseBri + '%</span> curve'
+        + '<span id="tune-det-base-total">' + baseBri + '%</span>&nbsp;curve'
         + '<span class="tune-hero-dot">\u00B7</span>'
         + '<span class="tune-adj-target">'
         + '<span id="tune-det-adj-net">0%</span>'
