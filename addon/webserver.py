@@ -2644,6 +2644,7 @@ class LightDesignerServer:
         fire_offset = None
         fire_day = None
         fire_time = None
+        fire_source = None
         scan_range = max(14, pause_skip + 7)
 
         for i in range(scan_range):
@@ -2660,8 +2661,10 @@ class LightDesignerServer:
                 and day_date <= override_until_date
             ):
                 at = override_time
+                at_source = "override"
             else:
                 at = get_normal_time(py_day)
+                at_source = source
 
             if at is None:
                 continue
@@ -2671,6 +2674,7 @@ class LightDesignerServer:
             fire_offset = i
             fire_day = py_day
             fire_time = at
+            fire_source = at_source
             break
 
         if fire_time is None:
@@ -2729,6 +2733,9 @@ class LightDesignerServer:
             "day_abbr": day_abbrs[fire_day],
             "decimal_hour": round(fire_time, 2),
         }
+        if fire_source in ("sunrise", "sunset"):
+            result["source"] = fire_source
+            result["sun_offset_min"] = settings.get(f"{prefix}_offset", 0)
         if fire_offset > 6:
             fire_date_r = today_date + timedelta(days=fire_offset)
             month_abbrs = [

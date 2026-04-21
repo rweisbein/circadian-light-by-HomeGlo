@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.109
+- **Sunrise/Sunset label on home schedule pill**: When the next auto on/off fires on a sunrise/sunset trigger and the schedule is within the ~24h window (no day/date tag shown), the absolute time is replaced with `Sunrise` or `Sunset`. Example: `▲ 7:55p · 10h` → `▲ Sunset · 10h`. Semantic label wins when the user just wants to know "when" in sun-relative terms; the exact fire time is still one tap away in area detail, and the relative tip (`· 22m` / `· 10h`) covers precision as the trigger approaches.
+  - **Offsets**: hidden for sub-hour offsets (the label is "sunset-ish" — precision available via the relative tip or area detail). At ≥60 min, the hour-rounded offset is appended: `Sunset +2h`. Keeps the chip compact but signals large shifts.
+  - **Beyond 24h**: the schedule pill continues to show the absolute time + day (`8:02p May1 · 10d`). "Sunset May1" would require almanac lookup for a future date and the absolute time is more informative there.
+  - **Override/custom**: untouched. If there's an active time-override or a custom (non-sun) schedule, the absolute time is preserved.
+  - Backend (`_compute_next_auto_time`) now emits `source` and `sun_offset_min` on the `next_auto_on` / `next_auto_off` payload when the firing comes from the sunrise/sunset rule (not from an override-time or custom schedule). The frontend uses these to decide whether to swap in the label.
+
 ## 1.2.108
 - **Phase offset hint: compact + recede**: The `(+N)` offset hint next to an area's Wake/Bed time is less crammed on row 3.
   - Shrunk to `font-size: 0.85em` with `opacity: 0.55`, matching the treatment of the relative-time tip on the next-auto pill. Reads as secondary info instead of competing with the Wake/Bed time itself.

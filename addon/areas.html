@@ -1510,6 +1510,18 @@
         else if (offset <= 6) day = nxt.day_abbr || '';
         else day = (nxt.date_short || '').replace(' ', '');
       }
+      // Within 24h + sun-triggered: swap absolute time for "Sunrise" / "Sunset" label.
+      if (!day && t && t !== 'paused' && (nxt.source === 'sunrise' || nxt.source === 'sunset')) {
+        const label = nxt.source === 'sunrise' ? 'Sunrise' : 'Sunset';
+        const offMin = nxt.sun_offset_min || 0;
+        if (Math.abs(offMin) >= 60) {
+          const h = Math.round(offMin / 60);
+          const sign = h > 0 ? '+' : '−';
+          t = `${label} ${sign}${Math.abs(h)}h`;
+        } else {
+          t = label;
+        }
+      }
       const text = day ? t + ' ' + day : t;
       const arrow = type === 'on' ? '\u25B2' : '\u25BC';
       const focus = type === 'on' ? 'auto_on' : 'auto_off';
