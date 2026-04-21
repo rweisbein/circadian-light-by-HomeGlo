@@ -1,5 +1,18 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.111
+- **Area detail polish bundle**: Deep-link fix + chart overhaul + toolbar labels + Lights card affordance.
+  - **Focused deep-link expands target without persisting**: Tapping Auto On / Auto Off from the home page (`?focus=auto_on` or `?focus=auto_off`) now force-expands the target card every time, even if it was collapsed before. The expansion is NOT written to `localStorage` so later visits still respect the user's saved preference. Fix covers both the `toggleAutoBody` write path and the race where `loadAutoScheduleSettings` could close the card after `handleDeepLink` opened it.
+  - **Chart anchor always at ascend start**: Reverted the v1.2.102 phase-switching. The x-axis now always starts at `ascend_start` regardless of current phase, so the day reads left-to-right from morning inflection.
+  - **Wake/bed drag handle on the curve**: The draggable blue/amber handle is interpolated onto the bulb curve at its midpoint x, instead of floating at y=100. Reads as "pick this point on the curve" — the curve itself is the track.
+  - **Dropped floating "now" circle**: The colored header and the new info pill already carry current state. One fewer circle on the chart, less visual noise.
+  - **Now info pill**: Replaced the two-line "now / time" label under the cursor with a compact pill `{time} · {bri%} · {K}` with a subtle bg and border. "frozen · " prefix when frozen.
+  - **Conditions chip (top-right)**: Derived from `conditionMultiplier` — `Sunny` at ≥0.85, `Cloudy` below. Warm amber border for sunny, cool blue-gray for cloudy.
+  - **Line hierarchy**: Wake = solid bold blue (width 2.5), Bed = solid thinner amber (width 1.5) — were both dotted and equal-weight. Now (cursor) line = dashed + muted. Sunrise/sunset stays dotted short + faint. Reads as a clear visual order: primary (wake/bed) > secondary (now) > tertiary (sun).
+  - **Page header**: Dropped the "Area:" prefix. Replaced the tiny "rhythm zone" text label with a bordered `RHYTHM ZONE` chip matching the home page style.
+  - **Toolbar split with labels**: Added tiny `MODE` and `ADJUST` labels above the left (circadian/power/freeze/boost) and right (full-send/glo-up/glo-down/glo-reset) button clusters. Makes the two clusters read as distinct groups — state-visible toggles vs one-shot actions.
+  - **Lights card — full-row tap band + tighter spacing**: The adjustments disclosure is no longer a tiny chevron at the end of the breadcrumb. The whole breadcrumb row is now a tappable band with hover bg and the chevron pinned to the right. Tightened `.tune-hero-block` padding-top from 12 → 4 to close the gap between "Lights" header and "Area Brightness" hero.
+
 ## 1.2.110
 - **Off-row schedule pill readability**: Off rows previously carried a blanket `opacity: 0.75` on `.row-off-summary`, which compounded with the row's muted text color to render the upcoming-auto pill barely readable — but that's exactly the info a user wants on an off area ("when will this turn on?"). Removed the parent opacity. The `Off` label keeps a scoped 0.55 opacity (it's a state cue, not actionable), and the schedule pill now uses `color: var(--text)` so it punches through clearly.
 

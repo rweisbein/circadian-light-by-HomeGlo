@@ -117,6 +117,20 @@
       letter-spacing: 0.08em;
     }
 
+    .zone-type-chip {
+      font-size: 0.54rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 1px 6px;
+      border: 1px solid currentColor;
+      border-radius: 10px;
+      opacity: 0.55;
+      white-space: nowrap;
+      line-height: 1.4;
+      color: var(--accent);
+    }
+
     /* Area state display - with dynamic shading (from modal) */
     .area-state {
       --state-bg: var(--panel);
@@ -185,6 +199,26 @@
       background: rgba(0,0,0,0.5);
       padding: 4px;
       border-radius: 10px;
+    }
+
+    .control-cluster {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+    .control-cluster--right {
+      align-items: flex-end;
+    }
+    .control-cluster-label {
+      font-size: 0.52rem;
+      font-weight: 600;
+      color: var(--muted);
+      opacity: 0.55;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      padding: 0 6px;
+      line-height: 1;
     }
 
     /* Toggle switch styles (from modal) */
@@ -689,32 +723,31 @@
     .tune-light-col-super { display: none !important; }
 
     /* ── Lights card hero + zones ── */
-    .tune-hero-block { padding: 12px 14px 4px; }
+    .tune-hero-block { padding: 4px 14px 6px; }
     .tune-hero-label {
       font-size: 0.65rem; font-weight: 500; color: var(--muted2);
       text-transform: uppercase; letter-spacing: 0.08em;
     }
     .tune-hero-val {
       font-size: 1.8rem; font-weight: 700; color: var(--text);
-      font-variant-numeric: tabular-nums; line-height: 1.1; margin-top: 2px;
+      font-variant-numeric: tabular-nums; line-height: 1.1; margin-top: 1px;
     }
+    /* Full-row tappable band — the whole breadcrumb reveals/hides the details */
     .tune-hero-breadcrumb {
-      font-size: 0.78rem; color: var(--muted); margin-top: 3px;
+      display: flex; align-items: center; justify-content: flex-start;
+      font-size: 0.78rem; color: var(--muted); margin-top: 6px;
       font-variant-numeric: tabular-nums;
+      padding: 6px 8px; margin-left: -8px; margin-right: -8px;
+      border-radius: 6px; cursor: pointer; user-select: none;
+      transition: background 0.15s, color 0.15s;
     }
+    .tune-hero-breadcrumb:hover { background: rgba(255,255,255,0.05); color: var(--text); }
     .tune-hero-breadcrumb .tune-hero-dot { margin: 0 5px; color: var(--muted2); }
-
-    /* Inline disclosure chevron at end of breadcrumb */
-    .tune-adj-target {
-      display: inline-flex; align-items: center; gap: 4px; cursor: pointer; user-select: none;
-      padding: 8px 8px 8px 4px; margin: -8px -8px -8px -4px;
-      color: var(--muted); transition: color 0.15s;
-    }
-    .tune-adj-target:hover { color: var(--text); }
+    .tune-adj-target { display: inline-flex; align-items: center; gap: 4px; }
     .tune-adj-chevron-inline {
-      display: inline-block; margin-left: 2px;
+      display: inline-block; margin-left: auto; padding-left: 8px;
       transition: transform 0.2s;
-      font-size: 1.1em; line-height: 1;
+      font-size: 1.1em; line-height: 1; color: var(--muted2);
     }
 
     /* Adjustments details sit directly under the hero — no left rule needed */
@@ -763,6 +796,8 @@
 
     <div class="area-state" id="area-state">
       <div class="area-state-row">
+        <div class="control-cluster">
+          <span class="control-cluster-label">Mode</span>
         <div class="area-state-controls-left" id="controls-left">
           <button class="toggle-btn" id="toggle-circadian" onclick="toggleCircadian()" title="Circadian Light">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -802,6 +837,9 @@
             </svg>
           </button>
         </div>
+        </div>
+        <div class="control-cluster control-cluster--right">
+          <span class="control-cluster-label">Adjust</span>
         <div class="area-state-controls" id="controls-area">
           <button class="toggle-btn" id="toggle-full-send" onclick="confirmFullSend()" title="Full Send: push to entire Rhythm Zone">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -825,6 +863,7 @@
           <button class="toggle-btn" id="toggle-glo-reset" onclick="executeAction('glo_reset')" title="Reset: return to rhythm">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
           </button>
+        </div>
         </div>
       </div>
       <div class="area-state-status-row">
@@ -1761,14 +1800,14 @@
       const sbfNow = areaLive.sun_bright_factor ?? sunTimes.sunBrightFactorNow ?? 1.0;
       const curveSunTimes = Object.assign({}, sunTimes, { sunBrightFactorNow: sbfNow });
 
-      // Phase-anchored x-axis: anchor at the START of the current phase, so the
-      // active phase always sits on the left half of the chart.
+      // Always anchor at ascend_start so the full day reads left-to-right
+      // starting at the morning inflection regardless of current phase.
       const tAscAnchor = cfg.ascend_start;
       let tDescAnchor = cfg.descend_start;
       if (tDescAnchor <= tAscAnchor) tDescAnchor += 24;
       const curH48 = currentHour < tAscAnchor ? currentHour + 24 : currentHour;
       const curInAscend = curH48 >= tAscAnchor && curH48 < tDescAnchor;
-      const xAnchor = curInAscend ? tAscAnchor : cfg.descend_start;
+      const xAnchor = tAscAnchor;
       const xEnd = xAnchor + 24;
       const shiftIntoWindow = (h) => {
         if (h == null || !Number.isFinite(h)) return h;
@@ -1864,20 +1903,11 @@
         }
       });
 
-      // Live position marker (on the bulb curve since that's the colorful one)
+      // Live position values (drives now-pill + cursor styling). No floating marker —
+      // the colored header + pill already convey current state.
       const markerRoom = calcMiniBrightness(currentHour, cfg, state, currentHour) * 100;
       const markerBri = calcBulbBrightnessAt(currentHour, curveSunTimes, currentHour, markerRoom);
       const markerCCT = calcMiniColor(currentHour, cfg, state, sunTimes, currentHour);
-      const markerColor = cctToRGB(markerCCT);
-      const markerOutline = isActive ? '#fff' : '#000';
-
-      traces.push({
-        x: [shiftIntoWindow(currentHour)], y: [markerBri],
-        mode: 'markers',
-        marker: { size: 22, color: markerColor, line: { width: 3, color: markerOutline } },
-        cliponaxis: false,
-        hoverinfo: 'skip', showlegend: false
-      });
 
       // Shapes and annotations
       const shapes = [];
@@ -1889,17 +1919,22 @@
       const hasAdjWake = adjustedTimes && adjustedTimes.wake != null;
       const hasAdjBed = adjustedTimes && adjustedTimes.bed != null;
 
-      // Original wake/bed lines — grey dotted when adjusted, colored when not
+      // Wake/bed vertical lines — solid bold wake, solid thinner bed.
+      // When adjusted, original becomes a muted dotted reference; adjusted is the solid primary.
       const vLineTop = 0.91;  // ≈ y=100 in data coords (range 0-110)
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
         x0: wakeTime, x1: wakeTime, y0: -0.29, y1: vLineTop,
-        line: { color: hasAdjWake ? 'rgba(160, 160, 160, 0.2)' : 'rgba(92, 179, 255, 0.35)', width: 1.5, dash: 'dot' }
+        line: hasAdjWake
+          ? { color: 'rgba(160, 160, 160, 0.22)', width: 1, dash: 'dot' }
+          : { color: 'rgba(92, 179, 255, 0.7)', width: 2.5 }
       });
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
         x0: bedTime, x1: bedTime, y0: -0.29, y1: vLineTop,
-        line: { color: hasAdjBed ? 'rgba(160, 160, 160, 0.2)' : 'rgba(255, 230, 128, 0.35)', width: 1.5, dash: 'dot' }
+        line: hasAdjBed
+          ? { color: 'rgba(160, 160, 160, 0.22)', width: 1, dash: 'dot' }
+          : { color: 'rgba(255, 230, 128, 0.55)', width: 1.5 }
       });
 
       // Adjusted wake/bed vertical lines (solid, colored) when midpoint is shifted
@@ -1908,7 +1943,7 @@
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
           x0: adjWake, x1: adjWake, y0: -0.29, y1: vLineTop,
-          line: { color: 'rgba(92, 179, 255, 0.55)', width: 1.5 }
+          line: { color: 'rgba(92, 179, 255, 0.7)', width: 2.5 }
         });
       }
       if (hasAdjBed) {
@@ -1945,9 +1980,21 @@
       }
       _chartGeom = { activeMidHour, phaseMin, phaseMax, phaseSlopeSigned, nowHour: shiftIntoWindow(currentHour), cursorInAscend: cursorInAscendGeom, xAnchor };
 
+      // Interpolate handle y-position onto the bulb curve so the handle sits on the line
+      const handleY = (() => {
+        for (let i = 1; i < hours.length; i++) {
+          if (hours[i] >= activeMidHour) {
+            const span = hours[i] - hours[i - 1];
+            const t = span > 0 ? (activeMidHour - hours[i - 1]) / span : 0;
+            return bulbPct[i - 1] + t * (bulbPct[i] - bulbPct[i - 1]);
+          }
+        }
+        return bulbPct[bulbPct.length - 1];
+      })();
+
       traces.push({
         type: 'scatter', mode: 'markers',
-        x: [activeMidHour], y: [100],
+        x: [activeMidHour], y: [handleY],
         marker: {
           size: 16, color: handleFill, symbol: 'circle',
           line: { width: 2, color: '#0a0a0a' },
@@ -2017,23 +2064,15 @@
         });
       }
 
-      // Cursor vertical line (slightly muted)
+      // Cursor vertical line — dashed + muted so wake/bed read as primary
       const isFrozen = state && state.frozen_at != null;
       const cursorHour = shiftIntoWindow(currentHour);
-      const cursorLineColor = isFrozen ? 'rgba(99, 179, 237, 0.55)' : 'rgba(220, 220, 220, 0.5)';
-      const cursorLineStyle = { color: cursorLineColor, width: 1.5, dash: 'dot' };
-      const gap = 10;
-      const lowerEnd = Math.max(0, markerBri - gap);
-      const upperStart = Math.min(100, markerBri + gap);
+      const cursorLineColor = isFrozen ? 'rgba(99, 179, 237, 0.6)' : 'rgba(200, 200, 200, 0.45)';
+      const cursorLineStyle = { color: cursorLineColor, width: 1.25, dash: 'dash' };
 
       shapes.push({
         type: 'line', xref: 'x', yref: 'y',
-        x0: cursorHour, x1: cursorHour, y0: 0, y1: lowerEnd,
-        line: cursorLineStyle, layer: 'above'
-      });
-      shapes.push({
-        type: 'line', xref: 'x', yref: 'y',
-        x0: cursorHour, x1: cursorHour, y0: upperStart, y1: 100,
+        x0: cursorHour, x1: cursorHour, y0: 0, y1: 100,
         line: cursorLineStyle, layer: 'above'
       });
       shapes.push({
@@ -2042,16 +2081,44 @@
         line: cursorLineStyle, layer: 'above'
       });
 
-      // Tier 3: Cursor label
+      // Tier 3: Now info pill — time · brightness · kelvin
       const cursorTimeStr = formatHourLabel(cursorHour);
-      const cursorLabel = isFrozen ? 'frozen' : 'now';
-      const cursorColor = isFrozen ? 'rgba(99, 179, 237, 0.8)' : 'rgba(220, 220, 220, 0.7)';
+      const nowBriPct = Math.round(markerBri);
+      const nowK = Math.round(markerCCT);
+      const pillPrefix = isFrozen ? 'frozen · ' : '';
+      const pillText = `${pillPrefix}${cursorTimeStr} · ${nowBriPct}% · ${nowK}K`;
+      const pillColor = isFrozen ? 'rgba(120, 190, 240, 0.95)' : 'rgba(230, 230, 230, 0.92)';
+      const pillBg = isFrozen ? 'rgba(40, 60, 90, 0.55)' : 'rgba(40, 40, 40, 0.6)';
+      const pillBorder = isFrozen ? 'rgba(99, 179, 237, 0.55)' : 'rgba(220, 220, 220, 0.32)';
       annotations.push({
-        x: cursorHour, y: -0.75, xref: 'x', yref: 'paper',
-        text: `${cursorLabel}<br>${cursorTimeStr}`, showarrow: false,
-        font: { size: 10, color: cursorColor },
-        align: 'center'
+        x: cursorHour, y: -0.73, xref: 'x', yref: 'paper',
+        text: pillText, showarrow: false,
+        font: { size: 10, color: pillColor },
+        align: 'center',
+        bgcolor: pillBg,
+        bordercolor: pillBorder,
+        borderwidth: 1,
+        borderpad: 4
       });
+
+      // Conditions chip — top-right of chart, derived from conditionMultiplier
+      const condMult = sunTimes.conditionMultiplier;
+      if (condMult != null && Number.isFinite(condMult)) {
+        const isSunny = condMult >= 0.85;
+        const condLabel = isSunny ? 'Sunny' : 'Cloudy';
+        const condColor = isSunny ? 'rgba(255, 214, 120, 0.95)' : 'rgba(180, 200, 220, 0.85)';
+        const condBorder = isSunny ? 'rgba(255, 214, 120, 0.55)' : 'rgba(180, 200, 220, 0.45)';
+        annotations.push({
+          x: 0.995, y: 0.97, xref: 'paper', yref: 'paper',
+          xanchor: 'right', yanchor: 'top',
+          text: condLabel, showarrow: false,
+          font: { size: 9.5, color: condColor },
+          bgcolor: 'rgba(30, 30, 30, 0.6)',
+          bordercolor: condBorder,
+          borderwidth: 1,
+          borderpad: 3
+        });
+      }
 
       // Curve labels — anchor at peak divergence when the two curves are meaningfully apart
       if (hasDivergence) {
@@ -2692,7 +2759,7 @@
         fade_remaining: status.fade_remaining ?? null
       };
 
-      document.getElementById('page-title').innerHTML = '<span style="color:var(--muted);font-weight:500;">Area:</span> ' + area.name;
+      document.getElementById('page-title').textContent = area.name;
 
       // Show area controls
       document.getElementById('controls-left').style.display = 'flex';
@@ -2875,12 +2942,12 @@
       if (areaZoneName) {
         metaRhythm.innerHTML = `<a href="${basePath}/zone/${encodeURIComponent(areaZoneName)}?back=area/${encodeURIComponent(selectedArea.area_id)}">${areaZoneName}</a>`;
         metaRhythm.style.display = '';
-        metaZone.textContent = 'rhythm zone';
+        metaZone.innerHTML = '<span class="zone-type-chip">Rhythm Zone</span>';
         metaZone.style.display = '';
       } else {
         metaRhythm.innerHTML = '';
         metaRhythm.style.display = 'none';
-        metaZone.textContent = '';
+        metaZone.innerHTML = '';
         metaZone.style.display = 'none';
       }
 
@@ -4163,14 +4230,14 @@
       bhtml += '<div class="tune-hero-block">';
       bhtml += '<div class="tune-hero-label">Area Brightness</div>';
       bhtml += '<div class="tune-hero-val" id="tune-det-final-val">--</div>';
-      bhtml += '<div class="tune-hero-breadcrumb">'
+      bhtml += '<div class="tune-hero-breadcrumb" onclick="toggleAdjustmentDetails(event)">'
         + '<span id="tune-det-base-total">' + baseBri + '%</span> curve'
         + '<span class="tune-hero-dot">\u00B7</span>'
-        + '<span class="tune-adj-target" onclick="toggleAdjustmentDetails(event)">'
+        + '<span class="tune-adj-target">'
         + '<span id="tune-det-adj-net">0%</span>'
         + '<span>adjustments</span>'
-        + '<span class="tune-adj-chevron-inline" id="tune-adj-chevron" style="' + (adjOpenInit ? 'transform:rotate(90deg);' : '') + '">&#x203A;</span>'
         + '</span>'
+        + '<span class="tune-adj-chevron-inline" id="tune-adj-chevron" style="' + (adjOpenInit ? 'transform:rotate(90deg);' : '') + '">&#x203A;</span>'
         + '</div>';
       bhtml += '</div>';
       // Collapsible detail rows with Tuning / Activity zones
@@ -4738,7 +4805,7 @@
       }
       card.classList.toggle('is-open');
       const isOpen = card.classList.contains('is-open');
-      if (_persistCards) localStorage.setItem('auto_' + type + '_collapsed', isOpen ? 'false' : 'true');
+      if (_persistCards && !_pageFocus) localStorage.setItem('auto_' + type + '_collapsed', isOpen ? 'false' : 'true');
       updateAutoHeaderText(type);
       updateAutoOverrideIndicator(type);
     }
@@ -4761,7 +4828,10 @@
           document.getElementById('auto-' + type + '-enabled').checked = settings[prefix + '_enabled'] || false;
 
           const card = document.getElementById('auto-' + type + '-card');
-          if (_persistCards && localStorage.getItem('auto_' + type + '_collapsed') === 'false') {
+          const focusedHere = (_pageFocus === 'auto_' + type);
+          if (focusedHere) {
+            card?.classList.add('is-open');
+          } else if (_persistCards && localStorage.getItem('auto_' + type + '_collapsed') === 'false') {
             card?.classList.add('is-open');
           } else {
             card?.classList.remove('is-open');
