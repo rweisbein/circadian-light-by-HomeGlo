@@ -314,6 +314,11 @@
     .timer-alarm {
       color: inherit;
     }
+    .timer-alarm-rel {
+      opacity: 0.55;
+      font-size: 0.88em;
+      font-variant-numeric: tabular-nums;
+    }
 
     .timer-warning {
       color: #e6a817;
@@ -500,6 +505,31 @@
       margin: 0 16px;
     }
 
+    /* Cap slider width on desktop so it doesn't stretch absurdly wide */
+    @media (min-width: 768px) {
+      .row-slider-track {
+        max-width: 480px;
+      }
+    }
+
+    /* Off-row compact summary (replaces slider when area is off) */
+    .row-off-summary {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 2px 16px 4px;
+      font-size: 0.85rem;
+      opacity: 0.75;
+      white-space: nowrap;
+    }
+    .row-off-summary .row-off-label {
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    .row-off-summary .row-schedule-right {
+      margin-left: auto;
+    }
+
     .row-slider-track::before {
       content: '';
       position: absolute;
@@ -536,13 +566,12 @@
       transition: none;
     }
 
-    /* Row control buttons - two adjacent pills */
+    /* Row control buttons - horizontal row */
     .row-controls {
       display: inline-flex;
-      gap: 1px;
+      gap: 2px;
       align-items: center;
-      position: relative;
-      min-width: 58px;
+      flex-shrink: 0;
     }
 
     .row-controls-pill {
@@ -554,15 +583,12 @@
     }
 
     .row-step-stack {
-      display: flex;
-      flex-direction: column;
+      display: inline-flex;
+      flex-direction: row;
       gap: 2px;
-      margin-left: auto;
     }
-    .row-btn-reset {
-      position: absolute;
-      top: 0;
-      right: 38px;
+    .row-btn-reset.is-hidden {
+      display: none;
     }
 
     .row-step-stack .row-btn {
@@ -579,9 +605,7 @@
     .row-controls-left {
       display: inline-flex;
       gap: 4px;
-      background: rgba(0,0,0,0.5);
-      padding: 4px;
-      border-radius: 8px;
+      flex-shrink: 0;
     }
 
     .row-btn {
@@ -610,11 +634,29 @@
       border-color: var(--accent);
     }
 
+    /* Power button — reduced visual weight: hollow circle off, filled amber on */
+    .row-controls-left .row-btn {
+      border-radius: 50%;
+      background: transparent;
+      border: 1.5px solid rgba(255,255,255,0.35);
+      color: var(--muted);
+    }
     .row-controls-left .row-btn:hover {
-      border-color: var(--accent);
+      border-color: var(--text);
+      background: rgba(255,255,255,0.08);
     }
     .row-controls-left .row-btn.active {
+      background: var(--accent);
       border-color: var(--accent);
+      color: #000;
+    }
+    .row-controls-left .row-btn.active:hover {
+      background: var(--accent);
+      filter: brightness(1.08);
+    }
+    .row-controls-left .row-btn svg {
+      width: 13px;
+      height: 13px;
     }
 
     .row-btn svg {
@@ -636,7 +678,7 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      padding: 8px 8px 8px 0;
+      padding: 8px 8px 8px 8px;
       background: var(--panel);
       border: 1px solid var(--line);
       border-radius: 8px 8px 0 8px;
@@ -681,6 +723,24 @@
       line-height: 1;
       flex: 1;
       min-width: 0;
+      gap: 2px;
+    }
+    .zone-type-chip {
+      font-size: 0.54rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 1px 6px;
+      border: 1px solid currentColor;
+      border-radius: 10px;
+      opacity: 0.55;
+      white-space: nowrap;
+      line-height: 1.4;
+    }
+    .phase-midpoint-delta {
+      opacity: 0.6;
+      font-variant-numeric: tabular-nums;
+      margin-left: 3px;
     }
     .zone-label-sub {
       font-size: 1.05rem;
@@ -733,28 +793,34 @@
 
     .zone-chevron-tap {
       cursor: pointer;
-      width: 32px;
-      min-width: 32px;
-      margin: -4px 0;
+      width: 28px;
+      height: 28px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      border-radius: 50%;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(30,30,30,0.9);
+      color: var(--muted);
+      transition: border-color 0.15s, background 0.15s;
+      flex-shrink: 0;
+    }
+
+    .zone-chevron-tap:hover {
+      border-color: rgba(255,255,255,0.4);
+      background: rgba(50,50,50,0.9);
     }
 
     .zone-chevron {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 22px;
-      height: 22px;
-      font-size: 1.1rem;
+      width: 18px;
+      height: 18px;
+      font-size: 1.05rem;
       line-height: 1;
-      color: var(--muted);
+      color: inherit;
       transition: transform 0.25s;
-      background: rgba(0,0,0,0.45);
-      border-radius: 50%;
-      box-shadow: 0 0 0 1.5px rgba(255,255,255,0.25);
       flex-shrink: 0;
       box-sizing: border-box;
     }
@@ -904,20 +970,23 @@
     .nav-overflow-item:hover { color: var(--text); background: rgba(255,255,255,0.05); }
     .nav-overflow-item.active { color: var(--text); }
 
-    /* View mode links */
+    /* View mode links — filter pill (On) */
     .view-toggle {
-      font-size: 0.7rem;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
       color: var(--muted);
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 4px;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 999px;
       cursor: pointer;
       transition: all 0.15s;
-      padding: 2px 8px;
+      padding: 3px 11px;
       white-space: nowrap;
     }
-    .view-toggle:hover { border-color: rgba(255,255,255,0.25); }
-    .view-toggle.active { color: var(--accent); border-color: var(--accent); background: rgba(254,172,96,0.08); }
+    .view-toggle:hover { border-color: rgba(255,255,255,0.4); color: var(--text); }
+    .view-toggle.active { color: #000; border-color: var(--accent); background: var(--accent); }
+    .view-toggle.active:hover { filter: brightness(1.08); }
 
     /* Edit mode styles */
     .edit-toolbar { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
@@ -1030,9 +1099,10 @@
     .move-zone-select:focus { border-color: dodgerblue; color: var(--text); }
 
     .home-name-heading {
-      font-size: 1.1rem;
-      font-weight: 500;
-      color: var(--muted);
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 0.01em;
     }
 
     .drag-handle { color: var(--muted2); font-size: 1.1rem; cursor: grab; user-select: none; }
@@ -1350,6 +1420,23 @@
       return remMin > 0 ? `${hr}h ${remMin}m` : `${hr}h`;
     }
 
+    // Relative-time hint for an auto-schedule fire time.
+    // Takes a decimal-hour + day-offset and returns "22m" / "11h" / "2d".
+    function formatRelativeFromFire(fireOffsetDays, decimalHour) {
+      if (decimalHour == null) return '';
+      const offDays = fireOffsetDays ?? 0;
+      const now = new Date();
+      const nowH = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
+      const diffH = offDays * 24 + decimalHour - nowH;
+      if (diffH <= 0) return '';
+      if (diffH < 1) {
+        const m = Math.max(1, Math.round(diffH * 60));
+        return m + 'm';
+      }
+      if (diffH < 24) return Math.round(diffH) + 'h';
+      return Math.floor(diffH / 24) + 'd';
+    }
+
     // ============================================================
     // Page Logic
     // ============================================================
@@ -1426,7 +1513,14 @@
       const arrow = type === 'on' ? '\u25B2' : '\u25BC';
       const focus = type === 'on' ? 'auto_on' : 'auto_off';
       const href = areaId ? `./area/${encodeURIComponent(areaId)}?focus=${focus}` : '#';
-      return `<a href="${href}" class="timer-alarm" style="text-decoration:none; color:inherit;">${arrow} ${text}</a>`;
+      // Relative hint (e.g. "22m", "11h"); suppress for paused or missing data.
+      let relative = '';
+      if (t && t !== 'paused') {
+        const fireOff = nxt.fire_offset ?? nxt.offset ?? 0;
+        const rel = formatRelativeFromFire(fireOff, nxt.decimal_hour);
+        if (rel) relative = ` <span class="timer-alarm-rel">· ${rel}</span>`;
+      }
+      return `<a href="${href}" class="timer-alarm" style="text-decoration:none; color:inherit;">${arrow} ${text}${relative}</a>`;
     }
 
     function updateHomeTimers() {
@@ -2251,7 +2345,7 @@
         html = `
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
             <span class="home-name-heading">${homeName || ''}</span>
-            <button class="view-toggle ${viewMode === 'onoff' ? 'active' : ''}" data-view-toggle>on · off</button>
+            <button class="view-toggle ${viewMode === 'onoff' ? 'active' : ''}" data-view-toggle title="Group by on/off state">On</button>
             <span style="flex: 1;"></span>
             <div class="toolbar-menu" style="padding-left: 8px;">
               <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)">⋮</button>
@@ -2371,23 +2465,25 @@
           }
         }
 
-        // Power button: only show if one or more areas in zone have lights on
+        // Power button: only show if one or more areas in zone have lights on.
+        // When hidden, a spacer preserves the centered-title layout.
         const zoneOnAreas = sorted.filter(a => a.is_on);
         const zonePowerBtn = zoneOnAreas.length > 0
           ? `<div class="row-controls-left"><button class="row-btn active" onclick="event.stopPropagation(); confirmZonePowerOff('${escapedZoneName}')" title="Turn off all in '${zoneName}'">${powerIconSvg}</button></div>`
-          : '';
+          : `<div class="row-controls-left" style="visibility: hidden;" aria-hidden="true"><button class="row-btn" tabindex="-1">${powerIconSvg}</button></div>`;
 
         return `
           <div class="zone-group">
             <div class="zone-header ${isCollapsed ? 'collapsed' : ''} ${allOff ? 'no-tint' : ''}" data-zone="${zoneName}" style="${zoneHeaderStyle}">
-              <span class="zone-chevron-tap" onclick="toggleZone('${escapedZoneName}', this)">${chevronIcon}</span>
               ${zonePowerBtn}
               <div class="zone-name-group" style="color: ${zoneTextColor};">
                 <span style="display: inline-flex; align-items: center; gap: 3px;"><a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" style="color: ${zoneTextColor};">${zoneName}</a>${zoneMismatchDot}</span>
                 <span class="zone-phase-label" style="color: ${zoneTextColor};">${getZonePhaseMidpoint(zoneName, sorted) || ''}</span>
+                <span class="zone-type-chip" style="color: ${zoneTextColor};">Zone</span>
               </div>
               ${zoneFrozenIndicator}
               <div class="row-controls">
+                <span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)" title="${isCollapsed ? 'Expand' : 'Collapse'}">${chevronIcon}</span>
                 <button class="row-btn" onclick="event.stopPropagation(); glozoneResetFull('${escapedZoneName}')" title="Reset all areas in rhythm zone">${glozoneResetIcon}</button>
               </div>
             </div>
@@ -2583,11 +2679,32 @@
       }
 
       const style = getRowStyle(area);
-      const { leftControls, rightControls } = getRowControls(area);
+      const dirty = isAreaDirty(area);
+      const { leftControls, rightControls } = getRowControls(area, dirty);
       const sliderPct = getSliderPct(area.brightness || 0, area);
       const mismatchDot = getMismatchDot(area);
       const phaseMidpoint = getPhaseMidpoint(area);
 
+      // Off rooms collapse to a compact summary line instead of rendering a slider.
+      if (!area.is_on) {
+        return `
+          <div class="area-row area-row-off" style="--row-bg: ${style.bg}; --row-text: ${style.textColor}; --row-fill: ${style.fill.toFixed(3)};">
+            ${leftControls}
+            <div class="row-middle">
+              <div class="row-middle-top">
+                <span class="area-row-name" onclick="openAreaModal('${area.area_id}')">${area.name}</span>
+                ${mismatchDot}
+                <span class="row-active-status" data-area-active="${area.area_id}"></span>
+              </div>
+              <div class="row-off-summary" data-area-schedule="${area.area_id}" data-zone-name="${area.zone_name || ''}">
+                <span class="row-off-label row-schedule-left">Off</span>
+                <span class="row-schedule-right" data-area-timer="${area.area_id}"></span>
+              </div>
+            </div>
+            ${rightControls}
+          </div>
+        `;
+      }
 
       return `
         <div class="area-row" style="--row-bg: ${style.bg}; --row-text: ${style.textColor}; --row-fill: ${style.fill.toFixed(3)};">
@@ -2622,25 +2739,25 @@
       return '<span class="status-badge status-on">On</span>';
     }
 
+    function isAreaDirty(area) {
+      if (!(area.zone_name && zoneStates[area.zone_name])) return false;
+      const rs = zoneStates[area.zone_name].runtime_state || {};
+      const differs = (a, b, tol) => {
+        if (a == null && b == null) return false;
+        if (a == null || b == null) return true;
+        return Math.abs(a - b) >= tol;
+      };
+      return (differs(area.brightness_mid, rs.brightness_mid, 0.05) ||
+              differs(area.color_mid, rs.color_mid, 0.05) ||
+              differs(area.frozen_at, rs.frozen_at, 0.05) ||
+              differs(area.color_override, rs.color_override, 10) ||
+              differs(area.brightness_override, rs.brightness_override, 1) ||
+              differs(area.brightness_override_set_at, rs.brightness_override_set_at, 0.1) ||
+              differs(area.color_override_set_at, rs.color_override_set_at, 0.1));
+    }
+
     function getMismatchDot(area) {
-      if (area.zone_name && zoneStates[area.zone_name]) {
-        const rs = zoneStates[area.zone_name].runtime_state || {};
-        const differs = (a, b, tol) => {
-          if (a == null && b == null) return false;
-          if (a == null || b == null) return true;
-          return Math.abs(a - b) >= tol;
-        };
-        if (differs(area.brightness_mid, rs.brightness_mid, 0.05) ||
-            differs(area.color_mid, rs.color_mid, 0.05) ||
-            differs(area.frozen_at, rs.frozen_at, 0.05) ||
-            differs(area.color_override, rs.color_override, 10) ||
-            differs(area.brightness_override, rs.brightness_override, 1) ||
-            differs(area.brightness_override_set_at, rs.brightness_override_set_at, 0.1) ||
-            differs(area.color_override_set_at, rs.color_override_set_at, 0.1)) {
-          return '<span class="mismatch-dot-area"></span>';
-        }
-      }
-      return '';
+      return isAreaDirty(area) ? '<span class="mismatch-dot-area"></span>' : '';
     }
 
     function resolveEffectiveTime(zc, phase) {
@@ -2703,16 +2820,24 @@
 
       // Compare to zone header's displayed midpoint — only show if different
       const zoneName = area.zone_name || status.zone_name;
+      let deltaHint = '';
       if (zoneName) {
         const zoneDefault = _zoneEffectiveMidpoint[zoneName];
         if (zoneDefault != null && Math.abs(midpoint - zoneDefault) < 0.05) {
           return ''; // matches zone default, don't show
         }
+        if (zoneDefault != null) {
+          const deltaMin = Math.round((midpoint - zoneDefault) * 60);
+          if (deltaMin !== 0) {
+            const sign = deltaMin > 0 ? '+' : '−';
+            deltaHint = `<span class="phase-midpoint-delta">(${sign}${Math.abs(deltaMin)})</span>`;
+          }
+        }
       }
 
       const label = phase === 'wake' ? 'Wake' : 'Bed';
       const time = formatDecimalHour(midpoint);
-      return `<span class="phase-midpoint">${label} ${time}</span>`;
+      return `<span class="phase-midpoint">${label} ${time}${deltaHint}</span>`;
     }
 
     function getSliderPct(brightness, area) {
@@ -2751,7 +2876,7 @@
       return { bg: tintedColor, fill, textColor };
     }
 
-    function getRowControls(area) {
+    function getRowControls(area, isDirty) {
       const isOn = area.is_on;
 
       // Power icon
@@ -2781,9 +2906,10 @@
         <polyline points="5 9 12 16 19 9"/>
       </svg>`;
 
+      const resetHiddenClass = isDirty ? '' : ' is-hidden';
       const rightControls = `
         <div class="row-controls">
-          <button class="row-btn row-btn-reset" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_down')" title="Reset to rhythm zone">${resetSvg}</button>
+          <button class="row-btn row-btn-reset${resetHiddenClass}" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_down')" title="Reset to rhythm zone">${resetSvg}</button>
           <div class="row-step-stack">
             <button class="row-btn" onclick="event.stopPropagation(); homeStepUp('${area.area_id}')" title="Step up">${stepUpSvg}</button>
             <button class="row-btn" onclick="event.stopPropagation(); homeStepDown('${area.area_id}')" title="Step down">${stepDownSvg}</button>

@@ -1,5 +1,18 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.106
+- **Home page polish bundle**: Ten coordinated tweaks to the areas/zones list.
+  - **Zone chevron moved inline**: The expand/collapse chevron on zone headers no longer floats on the left as a dark circle — it's now a bordered 28×28 button inside the right-side control cluster, so it doesn't look orphaned when the zone renders with `no-tint` (all-off) background. When a zone header has no power button (no on-areas), a hidden placeholder keeps the control cluster balanced.
+  - **ZONE chip**: A small uppercase `ZONE` pill renders next to the zone name so zone headers read as a distinct row type at a glance, independent of indentation or tint.
+  - **Phase-midpoint delta hint**: Area Wake/Bed labels show a muted `(+28)` / `(−15)` offset versus the zone default, so you can see "this area is 28 min ahead of the zone" without opening detail.
+  - **Compact off-row layout**: When an area is off, row collapses to a 2-line summary (`Off` + next-auto schedule) instead of rendering the full slider + step cluster. Saves vertical space in `Off` groups. `data-area-schedule` is preserved so the tick loop still updates the right-side next-auto pill.
+  - **Dirty-only reset + inline step buttons**: Extracted `isAreaDirty(area)` helper driving both the red mismatch dot and the reset-↺ button's visibility (hidden via `.is-hidden` when clean). Step ▲/▼ are now laid out horizontally alongside the reset instead of stacked.
+  - **Power button visual weight**: Power icon reduced from a heavy filled rectangle to a circular button — transparent when off, amber-filled (`var(--accent)`) when the area is on.
+  - **Relative-time hint on schedule pill**: Next-auto pill now appends a muted relative offset (`· 22m` / `· 11h` / `· 2d`) after the absolute time, so you can estimate "how soon" without arithmetic.
+  - **`On` filter pill**: View-toggle renamed from `on · off` to `On`, restyled as a rounded pill that fills amber when active — stronger affordance that you're in the on-only filtered view.
+  - **Home title promoted**: Home name at top of the page renders at 1.45rem / weight 700 / full-text color (was 1.1rem / 500 / muted), so the page has a clearer hero.
+  - **Desktop slider width cap**: Slider track capped at `max-width: 480px` above 768px, so a wide monitor doesn't stretch the slider across the whole viewport.
+
 ## 1.2.105
 - **Conditions header polish**: Removed the `border-top` divider above the new `Conditions` mini-header — inside the bonded Auto On + Auto Off shell, the divider fragmented one half of the panel. Added 14px left padding so the `CONDITIONS` label aligns with the other field labels (Light / Time / Fade / Trigger / If) instead of sitting flush to the card edge.
 
