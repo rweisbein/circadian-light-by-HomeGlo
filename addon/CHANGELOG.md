@@ -1,5 +1,16 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.104
+- **Adjustments label spacing**: Brightness-card hero reads `0% adjustments` again (was `0%adjustments`). The parent `.tune-adj-target` is `display: inline-flex`, which collapses literal whitespace between children; added a `gap: 4px` and split "adjustments" into its own span.
+- **Auto card tweaks** (area detail → Auto On / Auto Off):
+  - Relative-day labels: `tom (Tue)` → `tomorrow (Tue)` in the next-fire hero.
+  - Label column widened from 4.5em to 5.5em so `Trigger` / `Override` align flush with `Light` / `Time` / `Fade`.
+  - Offset stepper reads directionally: `5 min before` / `on time` / `5 min after` instead of `-5 min` / `0 min` / `+5 min`.
+  - Days summary text (`Every day` / `Weekdays` / `Weekends` / `N days`) renders above the day pills whenever a single schedule claims the row; hidden in two-schedule Custom mode where distribution matters.
+  - Fade value ("5 min") now reads as a clear hero (0.85rem, weight 600, solid text color) rather than muted at 0.78rem.
+  - Trigger switched from a bare `<select>` to a pill group (`Always` / `Skip if brighter` / `Skip if on`), matching the Light pill pattern. Backed by a hidden input so save/load code didn't need to change shape.
+  - Untouched row rephrased: `Only if not touched since auto on` → `Skip if manually touched since last Auto On`, grouped under a new `Conditions` mini-header with label `If`.
+
 ## 1.2.103
 - **Brightness-card height cap bump**: Raised `.tune-brightness-body` max-height from 500px to 2000px when expanded, so the Individual sub-section shows all lights regardless of area size. Symptom was a 5-light area rendering only 4 rows: backend and DOM both had all 5, but the parent card's `overflow: hidden` was clipping the 5th below the 500px fold.
 

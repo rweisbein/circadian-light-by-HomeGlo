@@ -454,7 +454,7 @@
     .auto-sched-offset { display: flex; align-items: center; gap: 6px; }
     .auto-sched-offset-btn { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
     .auto-sched-offset-btn:hover { border-color: var(--accent); color: var(--accent); }
-    .auto-sched-offset-val { font-size: 0.85rem; color: var(--text); min-width: 3em; text-align: center; font-variant-numeric: tabular-nums; }
+    .auto-sched-offset-val { font-size: 0.85rem; color: var(--text); min-width: 7.5em; text-align: center; font-variant-numeric: tabular-nums; }
     .auto-sched-next { font-size: 1.1rem; color: var(--text); font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .auto-sched-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
     .auto-sched-card.is-open .auto-sched-chevron { transform: rotate(90deg); }
@@ -467,7 +467,7 @@
 
     /* Unified field row — label left, content right */
     .auto-sched-field { display: flex; align-items: flex-start; gap: 8px; padding: 5px 14px 5px 14px; }
-    .auto-sched-field-label { font-size: 0.78rem; color: var(--muted); min-width: 4.5em; flex-shrink: 0; padding-top: 1px; line-height: 1.4; }
+    .auto-sched-field-label { font-size: 0.78rem; color: var(--muted); min-width: 5.5em; flex-shrink: 0; padding-top: 1px; line-height: 1.4; }
     .auto-sched-field-content { flex: 1; min-width: 0; }
 
     .auto-sched-radios { display: flex; gap: 10px; margin-bottom: 10px; }
@@ -478,7 +478,7 @@
     .auto-sched-custom-label { font-size: 0.7rem; font-weight: 500; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
 
     .auto-sched-fade-slider { flex: 1; }
-    .auto-sched-fade-val { font-size: 0.78rem; color: var(--muted); min-width: 3em; text-align: right; font-variant-numeric: tabular-nums; }
+    .auto-sched-fade-val { font-size: 0.85rem; color: var(--text); font-weight: 600; min-width: 3.5em; text-align: right; font-variant-numeric: tabular-nums; }
 
     .auto-sched-light-pills { display: flex; gap: 4px; }
     .auto-sched-light-pill { padding: 3px 10px; border-radius: 12px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 0.72rem; cursor: pointer; transition: all 0.15s; }
@@ -487,6 +487,10 @@
     .auto-sched-add-schedule { font-size: 0.72rem; color: var(--muted2); text-decoration: underline; cursor: pointer; padding: 2px 0 4px; }
     .auto-sched-add-schedule:hover { color: var(--text); }
     .auto-sched-trigger-select { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 2px 4px; font-size: 0.78rem; }
+    .auto-sched-conditions-header { font-size: 0.65rem; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.08em; padding: 8px 0 4px; border-top: 1px solid var(--line); margin-top: 4px; }
+    .auto-sched-days-wrap { padding: 0 0 2px; }
+    .auto-sched-days-summary { font-size: 0.7rem; color: var(--muted2); font-variant-numeric: tabular-nums; }
+    .auto-sched-days-summary:empty { display: none; }
     .auto-sched-override-link { font-size: 0.75rem; color: var(--muted2); text-decoration: underline; cursor: pointer; }
 
     /* Temp override popover (auto schedule) */
@@ -702,13 +706,13 @@
 
     /* Inline disclosure chevron at end of breadcrumb */
     .tune-adj-target {
-      display: inline-flex; align-items: center; cursor: pointer; user-select: none;
+      display: inline-flex; align-items: center; gap: 4px; cursor: pointer; user-select: none;
       padding: 8px 8px 8px 4px; margin: -8px -8px -8px -4px;
       color: var(--muted); transition: color 0.15s;
     }
     .tune-adj-target:hover { color: var(--text); }
     .tune-adj-chevron-inline {
-      display: inline-block; margin-left: 6px;
+      display: inline-block; margin-left: 2px;
       transition: transform 0.2s;
       font-size: 1.1em; line-height: 1;
     }
@@ -922,6 +926,7 @@
                 <label onclick="setAutoSource('on','sunset')"><input type="radio" name="auto-on-source" id="auto-on-src-sunset"> Sunset</label>
                 <label onclick="setAutoSource('on','custom')"><input type="radio" name="auto-on-source" id="auto-on-src-custom"> Custom</label>
               </div>
+              <div class="auto-sched-days-wrap"><span class="auto-sched-days-summary" id="auto-on-days-summary"></span></div>
               <div class="auto-sched-days" id="auto-on-days">
                 <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="0" onclick="toggleAutoDay('on',this)">Mo</button><span class="auto-sched-day-time" data-daytime="0"></span></div>
                 <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="1" onclick="toggleAutoDay('on',this)">Tu</button><span class="auto-sched-day-time" data-daytime="1"></span></div>
@@ -972,11 +977,12 @@
           <div class="auto-sched-field" style="align-items:center;">
             <span class="auto-sched-field-label">Trigger</span>
             <div class="auto-sched-field-content">
-              <select id="auto-on-trigger-mode" class="auto-sched-trigger-select" onchange="onAutoFieldChanged('on')">
-                <option value="always">Always</option>
-                <option value="skip_brighter">Skip if already brighter</option>
-                <option value="skip_on">Skip if on at all</option>
-              </select>
+              <div class="auto-sched-light-pills" id="auto-on-trigger-pills">
+                <button class="auto-sched-light-pill active" data-mode="always" onclick="setAutoTrigger('always')">Always</button>
+                <button class="auto-sched-light-pill" data-mode="skip_brighter" onclick="setAutoTrigger('skip_brighter')">Skip if brighter</button>
+                <button class="auto-sched-light-pill" data-mode="skip_on" onclick="setAutoTrigger('skip_on')">Skip if on</button>
+              </div>
+              <input type="hidden" id="auto-on-trigger-mode" value="always">
             </div>
           </div>
           <div class="auto-sched-field" id="auto-on-override-row" style="display:none; align-items:center;">
@@ -1016,6 +1022,7 @@
                 <label onclick="setAutoSource('off','sunset')"><input type="radio" name="auto-off-source" id="auto-off-src-sunset"> Sunset</label>
                 <label onclick="setAutoSource('off','custom')"><input type="radio" name="auto-off-source" id="auto-off-src-custom"> Custom</label>
               </div>
+              <div class="auto-sched-days-wrap"><span class="auto-sched-days-summary" id="auto-off-days-summary"></span></div>
               <div class="auto-sched-days" id="auto-off-days">
                 <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="0" onclick="toggleAutoDay('off',this)">Mo</button><span class="auto-sched-day-time" data-daytime="0"></span></div>
                 <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="1" onclick="toggleAutoDay('off',this)">Tu</button><span class="auto-sched-day-time" data-daytime="1"></span></div>
@@ -1063,11 +1070,12 @@
               <span class="auto-sched-fade-val" id="auto-off-fade-val">5 min</span>
             </div>
           </div>
+          <div class="auto-sched-conditions-header">Conditions</div>
           <div class="auto-sched-field" style="align-items:center;">
-            <span class="auto-sched-field-label">Untouched</span>
+            <span class="auto-sched-field-label">If</span>
             <label class="auto-sched-field-content" style="display:flex; align-items:center; gap:6px; font-size:0.78rem; color:var(--muted); cursor:pointer;">
               <input type="checkbox" id="auto-off-untouched" onchange="onAutoFieldChanged('off')" style="accent-color:var(--muted); margin:0; cursor:pointer;">
-              <span>Only if not touched since auto on</span>
+              <span>Skip if manually touched since last Auto On</span>
             </label>
           </div>
           <div class="auto-sched-field" id="auto-off-override-row" style="display:none; align-items:center;">
@@ -3612,8 +3620,7 @@
       if (fadeEl) fadeEl.value = s.snapshot.fade;
       updateAutoFadeDisplay(type);
       if (type === 'on') {
-        const trigEl = document.getElementById('auto-on-trigger-mode');
-        if (trigEl) trigEl.value = s.snapshot.triggerMode || 'always';
+        setAutoTriggerUI(s.snapshot.triggerMode || 'always');
       }
       if (type === 'off') {
         const untEl = document.getElementById('auto-off-untouched');
@@ -3621,6 +3628,7 @@
       }
       // Restore schedule 2 visibility
       updateAutoSchedule2Visibility(type);
+      updateAutoDaysSummary(type);
       // Restore header text from snapshot
       const nextEl = document.getElementById('auto-' + type + '-next');
       if (nextEl && s.snapshot.headerText !== undefined) nextEl.textContent = s.snapshot.headerText;
@@ -4159,7 +4167,8 @@
         + '<span id="tune-det-base-total">' + baseBri + '%</span> curve'
         + '<span class="tune-hero-dot">\u00B7</span>'
         + '<span class="tune-adj-target" onclick="toggleAdjustmentDetails(event)">'
-        + '<span id="tune-det-adj-net">0%</span> adjustments'
+        + '<span id="tune-det-adj-net">0%</span>'
+        + '<span>adjustments</span>'
         + '<span class="tune-adj-chevron-inline" id="tune-adj-chevron" style="' + (adjOpenInit ? 'transform:rotate(90deg);' : '') + '">&#x203A;</span>'
         + '</span>'
         + '</div>';
@@ -4808,6 +4817,7 @@
 
           // Schedule 2 visibility
           updateAutoSchedule2Visibility(type);
+          updateAutoDaysSummary(type);
 
           // Fade (stored as minutes, slider uses index)
           const fadeEl = document.getElementById('auto-' + type + '-fade');
@@ -4816,17 +4826,10 @@
 
           // Trigger mode (on only)
           if (type === 'on') {
-            const trigEl = document.getElementById('auto-on-trigger-mode');
-            if (trigEl) {
-              // Migrate old boolean to new mode
-              if (settings.auto_on_trigger_mode) {
-                trigEl.value = settings.auto_on_trigger_mode;
-              } else if (settings.auto_on_skip_if_brighter) {
-                trigEl.value = 'skip_brighter';
-              } else {
-                trigEl.value = 'always';
-              }
-            }
+            let mode = 'always';
+            if (settings.auto_on_trigger_mode) mode = settings.auto_on_trigger_mode;
+            else if (settings.auto_on_skip_if_brighter) mode = 'skip_brighter';
+            setAutoTriggerUI(mode);
           }
           // Untouched (off only)
           if (type === 'off') {
@@ -5008,6 +5011,7 @@
         if (sched2Btn) sched2Btn.classList.remove('active');
       }
       btn.classList.toggle('active');
+      updateAutoDaysSummary(type);
       onAutoFieldChanged(type);
     }
 
@@ -5017,7 +5021,29 @@
       const otherBtn = document.querySelector('#auto-' + type + '-days .auto-sched-day-btn[data-day="' + day + '"]');
       if (otherBtn) otherBtn.classList.remove('active');
       btn.classList.toggle('active');
+      updateAutoDaysSummary(type);
       onAutoFieldChanged(type);
+    }
+
+    function updateAutoDaysSummary(type) {
+      const el = document.getElementById('auto-' + type + '-days-summary');
+      if (!el) return;
+      const activeBtns = document.querySelectorAll('#auto-' + type + '-days .auto-sched-day-btn.active');
+      const days1 = new Set();
+      activeBtns.forEach(b => days1.add(parseInt(b.dataset.day)));
+      const hasDays2 = document.querySelectorAll('#auto-' + type + '-days-2 .auto-sched-day-btn.active').length > 0;
+      // Show summary only for single-schedule case (no sibling days2)
+      if (hasDays2) { el.textContent = ''; return; }
+      const n = days1.size;
+      if (n === 0) { el.textContent = 'No days'; return; }
+      if (n === 7) { el.textContent = 'Every day'; return; }
+      const weekdays = new Set([0,1,2,3,4]);
+      const weekends = new Set([5,6]);
+      const isWeekdays = n === 5 && [...days1].every(d => weekdays.has(d));
+      const isWeekends = n === 2 && [...days1].every(d => weekends.has(d));
+      if (isWeekdays) { el.textContent = 'Weekdays'; return; }
+      if (isWeekends) { el.textContent = 'Weekends'; return; }
+      el.textContent = n + ' day' + (n === 1 ? '' : 's');
     }
 
     function setAutoLight(type, light) {
@@ -5029,6 +5055,19 @@
     function setAutoLightUI(type, light) {
       document.querySelectorAll('#auto-' + type + '-light-pills .auto-sched-light-pill').forEach(pill => {
         pill.classList.toggle('active', pill.dataset.light === light);
+      });
+    }
+
+    function setAutoTrigger(mode) {
+      setAutoTriggerUI(mode);
+      onAutoFieldChanged('on');
+    }
+
+    function setAutoTriggerUI(mode) {
+      const hidden = document.getElementById('auto-on-trigger-mode');
+      if (hidden) hidden.value = mode;
+      document.querySelectorAll('#auto-on-trigger-pills .auto-sched-light-pill').forEach(pill => {
+        pill.classList.toggle('active', pill.dataset.mode === mode);
       });
     }
 
@@ -5057,12 +5096,13 @@
       const addLink = document.getElementById('auto-' + type + '-add-sched');
       if (sched2) sched2.style.display = 'none';
       if (addLink) addLink.style.display = '';
+      updateAutoDaysSummary(type);
       onAutoFieldChanged(type);
     }
 
     function formatOffset(minutes) {
-      if (minutes === 0) return '0 min';
-      return (minutes > 0 ? '+' : '') + minutes + ' min';
+      if (minutes === 0) return 'on time';
+      return Math.abs(minutes) + ' min ' + (minutes < 0 ? 'before' : 'after');
     }
 
     function formatAutoTime(decimalHours) {
@@ -5139,7 +5179,7 @@
         const timeStr = formatAutoTime(at);
         let dayLabel;
         if (i === 0) dayLabel = 'today';
-        else if (i === 1) dayLabel = 'tom (' + dayAbbrs[pyDay] + ')';
+        else if (i === 1) dayLabel = 'tomorrow (' + dayAbbrs[pyDay] + ')';
         else if (i > 5) dayLabel = dayAbbrs[pyDay] + ' (' + monthAbbrs[dateObj.getMonth()] + ' ' + dateObj.getDate() + ')';
         else dayLabel = dayAbbrs[pyDay];
         return timeStr + ' ' + dayLabel;
