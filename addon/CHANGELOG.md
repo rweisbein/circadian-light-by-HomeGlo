@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.110
+- **Off-row schedule pill readability**: Off rows previously carried a blanket `opacity: 0.75` on `.row-off-summary`, which compounded with the row's muted text color to render the upcoming-auto pill barely readable — but that's exactly the info a user wants on an off area ("when will this turn on?"). Removed the parent opacity. The `Off` label keeps a scoped 0.55 opacity (it's a state cue, not actionable), and the schedule pill now uses `color: var(--text)` so it punches through clearly.
+
 ## 1.2.109
 - **Sunrise/Sunset label on home schedule pill**: When the next auto on/off fires on a sunrise/sunset trigger and the schedule is within the ~24h window (no day/date tag shown), the absolute time is replaced with `Sunrise` or `Sunset`. Example: `▲ 7:55p · 10h` → `▲ Sunset · 10h`. Semantic label wins when the user just wants to know "when" in sun-relative terms; the exact fire time is still one tap away in area detail, and the relative tip (`· 22m` / `· 10h`) covers precision as the trigger approaches.
   - **Offsets**: hidden for sub-hour offsets (the label is "sunset-ish" — precision available via the relative tip or area detail). At ≥60 min, the hour-rounded offset is appended: `Sunset +2h`. Keeps the chip compact but signals large shifts.
