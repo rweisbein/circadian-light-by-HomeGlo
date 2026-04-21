@@ -415,6 +415,23 @@
     .slider-track.dragging .slider-thumb {
       transition: none;
     }
+    .hslider-ticks {
+      position: relative;
+      height: 12px;
+      margin-top: 2px;
+      pointer-events: none;
+    }
+    .hslider-tick {
+      position: absolute;
+      top: 0;
+      transform: translateX(-50%);
+      font-size: 0.58rem;
+      font-weight: 500;
+      color: var(--muted2);
+      letter-spacing: 0.02em;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
     /* Circadian-off overlay */
     .circadian-off-overlay::after {
       content: '';
@@ -937,6 +954,7 @@
               <div class="slider-track" data-mode="phase">
                 <div class="slider-thumb"></div>
               </div>
+              <div class="hslider-ticks" id="slider-ticks-phase"></div>
             </div>
           </div>
           <button class="enable-circadian-btn" id="enable-circadian-btn"
@@ -2023,6 +2041,15 @@
         fillcolor: washColor, line: { width: 0 }, layer: 'below'
       });
 
+      // Inactive-phase mute — dark overlay recedes the inactive half so active phase reads
+      const inactiveLeft = wakeIsActive ? tDescendGeom_ : tAscendGeom_;
+      const inactiveRight = wakeIsActive ? (tAscendGeom_ + 24) : tDescendGeom_;
+      shapes.push({
+        type: 'rect', xref: 'x', yref: 'paper',
+        x0: inactiveLeft, x1: inactiveRight, y0: 0, y1: 1,
+        fillcolor: 'rgba(8, 10, 14, 0.32)', line: { width: 0 }, layer: 'above'
+      });
+
       // Active-phase geometry + draggable handle
       const tAscendGeom = cfg.ascend_start;
       let tDescendGeom = cfg.descend_start;
@@ -2207,14 +2234,11 @@
         pillBg = 'rgba(40, 60, 90, 0.55)';
         pillBorder = 'rgba(99, 179, 237, 0.55)';
       } else {
-        const tintRgb = cctToRGB(markerCCT);
-        // Brightness modulates border + bg alpha; keep readable floor
-        const briFrac = Math.max(0, Math.min(1, nowBriPct / 100));
-        const borderAlpha = 0.32 + briFrac * 0.45; // 0.32 → 0.77
-        const bgAlpha = 0.18 + briFrac * 0.22;      // 0.18 → 0.40
-        pillBorder = colorWithAlpha(tintRgb, borderAlpha);
-        pillBg = colorWithAlpha(tintRgb, bgAlpha);
-        pillColor = 'rgba(245, 245, 245, 0.95)';
+        // Match header shading: solid tintColorByBrightness bg + readableTextColor
+        const tintedBg = tintColorByBrightness(cctToRGB(markerCCT), nowBriPct);
+        pillBg = tintedBg;
+        pillBorder = colorWithAlpha(cctToRGB(markerCCT), 0.55);
+        pillColor = readableTextColor(tintedBg);
       }
       annotations.push({
         x: cursorHour, y: -0.73, xref: 'x', yref: 'paper',
@@ -2411,6 +2435,7 @@
       } else {
         if (heroPhase) heroPhase.textContent = '—';
       }
+      renderPhaseSliderTicks(phaseCtx);
 
       // Toggle reset buttons visibility based on override/mid state
       const rBri = document.getElementById('reset-brightness');
@@ -2448,6 +2473,28 @@
       const suffix = hr < 12 ? 'a' : 'p';
       if (hr === 0) hr = 12; else if (hr > 12) hr -= 12;
       return min === 0 ? `${hr}${suffix}` : `${hr}:${String(min).padStart(2,'0')}${suffix}`;
+    }
+
+    function renderPhaseSliderTicks(phaseCtx) {
+      const el = document.getElementById('slider-ticks-phase');
+      if (!el) return;
+      el.innerHTML = '';
+      if (!phaseCtx) return;
+      const { phaseMin, phaseMax } = phaseCtx;
+      const span = phaseMax - phaseMin;
+      if (!(span > 0)) return;
+      // Choose tick interval: prefer 4h for wide spans, 2h for narrow
+      const step = span >= 12 ? 4 : (span >= 6 ? 2 : 1);
+      const firstTick = Math.ceil(phaseMin / step) * step;
+      for (let t = firstTick; t <= phaseMax; t += step) {
+        const pct = (t - phaseMin) / span * 100;
+        if (pct < 0 || pct > 100) continue;
+        const tick = document.createElement('span');
+        tick.className = 'hslider-tick';
+        tick.style.left = pct + '%';
+        tick.textContent = formatPhaseTime(t);
+        el.appendChild(tick);
+      }
     }
 
     function pctToPhaseTargetTime(pct, phaseCtx) {

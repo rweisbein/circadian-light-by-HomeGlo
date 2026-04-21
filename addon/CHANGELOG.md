@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.113
+- **Area detail polish bundle, round 3**: Three carry-overs from the v1.2.112 screenshot review.
+  - **Now pill now matches the header exactly**: The under-cursor pill was tinted via `cctToRGB + colorWithAlpha` (translucent overlay on the chart bg), while the header state bar uses `tintColorByBrightness(cctToRGB(kelvin), brightness)` as a solid fill — so at matching CCT/brightness the two read as different colors. Switched the pill to the same `tintColorByBrightness` approach with a solid bg, `readableTextColor` for the text, and the raw CCT-tint at 0.55 alpha as the border. Header and pill now share one shading formula.
+  - **Inactive phase of the graph itself is now muted (not just the labels)**: Previously only the inactive phase's wake/bed line + text labels were dimmed; the curve area of the inactive half still read at full intensity. Added a `rgba(8,10,14,0.32)` rect at `layer: 'above'` spanning the inactive phase window (ascend-range when descend is active, descend-range when ascend is active), so the inactive half visually recedes behind the active half's curve. The existing active-half colored wash (blue/amber at 0.045 alpha) is kept.
+  - **Time ticks on the BED / WAKE horizontal slider**: The phase slider at the bottom of the Adjust cluster had no hour markers — the user could see a thumb at 60% but had to guess that 60% meant "around 4p". Added a `.hslider-ticks` row below the track with hour labels spanning the phase window (4h intervals for wide spans, 2h for narrow). Ticks are rebuilt every render from the live `phaseCtx.phaseMin/phaseMax`, so they track adjusted wake/bed times and the ascend/descend switch at midday.
+
 ## 1.2.112
 - **Area detail polish bundle, round 2**: Follow-ups after reviewing v1.2.111 live.
   - **"On" view-pill no longer reads as a power button**: The home-page `On` filter pill (active state) was orange-filled (`background: var(--accent)`) — same chrome as the row power button, so the natural instinct was "tap to turn off everything." Switched the active state to border-only with orange text, matching the `RHYTHM ZONE` chip's border-only style. Reads as a filter, not an action.
