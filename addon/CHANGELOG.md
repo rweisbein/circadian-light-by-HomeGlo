@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.103
+- **Brightness-card height cap bump**: Raised `.tune-brightness-body` max-height from 500px to 2000px when expanded, so the Individual sub-section shows all lights regardless of area size. Symptom was a 5-light area rendering only 4 rows: backend and DOM both had all 5, but the parent card's `overflow: hidden` was clipping the 5th below the 500px fold.
+
 ## 1.2.102
 - **Phase-anchored to current phase**: The area-detail chart's x-axis now starts at whichever phase is currently active (`ascend_start` during the wake-to-bed stretch, `descend_start` during the bed-to-wake stretch), so the active phase is always on the left of the chart. Previously the anchor was always `ascend_start`, which pushed `now` to the right half of the chart during evening hours.
 - **Inline purpose picker**: Clicking a light's purpose name in the Lights card now opens the purpose picker directly, instead of first expanding the row. Removed the separate trigger button, breakdown line, and meta line that used to live in the expanded row.
