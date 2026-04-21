@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.101
+- **Purpose picker tabular + preview**: The per-light purpose picker now lays out options as aligned columns (Purpose / Dim / Bright / Off) with a header row, instead of a sentence per row. Selected row gets a `●` marker. A live preview footer shows what the hovered purpose would do to *this specific light* — e.g. `Accent → Kitchen counter would go to 23% (46% area · −50% at curve pos)` — so you can compare options without doing the math. Reserved a disabled `+ New purpose…` slot at the bottom as a future affordance.
+- **Phase-anchored curve chart**: The area-detail chart now starts its x-axis at `ascend_start` (typically 3a) and spans 24 hours forward, so **wake is always on the left and bed is always on the right**. The bed handle no longer wraps around midnight — dragging to the right edge of the chart now directly targets the late-night hours. All event markers (wake, bed, sunrise, sunset, cursor) shift into the same window; the `now` cursor moves left-to-right across the day.
+
 ## 1.2.100
 - **Bonded Auto panel**: Auto On and Auto Off now share a single outer shell (one border, one rounded corner) with a thin divider between. Each sub-section retains its own toggle + collapsible body, so deep-links to `?focus=auto_on` or `?focus=auto_off` still open exactly one side. Focus highlight flashes both the bonded border and the target sub-card's background so it's obvious which side was deep-linked to.
 

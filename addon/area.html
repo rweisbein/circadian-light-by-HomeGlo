@@ -641,13 +641,18 @@
     .tune-area-total::before { content: ''; position: absolute; top: 0; right: 14px; width: 3em; border-top: 1px solid rgba(255,255,255,0.15); }
 
     /* Custom behaviour dropdown */
-    .tune-light-dropdown { position: absolute; z-index: 100; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.4); min-width: 220px; overflow: hidden; }
-    .tune-light-dropdown-item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--line); }
-    .tune-light-dropdown-item:last-child { border-bottom: none; }
-    .tune-light-dropdown-item:hover { background: rgba(255,255,255,0.05); }
-    .tune-light-dropdown-item.selected { background: rgba(254,172,96,0.1); }
-    .tune-light-dropdown-name { font-size: 0.82rem; color: var(--text); }
-    .tune-light-dropdown-meta { font-size: 0.7rem; color: var(--muted2); margin-top: 2px; }
+    .tune-light-dropdown { position: absolute; z-index: 100; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.4); min-width: 288px; overflow: hidden; }
+    .tune-light-dropdown-header { display: grid; grid-template-columns: 14px 1fr 52px 52px 40px; gap: 8px; padding: 8px 12px 6px; font-size: 0.6rem; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--line); }
+    .tune-light-dropdown-header > span:nth-child(3), .tune-light-dropdown-header > span:nth-child(4), .tune-light-dropdown-header > span:nth-child(5) { text-align: right; }
+    .tune-light-dropdown-row { display: grid; grid-template-columns: 14px 1fr 52px 52px 40px; gap: 8px; padding: 9px 12px; cursor: pointer; align-items: center; border-bottom: 1px solid var(--line); }
+    .tune-light-dropdown-row:hover { background: rgba(255,255,255,0.05); }
+    .tune-light-dropdown-row.selected { background: rgba(254,172,96,0.08); }
+    .tune-light-dropdown-dot { color: #feac60; font-size: 0.7rem; line-height: 1; }
+    .tune-light-dropdown-name { font-size: 0.72rem; color: var(--text); text-transform: uppercase; letter-spacing: 0.04em; }
+    .tune-light-dropdown-num { text-align: right; font-size: 0.78rem; color: var(--muted2); font-variant-numeric: tabular-nums; }
+    .tune-light-dropdown-new { padding: 8px 12px; font-size: 0.72rem; color: var(--muted2); opacity: 0.5; cursor: not-allowed; border-top: 1px dashed var(--line); text-transform: uppercase; letter-spacing: 0.04em; }
+    .tune-light-dropdown-preview { padding: 9px 12px; font-size: 0.7rem; color: var(--muted2); background: rgba(255,255,255,0.03); border-top: 1px solid var(--line); min-height: 18px; line-height: 1.35; }
+    .tune-light-dropdown-preview strong { color: var(--text); font-weight: 600; }
 
     /* Light brightness column headers — same grid as data rows for alignment */
     .tune-light-col-super { display: grid; grid-template-columns: 1fr 1fr 56px 56px; padding: 6px 14px 0; gap: 0 4px; }
@@ -1612,7 +1617,8 @@
       return roomPct * factor;
     }
 
-    function calcMiniCurveData(cfg, state, sunTimes, currentHour) {
+    function calcMiniCurveData(cfg, state, sunTimes, currentHour, xAnchor) {
+      xAnchor = xAnchor ?? 0;
       const numSamples = 240;
       const hours = [];
       const brightnessPct = [];
@@ -1620,12 +1626,13 @@
       const cct = [];
 
       for (let i = 0; i < numSamples; i++) {
-        const h = (i / numSamples) * 24;
+        const h = xAnchor + (i / numSamples) * 24;
+        const hMod = ((h % 24) + 24) % 24;
         hours.push(h);
-        const room = calcMiniBrightness(h, cfg, state, currentHour) * 100;
+        const room = calcMiniBrightness(hMod, cfg, state, currentHour) * 100;
         brightnessPct.push(room);
-        bulbPct.push(calcBulbBrightnessAt(h, sunTimes, currentHour, room));
-        cct.push(calcMiniColor(h, cfg, state, sunTimes, currentHour));
+        bulbPct.push(calcBulbBrightnessAt(hMod, sunTimes, currentHour, room));
+        cct.push(calcMiniColor(hMod, cfg, state, sunTimes, currentHour));
       }
 
       return { hours, brightnessPct, bulbPct, cct };
@@ -1688,13 +1695,15 @@
         const rect = chartDiv.getBoundingClientRect();
         const relX = clientX - rect.left - fl.xaxis._offset;
         if (relX < 0 || relX > fl.xaxis._length) return null;
-        return (relX / fl.xaxis._length) * 24;
+        const xAnchor = _chartGeom.xAnchor ?? 0;
+        return xAnchor + (relX / fl.xaxis._length) * 24;
       }
       function dataXToClientPixel(dataX) {
         const fl = chartDiv._fullLayout;
         if (!fl || !fl.xaxis) return null;
         const rect = chartDiv.getBoundingClientRect();
-        return rect.left + fl.xaxis._offset + (dataX / 24) * fl.xaxis._length;
+        const xAnchor = _chartGeom.xAnchor ?? 0;
+        return rect.left + fl.xaxis._offset + ((dataX - xAnchor) / 24) * fl.xaxis._length;
       }
 
       function onDown(e) {
@@ -1750,7 +1759,17 @@
       const sbfNow = areaLive.sun_bright_factor ?? sunTimes.sunBrightFactorNow ?? 1.0;
       const curveSunTimes = Object.assign({}, sunTimes, { sunBrightFactorNow: sbfNow });
 
-      const data = calcMiniCurveData(cfg, state, curveSunTimes, currentHour);
+      // Phase-anchored x-axis: start the chart at ascend_start so bed never wraps.
+      const xAnchor = cfg.ascend_start;
+      const xEnd = xAnchor + 24;
+      const shiftIntoWindow = (h) => {
+        if (h == null || !Number.isFinite(h)) return h;
+        let r = ((h % 24) + 24) % 24;
+        if (r < xAnchor) r += 24;
+        return r;
+      };
+
+      const data = calcMiniCurveData(cfg, state, curveSunTimes, currentHour, xAnchor);
       const { hours, brightnessPct, bulbPct, cct } = data;
 
       // Divergence detector: is there a meaningful bulb/natural gap anywhere today?
@@ -1845,7 +1864,7 @@
       const markerOutline = isActive ? '#fff' : '#000';
 
       traces.push({
-        x: [currentHour], y: [markerBri],
+        x: [shiftIntoWindow(currentHour)], y: [markerBri],
         mode: 'markers',
         marker: { size: 22, color: markerColor, line: { width: 3, color: markerOutline } },
         cliponaxis: false,
@@ -1857,8 +1876,8 @@
       const annotations = [];
 
       // Wake/bed vertical lines
-      const wakeTime = wrap24(cfg.wake_time);
-      const bedTime = wrap24(cfg.bed_time);
+      const wakeTime = shiftIntoWindow(cfg.wake_time);
+      const bedTime = shiftIntoWindow(cfg.bed_time);
       const hasAdjWake = adjustedTimes && adjustedTimes.wake != null;
       const hasAdjBed = adjustedTimes && adjustedTimes.bed != null;
 
@@ -1877,7 +1896,7 @@
 
       // Adjusted wake/bed vertical lines (solid, colored) when midpoint is shifted
       if (hasAdjWake) {
-        const adjWake = wrap24(adjustedTimes.wake);
+        const adjWake = shiftIntoWindow(adjustedTimes.wake);
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
           x0: adjWake, x1: adjWake, y0: -0.29, y1: vLineTop,
@@ -1885,7 +1904,7 @@
         });
       }
       if (hasAdjBed) {
-        const adjBed = wrap24(adjustedTimes.bed);
+        const adjBed = shiftIntoWindow(adjustedTimes.bed);
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
           x0: adjBed, x1: adjBed, y0: -0.29, y1: vLineTop,
@@ -1904,19 +1923,19 @@
 
       let activeMidHour, phaseMin, phaseMax, phaseSlopeSigned, handleFill;
       if (cursorInAscendGeom) {
-        activeMidHour = hasAdjWake ? wrap24(adjustedTimes.wake) : wakeTime;
+        activeMidHour = hasAdjWake ? shiftIntoWindow(adjustedTimes.wake) : wakeTime;
         phaseMin = tAscendGeom;
         phaseMax = tDescendGeom;
         phaseSlopeSigned = kAscendGeom;
         handleFill = '#5cb3ff';
       } else {
-        activeMidHour = hasAdjBed ? wrap24(adjustedTimes.bed) : bedTime;
+        activeMidHour = hasAdjBed ? shiftIntoWindow(adjustedTimes.bed) : bedTime;
         phaseMin = tDescendGeom;
         phaseMax = tAscendGeom + 24;
         phaseSlopeSigned = -kDescendGeom;
         handleFill = '#ffe680';
       }
-      _chartGeom = { activeMidHour, phaseMin, phaseMax, phaseSlopeSigned, nowHour: currentHour, cursorInAscend: cursorInAscendGeom };
+      _chartGeom = { activeMidHour, phaseMin, phaseMax, phaseSlopeSigned, nowHour: shiftIntoWindow(currentHour), cursorInAscend: cursorInAscendGeom, xAnchor };
 
       traces.push({
         type: 'scatter', mode: 'markers',
@@ -1934,25 +1953,27 @@
       // Sunrise/sunset vertical ticks (extend to tier 2)
       const sunrise = sunTimes.sunrise;
       const sunset = sunTimes.sunset;
+      const sunriseX = shiftIntoWindow(sunrise);
+      const sunsetX = shiftIntoWindow(sunset);
       const sunTickStyle = { color: 'rgba(215,215,215,0.4)', width: 1, dash: 'dot' };
       if (Number.isFinite(sunrise)) {
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
-          x0: sunrise, x1: sunrise, y0: -0.47, y1: 0,
+          x0: sunriseX, x1: sunriseX, y0: -0.47, y1: 0,
           line: sunTickStyle
         });
       }
       if (Number.isFinite(sunset)) {
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
-          x0: sunset, x1: sunset, y0: -0.47, y1: 0,
+          x0: sunsetX, x1: sunsetX, y0: -0.47, y1: 0,
           line: sunTickStyle
         });
       }
 
       // Tier 1: Wake/bed labels — move to adjusted position when shifted
-      const effectiveWake = hasAdjWake ? wrap24(adjustedTimes.wake) : wakeTime;
-      const effectiveBed = hasAdjBed ? wrap24(adjustedTimes.bed) : bedTime;
+      const effectiveWake = hasAdjWake ? shiftIntoWindow(adjustedTimes.wake) : wakeTime;
+      const effectiveBed = hasAdjBed ? shiftIntoWindow(adjustedTimes.bed) : bedTime;
       annotations.push({
         x: effectiveWake, y: -0.33, xref: 'x', yref: 'paper',
         text: hasAdjWake ? 'wake*' : 'wake', showarrow: false,
@@ -1971,7 +1992,7 @@
       // Tier 2: Sunrise/sunset labels (46px below plot)
       if (Number.isFinite(sunrise)) {
         annotations.push({
-          x: sunrise, y: -0.52, xref: 'x', yref: 'paper',
+          x: sunriseX, y: -0.52, xref: 'x', yref: 'paper',
           text: 'sunrise', showarrow: false,
           font: { size: 10, color: 'rgba(215,215,215,0.6)' },
           hovertext: formatHourLabel(sunrise),
@@ -1980,7 +2001,7 @@
       }
       if (Number.isFinite(sunset)) {
         annotations.push({
-          x: sunset, y: -0.52, xref: 'x', yref: 'paper',
+          x: sunsetX, y: -0.52, xref: 'x', yref: 'paper',
           text: 'sunset', showarrow: false,
           font: { size: 10, color: 'rgba(215,215,215,0.6)' },
           hovertext: formatHourLabel(sunset),
@@ -1990,7 +2011,7 @@
 
       // Cursor vertical line (slightly muted)
       const isFrozen = state && state.frozen_at != null;
-      const cursorHour = currentHour;
+      const cursorHour = shiftIntoWindow(currentHour);
       const cursorLineColor = isFrozen ? 'rgba(99, 179, 237, 0.55)' : 'rgba(220, 220, 220, 0.5)';
       const cursorLineStyle = { color: cursorLineColor, width: 1.5, dash: 'dot' };
       const gap = 10;
@@ -2046,17 +2067,26 @@
         plot_bgcolor: '#0a0a0a',
         margin: { t: 16, r: 12, l: 32, b: 85 },
         hovermode: 'closest',
-        xaxis: {
-          range: [0, 24],
-          fixedrange: true,
-          dtick: 3,
-          tickvals: [0, 3, 6, 9, 12, 15, 18, 21, 24],
-          ticktext: ['12a', '3a', '6a', '9a', '12p', '3p', '6p', '9p', '12a'],
-          gridcolor: 'rgba(80,100,130,0.22)',
-          tickfont: { color: '#c8c8c8', size: 10 },
-          ticklen: 3,
-          tickcolor: 'rgba(160,190,220,0.2)'
-        },
+        xaxis: (() => {
+          const tickvals = [];
+          const ticktext = [];
+          for (let i = 0; i <= 8; i++) {
+            const t = xAnchor + i * 3;
+            tickvals.push(t);
+            ticktext.push(formatHourLabel(t));
+          }
+          return {
+            range: [xAnchor, xEnd],
+            fixedrange: true,
+            dtick: 3,
+            tickvals,
+            ticktext,
+            gridcolor: 'rgba(80,100,130,0.22)',
+            tickfont: { color: '#c8c8c8', size: 10 },
+            ticklen: 3,
+            tickcolor: 'rgba(160,190,220,0.2)'
+          };
+        })(),
         yaxis: {
           range: [0, 110],
           fixedrange: true,
@@ -3644,33 +3674,69 @@
       closeBehaviourDropdown();
       const light = tuneState.lights[idx];
       if (!light) return;
-      const presets = tuneState.presets;
+      const ts = tuneState;
+      const presets = ts.presets;
       const presetNames = Object.keys(presets);
+
+      // Snapshot state for preview math (set by last recalcTune)
+      const briRange = ts.maxBri - ts.minBri;
+      const curvePos = briRange > 0 ? Math.max(0, Math.min(1, (ts.baseBri - ts.minBri) / briRange)) : 0;
+      const areaBri = ts._lastAreaBri ?? ts.baseBri;
+      const ctFactor = ts._lastCtFactor ?? 1.0;
+
+      const fmtDelta = (v) => v === 0 ? '0' : (v > 0 ? '+' + v : String(v));
+      const fmtOff = (t) => (t && t > 0) ? '&lt;' + t : '\u2212';
 
       const dropdown = document.createElement('div');
       dropdown.className = 'tune-light-dropdown';
+
+      const header = document.createElement('div');
+      header.className = 'tune-light-dropdown-header';
+      header.innerHTML = '<span></span><span>Purpose</span><span>Dim</span><span>Bright</span><span>Off</span>';
+      dropdown.appendChild(header);
+
+      const preview = document.createElement('div');
+      preview.className = 'tune-light-dropdown-preview';
+
+      const computePreview = (pName) => {
+        const p = presets[pName] || {};
+        const atDim = p.at_dim ?? 100;
+        const atBright = p.at_bright ?? 100;
+        const offThresh = p.off_threshold ?? ts.globalOffThreshold;
+        const filterMult = (atDim + (atBright - atDim) * curvePos) / 100;
+        const afterFilter = areaBri * filterMult;
+        const afterCt = afterFilter * ctFactor;
+        const isOff = afterFilter < offThresh;
+        const finalVal = isOff ? 0 : Math.min(100, Math.round(afterCt));
+        const deltaPct = Math.round((filterMult - 1) * 100);
+        const deltaStr = deltaPct === 0 ? 'no change' : (deltaPct > 0 ? '+' + deltaPct + '%' : deltaPct + '%');
+        return pName + ' \u2192 ' + light.name + ' would go to <strong>' + finalVal + '%</strong> ('
+          + areaBri + '% area &middot; ' + deltaStr + ' at curve pos)';
+      };
 
       for (const pName of presetNames) {
         const preset = presets[pName] || {};
         const atDim = preset.at_dim ?? 100;
         const atBright = preset.at_bright ?? 100;
-        const offThresh = preset.off_threshold ?? tuneState.globalOffThreshold;
+        const offThresh = preset.off_threshold ?? ts.globalOffThreshold;
         const isSelected = pName === light.filterName;
 
-        const item = document.createElement('div');
-        item.className = 'tune-light-dropdown-item' + (isSelected ? ' selected' : '');
-        const dimDelta = atDim - 100;
-        const brightDelta = atBright - 100;
-        const fmtDelta = (v) => v >= 0 ? '+' + v + '%' : v + '%';
-        item.innerHTML = '<div class="tune-light-dropdown-name">' + pName + '</div>'
-          + '<div class="tune-light-dropdown-meta">at dim ' + fmtDelta(dimDelta) + ' &middot; at bright ' + fmtDelta(brightDelta) + ' &middot; off &lt;' + offThresh + '</div>';
-        item.addEventListener('click', () => {
+        const row = document.createElement('div');
+        row.className = 'tune-light-dropdown-row' + (isSelected ? ' selected' : '');
+        row.innerHTML =
+          '<span class="tune-light-dropdown-dot">' + (isSelected ? '\u25CF' : '') + '</span>'
+          + '<span class="tune-light-dropdown-name">' + pName + '</span>'
+          + '<span class="tune-light-dropdown-num">' + fmtDelta(atDim - 100) + '</span>'
+          + '<span class="tune-light-dropdown-num">' + fmtDelta(atBright - 100) + '</span>'
+          + '<span class="tune-light-dropdown-num">' + fmtOff(offThresh) + '</span>';
+        row.addEventListener('mouseenter', () => { preview.innerHTML = computePreview(pName); });
+        row.addEventListener('click', () => {
           light.filterName = pName;
-          if (!tuneState.areaInfo.light_filters) tuneState.areaInfo.light_filters = {};
+          if (!ts.areaInfo.light_filters) ts.areaInfo.light_filters = {};
           if (pName === 'Standard') {
-            delete tuneState.areaInfo.light_filters[light.entity_id];
+            delete ts.areaInfo.light_filters[light.entity_id];
           } else {
-            tuneState.areaInfo.light_filters[light.entity_id] = pName;
+            ts.areaInfo.light_filters[light.entity_id] = pName;
           }
           const labelEl = document.getElementById('tune-light-preset-label-' + idx);
           if (labelEl) labelEl.textContent = pName;
@@ -3681,8 +3747,17 @@
           updateTuneButtons();
           closeBehaviourDropdown();
         });
-        dropdown.appendChild(item);
+        dropdown.appendChild(row);
       }
+
+      const newSlot = document.createElement('div');
+      newSlot.className = 'tune-light-dropdown-new';
+      newSlot.textContent = '+ New purpose\u2026';
+      newSlot.title = 'Coming soon';
+      dropdown.appendChild(newSlot);
+
+      preview.innerHTML = computePreview(light.filterName);
+      dropdown.appendChild(preview);
 
       document.body.appendChild(dropdown);
 
@@ -3784,6 +3859,8 @@
       // Area brightness (no CT — CT is per-light, applied after filter multiplier)
       const areaBri = Math.round(running * 100);
       const netImpact = areaBri - baseBriPct;
+      ts._lastAreaBri = areaBri;
+      ts._lastCtFactor = ctFactor;
 
       // -- Brightness card: slider word labels --
       const elLumenWord = document.getElementById('tune-lumen-word');
