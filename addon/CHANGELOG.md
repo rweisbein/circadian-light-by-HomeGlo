@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.126
+- **Renamed "default bed/wake" to "daily bed/wake"** on the phase slider tick-row marker and on the curve's unshifted-handle hover tooltip. "Default" was ambiguous (could be read as factory-default, or as default-for-this-zone); "daily" makes it clear this is the day's scheduled target, distinct from the override the user drags with the slider handle.
+
 ## 1.2.125
 - **NOW pill lifted, margin trimmed, sun/moon pulled in**: previous 1.2.124 values (pill `y=1.35`, sun/moon `y=1.15`, `margin.t=56`) put the pill near the top canvas edge but left the sun/moon floating in the middle of the upper dead space, making everything read as "one crowded cluster above the chart." Now pill `y=1.18`, sun/moon `y=1.06`, `margin.t=56→38` — pill sits cleanly above the glyphs with a tight, intentional gap, and the chart itself reclaims ~18px of vertical real estate.
 - **Cursor line now stops at the bulb dot (no longer reaches the x-axis)**: the dashed vertical previously ran `y=0 → y=1.28`, which meant it visually "passed through" the colored bulb curve and continued down to the axis ticks. Now it runs from `y = cursorBulbY/110 + 0.04` up to `y=1.12` — only in the margin area, connecting the NOW pill to the dot on the curve. Dash pattern changed from the default `'dash'` (~8px segments) to a tighter `'3px,3px'` so the short line reads as decorative stitching rather than a heavy divider.

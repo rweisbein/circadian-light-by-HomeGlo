@@ -2217,7 +2217,7 @@
             line: { width: 1.5, color: 'rgba(255,255,255,0.55)' },
           },
           cliponaxis: false,
-          hovertext: 'default ' + (cursorInAscendGeom ? 'wake' : 'bed') + ' \u00B7 ' + formatHourLabel(defaultMidHour),
+          hovertext: 'daily ' + (cursorInAscendGeom ? 'wake' : 'bed') + ' \u00B7 ' + formatHourLabel(defaultMidHour),
           hoverinfo: 'text',
           showlegend: false,
         });
@@ -2625,7 +2625,7 @@
         const marker = document.createElement('span');
         marker.className = 'hslider-default-marker';
         marker.style.left = markerPct + '%';
-        marker.textContent = (cursorInAscend ? 'default wake' : 'default bed') + ' ' + formatPhaseTime(markerDefaultH);
+        marker.textContent = (cursorInAscend ? 'daily wake' : 'daily bed') + ' ' + formatPhaseTime(markerDefaultH);
         el.appendChild(marker);
       }
     }
