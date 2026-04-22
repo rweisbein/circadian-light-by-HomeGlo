@@ -1,5 +1,22 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.115
+- **Graph overhaul — split context to top, controls to bottom**:
+  - **Sunrise/sunset move above the plot as ☀/☾ glyphs**: previously sat in a crowded bottom band alongside wake/bed + the Now pill. Now tier-1 above the curve carries passive environmental context (sun position), and tier-1 below the curve is reserved for the things the user *tunes* (wake, bed). Dotted vertical ticks for rise/set removed — the glyphs are anchored at the right x.
+  - **Now pill moves above the plot with `NOW` prefix**: was below the x-axis, colliding with wake/bed/sunset labels whenever current time was near any of them. New position above the plot with a `NOW   time · bri% · K` layout. The pill still uses header shading (`tintColorByBrightness` + `readableTextColor`). Freeze state prefix becomes `FROZEN`.
+  - **Now dot on the curve itself**: added a small filled circle at `(cursorHour, bulbPct[cursorHour])` so the header's brightness/CCT reading ties to its spot on the curve. Dot fill matches the pill (and header). Non-interactive — the bed/wake handle stays the only draggable marker.
+  - **Inactive-phase mute softened**: overlay alpha 0.32 → 0.24. Still recedes the inactive half, but ascend curve reads better when descend is active.
+  - **Y-axis ticks reduced to 50/100**: was 0/25/50/75/100 on a 190px-tall chart — too granular for the peak-vs-midpoint story it needs to tell.
+  - **X-axis trailing `3a` duplicate removed**: 3a→3a wrapped to the same label. Last tick dropped (loop `i <= 8` → `i < 8`).
+  - **`Sunny` / `Cloudy` chip now gated on daylight**: if current time is before sunrise or after sunset, the chip is hidden. No weather story after dark, regardless of area's solar_exposure setting.
+  - **Chart margins rebalanced**: top 16 → 56 (room for glyphs + Now pill), bottom 85 → 44 (only wake/bed below now).
+- **Bright/Color/Bed sliders visually recede when idle**:
+  - **Track thinned from 12px → 8px** (thumb stays 22px): the thumb continues to read as the interactive element; the track becomes a scale, not a lit panel.
+  - **Idle saturation 55%, full on hover/drag**: CSS `filter: saturate(0.55)` on `.slider-track` transitions to `saturate(1)` on `:hover` and `.dragging`. The color slider in particular stops dominating the card when not being used.
+- **Bed/Wake slider: edge tick + default marker**:
+  - **Edge tick at phase boundary**: the hour-based ticks stopped at the last whole hour inside the window (e.g. 12a for a 3a-anchored bed window), leaving the max shift (3a) unmarked. Added an explicit edge tick at `phaseMax` with a muted weight, so the user sees how far the thumb can travel.
+  - **Default marker**: small ▾ triangle above the track at the user's configured default wake/bed time. Title-hover reveals the default time. Gives the chart handle's ±delta hover a visual partner on the slider.
+
 ## 1.2.114
 - **Chart hand cursor now scoped to the drag handle**: Plotly's drag layer applied a hand (`cursor: pointer`) across the entire chart by default, suggesting the whole chart was interactive when in fact only the wake/bed midpoint is draggable. Overrode Plotly's drag-layer cursor to `default`, and added a JS pointer-move handler that toggles `#mini-chart.handle-hover` when the pointer is within 18px of the active midpoint — that class switches the cursor to `grab`, and `dragging` switches to `grabbing`. Non-drag areas now show the plain cursor.
 

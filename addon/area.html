@@ -402,12 +402,18 @@
     .slider-track {
       position: relative;
       width: 100%;
-      height: 12px;
+      height: 8px;
       background: rgba(255,255,255,0.08);
-      border-radius: 6px;
+      border-radius: 4px;
       cursor: pointer;
       touch-action: none;
       overflow: visible;
+      filter: saturate(0.55);
+      transition: filter 0.2s ease;
+    }
+    .slider-track:hover,
+    .slider-track.dragging {
+      filter: saturate(1);
     }
     .slider-thumb {
       position: absolute;
@@ -442,6 +448,22 @@
       letter-spacing: 0.02em;
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
+    }
+    .hslider-tick.is-edge {
+      color: var(--muted);
+      opacity: 0.75;
+    }
+    .hslider-default-marker {
+      position: absolute;
+      top: -14px;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 3.5px solid transparent;
+      border-right: 3.5px solid transparent;
+      border-top: 5px solid rgba(255, 255, 255, 0.5);
+      pointer-events: auto;
+      cursor: help;
     }
     /* Circadian-off overlay */
     .circadian-off-overlay::after {
@@ -2072,7 +2094,7 @@
       shapes.push({
         type: 'rect', xref: 'x', yref: 'paper',
         x0: inactiveLeft, x1: inactiveRight, y0: 0, y1: 1,
-        fillcolor: 'rgba(8, 10, 14, 0.32)', line: { width: 0 }, layer: 'above'
+        fillcolor: 'rgba(8, 10, 14, 0.24)', line: { width: 0 }, layer: 'above'
       });
 
       // Active-phase geometry + draggable handle
@@ -2169,28 +2191,12 @@
         });
       }
 
-      // Sunrise/sunset vertical ticks (extend to tier 2)
       const sunrise = sunTimes.sunrise;
       const sunset = sunTimes.sunset;
       const sunriseX = shiftIntoWindow(sunrise);
       const sunsetX = shiftIntoWindow(sunset);
-      const sunTickStyle = { color: 'rgba(215,215,215,0.4)', width: 1, dash: 'dot' };
-      if (Number.isFinite(sunrise)) {
-        shapes.push({
-          type: 'line', xref: 'x', yref: 'paper',
-          x0: sunriseX, x1: sunriseX, y0: -0.47, y1: 0,
-          line: sunTickStyle
-        });
-      }
-      if (Number.isFinite(sunset)) {
-        shapes.push({
-          type: 'line', xref: 'x', yref: 'paper',
-          x0: sunsetX, x1: sunsetX, y0: -0.47, y1: 0,
-          line: sunTickStyle
-        });
-      }
 
-      // Tier 1: Wake/bed labels — move to adjusted position when shifted
+      // Wake/bed labels below plot — keep these as the "tune-able" markers
       const effectiveWake = hasAdjWake ? shiftIntoWindow(adjustedTimes.wake) : wakeTime;
       const effectiveBed = hasAdjBed ? shiftIntoWindow(adjustedTimes.bed) : bedTime;
       const wakeLabelColor = wakeIsActive ? '#5cb3ff' : 'rgba(92, 179, 255, 0.45)';
@@ -2210,22 +2216,22 @@
         hoverlabel: { bgcolor: '#ffe680', bordercolor: '#ffe680', font: { color: '#000', size: 12 } }
       });
 
-      // Tier 2: Sunrise/sunset labels (46px below plot)
+      // Sunrise/sunset glyphs above the plot — passive environmental context
       if (Number.isFinite(sunrise)) {
         annotations.push({
-          x: sunriseX, y: -0.52, xref: 'x', yref: 'paper',
-          text: 'sunrise', showarrow: false,
-          font: { size: 10, color: 'rgba(215,215,215,0.6)' },
-          hovertext: formatHourLabel(sunrise),
+          x: sunriseX, y: 1.07, xref: 'x', yref: 'paper',
+          text: '☀', showarrow: false,
+          font: { size: 14, color: 'rgba(255, 214, 120, 0.85)' },
+          hovertext: 'sunrise · ' + formatHourLabel(sunrise),
           hoverlabel: { bgcolor: '#3a3a3a', bordercolor: '#3a3a3a', font: { color: '#fff', size: 12 } }
         });
       }
       if (Number.isFinite(sunset)) {
         annotations.push({
-          x: sunsetX, y: -0.52, xref: 'x', yref: 'paper',
-          text: 'sunset', showarrow: false,
-          font: { size: 10, color: 'rgba(215,215,215,0.6)' },
-          hovertext: formatHourLabel(sunset),
+          x: sunsetX, y: 1.07, xref: 'x', yref: 'paper',
+          text: '☾', showarrow: false,
+          font: { size: 14, color: 'rgba(180, 200, 230, 0.85)' },
+          hovertext: 'sunset · ' + formatHourLabel(sunset),
           hoverlabel: { bgcolor: '#3a3a3a', bordercolor: '#3a3a3a', font: { color: '#fff', size: 12 } }
         });
       }
@@ -2241,32 +2247,50 @@
         x0: cursorHour, x1: cursorHour, y0: 0, y1: 100,
         line: cursorLineStyle, layer: 'above'
       });
-      shapes.push({
-        type: 'line', xref: 'x', yref: 'paper',
-        x0: cursorHour, x1: cursorHour, y0: -0.55, y1: 0,
-        line: cursorLineStyle, layer: 'above'
+
+      // Now dot on the curve at current time — ties header state to its spot on the line
+      const cursorBulbY = (() => {
+        for (let i = 1; i < hours.length; i++) {
+          if (hours[i] >= cursorHour) {
+            const span = hours[i] - hours[i - 1];
+            const t = span > 0 ? (cursorHour - hours[i - 1]) / span : 0;
+            return bulbPct[i - 1] + t * (bulbPct[i] - bulbPct[i - 1]);
+          }
+        }
+        return bulbPct[bulbPct.length - 1];
+      })();
+      const nowDotFill = isFrozen
+        ? 'rgba(120, 190, 240, 0.95)'
+        : tintColorByBrightness(cctToRGB(markerCCT), Math.round(markerBri));
+      const nowDotBorder = isFrozen
+        ? 'rgba(99, 179, 237, 0.9)'
+        : 'rgba(255, 255, 255, 0.7)';
+      traces.push({
+        type: 'scatter', mode: 'markers',
+        x: [cursorHour], y: [cursorBulbY],
+        marker: { size: 9, color: nowDotFill, symbol: 'circle', line: { width: 1.5, color: nowDotBorder } },
+        cliponaxis: false, hoverinfo: 'skip', showlegend: false
       });
 
-      // Tier 3: Now info pill — time · brightness · kelvin (tinted with current cct + brightness alpha)
+      // Now pill — above the plot with NOW prefix, tinted to match header
       const cursorTimeStr = formatHourLabel(cursorHour);
       const nowBriPct = Math.round(markerBri);
       const nowK = Math.round(markerCCT);
-      const pillPrefix = isFrozen ? 'frozen · ' : '';
-      const pillText = `${pillPrefix}${cursorTimeStr} · ${nowBriPct}% · ${nowK}K`;
+      const pillPrefix = isFrozen ? 'FROZEN' : 'NOW';
+      const pillText = `${pillPrefix}   ${cursorTimeStr} · ${nowBriPct}% · ${nowK}K`;
       let pillColor, pillBg, pillBorder;
       if (isFrozen) {
         pillColor = 'rgba(120, 190, 240, 0.95)';
         pillBg = 'rgba(40, 60, 90, 0.55)';
         pillBorder = 'rgba(99, 179, 237, 0.55)';
       } else {
-        // Match header shading: solid tintColorByBrightness bg + readableTextColor
         const tintedBg = tintColorByBrightness(cctToRGB(markerCCT), nowBriPct);
         pillBg = tintedBg;
         pillBorder = colorWithAlpha(cctToRGB(markerCCT), 0.55);
         pillColor = readableTextColor(tintedBg);
       }
       annotations.push({
-        x: cursorHour, y: -0.73, xref: 'x', yref: 'paper',
+        x: cursorHour, y: 1.22, xref: 'x', yref: 'paper',
         text: pillText, showarrow: false,
         font: { size: 10, color: pillColor },
         align: 'center',
@@ -2276,9 +2300,11 @@
         borderpad: 4
       });
 
-      // Conditions chip — top-right of chart, derived from conditionMultiplier
+      // Conditions chip — only during daylight (no sun → no weather story)
       const condMult = sunTimes.conditionMultiplier;
-      if (condMult != null && Number.isFinite(condMult)) {
+      const cursorIsDaylight = Number.isFinite(sunrise) && Number.isFinite(sunset)
+        && cursorHour >= sunriseX && cursorHour <= sunsetX;
+      if (condMult != null && Number.isFinite(condMult) && cursorIsDaylight) {
         const isSunny = condMult >= 0.85;
         const condLabel = isSunny ? 'Sunny' : 'Cloudy';
         const condColor = isSunny ? 'rgba(255, 214, 120, 0.95)' : 'rgba(180, 200, 220, 0.85)';
@@ -2315,12 +2341,13 @@
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        margin: { t: 16, r: 12, l: 32, b: 85 },
+        margin: { t: 56, r: 12, l: 32, b: 44 },
         hovermode: 'closest',
         xaxis: (() => {
           const tickvals = [];
           const ticktext = [];
-          for (let i = 0; i <= 8; i++) {
+          // Skip the trailing tick (xAnchor+24 == xAnchor, duplicate label)
+          for (let i = 0; i < 8; i++) {
             const t = xAnchor + i * 3;
             tickvals.push(t);
             ticktext.push(formatHourLabel(t));
@@ -2345,7 +2372,8 @@
           ticklen: 3,
           title: '',
           showticklabels: true,
-          dtick: 25
+          tickvals: [50, 100],
+          ticktext: ['50', '100']
         },
         shapes,
         annotations,
@@ -2460,7 +2488,7 @@
       } else {
         if (heroPhase) heroPhase.textContent = '—';
       }
-      renderPhaseSliderTicks(phaseCtx);
+      renderPhaseSliderTicks(phaseCtx, cfg);
 
       // Toggle reset buttons visibility based on override/mid state
       const rBri = document.getElementById('reset-brightness');
@@ -2500,18 +2528,19 @@
       return min === 0 ? `${hr}${suffix}` : `${hr}:${String(min).padStart(2,'0')}${suffix}`;
     }
 
-    function renderPhaseSliderTicks(phaseCtx) {
+    function renderPhaseSliderTicks(phaseCtx, cfg) {
       const el = document.getElementById('slider-ticks-phase');
       if (!el) return;
       el.innerHTML = '';
       if (!phaseCtx) return;
-      const { phaseMin, phaseMax } = phaseCtx;
+      const { phaseMin, phaseMax, cursorInAscend } = phaseCtx;
       const span = phaseMax - phaseMin;
       if (!(span > 0)) return;
-      // Choose tick interval: prefer 4h for wide spans, 2h for narrow
+      // Hour ticks — 4h interval for wide spans, 2h for narrow
       const step = span >= 12 ? 4 : (span >= 6 ? 2 : 1);
       const firstTick = Math.ceil(phaseMin / step) * step;
-      for (let t = firstTick; t <= phaseMax; t += step) {
+      const placed = new Set();
+      for (let t = firstTick; t < phaseMax; t += step) {
         const pct = (t - phaseMin) / span * 100;
         if (pct < 0 || pct > 100) continue;
         const tick = document.createElement('span');
@@ -2519,6 +2548,31 @@
         tick.style.left = pct + '%';
         tick.textContent = formatPhaseTime(t);
         el.appendChild(tick);
+        placed.add(Math.round(pct));
+      }
+      // Edge tick at phaseMax — shows boundary of how far user can shift
+      const edgeTick = document.createElement('span');
+      edgeTick.className = 'hslider-tick is-edge';
+      edgeTick.style.left = '100%';
+      edgeTick.textContent = formatPhaseTime(phaseMax);
+      el.appendChild(edgeTick);
+      placed.add(100);
+      // Default-bed/wake marker — anchors user to home position
+      if (cfg) {
+        const defaultH = cursorInAscend ? cfg.wake_time : cfg.bed_time;
+        if (Number.isFinite(defaultH)) {
+          let defaultH48 = defaultH;
+          while (defaultH48 < phaseMin) defaultH48 += 24;
+          while (defaultH48 > phaseMax) defaultH48 -= 24;
+          const pct = (defaultH48 - phaseMin) / span * 100;
+          if (pct >= 0 && pct <= 100) {
+            const marker = document.createElement('span');
+            marker.className = 'hslider-default-marker';
+            marker.style.left = pct + '%';
+            marker.title = 'default ' + (cursorInAscend ? 'wake' : 'bed') + ' · ' + formatPhaseTime(defaultH);
+            el.appendChild(marker);
+          }
+        }
       }
     }
 
