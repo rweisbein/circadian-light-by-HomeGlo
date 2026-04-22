@@ -440,8 +440,8 @@
     }
     .hslider-ticks {
       position: relative;
-      height: 28px;
-      margin-top: 6px;
+      height: 20px;
+      margin-top: 4px;
       pointer-events: none;
     }
     .hslider-tick {
@@ -564,7 +564,7 @@
     .auto-sched-card.is-open .auto-sched-chevron { transform: rotate(90deg); }
 
     /* Headline variant: always-open card, no chevron, static header */
-    .auto-sched-card--headline.is-open .auto-sched-body { max-height: none; }
+    .auto-sched-card--headline.is-open .auto-sched-body { max-height: 1600px; }
     .auto-sched-header--static { cursor: default; }
     .curve-controls-wrap { position: relative; padding: 4px 14px 12px 14px; }
     .curve-controls-wrap .adjust-section { margin-bottom: 0; }
@@ -2250,12 +2250,9 @@
         hoverlabel: { bgcolor: '#ffe680', bordercolor: '#ffe680', font: { color: '#000', size: 12 } }
       });
 
-      // Sunrise/sunset glyphs above the plot — passive environmental context.
-      // Skip if the NOW pill would horizontally overlap (the pill is wider than
-      // the glyph and its tinted bg hides the symbol otherwise).
+      // Sunrise/sunset glyphs above the plot — passive environmental context
       const cursorHour = shiftIntoWindow(currentHour);
-      const pillOverlapHours = 1.75;
-      if (Number.isFinite(sunrise) && Math.abs(sunriseX - cursorHour) > pillOverlapHours) {
+      if (Number.isFinite(sunrise)) {
         annotations.push({
           x: sunriseX, y: 1.15, xref: 'x', yref: 'paper',
           text: '☀', showarrow: false,
@@ -2264,7 +2261,7 @@
           hoverlabel: { bgcolor: '#3a3a3a', bordercolor: '#3a3a3a', font: { color: '#fff', size: 12 } }
         });
       }
-      if (Number.isFinite(sunset) && Math.abs(sunsetX - cursorHour) > pillOverlapHours) {
+      if (Number.isFinite(sunset)) {
         annotations.push({
           x: sunsetX, y: 1.15, xref: 'x', yref: 'paper',
           text: '☾', showarrow: false,
@@ -2281,11 +2278,10 @@
         : colorWithAlpha(cctToRGB(markerCCT), 0.7);
       const cursorLineStyle = { color: cursorLineColor, width: 1.25, dash: 'dash' };
 
-      // Line extends from plot bottom up into the margin, reaching the pill's bottom
-      // edge (pill sits at y=1.45, so stop just below at 1.40 for a visual tuck).
+      // Line extends from plot bottom up into the margin, reaching the pill's bottom edge
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: cursorHour, x1: cursorHour, y0: 0, y1: 1.14,
+        x0: cursorHour, x1: cursorHour, y0: 0, y1: 1.28,
         line: cursorLineStyle, layer: 'above'
       });
 
@@ -2331,7 +2327,7 @@
         pillColor = readableTextColor(tintedBg);
       }
       annotations.push({
-        x: cursorHour, y: 1.20, xref: 'x', yref: 'paper',
+        x: cursorHour, y: 1.35, xref: 'x', yref: 'paper',
         text: pillText, showarrow: false,
         font: { size: 10, color: pillColor },
         align: 'center',
@@ -2382,7 +2378,7 @@
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        margin: { t: 40, r: 12, l: 32, b: 56 },
+        margin: { t: 56, r: 12, l: 32, b: 56 },
         hovermode: 'closest',
         xaxis: (() => {
           const tickvals = [];
