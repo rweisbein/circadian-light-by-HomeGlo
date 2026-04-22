@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.119
+- **Revert 1.2.118 2-step gate change**: the previous version expanded off→on 2-step to ignore the CT delta check. That was the wrong call — our tracked `prev_kelvin` is the authoritative record of what the bulb was last commanded to, and small deltas really are small. Forcing 2-step in that case only slowed down turn-on without benefit. Reverted to the prior gate: 2-step only when `abs(new_kelvin − prev_kelvin) >= two_step_ct_threshold`.
+
 ## 1.2.118
 - **Area-card power button readable on warm cards**: active-state `.row-controls-left .row-btn` was a solid accent circle — invisible against the amber card shading in evening/warm zones. Switched to a translucent dark chip (`rgba(0,0,0,0.4)` fill, `rgba(0,0,0,0.3)` border) with the accent color preserved on the ⏻ glyph. Reads as a proper button over any card hue, warm or cool.
 - **Fix: off→on motion events now always 2-step (no "old-color flash" artifact)**: the 2-step gate in `main.py` skipped entirely when `|new_kelvin − prev_kelvin| < two_step_ct_threshold` — *even for lights coming up from off*. In practice, a cold-power-on bulb may flash its stale internal color (whatever CT it held earlier in the day) before applying the newly-commanded value, regardless of what we last sent. User-observed symptom: motion triggers lights that briefly come up at a daytime CT, then shift to the warm evening target. The small-CT-delta skip now only applies to already-on lights; off→on always proceeds to 2-step (subject to the brightness threshold).
