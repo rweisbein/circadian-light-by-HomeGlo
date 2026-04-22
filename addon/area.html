@@ -440,13 +440,13 @@
     }
     .hslider-ticks {
       position: relative;
-      height: 12px;
-      margin-top: 8px;
+      height: 28px;
+      margin-top: 6px;
       pointer-events: none;
     }
     .hslider-tick {
       position: absolute;
-      top: 0;
+      bottom: 0;
       transform: translateX(-50%);
       font-size: 0.58rem;
       font-weight: 500;
@@ -461,7 +461,7 @@
     }
     .hslider-default-marker {
       position: absolute;
-      top: -30px;
+      top: 0;
       transform: translateX(-50%);
       display: flex;
       flex-direction: column;
@@ -475,7 +475,7 @@
       pointer-events: none;
       text-shadow: 0 1px 2px rgba(0,0,0,0.6);
     }
-    .hslider-default-marker::after {
+    .hslider-default-marker::before {
       content: '';
       width: 0;
       height: 0;
@@ -841,7 +841,7 @@
     .tune-adj-target { display: inline-flex; align-items: center; gap: 4px; }
     .tune-adj-chevron-inline {
       display: inline-block; margin-left: auto; padding-left: 8px;
-      transition: transform 0.2s;
+      transition: transform 0.25s;
       font-size: 1.1em; line-height: 1; color: var(--muted2);
     }
 
@@ -867,7 +867,7 @@
       border-top: 1px solid var(--line); margin-top: 4px;
     }
     .tune-individual-toggle:hover { color: var(--text); }
-    .tune-individual-toggle .tune-individual-chevron-el { transition: transform 0.2s; display: inline-block; font-size: 0.95em; }
+    .tune-individual-chevron-el { transition: transform 0.25s; display: inline-block; font-size: 0.95em; }
   </style>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
   <script src="./shared.js"></script>
@@ -1911,7 +1911,7 @@
       chartDiv.addEventListener('pointerleave', onLeave);
     }
 
-    function renderMiniChart(cfg, state, sunTimes, currentHour, isActive, adjustedTimes) {
+    function renderMiniChart(cfg, state, sunTimes, currentHour, isActive, adjustedTimes, markerOverride) {
       if (!cfg || !sunTimes) return;
 
       // Source per-area sun_bright_factor from live status (not cached globally)
@@ -2025,8 +2025,12 @@
       // Live position values (drives now-pill + cursor styling). No floating marker —
       // the colored header + pill already convey current state.
       const markerRoom = calcMiniBrightness(currentHour, cfg, state, currentHour) * 100;
-      const markerBri = calcBulbBrightnessAt(currentHour, curveSunTimes, currentHour, markerRoom);
-      const markerCCT = calcMiniColor(currentHour, cfg, state, sunTimes, currentHour);
+      let markerBri = calcBulbBrightnessAt(currentHour, curveSunTimes, currentHour, markerRoom);
+      let markerCCT = calcMiniColor(currentHour, cfg, state, sunTimes, currentHour);
+      if (markerOverride) {
+        if (Number.isFinite(markerOverride.bri)) markerBri = markerOverride.bri;
+        if (Number.isFinite(markerOverride.cct)) markerCCT = markerOverride.cct;
+      }
 
       // Shapes and annotations
       const shapes = [];
@@ -2245,8 +2249,12 @@
         hoverlabel: { bgcolor: '#ffe680', bordercolor: '#ffe680', font: { color: '#000', size: 12 } }
       });
 
-      // Sunrise/sunset glyphs above the plot — passive environmental context
-      if (Number.isFinite(sunrise)) {
+      // Sunrise/sunset glyphs above the plot — passive environmental context.
+      // Skip if the NOW pill would horizontally overlap (the pill is wider than
+      // the glyph and its tinted bg hides the symbol otherwise).
+      const cursorHour = shiftIntoWindow(currentHour);
+      const pillOverlapHours = 1.75;
+      if (Number.isFinite(sunrise) && Math.abs(sunriseX - cursorHour) > pillOverlapHours) {
         annotations.push({
           x: sunriseX, y: 1.15, xref: 'x', yref: 'paper',
           text: '☀', showarrow: false,
@@ -2255,7 +2263,7 @@
           hoverlabel: { bgcolor: '#3a3a3a', bordercolor: '#3a3a3a', font: { color: '#fff', size: 12 } }
         });
       }
-      if (Number.isFinite(sunset)) {
+      if (Number.isFinite(sunset) && Math.abs(sunsetX - cursorHour) > pillOverlapHours) {
         annotations.push({
           x: sunsetX, y: 1.15, xref: 'x', yref: 'paper',
           text: '☾', showarrow: false,
@@ -2267,7 +2275,6 @@
 
       // Cursor vertical line — dashed, tinted to match NOW pill so line + chip read as one
       const isFrozen = state && state.frozen_at != null;
-      const cursorHour = shiftIntoWindow(currentHour);
       const cursorLineColor = isFrozen
         ? 'rgba(99, 179, 237, 0.7)'
         : colorWithAlpha(cctToRGB(markerCCT), 0.7);
@@ -2930,6 +2937,12 @@
       const pct = dragMode === 'brightness' ? briFrac : cctFrac;
       (track.querySelector('.slider-track-bg') || track).style.background = buildTrackGradient(dragMode, cfg, previewBri, previewCCT, effRange, phaseCtx);
       applyOneSlider(track, pct, previewBri, previewCCT, dragMode);
+
+      // Push preview into the NOW pill so chart feedback is live (was only updating on periodic refresh)
+      if (selectedArea) {
+        const isActive = selectedArea.is_on || selectedArea.is_circadian;
+        renderMiniChart(cfg, areaState, cachedSunTimes, currentHour, isActive, null, { bri: previewBri, cct: previewCCT });
+      }
     }
 
     // ============================================================
