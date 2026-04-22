@@ -330,6 +330,17 @@
       margin: 4px 0;
       touch-action: pan-x pan-y;
     }
+    /* Suppress Plotly's default drag-layer cursors; JS sets grab/grabbing only near the handle */
+    #mini-chart .nsewdrag,
+    #mini-chart .drag,
+    #mini-chart .draglayer,
+    #mini-chart .cursor-pointer { cursor: default !important; }
+    #mini-chart.handle-hover .nsewdrag,
+    #mini-chart.handle-hover .drag,
+    #mini-chart.handle-hover .draglayer { cursor: grab !important; }
+    #mini-chart.dragging .nsewdrag,
+    #mini-chart.dragging .drag,
+    #mini-chart.dragging .draglayer { cursor: grabbing !important; }
 
     /* Adjust sliders (from modal - exact same styling) */
     .adjust-section {
@@ -1792,11 +1803,16 @@
         return rect.left + fl.xaxis._offset + ((dataX - xAnchor) / 24) * fl.xaxis._length;
       }
 
-      function onDown(e) {
-        if (_chartGeom.activeMidHour == null) return;
+      const HANDLE_HIT_PX = 18;
+      function isNearHandle(clientX) {
+        if (_chartGeom.activeMidHour == null) return false;
         const handlePx = dataXToClientPixel(_chartGeom.activeMidHour);
-        if (handlePx == null) return;
-        if (Math.abs(e.clientX - handlePx) > 24) return;
+        if (handlePx == null) return false;
+        return Math.abs(clientX - handlePx) <= HANDLE_HIT_PX;
+      }
+
+      function onDown(e) {
+        if (!isNearHandle(e.clientX)) return;
         e.preventDefault();
         try { chartDiv.setPointerCapture(e.pointerId); } catch (err) {}
         _chartDrag.active = true;
@@ -1806,35 +1822,44 @@
         _chartDrag.phaseSlopeSigned = _chartGeom.phaseSlopeSigned;
         _chartDrag.nowHour = _chartGeom.nowHour;
         _chartDrag.cursorInAscend = _chartGeom.cursorInAscend;
-        chartDiv.style.cursor = 'grabbing';
+        chartDiv.classList.add('dragging');
+        chartDiv.classList.remove('handle-hover');
       }
       function onMove(e) {
-        if (!_chartDrag.active) return;
-        e.preventDefault();
-        const dataX = pixelToDataX(e.clientX);
-        if (dataX == null) return;
-        const phaseMid = (_chartDrag.phaseMin + _chartDrag.phaseMax) / 2;
-        let dragX = dataX;
-        if (Math.abs(dragX + 24 - phaseMid) < Math.abs(dragX - phaseMid)) dragX += 24;
-        if (Math.abs(dragX - 24 - phaseMid) < Math.abs(dragX - phaseMid)) dragX -= 24;
-        dragX = Math.max(_chartDrag.phaseMin + 0.05, Math.min(_chartDrag.phaseMax - 0.05, dragX));
-        _chartDrag.dragHour = ((dragX % 24) + 24) % 24;
-        if (selectedArea) renderMiniChartForArea(selectedArea.area_id);
+        if (_chartDrag.active) {
+          e.preventDefault();
+          const dataX = pixelToDataX(e.clientX);
+          if (dataX == null) return;
+          const phaseMid = (_chartDrag.phaseMin + _chartDrag.phaseMax) / 2;
+          let dragX = dataX;
+          if (Math.abs(dragX + 24 - phaseMid) < Math.abs(dragX - phaseMid)) dragX += 24;
+          if (Math.abs(dragX - 24 - phaseMid) < Math.abs(dragX - phaseMid)) dragX -= 24;
+          dragX = Math.max(_chartDrag.phaseMin + 0.05, Math.min(_chartDrag.phaseMax - 0.05, dragX));
+          _chartDrag.dragHour = ((dragX % 24) + 24) % 24;
+          if (selectedArea) renderMiniChartForArea(selectedArea.area_id);
+          return;
+        }
+        // Not dragging — toggle hover class for cursor feedback near the handle
+        chartDiv.classList.toggle('handle-hover', isNearHandle(e.clientX));
       }
       function onUp(e) {
         if (!_chartDrag.active) return;
         e.preventDefault();
         try { chartDiv.releasePointerCapture(e.pointerId); } catch (err) {}
-        chartDiv.style.cursor = '';
+        chartDiv.classList.remove('dragging');
         const targetTime = _chartDrag.dragHour;
         _chartDrag.active = false;
         executeSetPhaseTime(targetTime);
+      }
+      function onLeave() {
+        if (!_chartDrag.active) chartDiv.classList.remove('handle-hover');
       }
 
       chartDiv.addEventListener('pointerdown', onDown);
       chartDiv.addEventListener('pointermove', onMove);
       chartDiv.addEventListener('pointerup', onUp);
       chartDiv.addEventListener('pointercancel', onUp);
+      chartDiv.addEventListener('pointerleave', onLeave);
     }
 
     function renderMiniChart(cfg, state, sunTimes, currentHour, isActive, adjustedTimes) {

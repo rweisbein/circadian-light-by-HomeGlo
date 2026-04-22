@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.114
+- **Chart hand cursor now scoped to the drag handle**: Plotly's drag layer applied a hand (`cursor: pointer`) across the entire chart by default, suggesting the whole chart was interactive when in fact only the wake/bed midpoint is draggable. Overrode Plotly's drag-layer cursor to `default`, and added a JS pointer-move handler that toggles `#mini-chart.handle-hover` when the pointer is within 18px of the active midpoint — that class switches the cursor to `grab`, and `dragging` switches to `grabbing`. Non-drag areas now show the plain cursor.
+
 ## 1.2.113
 - **Area detail polish bundle, round 3**: Three carry-overs from the v1.2.112 screenshot review.
   - **Now pill now matches the header exactly**: The under-cursor pill was tinted via `cctToRGB + colorWithAlpha` (translucent overlay on the chart bg), while the header state bar uses `tintColorByBrightness(cctToRGB(kelvin), brightness)` as a solid fill — so at matching CCT/brightness the two read as different colors. Switched the pill to the same `tintColorByBrightness` approach with a solid bg, `readableTextColor` for the text, and the raw CCT-tint at 0.55 alpha as the border. Header and pill now share one shading formula.
