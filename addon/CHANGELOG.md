@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.118
+- **Area-card power button readable on warm cards**: active-state `.row-controls-left .row-btn` was a solid accent circle — invisible against the amber card shading in evening/warm zones. Switched to a translucent dark chip (`rgba(0,0,0,0.4)` fill, `rgba(0,0,0,0.3)` border) with the accent color preserved on the ⏻ glyph. Reads as a proper button over any card hue, warm or cool.
+- **Fix: off→on motion events now always 2-step (no "old-color flash" artifact)**: the 2-step gate in `main.py` skipped entirely when `|new_kelvin − prev_kelvin| < two_step_ct_threshold` — *even for lights coming up from off*. In practice, a cold-power-on bulb may flash its stale internal color (whatever CT it held earlier in the day) before applying the newly-commanded value, regardless of what we last sent. User-observed symptom: motion triggers lights that briefly come up at a daytime CT, then shift to the warm evening target. The small-CT-delta skip now only applies to already-on lights; off→on always proceeds to 2-step (subject to the brightness threshold).
+
 ## 1.2.117
 - **Cursor dashed line now reaches the NOW pill**: line's y-reference was `y` (data coords) so it stopped at the top of the plot area, leaving a visible gap between the line and the pill floating in the top margin. Changed to `yref: 'paper'` with `y1: 1.40`, so the line extends through the margin straight up into the pill's underside. Line + dot + pill now read as one linked NOW indicator.
 - **NOW pill raised further**: `y 1.32 → 1.45`, `margin.t 68 → 84`. Earlier positioning left the pill visually adjacent to the ☾/☀ glyphs and the bed label; moving it higher separates it clearly and affirms its role as an "above-plot header" for the cursor.

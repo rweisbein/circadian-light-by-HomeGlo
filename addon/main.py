@@ -3859,10 +3859,14 @@ class HomeAssistantWebSocketClient:
                 # Get previous CT (before this update overwrote it)
                 current_ct = prev_kelvin
 
-                # Check CT delta — skip if color is close enough
+                # Check CT delta — skip only for already-on lights. For off→on,
+                # always 2-step: the bulb's internal state on cold-power-on can
+                # differ from what we last commanded (e.g. it flashes its stale
+                # daytime CT before applying the new value), regardless of our
+                # tracked ct_diff.
                 if current_ct is not None:
                     ct_diff = abs(kelvin - current_ct)
-                    if ct_diff < ct_threshold:
+                    if not is_off and ct_diff < ct_threshold:
                         continue
                 else:
                     # Unknown CT: 2-step for off→on (flash is jarring), skip for already-on
