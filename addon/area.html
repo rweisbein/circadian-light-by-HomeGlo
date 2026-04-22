@@ -2009,15 +2009,15 @@
         });
       }
 
-      // Hover trace — CCT-colored tooltips showing bulbs + natural light
+      // Hover trace — CCT-colored tooltips showing time, bulb brightness, color.
+      // Anchored to the BULB curve (what bulbs actually output) so the hover
+      // surface matches what the user is pointing at. The dotted natural-light
+      // line is decorative only — it shows the pre-sun-dimming target shape
+      // without inviting interaction.
       const hoverDetails = hours.map((h, i) => {
         const bulbV = Math.round(bulbPct[i]);
-        const roomV = Math.round(brightnessPct[i]);
         const k = Math.round(cct[i]);
-        if (Math.abs(roomV - bulbV) < 1) {
-          return `${formatHourLabel(h)} • ${bulbV}% • ${k}K`;
-        }
-        return `${formatHourLabel(h)} • bulbs ${bulbV}% · natural ${roomV}% • ${k}K`;
+        return `${formatHourLabel(h)} • ${bulbV}% • ${k}K`;
       });
       const hoverBgColors = cct.map(k => colorWithAlpha(cctToRGB(k), 0.92));
       const hoverTextColors = cct.map(k => readableTextColor(cctToRGB(k)));
@@ -2025,7 +2025,7 @@
 
       traces.push({
         type: 'scatter', mode: 'lines',
-        x: hours, y: brightnessPct,
+        x: hours, y: bulbPct,
         line: { width: 0 }, showlegend: false,
         text: hoverDetails,
         hovertemplate: '%{text}<extra></extra>',
@@ -2165,7 +2165,19 @@
         phaseSlopeSigned = -kDescendGeom;
         handleFill = '#ffe680';
       }
-      _chartGeom = { activeMidHour, phaseMin, phaseMax, phaseSlopeSigned, nowHour: shiftIntoWindow(currentHour), cursorInAscend: cursorInAscendGeom, xAnchor };
+      // Apply the same v1.2.128 narrowed-boundary treatment to the chart drag
+      // clamp that the phase slider already uses. Without this, the chart
+      // handle could drag to a target that the slider won't allow, and on
+      // release trigger the % 24 wrap bug via executeSetPhaseTime.
+      const { minOffset: phaseMinOffset, maxOffset: phaseMaxOffset } =
+        computePhaseSafeOffset(cfg, cursorInAscendGeom);
+      let phaseMinSafe = phaseMin + phaseMinOffset;
+      let phaseMaxSafe = phaseMax - phaseMaxOffset;
+      if (phaseMaxSafe - phaseMinSafe < 0.5) {
+        phaseMinSafe = phaseMin;
+        phaseMaxSafe = phaseMax;
+      }
+      _chartGeom = { activeMidHour, phaseMin: phaseMinSafe, phaseMax: phaseMaxSafe, phaseSlopeSigned, nowHour: shiftIntoWindow(currentHour), cursorInAscend: cursorInAscendGeom, xAnchor };
 
       // Interpolate handle y-position onto the bulb curve so the handle sits on the line
       const handleY = (() => {
@@ -2210,21 +2222,23 @@
         showlegend: false,
       });
 
+      // Helper: interpolate bulb-curve y at any hour along the sample grid.
+      const bulbYAt = (hr) => {
+        for (let i = 1; i < hours.length; i++) {
+          if (hours[i] >= hr) {
+            const span = hours[i] - hours[i - 1];
+            const t = span > 0 ? (hr - hours[i - 1]) / span : 0;
+            return bulbPct[i - 1] + t * (bulbPct[i] - bulbPct[i - 1]);
+          }
+        }
+        return bulbPct[bulbPct.length - 1];
+      };
+
       // Faint tick at the default midpoint when the handle has been shifted, so the user can find home
       if (isHandleShifted) {
-        const defaultY = (() => {
-          for (let i = 1; i < hours.length; i++) {
-            if (hours[i] >= defaultMidHour) {
-              const span = hours[i] - hours[i - 1];
-              const t = span > 0 ? (defaultMidHour - hours[i - 1]) / span : 0;
-              return bulbPct[i - 1] + t * (bulbPct[i] - bulbPct[i - 1]);
-            }
-          }
-          return bulbPct[bulbPct.length - 1];
-        })();
         traces.push({
           type: 'scatter', mode: 'markers',
-          x: [defaultMidHour], y: [defaultY],
+          x: [defaultMidHour], y: [bulbYAt(defaultMidHour)],
           marker: {
             size: 7, color: 'rgba(255,255,255,0.0)', symbol: 'circle',
             line: { width: 1.5, color: 'rgba(255,255,255,0.55)' },
@@ -2235,6 +2249,47 @@
           showlegend: false,
         });
       }
+
+      // Opposite-phase dot — wake if cursor is in bed phase, bed if cursor is in
+      // wake phase. Matches the "all anchors visible" ask so every dot on the
+      // graph has a callout, not just the active phase.
+      const effectiveWakeForDot = hasAdjWake ? shiftIntoWindow(adjustedTimes.wake) : wakeTime;
+      const effectiveBedForDot = hasAdjBed ? shiftIntoWindow(adjustedTimes.bed) : bedTime;
+      const oppositeMidHour = cursorInAscendGeom ? effectiveBedForDot : effectiveWakeForDot;
+      const oppositeLabel = cursorInAscendGeom ? 'bed' : 'wake';
+      const oppositeStroke = cursorInAscendGeom ? 'rgba(255, 230, 128, 0.7)' : 'rgba(92, 179, 255, 0.7)';
+      if (Number.isFinite(oppositeMidHour)) {
+        traces.push({
+          type: 'scatter', mode: 'markers',
+          x: [oppositeMidHour], y: [bulbYAt(oppositeMidHour)],
+          marker: {
+            size: 7, color: 'rgba(0,0,0,0)', symbol: 'circle',
+            line: { width: 1.5, color: oppositeStroke },
+          },
+          cliponaxis: false,
+          hovertext: oppositeLabel + ' \u00B7 ' + formatHourLabel(oppositeMidHour),
+          hoverinfo: 'text',
+          showlegend: false,
+        });
+      }
+
+      // NOW dot — sits on the bulb curve at the current cursor position so
+      // the NOW anchor gets the same on-curve callout as wake/bed. Styled
+      // in the NOW pill's cyan to tie the dot + pill + cursor line together.
+      const cursorHourForDot = shiftIntoWindow(currentHour);
+      traces.push({
+        type: 'scatter', mode: 'markers',
+        x: [cursorHourForDot], y: [bulbYAt(cursorHourForDot)],
+        marker: {
+          size: 8, color: 'rgba(140, 210, 255, 0.95)', symbol: 'circle',
+          line: { width: 1.5, color: '#0a0a0a' },
+        },
+        cliponaxis: false,
+        hovertext: 'now \u00B7 ' + formatHourLabel(currentHour)
+          + ' \u00B7 ' + Math.round(markerBri) + '% \u00B7 ' + Math.round(markerCCT) + 'K',
+        hoverinfo: 'text',
+        showlegend: false,
+      });
 
       const sunrise = sunTimes.sunrise;
       const sunset = sunTimes.sunset;
@@ -2668,10 +2723,13 @@
         if (pct >= 0 && pct <= 100) nowPct = pct;
       }
 
-      const tickHidePct = 12; // hide tick within ±12% of a marker x
+      // Only the NOW marker shares the top row with hour ticks, so only NOW
+      // needs horizontal-collision suppression. The daily-bed/wake marker
+      // sits at the bottom of the tick row and doesn't overlap hour ticks
+      // vertically, so hour ticks can render right above it.
+      const tickHidePct = 12;
       const collides = (pct) =>
-        (markerPct != null && Math.abs(pct - markerPct) < tickHidePct) ||
-        (nowPct != null && Math.abs(pct - nowPct) < tickHidePct);
+        nowPct != null && Math.abs(pct - nowPct) < tickHidePct;
 
       // Hour ticks — 4h interval for wide spans, 2h for narrow
       const step = span >= 12 ? 4 : (span >= 6 ? 2 : 1);
