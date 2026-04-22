@@ -440,13 +440,13 @@
     }
     .hslider-ticks {
       position: relative;
-      height: 20px;
-      margin-top: 4px;
+      height: 28px;
+      margin-top: 2px;
       pointer-events: none;
     }
     .hslider-tick {
       position: absolute;
-      bottom: 0;
+      top: 0;
       transform: translateX(-50%);
       font-size: 0.58rem;
       font-weight: 500;
@@ -461,7 +461,7 @@
     }
     .hslider-default-marker {
       position: absolute;
-      top: 0;
+      bottom: 0;
       transform: translateX(-50%);
       display: flex;
       flex-direction: column;
@@ -481,7 +481,7 @@
       height: 0;
       border-left: 4px solid transparent;
       border-right: 4px solid transparent;
-      border-top: 6px solid rgba(255, 215, 120, 0.95);
+      border-bottom: 6px solid rgba(255, 215, 120, 0.95);
       filter: drop-shadow(0 1px 1px rgba(0,0,0,0.5));
     }
     /* Circadian-off overlay */
@@ -2254,7 +2254,7 @@
       const cursorHour = shiftIntoWindow(currentHour);
       if (Number.isFinite(sunrise)) {
         annotations.push({
-          x: sunriseX, y: 1.15, xref: 'x', yref: 'paper',
+          x: sunriseX, y: 1.06, xref: 'x', yref: 'paper',
           text: '☀', showarrow: false,
           font: { size: 14, color: 'rgba(255, 214, 120, 0.85)' },
           hovertext: 'sunrise · ' + formatHourLabel(sunrise),
@@ -2263,7 +2263,7 @@
       }
       if (Number.isFinite(sunset)) {
         annotations.push({
-          x: sunsetX, y: 1.15, xref: 'x', yref: 'paper',
+          x: sunsetX, y: 1.06, xref: 'x', yref: 'paper',
           text: '☾', showarrow: false,
           font: { size: 14, color: 'rgba(180, 200, 230, 0.85)' },
           hovertext: 'sunset · ' + formatHourLabel(sunset),
@@ -2276,16 +2276,9 @@
       const cursorLineColor = isFrozen
         ? 'rgba(99, 179, 237, 0.7)'
         : colorWithAlpha(cctToRGB(markerCCT), 0.7);
-      const cursorLineStyle = { color: cursorLineColor, width: 1.25, dash: 'dash' };
+      const cursorLineStyle = { color: cursorLineColor, width: 1.25, dash: '3px,3px' };
 
-      // Line extends from plot bottom up into the margin, reaching the pill's bottom edge
-      shapes.push({
-        type: 'line', xref: 'x', yref: 'paper',
-        x0: cursorHour, x1: cursorHour, y0: 0, y1: 1.28,
-        line: cursorLineStyle, layer: 'above'
-      });
-
-      // Now dot on the curve at current time — ties header state to its spot on the line
+      // Compute where the bulb curve is at cursorHour so the line can start there
       const cursorBulbY = (() => {
         for (let i = 1; i < hours.length; i++) {
           if (hours[i] >= cursorHour) {
@@ -2296,6 +2289,16 @@
         }
         return bulbPct[bulbPct.length - 1];
       })();
+
+      // Line runs from just above the bulb dot up to the pill's bottom edge
+      // — no longer extends down through the plot to the x-axis.
+      const cursorDotPaperY = cursorBulbY / 110;
+      shapes.push({
+        type: 'line', xref: 'x', yref: 'paper',
+        x0: cursorHour, x1: cursorHour, y0: cursorDotPaperY + 0.04, y1: 1.12,
+        line: cursorLineStyle, layer: 'above'
+      });
+
       const nowDotFill = isFrozen
         ? 'rgba(120, 190, 240, 0.95)'
         : tintColorByBrightness(cctToRGB(markerCCT), Math.round(markerBri));
@@ -2327,7 +2330,7 @@
         pillColor = readableTextColor(tintedBg);
       }
       annotations.push({
-        x: cursorHour, y: 1.35, xref: 'x', yref: 'paper',
+        x: cursorHour, y: 1.18, xref: 'x', yref: 'paper',
         text: pillText, showarrow: false,
         font: { size: 10, color: pillColor },
         align: 'center',
@@ -2378,7 +2381,7 @@
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        margin: { t: 56, r: 12, l: 32, b: 56 },
+        margin: { t: 38, r: 12, l: 32, b: 56 },
         hovermode: 'closest',
         xaxis: (() => {
           const tickvals = [];
@@ -2573,28 +2576,11 @@
       const { phaseMin, phaseMax, cursorInAscend } = phaseCtx;
       const span = phaseMax - phaseMin;
       if (!(span > 0)) return;
-      // Hour ticks — 4h interval for wide spans, 2h for narrow
-      const step = span >= 12 ? 4 : (span >= 6 ? 2 : 1);
-      const firstTick = Math.ceil(phaseMin / step) * step;
-      const placed = new Set();
-      for (let t = firstTick; t < phaseMax; t += step) {
-        const pct = (t - phaseMin) / span * 100;
-        if (pct < 0 || pct > 100) continue;
-        const tick = document.createElement('span');
-        tick.className = 'hslider-tick';
-        tick.style.left = pct + '%';
-        tick.textContent = formatPhaseTime(t);
-        el.appendChild(tick);
-        placed.add(Math.round(pct));
-      }
-      // Edge tick at phaseMax — shows boundary of how far user can shift
-      const edgeTick = document.createElement('span');
-      edgeTick.className = 'hslider-tick is-edge';
-      edgeTick.style.left = '100%';
-      edgeTick.textContent = formatPhaseTime(phaseMax);
-      el.appendChild(edgeTick);
-      placed.add(100);
-      // Default-bed/wake marker — anchors user to home position
+
+      // Compute default-marker pct first so we can skip any tick that would
+      // collide horizontally with the marker's "default wake/bed X" label.
+      let markerPct = null;
+      let markerDefaultH = null;
       if (cfg) {
         const defaultH = cursorInAscend ? cfg.wake_time : cfg.bed_time;
         if (Number.isFinite(defaultH)) {
@@ -2603,13 +2589,44 @@
           while (defaultH48 > phaseMax) defaultH48 -= 24;
           const pct = (defaultH48 - phaseMin) / span * 100;
           if (pct >= 0 && pct <= 100) {
-            const marker = document.createElement('span');
-            marker.className = 'hslider-default-marker';
-            marker.style.left = pct + '%';
-            marker.textContent = (cursorInAscend ? 'wake' : 'bed') + ' ' + formatPhaseTime(defaultH);
-            el.appendChild(marker);
+            markerPct = pct;
+            markerDefaultH = defaultH;
           }
         }
+      }
+      const tickHidePct = 12; // hide tick within ±12% of marker x
+
+      // Hour ticks — 4h interval for wide spans, 2h for narrow
+      const step = span >= 12 ? 4 : (span >= 6 ? 2 : 1);
+      const firstTick = Math.ceil(phaseMin / step) * step;
+      const placed = new Set();
+      for (let t = firstTick; t < phaseMax; t += step) {
+        const pct = (t - phaseMin) / span * 100;
+        if (pct < 0 || pct > 100) continue;
+        if (markerPct != null && Math.abs(pct - markerPct) < tickHidePct) continue;
+        const tick = document.createElement('span');
+        tick.className = 'hslider-tick';
+        tick.style.left = pct + '%';
+        tick.textContent = formatPhaseTime(t);
+        el.appendChild(tick);
+        placed.add(Math.round(pct));
+      }
+      // Edge tick at phaseMax — shows boundary of how far user can shift
+      if (markerPct == null || Math.abs(100 - markerPct) >= tickHidePct) {
+        const edgeTick = document.createElement('span');
+        edgeTick.className = 'hslider-tick is-edge';
+        edgeTick.style.left = '100%';
+        edgeTick.textContent = formatPhaseTime(phaseMax);
+        el.appendChild(edgeTick);
+        placed.add(100);
+      }
+      // Default-bed/wake marker — anchors user to home position
+      if (markerPct != null) {
+        const marker = document.createElement('span');
+        marker.className = 'hslider-default-marker';
+        marker.style.left = markerPct + '%';
+        marker.textContent = (cursorInAscend ? 'default wake' : 'default bed') + ' ' + formatPhaseTime(markerDefaultH);
+        el.appendChild(marker);
       }
     }
 
