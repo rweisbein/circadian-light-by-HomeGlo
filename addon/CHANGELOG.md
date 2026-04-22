@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.127
+- **NOW pill and sun/moon glyphs now render at distinctly different heights**: 1.2.125 moved pill to `y=1.18` and sun/moon to `y=1.06`, which looked fine on paper (12% of plot height apart) — but the chart is only 190px tall with `margin.t=38` and `margin.b=56`, leaving a plot area of ~96px. 12% of 96px = 11.5px center-to-center, and pill/glyph heights are ~20px/~14px, so they visually overlapped. The root cause was using paper-relative y for both: any small plot collapses the gap. Fix: moved sun/moon **inside** the plot area at `y=0.90` (above the natural-light plateau at ~0.68, below the plot top) and pushed pill to `y=1.26` (in the top margin). Now pill lives in margin, glyphs live in plot's upper breathing room — separation is absolute, not proportional. Cursor line extended to `y1=1.18` to reach the pill's bottom. `margin.t 38 → 36` as small additional trim.
+
 ## 1.2.126
 - **Renamed "default bed/wake" to "daily bed/wake"** on the phase slider tick-row marker and on the curve's unshifted-handle hover tooltip. "Default" was ambiguous (could be read as factory-default, or as default-for-this-zone); "daily" makes it clear this is the day's scheduled target, distinct from the override the user drags with the slider handle.
 

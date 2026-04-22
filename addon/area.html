@@ -2250,11 +2250,13 @@
         hoverlabel: { bgcolor: '#ffe680', bordercolor: '#ffe680', font: { color: '#000', size: 12 } }
       });
 
-      // Sunrise/sunset glyphs above the plot — passive environmental context
+      // Sunrise/sunset glyphs — placed just below the plot top edge, above the
+      // curve peak (y≈0.68 in paper coords for a 75/110 natural-light plateau),
+      // so the NOW pill can sit above the plot with room to separate.
       const cursorHour = shiftIntoWindow(currentHour);
       if (Number.isFinite(sunrise)) {
         annotations.push({
-          x: sunriseX, y: 1.06, xref: 'x', yref: 'paper',
+          x: sunriseX, y: 0.90, xref: 'x', yref: 'paper',
           text: '☀', showarrow: false,
           font: { size: 14, color: 'rgba(255, 214, 120, 0.85)' },
           hovertext: 'sunrise · ' + formatHourLabel(sunrise),
@@ -2263,7 +2265,7 @@
       }
       if (Number.isFinite(sunset)) {
         annotations.push({
-          x: sunsetX, y: 1.06, xref: 'x', yref: 'paper',
+          x: sunsetX, y: 0.90, xref: 'x', yref: 'paper',
           text: '☾', showarrow: false,
           font: { size: 14, color: 'rgba(180, 200, 230, 0.85)' },
           hovertext: 'sunset · ' + formatHourLabel(sunset),
@@ -2295,7 +2297,7 @@
       const cursorDotPaperY = cursorBulbY / 110;
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: cursorHour, x1: cursorHour, y0: cursorDotPaperY + 0.04, y1: 1.12,
+        x0: cursorHour, x1: cursorHour, y0: cursorDotPaperY + 0.04, y1: 1.18,
         line: cursorLineStyle, layer: 'above'
       });
 
@@ -2330,7 +2332,7 @@
         pillColor = readableTextColor(tintedBg);
       }
       annotations.push({
-        x: cursorHour, y: 1.18, xref: 'x', yref: 'paper',
+        x: cursorHour, y: 1.26, xref: 'x', yref: 'paper',
         text: pillText, showarrow: false,
         font: { size: 10, color: pillColor },
         align: 'center',
@@ -2381,7 +2383,7 @@
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        margin: { t: 38, r: 12, l: 32, b: 56 },
+        margin: { t: 36, r: 12, l: 32, b: 56 },
         hovermode: 'closest',
         xaxis: (() => {
           const tickvals = [];
