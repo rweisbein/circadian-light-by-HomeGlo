@@ -418,12 +418,12 @@
     .slider-thumb {
       position: absolute;
       top: 50%;
-      width: 22px;
-      height: 22px;
+      width: 18px;
+      height: 18px;
       border-radius: 50%;
       background: #fff;
-      border: 2px solid rgba(255,255,255,0.8);
-      box-shadow: 0 1px 6px rgba(0,0,0,0.4);
+      border: 1.5px solid rgba(255,255,255,0.8);
+      box-shadow: 0 1px 5px rgba(0,0,0,0.4);
       transform: translate(-50%, -50%);
       pointer-events: none;
       transition: left 0.15s ease, background 0.15s ease;
@@ -435,7 +435,7 @@
     .hslider-ticks {
       position: relative;
       height: 12px;
-      margin-top: 2px;
+      margin-top: 8px;
       pointer-events: none;
     }
     .hslider-tick {
@@ -455,13 +455,14 @@
     }
     .hslider-default-marker {
       position: absolute;
-      top: -14px;
+      top: -16px;
       transform: translateX(-50%);
       width: 0;
       height: 0;
-      border-left: 3.5px solid transparent;
-      border-right: 3.5px solid transparent;
-      border-top: 5px solid rgba(255, 255, 255, 0.5);
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 7px solid rgba(255, 215, 120, 0.95);
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6));
       pointer-events: auto;
       cursor: help;
     }
@@ -951,8 +952,9 @@
     <!-- Cards Section (curve + auto schedule) -->
     <div id="auto-sched-section" class="auto-sched-section" style="display:none;">
     <div class="auto-sched-card auto-sched-card--headline is-open" id="chart-card">
-      <div class="auto-sched-header auto-sched-header--static">
+      <div class="auto-sched-header" onclick="toggleChartCard()">
         <span class="auto-sched-title">Curve</span>
+        <span class="auto-sched-chevron" style="margin-left:auto;">&rsaquo;</span>
       </div>
       <div class="auto-sched-body" id="chart-body">
         <div id="mini-chart"></div>
@@ -1376,11 +1378,20 @@
     }
 
     function liftMidpointToPhase(midpoint, phaseStart, phaseEnd) {
-      const phaseCenter = (phaseStart + phaseEnd) / 2;
-      let mid = midpoint;
-      while (mid < phaseCenter - 12) mid += 24;
-      while (mid > phaseCenter + 12) mid -= 24;
+      const phaseSpan = phaseEnd - phaseStart;
       const margin = 0.01;
+      let mid = midpoint;
+      if (phaseSpan >= 24) {
+        // Wide phase (descend spans 24h): anchor at phaseStart so midpoints slightly
+        // before phaseStart clamp to the phase edge instead of wrapping forward 24h
+        // (which caused the "curve flips when bed < descend_start" bug).
+        while (mid < phaseStart - 12) mid += 24;
+        while (mid >= phaseStart + 12) mid -= 24;
+      } else {
+        const phaseCenter = (phaseStart + phaseEnd) / 2;
+        while (mid < phaseCenter - 12) mid += 24;
+        while (mid > phaseCenter + 12) mid -= 24;
+      }
       return Math.max(phaseStart + margin, Math.min(phaseEnd - margin, mid));
     }
 
@@ -2236,10 +2247,12 @@
         });
       }
 
-      // Cursor vertical line — dashed + muted so wake/bed read as primary
+      // Cursor vertical line — dashed, tinted to match NOW pill so line + chip read as one
       const isFrozen = state && state.frozen_at != null;
       const cursorHour = shiftIntoWindow(currentHour);
-      const cursorLineColor = isFrozen ? 'rgba(99, 179, 237, 0.6)' : 'rgba(200, 200, 200, 0.45)';
+      const cursorLineColor = isFrozen
+        ? 'rgba(99, 179, 237, 0.7)'
+        : colorWithAlpha(cctToRGB(markerCCT), 0.7);
       const cursorLineStyle = { color: cursorLineColor, width: 1.25, dash: 'dash' };
 
       shapes.push({
@@ -2290,7 +2303,7 @@
         pillColor = readableTextColor(tintedBg);
       }
       annotations.push({
-        x: cursorHour, y: 1.22, xref: 'x', yref: 'paper',
+        x: cursorHour, y: 1.32, xref: 'x', yref: 'paper',
         text: pillText, showarrow: false,
         font: { size: 10, color: pillColor },
         align: 'center',
@@ -2341,7 +2354,7 @@
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        margin: { t: 56, r: 12, l: 32, b: 44 },
+        margin: { t: 68, r: 12, l: 32, b: 44 },
         hovermode: 'closest',
         xaxis: (() => {
           const tickvals = [];
@@ -5033,11 +5046,16 @@
     function initChartCardState() {
       const card = document.getElementById('chart-card');
       if (!card) return;
+      // Deep-linked into an auto card → collapse curve so target stays near top
+      if (_pageFocus === 'auto_on' || _pageFocus === 'auto_off' || _pageFocus === 'controls') {
+        card.classList.remove('is-open');
+        return;
+      }
       if (_persistCards) {
         const stored = localStorage.getItem('chart_collapsed');
-        if (stored === 'false') card.classList.add('is-open');
+        if (stored === 'true') card.classList.remove('is-open');
+        else card.classList.add('is-open');
       }
-      // Focused mode: stays collapsed (default)
     }
 
     function handleDeepLink() {

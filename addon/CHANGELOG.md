@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.116
+- **Slider thumbs no longer clipped**: thumb sized from 22px → 18px (border 2px → 1.5px) and tick row `margin-top: 2px → 8px`. Thumbs now sit clear of tick labels on all three sliders.
+- **NOW pill connected to its cursor line**: the dashed vertical at the current time was neutral gray, reading as a plot gridline. Now tinted with the pill's CCT/brightness color (`colorWithAlpha(cctToRGB(markerCCT), 0.7)`), so the line + chip + on-curve dot read as one linked NOW indicator. Frozen state uses the cool blue tone instead.
+- **NOW pill raised above moon/sun glyphs**: pill y `1.22 → 1.32`, layout `margin.t 56 → 68`. Prevents the pill from bumping into the ☀/☾ glyphs at times when cursor sits near sunrise or sunset.
+- **Curve card now collapsible**: the Curve header was static. Added a chevron + click handler (reusing the existing `toggleChartCard` / `initChartCardState` pair). When a deep link targets Auto-On or Auto-Off (`?focus=auto_on|auto_off|controls`), the Curve collapses automatically so the target card stays near the top of the viewport. Persists open/closed state in `localStorage.chart_collapsed`.
+- **Default bed/wake marker more prominent**: the ▾ triangle above the slider track grew `5→7px` tall, gained gold tint (`rgba(255, 215, 120, 0.95)`) and a drop-shadow. Was blend-into-the-track subtle; now reads as a proper landmark.
+- **Fix: curve no longer flips when bed_time falls before descend_start**: when a user dragged bed to ~12:40p or earlier (with default `descend_start` at noon/6p), `liftMidpointToPhase` wrapped the shifted midpoint forward 24h, producing a sigmoid centered next morning — the curve showed "bright the whole phase". `liftMidpointToPhase` now branches on phase span: the 24h-wide descend phase anchors at `phaseStart` instead of `phaseCenter`, so early-bed midpoints clamp to `phaseStart + margin` rather than jumping to the following day.
+
 ## 1.2.115
 - **Graph overhaul — split context to top, controls to bottom**:
   - **Sunrise/sunset move above the plot as ☀/☾ glyphs**: previously sat in a crowded bottom band alongside wake/bed + the Now pill. Now tier-1 above the curve carries passive environmental context (sun position), and tier-1 below the curve is reserved for the things the user *tunes* (wake, bed). Dotted vertical ticks for rise/set removed — the glyphs are anchored at the right x.
