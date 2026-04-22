@@ -2541,21 +2541,70 @@
       if (rPh) rPh.classList.toggle('hidden', areaState.brightness_mid == null && areaState.color_mid == null);
     }
 
+    // How far the shifted midpoint will be pushed from the user's target time,
+    // given the zone's brightness/slope config. Used to narrow the phase slider
+    // so the user can't land on a target whose shifted mid would escape the
+    // phase window (and then wrap via `% 24` on the server into the wrong day).
+    // Returns { minOffset, maxOffset } in hours to add to phaseMin / subtract
+    // from phaseMax.
+    function computePhaseSafeOffset(cfg, cursorInAscend) {
+      const brightnessPct = cursorInAscend
+        ? (cfg.wake_brightness || 50)
+        : (cfg.bed_brightness || 50);
+      if (brightnessPct === 50) return { minOffset: 0, maxOffset: 0 };
+      const speed = cursorInAscend ? cfg.wake_speed : cfg.bed_speed;
+      const slopeMag = SPEED_TO_SLOPE[Math.max(1, Math.min(10, speed))];
+      if (!(slopeMag > 0)) return { minOffset: 0, maxOffset: 0 };
+      const bMin = (cfg.min_brightness || 2) / 100;
+      const bMax = (cfg.max_brightness || 100) / 100;
+      const targetNorm = bMin + (bMax - bMin) * (brightnessPct / 100);
+      const eps = 0.001;
+      const clamped = Math.max(bMin + eps, Math.min(bMax - eps, targetNorm));
+      const ratio = (clamped - bMin) / (bMax - bMin);
+      const logTerm = Math.log((1 - ratio) / ratio);
+      // Ascend slope is +k; descend slope is -k. The inverse-midpoint formula
+      // returns `target + logTerm / slopeSigned`. For the shifted mid to stay
+      // inside [phaseMin, phaseMax], the target itself must be offset from the
+      // phase boundaries by the magnitude of that shift.
+      const slopeSigned = cursorInAscend ? slopeMag : -slopeMag;
+      const offset = logTerm / slopeSigned;
+      const margin = 0.25; // 15-min buffer past the strict minimum
+      return {
+        minOffset: Math.max(0, -offset) + margin,
+        maxOffset: Math.max(0, offset) + margin,
+      };
+    }
+
     function buildPhaseCtx(cfg, areaState, currentHour) {
       const tAscend = cfg.ascend_start;
       let tDescend = cfg.descend_start;
       if (tDescend <= tAscend) tDescend += 24;
       const h48 = currentHour < tAscend ? currentHour + 24 : currentHour;
       const cursorInAscend = h48 >= tAscend && h48 < tDescend;
-      const phaseMin = cursorInAscend ? tAscend : tDescend;
-      const phaseMax = cursorInAscend ? tDescend : tAscend + 24;
+      const phaseMinRaw = cursorInAscend ? tAscend : tDescend;
+      const phaseMaxRaw = cursorInAscend ? tDescend : tAscend + 24;
+      const { minOffset, maxOffset } = computePhaseSafeOffset(cfg, cursorInAscend);
+      let phaseMin = phaseMinRaw + minOffset;
+      let phaseMax = phaseMaxRaw - maxOffset;
+      // Fall back to raw bounds if narrowing inverted the window (extreme
+      // brightness + shallow slope); better to let the shift escape than to
+      // hand the user an empty slider.
+      if (phaseMax - phaseMin < 0.5) {
+        phaseMin = phaseMinRaw;
+        phaseMax = phaseMaxRaw;
+      }
       const status = areaStatus[selectedArea?.area_id] || {};
       const adj = cursorInAscend ? status.adjusted_wake_time : status.adjusted_bed_time;
       const base = cursorInAscend ? cfg.wake_time : cfg.bed_time;
       let targetH48 = adj != null ? adj : base;
-      while (targetH48 < phaseMin) targetH48 += 24;
-      while (targetH48 > phaseMax) targetH48 -= 24;
-      const currentTargetPct = Math.max(0, Math.min(100, (targetH48 - phaseMin) / (phaseMax - phaseMin) * 100));
+      // Normalize into the RAW window first so the while-loops can't get stuck
+      // when the saved target predates today's narrowing.
+      while (targetH48 < phaseMinRaw) targetH48 += 24;
+      while (targetH48 > phaseMaxRaw) targetH48 -= 24;
+      const span = phaseMax - phaseMin;
+      const currentTargetPct = span > 0
+        ? Math.max(0, Math.min(100, (targetH48 - phaseMin) / span * 100))
+        : 0;
       const currentTargetTime = ((targetH48 % 24) + 24) % 24;
       return { cursorInAscend, phaseMin, phaseMax, currentTargetPct, currentTargetTime, areaState, currentHour };
     }
