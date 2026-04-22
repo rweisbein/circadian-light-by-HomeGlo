@@ -375,7 +375,6 @@
       color: var(--text);
     }
     .hslider-reset {
-      margin-left: auto;
       background: transparent;
       border: 1px solid rgba(255,255,255,0.15);
       color: var(--muted2);
@@ -462,16 +461,28 @@
     }
     .hslider-default-marker {
       position: absolute;
-      top: -16px;
+      top: -30px;
       transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1px;
+      font-size: 0.56rem;
+      font-weight: 500;
+      color: rgba(255, 215, 120, 0.95);
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+      pointer-events: none;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+    }
+    .hslider-default-marker::after {
+      content: '';
       width: 0;
       height: 0;
-      border-left: 5px solid transparent;
-      border-right: 5px solid transparent;
-      border-top: 7px solid rgba(255, 215, 120, 0.95);
-      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6));
-      pointer-events: auto;
-      cursor: help;
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-top: 6px solid rgba(255, 215, 120, 0.95);
+      filter: drop-shadow(0 1px 1px rgba(0,0,0,0.5));
     }
     /* Circadian-off overlay */
     .circadian-off-overlay::after {
@@ -960,8 +971,8 @@
     <div id="auto-sched-section" class="auto-sched-section" style="display:none;">
     <div class="auto-sched-card auto-sched-card--headline is-open" id="chart-card">
       <div class="auto-sched-header" onclick="toggleChartCard()">
+        <span class="auto-sched-chevron">&#x203A;</span>
         <span class="auto-sched-title">Curve</span>
-        <span class="auto-sched-chevron" style="margin-left:auto;">&rsaquo;</span>
       </div>
       <div class="auto-sched-body" id="chart-body">
         <div id="mini-chart"></div>
@@ -2237,7 +2248,7 @@
       // Sunrise/sunset glyphs above the plot — passive environmental context
       if (Number.isFinite(sunrise)) {
         annotations.push({
-          x: sunriseX, y: 1.07, xref: 'x', yref: 'paper',
+          x: sunriseX, y: 1.15, xref: 'x', yref: 'paper',
           text: '☀', showarrow: false,
           font: { size: 14, color: 'rgba(255, 214, 120, 0.85)' },
           hovertext: 'sunrise · ' + formatHourLabel(sunrise),
@@ -2246,7 +2257,7 @@
       }
       if (Number.isFinite(sunset)) {
         annotations.push({
-          x: sunsetX, y: 1.07, xref: 'x', yref: 'paper',
+          x: sunsetX, y: 1.15, xref: 'x', yref: 'paper',
           text: '☾', showarrow: false,
           font: { size: 14, color: 'rgba(180, 200, 230, 0.85)' },
           hovertext: 'sunset · ' + formatHourLabel(sunset),
@@ -2266,7 +2277,7 @@
       // edge (pill sits at y=1.45, so stop just below at 1.40 for a visual tuck).
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: cursorHour, x1: cursorHour, y0: 0, y1: 1.20,
+        x0: cursorHour, x1: cursorHour, y0: 0, y1: 1.14,
         line: cursorLineStyle, layer: 'above'
       });
 
@@ -2312,7 +2323,7 @@
         pillColor = readableTextColor(tintedBg);
       }
       annotations.push({
-        x: cursorHour, y: 1.25, xref: 'x', yref: 'paper',
+        x: cursorHour, y: 1.20, xref: 'x', yref: 'paper',
         text: pillText, showarrow: false,
         font: { size: 10, color: pillColor },
         align: 'center',
@@ -2363,7 +2374,7 @@
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        margin: { t: 50, r: 12, l: 32, b: 56 },
+        margin: { t: 40, r: 12, l: 32, b: 56 },
         hovermode: 'closest',
         xaxis: (() => {
           const tickvals = [];
@@ -2591,7 +2602,7 @@
             const marker = document.createElement('span');
             marker.className = 'hslider-default-marker';
             marker.style.left = pct + '%';
-            marker.title = 'default ' + (cursorInAscend ? 'wake' : 'bed') + ' · ' + formatPhaseTime(defaultH);
+            marker.textContent = (cursorInAscend ? 'wake' : 'bed') + ' ' + formatPhaseTime(defaultH);
             el.appendChild(marker);
           }
         }

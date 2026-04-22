@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.121
+- **Further tightened dead space above the curve**: `margin.t 50 → 40`, NOW pill `y 1.25 → 1.20`, cursor line `y1 1.20 → 1.14`. Sun/moon glyphs raised `y 1.07 → 1.15` so the slightly-cramped layout keeps clearance between the pill and the ☀/☾ glyphs.
+- **Curve card chevron now on the left** — matches Auto On / Auto Off / Controls cards. Previous layout had the Curve chevron pinned to the right via `margin-left:auto`, which was the only card that did that.
+- **Reset button now adjacent to the value** on brightness/color/phase sliders. Removed `margin-left: auto` from `.hslider-reset` so the ↺ sits immediately after the value instead of floating to the far right edge of the row.
+- **Default-time indicator is now a visible label, not a hover tooltip**: the small gold triangle on the phase slider used a `title` attribute + `cursor: help` so you had to hover to discover "default wake 7a". Replaced with a compact visible label (e.g. `wake 7a` / `bed 11p`) above the triangle — no hover required.
+
 ## 1.2.120
 - **Slider thumbs no longer flattened on top/bottom**: the 18px circular thumb was being clipped by the 8px track's box because `.slider-track` carried `filter: saturate(0.55)` — filter creates a rendering surface sized to the element, which effectively clips overflowing children. On hover the filter became `saturate(1)` (identity), which browsers optimize as "no filter," removing the clip — exactly why the thumb looked correct only when hovered. Moved the track's background + filter onto a new `.slider-track-bg` child div; the thumb is now a sibling outside the filtered box and renders in full at all times.
 - **Reclaim wasted space above the curve**: `margin.t 84 → 50` and NOW pill `y 1.45 → 1.25` (cursor line `y1 1.40 → 1.20`). The raised pill left ~40px of dead black space above the curve; the new values keep the pill clearly above the plot without the wasted headroom.
