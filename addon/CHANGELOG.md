@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.117
+- **Cursor dashed line now reaches the NOW pill**: line's y-reference was `y` (data coords) so it stopped at the top of the plot area, leaving a visible gap between the line and the pill floating in the top margin. Changed to `yref: 'paper'` with `y1: 1.40`, so the line extends through the margin straight up into the pill's underside. Line + dot + pill now read as one linked NOW indicator.
+- **NOW pill raised further**: `y 1.32 → 1.45`, `margin.t 68 → 84`. Earlier positioning left the pill visually adjacent to the ☾/☀ glyphs and the bed label; moving it higher separates it clearly and affirms its role as an "above-plot header" for the cursor.
+- **Slider thumb no longer clipped by header**: `.hslider-row` gap `4px → 10px`. The 18px thumb protrudes 5px above the 8px track; the old 4px gap left the thumb's top half underneath the label/value text row. 10px gives the thumb clear air above the track.
+- **Fix: curve no longer flips when bed set to late hours (e.g. 1:10a)**: the v1.2.116 fix for early-bed (before descend_start) inadvertently broke late-bed by anchoring the wide descend phase at `phaseStart` instead of `phaseCenter` — so `bed=1:10a` clamped to noon instead of wrapping to 25:10. Reverted `liftMidpointToPhase` to phase-center anchoring (correct for late-bed wrap). Moved the early-bed fix to its proper layer: in `calcMiniBrightness`, the shifted bed midpoint now clamps to `[tDescend + 0.01, tDescend + 24 − 0.01]` instead of `% 24` wrapping, preventing the shift-induced midpoint from re-wrapping to the following day.
+
 ## 1.2.116
 - **Slider thumbs no longer clipped**: thumb sized from 22px → 18px (border 2px → 1.5px) and tick row `margin-top: 2px → 8px`. Thumbs now sit clear of tick labels on all three sliders.
 - **NOW pill connected to its cursor line**: the dashed vertical at the current time was neutral gray, reading as a plot gridline. Now tinted with the pill's CCT/brightness color (`colorWithAlpha(cctToRGB(markerCCT), 0.7)`), so the line + chip + on-curve dot read as one linked NOW indicator. Frozen state uses the cool blue tone instead.

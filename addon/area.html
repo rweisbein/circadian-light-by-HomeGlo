@@ -354,7 +354,7 @@
     .hslider-row {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 10px;
     }
     .hslider-header {
       display: flex;
@@ -1378,20 +1378,11 @@
     }
 
     function liftMidpointToPhase(midpoint, phaseStart, phaseEnd) {
-      const phaseSpan = phaseEnd - phaseStart;
-      const margin = 0.01;
+      const phaseCenter = (phaseStart + phaseEnd) / 2;
       let mid = midpoint;
-      if (phaseSpan >= 24) {
-        // Wide phase (descend spans 24h): anchor at phaseStart so midpoints slightly
-        // before phaseStart clamp to the phase edge instead of wrapping forward 24h
-        // (which caused the "curve flips when bed < descend_start" bug).
-        while (mid < phaseStart - 12) mid += 24;
-        while (mid >= phaseStart + 12) mid -= 24;
-      } else {
-        const phaseCenter = (phaseStart + phaseEnd) / 2;
-        while (mid < phaseCenter - 12) mid += 24;
-        while (mid > phaseCenter + 12) mid -= 24;
-      }
+      while (mid < phaseCenter - 12) mid += 24;
+      while (mid > phaseCenter + 12) mid -= 24;
+      const margin = 0.01;
       return Math.max(phaseStart + margin, Math.min(phaseEnd - margin, mid));
     }
 
@@ -1566,14 +1557,18 @@
           let mid48 = wakeMid;
           while (mid48 < tAscend) mid48 += 24;
           while (mid48 > tDescend) mid48 -= 24;
-          wakeMid = computeShiftedMidpoint(mid48, wakeBrightPct, kAscend, bMin, bMax) % 24;
+          const shifted = computeShiftedMidpoint(mid48, wakeBrightPct, kAscend, bMin, bMax);
+          wakeMid = Math.max(tAscend + 0.01, Math.min(tDescend - 0.01, shifted));
         }
         const bedBrightPct = cfg.bed_brightness || 50;
         if (bedBrightPct !== 50) {
           let mid48 = bedMid;
           while (mid48 < tDescend) mid48 += 24;
           while (mid48 > tDescend + 24) mid48 -= 24;
-          bedMid = computeShiftedMidpoint(mid48, bedBrightPct, -kDescend, bMin, bMax) % 24;
+          const shifted = computeShiftedMidpoint(mid48, bedBrightPct, -kDescend, bMin, bMax);
+          // Clamp to phase bounds rather than % 24 wrapping — prevents shifted midpoint
+          // that crosses phaseStart from getting re-wrapped to the next day by liftMidpointToPhase.
+          bedMid = Math.max(tDescend + 0.01, Math.min(tDescend + 24 - 0.01, shifted));
         }
       }
 
@@ -2255,9 +2250,11 @@
         : colorWithAlpha(cctToRGB(markerCCT), 0.7);
       const cursorLineStyle = { color: cursorLineColor, width: 1.25, dash: 'dash' };
 
+      // Line extends from plot bottom up into the margin, reaching the pill's bottom
+      // edge (pill sits at y=1.45, so stop just below at 1.40 for a visual tuck).
       shapes.push({
-        type: 'line', xref: 'x', yref: 'y',
-        x0: cursorHour, x1: cursorHour, y0: 0, y1: 100,
+        type: 'line', xref: 'x', yref: 'paper',
+        x0: cursorHour, x1: cursorHour, y0: 0, y1: 1.40,
         line: cursorLineStyle, layer: 'above'
       });
 
@@ -2303,7 +2300,7 @@
         pillColor = readableTextColor(tintedBg);
       }
       annotations.push({
-        x: cursorHour, y: 1.32, xref: 'x', yref: 'paper',
+        x: cursorHour, y: 1.45, xref: 'x', yref: 'paper',
         text: pillText, showarrow: false,
         font: { size: 10, color: pillColor },
         align: 'center',
@@ -2354,7 +2351,7 @@
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        margin: { t: 68, r: 12, l: 32, b: 44 },
+        margin: { t: 84, r: 12, l: 32, b: 44 },
         hovermode: 'closest',
         xaxis: (() => {
           const tickvals = [];
