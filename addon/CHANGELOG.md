@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.120
+- **Slider thumbs no longer flattened on top/bottom**: the 18px circular thumb was being clipped by the 8px track's box because `.slider-track` carried `filter: saturate(0.55)` — filter creates a rendering surface sized to the element, which effectively clips overflowing children. On hover the filter became `saturate(1)` (identity), which browsers optimize as "no filter," removing the clip — exactly why the thumb looked correct only when hovered. Moved the track's background + filter onto a new `.slider-track-bg` child div; the thumb is now a sibling outside the filtered box and renders in full at all times.
+- **Reclaim wasted space above the curve**: `margin.t 84 → 50` and NOW pill `y 1.45 → 1.25` (cursor line `y1 1.40 → 1.20`). The raised pill left ~40px of dead black space above the curve; the new values keep the pill clearly above the plot without the wasted headroom.
+- **Wake/bed labels no longer overlap x-axis tick labels**: the shrunken plot area (from the previous over-tall `margin.t`) caused `y=-0.33` to render only ~20px below the plot, right on top of the time-tick row. Added `yshift: -12` to both wake and bed annotations so they sit cleanly below tick labels regardless of plot height, and bumped `margin.b 44 → 56` to give the shifted labels room.
+
 ## 1.2.119
 - **Revert 1.2.118 2-step gate change**: the previous version expanded off→on 2-step to ignore the CT delta check. That was the wrong call — our tracked `prev_kelvin` is the authoritative record of what the bulb was last commanded to, and small deltas really are small. Forcing 2-step in that case only slowed down turn-on without benefit. Reverted to the prior gate: 2-step only when `abs(new_kelvin − prev_kelvin) >= two_step_ct_threshold`.
 

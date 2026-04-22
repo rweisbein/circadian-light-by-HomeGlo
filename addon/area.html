@@ -403,16 +403,23 @@
       position: relative;
       width: 100%;
       height: 8px;
-      background: rgba(255,255,255,0.08);
       border-radius: 4px;
       cursor: pointer;
       touch-action: none;
       overflow: visible;
+    }
+    .slider-track-bg {
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.08);
+      border-radius: inherit;
       filter: saturate(0.55);
       transition: filter 0.2s ease;
+      pointer-events: none;
+      z-index: 0;
     }
-    .slider-track:hover,
-    .slider-track.dragging {
+    .slider-track:hover .slider-track-bg,
+    .slider-track.dragging .slider-track-bg {
       filter: saturate(1);
     }
     .slider-thumb {
@@ -967,6 +974,7 @@
                 <button class="hslider-reset hidden" id="reset-brightness" onclick="executeAction('reset_brightness_override')" title="Reset brightness">&#x21BA;</button>
               </div>
               <div class="slider-track" data-mode="brightness">
+                <div class="slider-track-bg"></div>
                 <div class="slider-thumb"></div>
               </div>
             </div>
@@ -977,6 +985,7 @@
                 <button class="hslider-reset hidden" id="reset-color" onclick="executeAction('reset_color_override')" title="Reset color">&#x21BA;</button>
               </div>
               <div class="slider-track" data-mode="color">
+                <div class="slider-track-bg"></div>
                 <div class="slider-thumb"></div>
               </div>
             </div>
@@ -987,6 +996,7 @@
                 <button class="hslider-reset hidden" id="reset-phase" onclick="executeAction('reset_phase')" title="Reset wake/bed time">&#x21BA;</button>
               </div>
               <div class="slider-track" data-mode="phase">
+                <div class="slider-track-bg"></div>
                 <div class="slider-thumb"></div>
               </div>
               <div class="hslider-ticks" id="slider-ticks-phase"></div>
@@ -2209,6 +2219,7 @@
       const bedLabelColor = bedIsActive ? '#ffe680' : 'rgba(255, 230, 128, 0.45)';
       annotations.push({
         x: effectiveWake, y: -0.33, xref: 'x', yref: 'paper',
+        yshift: -12,
         text: hasAdjWake ? 'wake*' : 'wake', showarrow: false,
         font: { size: 11, color: wakeLabelColor },
         hovertext: formatHourLabel(effectiveWake),
@@ -2216,6 +2227,7 @@
       });
       annotations.push({
         x: effectiveBed, y: -0.33, xref: 'x', yref: 'paper',
+        yshift: -12,
         text: hasAdjBed ? 'bed*' : 'bed', showarrow: false,
         font: { size: 11, color: bedLabelColor },
         hovertext: formatHourLabel(effectiveBed),
@@ -2254,7 +2266,7 @@
       // edge (pill sits at y=1.45, so stop just below at 1.40 for a visual tuck).
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: cursorHour, x1: cursorHour, y0: 0, y1: 1.40,
+        x0: cursorHour, x1: cursorHour, y0: 0, y1: 1.20,
         line: cursorLineStyle, layer: 'above'
       });
 
@@ -2300,7 +2312,7 @@
         pillColor = readableTextColor(tintedBg);
       }
       annotations.push({
-        x: cursorHour, y: 1.45, xref: 'x', yref: 'paper',
+        x: cursorHour, y: 1.25, xref: 'x', yref: 'paper',
         text: pillText, showarrow: false,
         font: { size: 10, color: pillColor },
         align: 'center',
@@ -2351,7 +2363,7 @@
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        margin: { t: 84, r: 12, l: 32, b: 44 },
+        margin: { t: 50, r: 12, l: 32, b: 56 },
         hovermode: 'closest',
         xaxis: (() => {
           const tickvals = [];
@@ -2480,7 +2492,7 @@
         } else {
           return;
         }
-        track.style.background = buildTrackGradient(mode, cfg, currentBri, currentCCT, effRange, phaseCtx);
+        (track.querySelector('.slider-track-bg') || track).style.background = buildTrackGradient(mode, cfg, currentBri, currentCCT, effRange, phaseCtx);
         applyOneSlider(track, pct, thumbBri, thumbCCT, mode);
       });
 
@@ -2884,7 +2896,7 @@
         const ct = 1 / (1 + Math.exp(-slopeSigned * (now48 - shiftedMid)));
         const previewBri = Math.max(0, Math.min(100, (bMinNorm + (bMaxNorm - bMinNorm) * ct) * 100));
         const previewCCT = cMin + (cMax - cMin) * ct;
-        track.style.background = buildTrackGradient(dragMode, cfg, previewBri, previewCCT, effRange, phaseCtx);
+        (track.querySelector('.slider-track-bg') || track).style.background = buildTrackGradient(dragMode, cfg, previewBri, previewCCT, effRange, phaseCtx);
         applyOneSlider(track, position, previewBri, previewCCT, dragMode);
         const heroPhase = document.getElementById('slider-hero-phase');
         if (heroPhase) heroPhase.textContent = formatPhaseTime(((targetH48 % 24) + 24) % 24);
@@ -2905,7 +2917,7 @@
       const briFrac = bMax > bMin ? Math.max(0, Math.min(100, (previewBri - bMin) / (bMax - bMin) * 100)) : 50;
       const cctFrac = cMax > cMin ? Math.max(0, Math.min(100, (previewCCT - cMin) / (cMax - cMin) * 100)) : 50;
       const pct = dragMode === 'brightness' ? briFrac : cctFrac;
-      track.style.background = buildTrackGradient(dragMode, cfg, previewBri, previewCCT, effRange, phaseCtx);
+      (track.querySelector('.slider-track-bg') || track).style.background = buildTrackGradient(dragMode, cfg, previewBri, previewCCT, effRange, phaseCtx);
       applyOneSlider(track, pct, previewBri, previewCCT, dragMode);
     }
 
