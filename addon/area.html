@@ -2130,11 +2130,26 @@
         }
       });
 
-      // Live position values (drives now-pill + cursor styling). No floating marker —
-      // the colored header + pill already convey current state.
+      // Live position values (drives now-pill + cursor styling).
+      // Prefer server-truth fields (actual_brightness / api_kelvin) — the same
+      // sources the Bright/Color slider headers and the Lights section read.
+      // This sidesteps two known client-vs-server mismatches that otherwise
+      // make the NOW pill disagree with the slider for ~30s after a drag:
+      //   (a) clock-precision race: server writes override_set_at with
+      //       second-precision wall clock, client's currentHour is
+      //       minute-floored, so h48 >= setAt48 fails for the NOW sample
+      //       while curve samples 6 min later succeed.
+      //   (b) accounting mismatch: server's set_position(brightness) stores
+      //       override = target - last_sent_brightness (post-everything),
+      //       while client renders room = pure_logistic × area_factor +
+      //       override (pre-everything) — ~2% drift on steep descend.
+      // Fall back to the computed (pure + override) values only when the
+      // server-truth fields aren't populated (cold start / mode switch).
       const markerRoom = calcMiniBrightness(currentHour, cfg, state, currentHour) * 100;
       let markerBri = calcBulbBrightnessAt(currentHour, curveSunTimes, currentHour, markerRoom);
       let markerCCT = calcMiniColor(currentHour, cfg, state, sunTimes, currentHour);
+      if (Number.isFinite(areaLive.actual_brightness)) markerBri = areaLive.actual_brightness;
+      if (Number.isFinite(areaLive.api_kelvin)) markerCCT = areaLive.api_kelvin;
       if (markerOverride) {
         if (Number.isFinite(markerOverride.bri)) markerBri = markerOverride.bri;
         if (Number.isFinite(markerOverride.cct)) markerCCT = markerOverride.cct;
