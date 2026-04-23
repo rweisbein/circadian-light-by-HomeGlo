@@ -497,6 +497,82 @@
       pointer-events: none;
       text-shadow: 0 1px 2px rgba(0,0,0,0.6);
     }
+    /* Chart hero cluster — tethered below plot at active handle's x-position */
+    #chart-shell {
+      position: relative;
+      padding-bottom: 56px;
+    }
+    .chart-hero {
+      position: absolute;
+      left: 0;
+      bottom: 4px;
+      transform: translate(-50%, 0);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      pointer-events: none;
+      z-index: 4;
+      padding-top: 2px;
+    }
+    .chart-hero-line1,
+    .chart-hero-line2 {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      pointer-events: auto;
+    }
+    .chart-hero-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: rgba(220, 220, 220, 0.7);
+    }
+    .chart-hero-reset {
+      background: none;
+      border: none;
+      color: rgba(200, 200, 200, 0.65);
+      font-size: 0.85rem;
+      line-height: 1;
+      padding: 2px 4px;
+      cursor: pointer;
+      border-radius: 3px;
+    }
+    .chart-hero-reset:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .chart-hero-reset.hidden {
+      display: none;
+    }
+    .chart-hero-time {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--text);
+      min-width: 60px;
+      text-align: center;
+    }
+    .chart-hero-step {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: rgba(220, 220, 220, 0.85);
+      font-size: 0.7rem;
+      line-height: 1;
+      padding: 4px 7px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: opacity 0.15s, background 0.15s;
+    }
+    .chart-hero-step:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+    .chart-hero-step:disabled {
+      opacity: 0.25;
+      cursor: default;
+    }
     /* Circadian-off overlay */
     .circadian-off-overlay::after {
       content: '';
@@ -986,10 +1062,23 @@
     <div class="auto-sched-card auto-sched-card--headline is-open" id="chart-card">
       <div class="auto-sched-header" onclick="toggleChartCard()">
         <span class="auto-sched-chevron">&#x203A;</span>
-        <span class="auto-sched-title">Curve</span>
+        <span class="auto-sched-title">Adjust</span>
       </div>
       <div class="auto-sched-body" id="chart-body">
-        <div id="mini-chart"></div>
+        <div id="chart-shell">
+          <div id="mini-chart"></div>
+          <div id="chart-hero" class="chart-hero" style="display:none;">
+            <div class="chart-hero-line1">
+              <span class="chart-hero-label" id="chart-hero-label">Wake</span>
+              <button class="chart-hero-reset hidden" id="reset-phase" onclick="executeAction('reset_phase')" title="Reset wake/bed time">&#x21BA;</button>
+            </div>
+            <div class="chart-hero-line2">
+              <button class="chart-hero-step" id="chart-step-back" type="button" title="Earlier" onclick="chartHeroStep('back')">&#x25C0;</button>
+              <span class="chart-hero-time" id="chart-hero-time">—</span>
+              <button class="chart-hero-step" id="chart-step-fwd" type="button" title="Later" onclick="chartHeroStep('fwd')">&#x25B6;</button>
+            </div>
+          </div>
+        </div>
         <div id="circadian-content-wrap" class="curve-controls-wrap">
           <div class="adjust-section">
             <div class="hslider-row">
@@ -1013,18 +1102,6 @@
                 <div class="slider-track-bg"></div>
                 <div class="slider-thumb"></div>
               </div>
-            </div>
-            <div class="hslider-row">
-              <div class="hslider-header">
-                <span class="hslider-label" id="slider-label-phase">Wake</span>
-                <span class="hslider-value" id="slider-hero-phase">—</span>
-                <button class="hslider-reset hidden" id="reset-phase" onclick="executeAction('reset_phase')" title="Reset wake/bed time">&#x21BA;</button>
-              </div>
-              <div class="slider-track" data-mode="phase">
-                <div class="slider-track-bg"></div>
-                <div class="slider-thumb"></div>
-              </div>
-              <div class="hslider-ticks" id="slider-ticks-phase"></div>
             </div>
           </div>
           <button class="enable-circadian-btn" id="enable-circadian-btn"
@@ -1923,6 +2000,20 @@
       chartDiv.addEventListener('pointerup', onUp);
       chartDiv.addEventListener('pointercancel', onUp);
       chartDiv.addEventListener('pointerleave', onLeave);
+
+      // Re-align the chart-hero cluster whenever the chart resizes
+      // (responsive: true on Plotly means the plot stretches with the
+      // container, but our overlay needs a recompute).
+      if (window.ResizeObserver) {
+        const ro = new ResizeObserver(() => {
+          if (!selectedArea) return;
+          const ctx = getSliderCfgAndState();
+          if (!ctx) return;
+          const phaseCtx = buildPhaseCtx(ctx.cfg, ctx.areaState, ctx.currentHour);
+          updateChartHero(phaseCtx, ctx.cfg, ctx.areaState);
+        });
+        ro.observe(chartDiv);
+      }
     }
 
     function renderMiniChart(cfg, state, sunTimes, currentHour, isActive, adjustedTimes, markerOverride) {
@@ -2088,25 +2179,39 @@
       const bedWidth = bedIsActive ? 2.5 : 1.25;
       const wakeTopPaper = wakeIsActive ? vLineTop : yToPaper(curveYAt(wakeTime));
       const bedTopPaper = bedIsActive ? vLineTop : yToPaper(curveYAt(bedTime));
+      // Daily (default) wake/bed lines — muted phase color when shifted (so the
+      // user can see the gap between daily and adjusted) rather than neutral gray.
+      const wakeDailyLine = hasAdjWake
+        ? { color: 'rgba(92, 179, 255, 0.28)', width: 1.25, dash: 'dot' }
+        : { color: wakeColor, width: wakeWidth };
+      const bedDailyLine = hasAdjBed
+        ? { color: 'rgba(255, 230, 128, 0.28)', width: 1.25, dash: 'dot' }
+        : { color: bedColor, width: bedWidth };
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
         x0: wakeTime, x1: wakeTime, y0: -0.29, y1: wakeTopPaper,
-        line: hasAdjWake
-          ? { color: 'rgba(160, 160, 160, 0.22)', width: 1, dash: 'dot' }
-          : { color: wakeColor, width: wakeWidth }
+        line: wakeDailyLine
       });
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
         x0: bedTime, x1: bedTime, y0: -0.29, y1: bedTopPaper,
-        line: hasAdjBed
-          ? { color: 'rgba(160, 160, 160, 0.22)', width: 1, dash: 'dot' }
-          : { color: bedColor, width: bedWidth }
+        line: bedDailyLine
       });
 
-      // Adjusted wake/bed vertical lines (solid, colored) when midpoint is shifted
+      // Adjusted wake/bed vertical lines (solid, colored) when midpoint is shifted,
+      // and a faint phase-colored band between daily and adjusted so the shift
+      // reads visually (replaces the old "(+30m)" delta text).
       if (hasAdjWake) {
         const adjWake = shiftIntoWindow(adjustedTimes.wake);
         const adjWakeTop = wakeIsActive ? vLineTop : yToPaper(curveYAt(adjWake));
+        const bandX0 = Math.min(wakeTime, adjWake);
+        const bandX1 = Math.max(wakeTime, adjWake);
+        shapes.push({
+          type: 'rect', xref: 'x', yref: 'paper',
+          x0: bandX0, x1: bandX1, y0: -0.29, y1: Math.max(wakeTopPaper, adjWakeTop),
+          fillcolor: 'rgba(92, 179, 255, 0.14)',
+          line: { width: 0 }, layer: 'below'
+        });
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
           x0: adjWake, x1: adjWake, y0: -0.29, y1: adjWakeTop,
@@ -2116,6 +2221,14 @@
       if (hasAdjBed) {
         const adjBed = shiftIntoWindow(adjustedTimes.bed);
         const adjBedTop = bedIsActive ? vLineTop : yToPaper(curveYAt(adjBed));
+        const bandX0 = Math.min(bedTime, adjBed);
+        const bandX1 = Math.max(bedTime, adjBed);
+        shapes.push({
+          type: 'rect', xref: 'x', yref: 'paper',
+          x0: bandX0, x1: bandX1, y0: -0.29, y1: Math.max(bedTopPaper, adjBedTop),
+          fillcolor: 'rgba(255, 230, 128, 0.14)',
+          line: { width: 0 }, layer: 'below'
+        });
         shapes.push({
           type: 'line', xref: 'x', yref: 'paper',
           x0: adjBed, x1: adjBed, y0: -0.29, y1: adjBedTop,
@@ -2191,23 +2304,10 @@
         return bulbPct[bulbPct.length - 1];
       })();
 
-      // Handle hover: show time + ±delta from default + drag affordance
+      // Handle hover: show time + drag affordance (visual delta band replaces delta text)
       const defaultMidHour = cursorInAscendGeom ? wakeTime : bedTime;
       const isHandleShifted = cursorInAscendGeom ? hasAdjWake : hasAdjBed;
-      const fmtDelta = (dh) => {
-        const totalMin = Math.round(dh * 60);
-        if (totalMin === 0) return '';
-        const sign = totalMin > 0 ? '+' : '\u2212';
-        const m = Math.abs(totalMin);
-        if (m >= 60) {
-          const h = Math.floor(m / 60), rem = m % 60;
-          return rem ? `${sign}${h}h${rem}m` : `${sign}${h}h`;
-        }
-        return `${sign}${m}m`;
-      };
-      const deltaStr = isHandleShifted ? fmtDelta(activeMidHour - defaultMidHour) : '';
       const handleLabel = (cursorInAscendGeom ? 'wake' : 'bed') + ' \u00B7 ' + formatHourLabel(activeMidHour)
-        + (deltaStr ? ' (' + deltaStr + ')' : '')
         + '<br><span style="font-size:10px; opacity:0.7;">drag to shift</span>';
       traces.push({
         type: 'scatter', mode: 'markers',
@@ -2296,48 +2396,49 @@
       const sunriseX = shiftIntoWindow(sunrise);
       const sunsetX = shiftIntoWindow(sunset);
 
-      // Wake/bed labels below plot — keep these as the "tune-able" markers
       const effectiveWake = hasAdjWake ? shiftIntoWindow(adjustedTimes.wake) : wakeTime;
       const effectiveBed = hasAdjBed ? shiftIntoWindow(adjustedTimes.bed) : bedTime;
-      const wakeLabelColor = wakeIsActive ? '#5cb3ff' : 'rgba(92, 179, 255, 0.45)';
-      const bedLabelColor = bedIsActive ? '#ffe680' : 'rgba(255, 230, 128, 0.45)';
-      annotations.push({
-        x: effectiveWake, y: -0.33, xref: 'x', yref: 'paper',
-        yshift: -12,
-        text: hasAdjWake ? 'wake*' : 'wake', showarrow: false,
-        font: { size: 11, color: wakeLabelColor },
-        hovertext: formatHourLabel(effectiveWake),
-        hoverlabel: { bgcolor: '#7fc7ff', bordercolor: '#7fc7ff', font: { color: '#000', size: 12 } }
-      });
-      annotations.push({
-        x: effectiveBed, y: -0.33, xref: 'x', yref: 'paper',
-        yshift: -12,
-        text: hasAdjBed ? 'bed*' : 'bed', showarrow: false,
-        font: { size: 11, color: bedLabelColor },
-        hovertext: formatHourLabel(effectiveBed),
-        hoverlabel: { bgcolor: '#ffe680', bordercolor: '#ffe680', font: { color: '#000', size: 12 } }
-      });
 
-      // Sunrise/sunset glyphs — placed just below the plot top edge, above the
-      // curve peak (y≈0.68 in paper coords for a 75/110 natural-light plateau),
-      // so the NOW pill can sit above the plot with room to separate.
+      // Sunrise/sunset SVG icons — inline SVG via data URI. Replaces the old
+      // ☀/☾ glyphs which read more as "sun/moon" than as rise/set events.
       const cursorHour = shiftIntoWindow(currentHour);
+      const svgSunrise = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="rgb(255,214,120)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/></svg>';
+      const svgSunset = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="rgb(180,200,230)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10V2"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m16 6-4 4-4-4"/><path d="M16 18a4 4 0 0 0-8 0"/></svg>';
+      const images = [];
+      const iconSizeX = 0.8; // hours
+      const iconSizeY = 0.14; // paper fraction
       if (Number.isFinite(sunrise)) {
-        annotations.push({
-          x: sunriseX, y: 0.90, xref: 'x', yref: 'paper',
-          text: '☀', showarrow: false,
-          font: { size: 14, color: 'rgba(255, 214, 120, 0.85)' },
-          hovertext: 'sunrise · ' + formatHourLabel(sunrise),
-          hoverlabel: { bgcolor: '#3a3a3a', bordercolor: '#3a3a3a', font: { color: '#fff', size: 12 } }
+        images.push({
+          source: 'data:image/svg+xml;utf8,' + encodeURIComponent(svgSunrise),
+          xref: 'x', yref: 'paper',
+          x: sunriseX, y: 0.97,
+          sizex: iconSizeX, sizey: iconSizeY,
+          xanchor: 'center', yanchor: 'top',
+          layer: 'above'
+        });
+        traces.push({
+          type: 'scatter', mode: 'markers',
+          x: [sunriseX], y: [100],
+          marker: { size: 18, color: 'rgba(0,0,0,0)' },
+          hovertext: 'sunrise \u00B7 ' + formatHourLabel(sunrise),
+          hoverinfo: 'text', showlegend: false, cliponaxis: false
         });
       }
       if (Number.isFinite(sunset)) {
-        annotations.push({
-          x: sunsetX, y: 0.90, xref: 'x', yref: 'paper',
-          text: '☾', showarrow: false,
-          font: { size: 14, color: 'rgba(180, 200, 230, 0.85)' },
-          hovertext: 'sunset · ' + formatHourLabel(sunset),
-          hoverlabel: { bgcolor: '#3a3a3a', bordercolor: '#3a3a3a', font: { color: '#fff', size: 12 } }
+        images.push({
+          source: 'data:image/svg+xml;utf8,' + encodeURIComponent(svgSunset),
+          xref: 'x', yref: 'paper',
+          x: sunsetX, y: 0.97,
+          sizex: iconSizeX, sizey: iconSizeY,
+          xanchor: 'center', yanchor: 'top',
+          layer: 'above'
+        });
+        traces.push({
+          type: 'scatter', mode: 'markers',
+          x: [sunsetX], y: [100],
+          marker: { size: 18, color: 'rgba(0,0,0,0)' },
+          hovertext: 'sunset \u00B7 ' + formatHourLabel(sunset),
+          hoverinfo: 'text', showlegend: false, cliponaxis: false
         });
       }
 
@@ -2410,27 +2511,6 @@
         borderpad: 4
       });
 
-      // Conditions chip — only during daylight (no sun → no weather story)
-      const condMult = sunTimes.conditionMultiplier;
-      const cursorIsDaylight = Number.isFinite(sunrise) && Number.isFinite(sunset)
-        && cursorHour >= sunriseX && cursorHour <= sunsetX;
-      if (condMult != null && Number.isFinite(condMult) && cursorIsDaylight) {
-        const isSunny = condMult >= 0.85;
-        const condLabel = isSunny ? 'Sunny' : 'Cloudy';
-        const condColor = isSunny ? 'rgba(255, 214, 120, 0.95)' : 'rgba(180, 200, 220, 0.85)';
-        const condBorder = isSunny ? 'rgba(255, 214, 120, 0.55)' : 'rgba(180, 200, 220, 0.45)';
-        annotations.push({
-          x: 0.995, y: 0.97, xref: 'paper', yref: 'paper',
-          xanchor: 'right', yanchor: 'top',
-          text: condLabel, showarrow: false,
-          font: { size: 9.5, color: condColor },
-          bgcolor: 'rgba(30, 30, 30, 0.6)',
-          bordercolor: condBorder,
-          borderwidth: 1,
-          borderpad: 3
-        });
-      }
-
       // Curve labels — anchor at peak divergence when the two curves are meaningfully apart
       if (hasDivergence) {
         const divX = hours[maxDivergenceIdx];
@@ -2438,7 +2518,7 @@
         const divBulbY = bulbPct[maxDivergenceIdx];
         annotations.push({
           x: divX, y: divRoomY, xref: 'x', yref: 'y',
-          text: 'natural light', showarrow: false, yshift: 10,
+          text: 'sun exposure', showarrow: false, yshift: 10,
           font: { size: 9, color: 'rgba(220, 220, 220, 0.7)' }
         });
         annotations.push({
@@ -2487,6 +2567,7 @@
         },
         shapes,
         annotations,
+        images,
         showlegend: false
       };
 
@@ -2497,6 +2578,11 @@
         scrollZoom: false
       });
       setupChartDragHandlers();
+      // Re-position the hero cluster against the freshly-rendered chart.
+      try {
+        const phaseCtx = buildPhaseCtx(cfg, state, currentHour);
+        updateChartHero(phaseCtx, cfg, state);
+      } catch (e) {}
     }
 
     // ============================================================
@@ -2590,23 +2676,94 @@
       const heroColor = document.getElementById('slider-hero-color');
       if (heroColor) heroColor.textContent = Math.round(effectiveCCT) + 'K';
 
-      const phaseLabel = document.getElementById('slider-label-phase');
-      const heroPhase = document.getElementById('slider-hero-phase');
-      if (phaseCtx) {
-        if (phaseLabel) phaseLabel.textContent = phaseCtx.cursorInAscend ? 'Wake' : 'Bed';
-        if (heroPhase) heroPhase.textContent = formatPhaseTime(phaseCtx.currentTargetTime);
-      } else {
-        if (heroPhase) heroPhase.textContent = '—';
-      }
-      renderPhaseSliderTicks(phaseCtx, cfg);
+      updateChartHero(phaseCtx, cfg, areaState);
 
       // Toggle reset buttons visibility based on override/mid state
       const rBri = document.getElementById('reset-brightness');
       if (rBri) rBri.classList.toggle('hidden', areaState.brightness_override == null);
       const rCol = document.getElementById('reset-color');
       if (rCol) rCol.classList.toggle('hidden', areaState.color_override == null);
-      const rPh = document.getElementById('reset-phase');
-      if (rPh) rPh.classList.toggle('hidden', areaState.brightness_mid == null && areaState.color_mid == null);
+    }
+
+    // Step-size heuristic: inverse-logistic derivative at the midpoint gives
+    // delta_y = (k/4) * delta_t, so a brightness-vector step of 0.10 maps to
+    // delta_t = 0.40 / slope. Matches the "one step along the curve" feel the
+    // user asked for — smaller time jumps on steep (fast) phases, larger on
+    // shallow (slow) phases.
+    function chartHeroStepHours(cfg, cursorInAscend) {
+      const speed = cursorInAscend ? cfg.wake_speed : cfg.bed_speed;
+      const slopeMag = SPEED_TO_SLOPE[Math.max(1, Math.min(10, speed))];
+      return slopeMag > 0 ? 0.40 / slopeMag : 0.25;
+    }
+
+    function updateChartHero(phaseCtx, cfg, areaState) {
+      const hero = document.getElementById('chart-hero');
+      if (!hero) return;
+      if (!phaseCtx || !cfg) { hero.style.display = 'none'; return; }
+      const labelEl = document.getElementById('chart-hero-label');
+      const timeEl = document.getElementById('chart-hero-time');
+      const backBtn = document.getElementById('chart-step-back');
+      const fwdBtn = document.getElementById('chart-step-fwd');
+      const resetBtn = document.getElementById('reset-phase');
+      const chartDiv = document.getElementById('mini-chart');
+      const shell = document.getElementById('chart-shell');
+
+      if (labelEl) labelEl.textContent = phaseCtx.cursorInAscend ? 'Wake' : 'Bed';
+      if (timeEl) timeEl.textContent = formatPhaseTime(phaseCtx.currentTargetTime);
+
+      const isShifted = areaState && (areaState.brightness_mid != null || areaState.color_mid != null);
+      if (resetBtn) resetBtn.classList.toggle('hidden', !isShifted);
+
+      const span = phaseCtx.phaseMax - phaseCtx.phaseMin;
+      const stepHours = chartHeroStepHours(cfg, phaseCtx.cursorInAscend);
+      const stepPct = span > 0 ? (stepHours / span) * 100 : 0;
+      const atMin = phaseCtx.currentTargetPct <= Math.max(1, stepPct * 0.25);
+      const atMax = phaseCtx.currentTargetPct >= 100 - Math.max(1, stepPct * 0.25);
+      if (backBtn) backBtn.disabled = atMin;
+      if (fwdBtn) fwdBtn.disabled = atMax;
+
+      // Position the hero at the active handle's x-pixel inside chart-shell.
+      // Prefer the live drag position if the chart handle is actively dragging,
+      // otherwise fall back to _chartGeom.activeMidHour (set by the last render).
+      const fl = chartDiv && chartDiv._fullLayout;
+      if (!fl || !fl.xaxis || !shell) { hero.style.display = 'none'; return; }
+      const xAnchor = _chartGeom.xAnchor ?? 0;
+      const isChartDragging = _chartDrag.active && _chartDrag.dragHour != null;
+      let activeMid = isChartDragging ? _chartDrag.dragHour : _chartGeom.activeMidHour;
+      if (activeMid == null) {
+        activeMid = phaseCtx.phaseMin + span * phaseCtx.currentTargetPct / 100;
+      }
+      // Map into the visible [xAnchor, xAnchor+24] range by adding/subtracting 24.
+      let activeMidVis = activeMid;
+      while (activeMidVis < xAnchor) activeMidVis += 24;
+      while (activeMidVis > xAnchor + 24) activeMidVis -= 24;
+      const chartOffsetInShell = chartDiv.getBoundingClientRect().left - shell.getBoundingClientRect().left;
+      let px = chartOffsetInShell + fl.xaxis._offset + ((activeMidVis - xAnchor) / 24) * fl.xaxis._length;
+      // Clamp to plot edges so the hero never spills off the chart.
+      const shellWidth = shell.offsetWidth;
+      const heroWidth = hero.offsetWidth || 120;
+      const minLeft = Math.max(4, heroWidth / 2);
+      const maxLeft = Math.max(minLeft, shellWidth - heroWidth / 2 - 4);
+      px = Math.max(minLeft, Math.min(maxLeft, px));
+      hero.style.left = px + 'px';
+      hero.style.display = '';
+    }
+
+    async function chartHeroStep(direction) {
+      if (!selectedArea) return;
+      const ctx = getSliderCfgAndState();
+      if (!ctx) return;
+      const { cfg, areaState, currentHour } = ctx;
+      const phaseCtx = buildPhaseCtx(cfg, areaState, currentHour);
+      if (!phaseCtx) return;
+      const stepHours = chartHeroStepHours(cfg, phaseCtx.cursorInAscend);
+      const span = phaseCtx.phaseMax - phaseCtx.phaseMin;
+      if (!(span > 0)) return;
+      const curH48 = phaseCtx.phaseMin + span * phaseCtx.currentTargetPct / 100;
+      let newH48 = curH48 + (direction === 'fwd' ? stepHours : -stepHours);
+      newH48 = Math.max(phaseCtx.phaseMin + 0.01, Math.min(phaseCtx.phaseMax - 0.01, newH48));
+      const newTime24 = ((newH48 % 24) + 24) % 24;
+      await executeSetPhaseTime(newTime24);
     }
 
     // How far the shifted midpoint will be pushed from the user's target time,
@@ -3571,6 +3728,19 @@
         brightness_sensitivity: status.brightness_sensitivity ?? 5.0,
         outdoor_condition_mult: cachedSunTimes.conditionMultiplier ?? 1.0,
       };
+
+      // If the tune section is loaded, prefer live tuneState for the pipeline
+      // factors so dragging Solar exposure / Room balance sliders re-renders
+      // the chart immediately (pre-save, without waiting on a server round-trip).
+      if (tuneState && tuneState.initialized) {
+        if (tuneState.areaFactor != null) areaState.area_factor = tuneState.areaFactor;
+        if (typeof SOLAR_STEPS !== 'undefined' && SOLAR_STEPS[tuneState.solarStep]) {
+          areaState.sun_exposure = SOLAR_STEPS[tuneState.solarStep].exposure;
+        }
+        if (tuneState.brightnessSensitivity != null) {
+          areaState.brightness_sensitivity = tuneState.brightnessSensitivity;
+        }
+      }
 
       let currentHour;
       if (status.frozen && status.frozen_at != null) {
@@ -4770,8 +4940,8 @@
       bhtml += '<div id="tune-adj-details" style="display:' + (adjOpenInit ? '' : 'none') + ';">';
       // --- TUNING zone ---
       bhtml += '<div class="tune-zone-label">Tuning</div>';
-      // Solar exposure with inline slider
-      bhtml += '<div class="tune-control-row"><span class="tune-control-left"><span class="tune-control-label">Solar exposure</span>'
+      // Sun exposure with inline slider
+      bhtml += '<div class="tune-control-row"><span class="tune-control-left"><span class="tune-control-label">Sun exposure</span>'
         + '<span class="tune-control-reset" id="tune-reset-solar">reset</span></span>'
         + '<span class="tune-control-impact" id="tune-det-solar-val"></span></div>';
       bhtml += '<div class="tune-source-info" id="tune-source-info"></div>';
@@ -4902,6 +5072,7 @@
           recalcTune();
           updateTuneButtons();
           updateSliderFill(lumenSlider);
+          if (selectedArea) renderMiniChartForArea(selectedArea.area_id);
         });
         lumenSlider.addEventListener('change', () => {
           sliderInteracting = false;
@@ -4919,6 +5090,7 @@
           recalcTune();
           updateTuneButtons();
           updateSliderFill(solarSlider);
+          if (selectedArea) renderMiniChartForArea(selectedArea.area_id);
         });
         solarSlider.addEventListener('change', () => {
           sliderInteracting = false;
@@ -4937,6 +5109,7 @@
           if (lumenSlider) { lumenSlider.value = savedStep; updateSliderFill(lumenSlider); }
           recalcTune();
           updateTuneButtons();
+          if (selectedArea) renderMiniChartForArea(selectedArea.area_id);
         };
       }
 
@@ -4950,6 +5123,7 @@
           if (solarSlider) { solarSlider.value = savedStep; updateSliderFill(solarSlider); }
           recalcTune();
           updateTuneButtons();
+          if (selectedArea) renderMiniChartForArea(selectedArea.area_id);
         };
       }
 
