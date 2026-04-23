@@ -3299,10 +3299,26 @@
       (track.querySelector('.slider-track-bg') || track).style.background = buildTrackGradient(dragMode, cfg, previewBri, previewCCT, effRange, phaseCtx);
       applyOneSlider(track, pct, previewBri, previewCCT, dragMode);
 
-      // Push preview into the NOW pill so chart feedback is live (was only updating on periodic refresh)
+      // Build a preview state that injects the new override as if it were just
+      // set at NOW. calcMiniBrightness / calcMiniColor already handle linear
+      // decay from set_at forward to the next phase boundary, so the curve
+      // will rise (or fall) at NOW and taper back to pure circadian by the
+      // Wake/Bed edge — matching what the lights will do after release.
       if (selectedArea) {
         const isActive = selectedArea.is_on || selectedArea.is_circadian;
-        renderMiniChart(cfg, areaState, cachedSunTimes, currentHour, isActive, null, { bri: previewBri, cct: previewCCT });
+        const previewState = { ...areaState };
+        if (dragMode === 'brightness') {
+          const pureState = { ...areaState, brightness_override: null, brightness_override_set_at: null };
+          const pureBriAtNow = calcMiniBrightness(currentHour, cfg, pureState, currentHour) * 100;
+          previewState.brightness_override = previewBri - pureBriAtNow;
+          previewState.brightness_override_set_at = currentHour;
+        } else if (dragMode === 'color') {
+          const pureColorState = { ...areaState, color_override: null, color_override_set_at: null };
+          const pureCCTAtNow = calcMiniColor(currentHour, cfg, pureColorState, cachedSunTimes, currentHour);
+          previewState.color_override = previewCCT - pureCCTAtNow;
+          previewState.color_override_set_at = currentHour;
+        }
+        renderMiniChart(cfg, previewState, cachedSunTimes, currentHour, isActive, null, { bri: previewBri, cct: previewCCT });
       }
     }
 

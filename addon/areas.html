@@ -897,26 +897,33 @@
       background: #fff; border: 1px solid rgba(0,0,0,0.15);
     }
 
-    /* Red dot: area doesn't match zone — tap to reset */
+    /* Row reset: area doesn't match zone — tap to reset to rhythm.
+       Dark chip + white ↺ stays legible across the warm→cool row background
+       palette. Sized smaller than the 36px power button so the row reads as
+       [primary][secondary] rather than two equal buttons. */
     .mismatch-dot-area {
-      position: relative;
-      width: 10px;
-      height: 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
       border-radius: 50%;
-      background: rgba(239, 68, 68, 0.9);
-      box-shadow: 0 0 0 1px rgba(0,0,0,0.6);
+      background: rgba(0,0,0,0.55);
+      color: #fff;
+      font-size: 14px;
+      line-height: 1;
+      font-weight: 600;
       flex-shrink: 0;
       margin-left: 10px;
       cursor: pointer;
-      transition: box-shadow 0.15s;
+      transition: background 0.15s;
+      user-select: none;
     }
-    .mismatch-dot-area::after {
-      content: '';
-      position: absolute;
-      inset: -11px;
+    .mismatch-dot-area::before {
+      content: '\21BA';
     }
     .mismatch-dot-area:hover {
-      box-shadow: 0 0 0 1px rgba(0,0,0,0.6), 0 0 0 4px rgba(239, 68, 68, 0.25);
+      background: rgba(0,0,0,0.75);
     }
 
     /* Placeholder to keep layout stable when no dot */
