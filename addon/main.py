@@ -5595,7 +5595,8 @@ class HomeAssistantWebSocketClient:
             result = await self.primitives.step_up(area_id, "webserver")
             return result
         elif service == "step_down":
-            await self.primitives.step_down(area_id, "webserver")
+            result = await self.primitives.step_down(area_id, "webserver")
+            return result
         elif service == "bright_up":
             await self.primitives.brightness_up(area_id, "webserver")
         elif service == "bright_down":

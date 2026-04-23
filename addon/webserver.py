@@ -1720,6 +1720,7 @@ class LightDesignerServer:
             "wake_speed",
             "bed_speed",
             "max_dim_steps",
+            "step_fallback_minutes",
             "daylight_cct",
         ]
 
@@ -1841,6 +1842,7 @@ class LightDesignerServer:
         "color_sensitivity",
         "activity_preset",
         "max_dim_steps",
+        "step_fallback_minutes",
     }
 
     # Settings that are global (not per-rhythm)
@@ -2069,6 +2071,7 @@ class LightDesignerServer:
             "use_ha_location": True,
             # Dimming steps
             "max_dim_steps": DEFAULT_MAX_DIM_STEPS,
+            "step_fallback_minutes": 30,
             # UI preview settings
             "month": 6,
             # Advanced timing settings (tenths of seconds unless noted)
@@ -4871,6 +4874,12 @@ class LightDesignerServer:
                 )
                 logger.info(f"Executed {action} for area {area_id}")
                 resp = {"status": "ok", "action": action, "area_id": area_id}
+                # Signal "at limit" so UI callers (e.g. the Adjust-card hero
+                # arrows) can fall through to a time-based shift on plateau.
+                # step_up returns None or "sun_dimming_limit" at limit; step_down
+                # returns None at limit; both return True on success.
+                if action in ("step_up", "step_down") and result is not True:
+                    resp["at_limit"] = True
                 # Check for sun dimming hint on step_up
                 if action == "step_up" and result == "sun_dimming_limit":
                     resp["hint"] = (

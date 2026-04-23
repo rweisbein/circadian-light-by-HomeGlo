@@ -662,11 +662,13 @@
         <div class="form-row">
           <label class="form-label">
             Step increments
-            <span class="info-icon">i<span class="info-tooltip">Number of steps between minimum and maximum when pressing up/down buttons on a switch. Fewer steps = bigger jumps. Applies to Circadian, Bright, and Color controls across all zones.</span></span>
+            <span class="info-icon">i<span class="info-tooltip">Number of steps between minimum and maximum when pressing up/down buttons on a switch. Fewer steps = bigger jumps. Applies to Circadian, Bright, and Color controls across all zones. Minutes value is the fallback time-shift used by the Adjust-card arrows when circadian step is already at max/min (plateau).</span></span>
           </label>
           <div class="form-control">
             <input type="number" class="form-input" id="max-dim-steps" min="1" max="50" step="1" value="10" style="width: 60px;">
             <span class="form-hint">steps</span>
+            <input type="number" class="form-input" id="step-fallback-minutes" min="1" max="180" step="1" value="30" style="width: 60px; margin-left: 12px;">
+            <span class="form-hint">minutes</span>
           </div>
         </div>
       </div>
@@ -1199,6 +1201,7 @@
           document.getElementById('multi-click-speed').value = config.multi_click_speed ?? 15;
           document.getElementById('long-press-repeat-interval').value = config.long_press_repeat_interval ?? 7;
           document.getElementById('max-dim-steps').value = config.max_dim_steps ?? 10;
+          document.getElementById('step-fallback-minutes').value = config.step_fallback_minutes ?? 30;
           document.getElementById('confirm-zone-pushes').checked = config.confirm_zone_pushes ?? true;
           document.getElementById('home-slider-mode').value = config.home_slider_mode ?? 'brightness';
           document.getElementById('home-buttons-mode').value = config.home_buttons_mode ?? 'step';
@@ -1311,6 +1314,7 @@
         multi_click_speed: parseFloat(document.getElementById('multi-click-speed').value) || 15,
         long_press_repeat_interval: parseFloat(document.getElementById('long-press-repeat-interval').value) || 7,
         max_dim_steps: parseInt(document.getElementById('max-dim-steps').value) || 10,
+        step_fallback_minutes: parseInt(document.getElementById('step-fallback-minutes').value) || 30,
         confirm_zone_pushes: document.getElementById('confirm-zone-pushes').checked,
         home_slider_mode: document.getElementById('home-slider-mode').value,
         home_buttons_mode: document.getElementById('home-buttons-mode').value,
@@ -1620,6 +1624,7 @@
     document.getElementById('multi-click-speed').addEventListener('blur', saveSettings);
     document.getElementById('long-press-repeat-interval').addEventListener('blur', saveSettings);
     document.getElementById('max-dim-steps').addEventListener('blur', saveSettings);
+    document.getElementById('step-fallback-minutes').addEventListener('blur', saveSettings);
     document.getElementById('confirm-zone-pushes').addEventListener('change', saveSettings);
     document.getElementById('home-slider-mode').addEventListener('change', saveSettings);
     document.getElementById('home-buttons-mode').addEventListener('change', saveSettings);

@@ -2402,16 +2402,18 @@
       const effectiveWake = hasAdjWake ? shiftIntoWindow(adjustedTimes.wake) : wakeTime;
       const effectiveBed = hasAdjBed ? shiftIntoWindow(adjustedTimes.bed) : bedTime;
 
-      // Sunrise (🌅) / sunset (🌙) emoji markers at sun events.
+      // Sunrise (custom SVG half-sun over horizon) / sunset (🌙) markers.
       const cursorHour = shiftIntoWindow(currentHour);
+      const svgSunrise = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 14"><circle cx="12" cy="13" r="5" fill="rgb(244,201,107)"/><line x1="2" y1="13" x2="22" y2="13" stroke="rgb(180,180,180)" stroke-width="1.2" stroke-linecap="round"/></svg>';
+      const images = [];
       if (Number.isFinite(sunrise)) {
-        annotations.push({
+        images.push({
+          source: 'data:image/svg+xml;utf8,' + encodeURIComponent(svgSunrise),
           xref: 'x', yref: 'paper',
-          x: sunriseX, y: 0.99,
-          text: '\uD83C\uDF05',
-          showarrow: false,
+          x: sunriseX, y: 1.02,
+          sizex: 0.9, sizey: 0.16,
           xanchor: 'center', yanchor: 'top',
-          font: { size: 14 }
+          layer: 'above'
         });
         traces.push({
           type: 'scatter', mode: 'markers',
@@ -2564,6 +2566,7 @@
         },
         shapes,
         annotations,
+        images,
         showlegend: false
       };
 
@@ -2696,7 +2699,11 @@
       const shell = document.getElementById('chart-shell');
 
       if (labelEl) labelEl.textContent = phaseCtx.cursorInAscend ? 'Wake' : 'Bed';
-      if (timeEl) timeEl.textContent = formatPhaseTime(phaseCtx.currentTargetTime);
+      // Show the live drag hour in the time label if the user is actively
+      // dragging the chart handle; otherwise show the server-truth target.
+      const isChartDragging = _chartDrag.active && _chartDrag.dragHour != null;
+      const displayTime = isChartDragging ? _chartDrag.dragHour : phaseCtx.currentTargetTime;
+      if (timeEl) timeEl.textContent = formatPhaseTime(displayTime);
       hero.classList.toggle('phase-wake', !!phaseCtx.cursorInAscend);
       hero.classList.toggle('phase-bed', !phaseCtx.cursorInAscend);
 
@@ -2716,7 +2723,6 @@
       const fl = chartDiv && chartDiv._fullLayout;
       if (!fl || !fl.xaxis || !shell) { hero.style.display = 'none'; return; }
       const xAnchor = _chartGeom.xAnchor ?? 0;
-      const isChartDragging = _chartDrag.active && _chartDrag.dragHour != null;
       let activeMid = isChartDragging ? _chartDrag.dragHour : _chartGeom.activeMidHour;
       if (activeMid == null) {
         activeMid = phaseCtx.phaseMin + span * phaseCtx.currentTargetPct / 100;
@@ -2741,6 +2747,12 @@
     // means brighter now → step_up; in bed phase, earlier (◀) means dimmer
     // now → step_down. The primitive handles step size, bounce-at-limit,
     // sun-dimming hints, and midpoint shifting on the server.
+    //
+    // Plateau fallback: when current brightness is already at the top/bottom
+    // of the curve, step_up/step_down can't move the midpoint further (no
+    // brightness room to take a step). Backend returns at_limit=true; we then
+    // fall through to a direct time shift of ±cfg.step_fallback_minutes (default
+    // 30 min) so the user can keep nudging the handle along the time axis.
     async function chartHeroStep(direction) {
       if (!selectedArea) return;
       const ctx = getSliderCfgAndState();
@@ -2750,7 +2762,41 @@
       if (!phaseCtx) return;
       const isBack = direction === 'back';
       const action = (isBack === phaseCtx.cursorInAscend) ? 'step_up' : 'step_down';
-      await executeAction(action);
+      const areaId = selectedArea.area_id;
+      try {
+        const response = await fetch(basePath + '/api/area/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ area_id: areaId, action })
+        });
+        if (!response.ok) return;
+        const result = await response.json();
+        if (result.at_limit) {
+          const mins = cfg.step_fallback_minutes || 30;
+          const deltaHours = (isBack ? -1 : 1) * (mins / 60);
+          const span = phaseCtx.phaseMax - phaseCtx.phaseMin;
+          const curH48 = phaseCtx.phaseMin + span * phaseCtx.currentTargetPct / 100;
+          let newH48 = curH48 + deltaHours;
+          newH48 = Math.max(phaseCtx.phaseMin + 0.01, Math.min(phaseCtx.phaseMax - 0.01, newH48));
+          const newTime24 = ((newH48 % 24) + 24) % 24;
+          await executeSetPhaseTime(newTime24);
+          return;
+        }
+        setTimeout(async () => {
+          try {
+            const res = await fetch(basePath + `/api/area-status?area_id=${encodeURIComponent(areaId)}`);
+            if (res.ok) {
+              const singleStatus = await res.json();
+              Object.assign(areaStatus, singleStatus);
+            }
+            updateContent();
+            renderMiniChartForArea(areaId);
+            updateAllSliders();
+          } catch (err) {}
+        }, 500);
+      } catch (err) {
+        console.error('chartHeroStep error:', err);
+      }
     }
 
     // How far the shifted midpoint will be pushed from the user's target time,
