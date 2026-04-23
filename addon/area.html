@@ -326,7 +326,7 @@
     /* Mini chart container (from modal) */
     #mini-chart {
       width: 100%;
-      height: 190px;
+      height: 220px;
       margin: 4px 0;
       touch-action: pan-x pan-y;
     }
@@ -497,15 +497,15 @@
       pointer-events: none;
       text-shadow: 0 1px 2px rgba(0,0,0,0.6);
     }
-    /* Chart hero cluster — tethered below plot at active handle's x-position */
+    /* Chart hero cluster — positioned inside the chart's bottom margin
+       at the active handle's x-position, directly under the wake/bed line end */
     #chart-shell {
       position: relative;
-      padding-bottom: 56px;
     }
     .chart-hero {
       position: absolute;
       left: 0;
-      bottom: 4px;
+      bottom: 6px;
       transform: translate(-50%, 0);
       display: flex;
       flex-direction: column;
@@ -513,7 +513,6 @@
       gap: 2px;
       pointer-events: none;
       z-index: 4;
-      padding-top: 2px;
     }
     .chart-hero-line1,
     .chart-hero-line2 {
@@ -530,6 +529,10 @@
       text-transform: uppercase;
       color: rgba(220, 220, 220, 0.7);
     }
+    .chart-hero.phase-wake .chart-hero-label,
+    .chart-hero.phase-wake .chart-hero-time { color: #5cb3ff; }
+    .chart-hero.phase-bed .chart-hero-label,
+    .chart-hero.phase-bed .chart-hero-time { color: #ffe680; }
     .chart-hero-reset {
       background: none;
       border: none;
@@ -2399,22 +2402,16 @@
       const effectiveWake = hasAdjWake ? shiftIntoWindow(adjustedTimes.wake) : wakeTime;
       const effectiveBed = hasAdjBed ? shiftIntoWindow(adjustedTimes.bed) : bedTime;
 
-      // Sunrise/sunset SVG icons — inline SVG via data URI. Replaces the old
-      // ☀/☾ glyphs which read more as "sun/moon" than as rise/set events.
+      // Sunrise (🌅) / sunset (🌙) emoji markers at sun events.
       const cursorHour = shiftIntoWindow(currentHour);
-      const svgSunrise = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="rgb(255,214,120)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/></svg>';
-      const svgSunset = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="rgb(180,200,230)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10V2"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m16 6-4 4-4-4"/><path d="M16 18a4 4 0 0 0-8 0"/></svg>';
-      const images = [];
-      const iconSizeX = 0.8; // hours
-      const iconSizeY = 0.14; // paper fraction
       if (Number.isFinite(sunrise)) {
-        images.push({
-          source: 'data:image/svg+xml;utf8,' + encodeURIComponent(svgSunrise),
+        annotations.push({
           xref: 'x', yref: 'paper',
-          x: sunriseX, y: 0.97,
-          sizex: iconSizeX, sizey: iconSizeY,
+          x: sunriseX, y: 0.99,
+          text: '\uD83C\uDF05',
+          showarrow: false,
           xanchor: 'center', yanchor: 'top',
-          layer: 'above'
+          font: { size: 14 }
         });
         traces.push({
           type: 'scatter', mode: 'markers',
@@ -2425,13 +2422,13 @@
         });
       }
       if (Number.isFinite(sunset)) {
-        images.push({
-          source: 'data:image/svg+xml;utf8,' + encodeURIComponent(svgSunset),
+        annotations.push({
           xref: 'x', yref: 'paper',
-          x: sunsetX, y: 0.97,
-          sizex: iconSizeX, sizey: iconSizeY,
+          x: sunsetX, y: 0.99,
+          text: '\uD83C\uDF19',
+          showarrow: false,
           xanchor: 'center', yanchor: 'top',
-          layer: 'above'
+          font: { size: 14 }
         });
         traces.push({
           type: 'scatter', mode: 'markers',
@@ -2531,7 +2528,7 @@
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        margin: { t: 36, r: 12, l: 32, b: 56 },
+        margin: { t: 36, r: 12, l: 32, b: 86 },
         hovermode: 'closest',
         xaxis: (() => {
           const tickvals = [];
@@ -2567,7 +2564,6 @@
         },
         shapes,
         annotations,
-        images,
         showlegend: false
       };
 
@@ -2687,15 +2683,6 @@
 
     // Step-size heuristic: inverse-logistic derivative at the midpoint gives
     // delta_y = (k/4) * delta_t, so a brightness-vector step of 0.10 maps to
-    // delta_t = 0.40 / slope. Matches the "one step along the curve" feel the
-    // user asked for — smaller time jumps on steep (fast) phases, larger on
-    // shallow (slow) phases.
-    function chartHeroStepHours(cfg, cursorInAscend) {
-      const speed = cursorInAscend ? cfg.wake_speed : cfg.bed_speed;
-      const slopeMag = SPEED_TO_SLOPE[Math.max(1, Math.min(10, speed))];
-      return slopeMag > 0 ? 0.40 / slopeMag : 0.25;
-    }
-
     function updateChartHero(phaseCtx, cfg, areaState) {
       const hero = document.getElementById('chart-hero');
       if (!hero) return;
@@ -2710,15 +2697,16 @@
 
       if (labelEl) labelEl.textContent = phaseCtx.cursorInAscend ? 'Wake' : 'Bed';
       if (timeEl) timeEl.textContent = formatPhaseTime(phaseCtx.currentTargetTime);
+      hero.classList.toggle('phase-wake', !!phaseCtx.cursorInAscend);
+      hero.classList.toggle('phase-bed', !phaseCtx.cursorInAscend);
 
       const isShifted = areaState && (areaState.brightness_mid != null || areaState.color_mid != null);
       if (resetBtn) resetBtn.classList.toggle('hidden', !isShifted);
 
       const span = phaseCtx.phaseMax - phaseCtx.phaseMin;
-      const stepHours = chartHeroStepHours(cfg, phaseCtx.cursorInAscend);
-      const stepPct = span > 0 ? (stepHours / span) * 100 : 0;
-      const atMin = phaseCtx.currentTargetPct <= Math.max(1, stepPct * 0.25);
-      const atMax = phaseCtx.currentTargetPct >= 100 - Math.max(1, stepPct * 0.25);
+      // Suppress stepping near narrowed-boundary to avoid curve-shape artifacts.
+      const atMin = phaseCtx.currentTargetPct <= 3;
+      const atMax = phaseCtx.currentTargetPct >= 97;
       if (backBtn) backBtn.disabled = atMin;
       if (fwdBtn) fwdBtn.disabled = atMax;
 
@@ -2749,6 +2737,10 @@
       hero.style.display = '';
     }
 
+    // Maps hero arrow buttons to step primitives. In wake phase, earlier (◀)
+    // means brighter now → step_up; in bed phase, earlier (◀) means dimmer
+    // now → step_down. The primitive handles step size, bounce-at-limit,
+    // sun-dimming hints, and midpoint shifting on the server.
     async function chartHeroStep(direction) {
       if (!selectedArea) return;
       const ctx = getSliderCfgAndState();
@@ -2756,14 +2748,9 @@
       const { cfg, areaState, currentHour } = ctx;
       const phaseCtx = buildPhaseCtx(cfg, areaState, currentHour);
       if (!phaseCtx) return;
-      const stepHours = chartHeroStepHours(cfg, phaseCtx.cursorInAscend);
-      const span = phaseCtx.phaseMax - phaseCtx.phaseMin;
-      if (!(span > 0)) return;
-      const curH48 = phaseCtx.phaseMin + span * phaseCtx.currentTargetPct / 100;
-      let newH48 = curH48 + (direction === 'fwd' ? stepHours : -stepHours);
-      newH48 = Math.max(phaseCtx.phaseMin + 0.01, Math.min(phaseCtx.phaseMax - 0.01, newH48));
-      const newTime24 = ((newH48 % 24) + 24) % 24;
-      await executeSetPhaseTime(newTime24);
+      const isBack = direction === 'back';
+      const action = (isBack === phaseCtx.cursorInAscend) ? 'step_up' : 'step_down';
+      await executeAction(action);
     }
 
     // How far the shifted midpoint will be pushed from the user's target time,
