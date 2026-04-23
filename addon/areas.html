@@ -567,6 +567,63 @@
       transition: none;
     }
 
+    /* Ghost thumb: faint outlined duplicate of the pill at drag start X,
+       stays put while the live thumb follows the finger. Hidden by default,
+       revealed only while dragging. Gives visual anchoring for the delta. */
+    .row-slider-thumb-ghost {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 44px;
+      height: 19px;
+      border-radius: 9px 9px 6px 6px;
+      background: transparent;
+      border: 1.5px solid rgba(255,255,255,0.55);
+      pointer-events: none;
+      display: none;
+    }
+    .row-slider-track.dragging .row-slider-thumb-ghost {
+      display: block;
+    }
+
+    /* Drag-delta fill: faint band stretched between ghost and live thumb.
+       Reinforces direction of change (brightening vs dimming) and the
+       magnitude of the delta at a glance. */
+    .row-slider-fill-drag {
+      position: absolute;
+      top: 50%;
+      height: 6px;
+      transform: translateY(-50%);
+      border-radius: 3px;
+      background: rgba(255,255,255,0.25);
+      pointer-events: none;
+      display: none;
+    }
+    .row-slider-track.dragging .row-slider-fill-drag {
+      display: block;
+    }
+
+    /* Inline target-% label in row header (right of area name). Only visible
+       while a drag is active on this row's slider; disappears on release. */
+    .row-drag-value {
+      margin-left: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--row-text, var(--text));
+      opacity: 0.85;
+      display: none;
+      flex-shrink: 0;
+    }
+    .area-row.slider-dragging .row-drag-value {
+      display: inline;
+    }
+    /* Suppress reset chip during drag so the inline target % can use the
+       horizontal space (reset isn't tappable mid-drag anyway). Reappears on
+       release if the area is still dirty. */
+    .area-row.slider-dragging .mismatch-dot-area {
+      display: none;
+    }
+
     /* Row control buttons - horizontal row */
     .row-controls {
       display: inline-flex;
@@ -2728,9 +2785,12 @@
               <span class="area-row-name" onclick="openAreaModal('${area.area_id}')">${area.name}</span>
               ${mismatchDot}
               <span class="row-active-status" data-area-active="${area.area_id}"></span>
+              <span class="row-drag-value" data-area-drag-value="${area.area_id}"></span>
             </div>
             <div class="row-slider-track" data-area-id="${area.area_id}" data-bmin="${area.min_brightness ?? 1}" data-bmax="${area.max_brightness ?? 100}" data-cmin="${area.min_color_temp ?? 2200}" data-cmax="${area.max_color_temp ?? 6500}">
               <div class="row-slider-fill"></div>
+              <div class="row-slider-fill-drag"></div>
+              <div class="row-slider-thumb-ghost"></div>
               <div class="row-slider-thumb" style="left: ${sliderPct.toFixed(1)}%"></div>
             </div>
             <div class="row-status-row" data-area-schedule="${area.area_id}" data-zone-name="${area.zone_name || ''}">
@@ -3067,12 +3127,36 @@ function updateSliderFill(el) {
         const bMin = parseFloat(track.dataset.bmin) || 1;
         const bMax = parseFloat(track.dataset.bmax) || 100;
 
+        const ghost = track.querySelector('.row-slider-thumb-ghost');
+        const fillDrag = track.querySelector('.row-slider-fill-drag');
+        const valueEl = row.querySelector(`[data-area-drag-value="${areaId}"]`);
+        let startPct = 0;
+
+        const updateFillDrag = (fromPct, toPct) => {
+          if (!fillDrag) return;
+          const left = Math.min(fromPct, toPct);
+          const width = Math.abs(toPct - fromPct);
+          fillDrag.style.left = left + '%';
+          fillDrag.style.width = width + '%';
+        };
+
         thumb.addEventListener('pointerdown', (e) => {
           e.stopPropagation();
           e.preventDefault();
           sliderDragging = true;
           thumb.setPointerCapture(e.pointerId);
           thumb.classList.add('dragging');
+          track.classList.add('dragging');
+          row.classList.add('slider-dragging');
+          // Anchor ghost at current thumb position for the life of the drag
+          startPct = parseFloat(thumb.style.left) || 0;
+          if (ghost) ghost.style.left = startPct + '%';
+          updateFillDrag(startPct, startPct);
+          // Seed the inline value so it's visible on tap even before move
+          if (valueEl) {
+            const brightness = Math.round(bMin + (bMax - bMin) * startPct / 100);
+            valueEl.textContent = brightness + '%';
+          }
           // Pre-fetch preview points for live color preview
           if (areaId) fetchSliderPreview(areaId);
         });
@@ -3081,8 +3165,10 @@ function updateSliderFill(el) {
           e.stopPropagation();
           const pct = getSliderPctFromPointer(track, e);
           thumb.style.left = pct + '%';
+          updateFillDrag(startPct, pct);
           // Live row color preview
           const brightness = bMin + (bMax - bMin) * pct / 100;
+          if (valueEl) valueEl.textContent = Math.round(brightness) + '%';
           const sliderMode = cachedConfig?.home_slider_mode || 'brightness';
           if (sliderMode === 'step') {
             // Circadian: brightness + color both change
@@ -3096,10 +3182,15 @@ function updateSliderFill(el) {
             previewRowColor(row, brightness, kelvin);
           }
         });
+        const clearDragAffordances = () => {
+          thumb.classList.remove('dragging');
+          track.classList.remove('dragging');
+          row.classList.remove('slider-dragging');
+        };
         thumb.addEventListener('pointerup', (e) => {
           if (!thumb.hasPointerCapture(e.pointerId)) return;
           e.stopPropagation();
-          thumb.classList.remove('dragging');
+          clearDragAffordances();
           const pct = getSliderPctFromPointer(track, e);
           if (areaId) {
             const sliderMode = cachedConfig?.home_slider_mode || 'brightness';
@@ -3117,7 +3208,7 @@ function updateSliderFill(el) {
         });
         thumb.addEventListener('pointercancel', () => {
           sliderDragging = false;
-          thumb.classList.remove('dragging');
+          clearDragAffordances();
         });
         // Prevent click from bubbling to row's onclick
         thumb.addEventListener('click', (e) => e.stopPropagation());
