@@ -2519,16 +2519,15 @@
           hoverinfo: 'text', showlegend: false, cliponaxis: false
         });
       }
-      // Crescent moon: outer disc masked by an offset disc. Masks are more
-      // reliable than evenodd-fill paths for this shape — the "two near-full
-      // circle arcs" approach has intermittent rendering issues in Plotly's
-      // image embedding at small sizes.
+      // Crescent moon: outer disc masked by an offset disc at the same cy so
+      // the crescent is vertically symmetric (earlier offset-cy geometry gave
+      // a thin-top / fat-bottom blob that read as "clipped").
       const svgSunset = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
         + '<defs><mask id="cresmask">'
         + '<rect width="24" height="24" fill="white"/>'
-        + '<circle cx="16" cy="11" r="8" fill="black"/>'
+        + '<circle cx="15" cy="12" r="9" fill="black"/>'
         + '</mask></defs>'
-        + '<circle cx="11" cy="12" r="9" fill="rgb(230,225,195)" mask="url(#cresmask)"/>'
+        + '<circle cx="10" cy="12" r="9" fill="rgb(230,225,195)" mask="url(#cresmask)"/>'
         + '</svg>';
       if (Number.isFinite(sunset)) {
         images.push({
