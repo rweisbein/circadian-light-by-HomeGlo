@@ -1061,9 +1061,6 @@ class LightDesignerServer:
             return web.json_response(
                 {
                     "outdoor_normalized": lux_tracker.get_outdoor_normalized() or 0.0,
-                    "brightness_sensitivity": raw_config.get(
-                        "brightness_sensitivity", 5.0
-                    ),
                     "ct_comp_enabled": raw_config.get("ct_comp_enabled", True),
                     "ct_comp_begin": raw_config.get("ct_comp_begin", 1650),
                     "ct_comp_end": raw_config.get("ct_comp_end", 2250),
@@ -1676,6 +1673,9 @@ class LightDesignerServer:
                     "brightness_fade_weight": 1.0,  # Fade applies to color only, not brightness
                     "min_brightness": brain_config.min_brightness,
                     "max_brightness": brain_config.max_brightness,
+                    "brightness_sensitivity": preset_config.get(
+                        "brightness_sensitivity", 1.0
+                    ),
                     "runtime_state": runtime_state,
                     "solar_cache": glozone_state.get_zone_solar_cache(zone_name),
                 }
@@ -1852,7 +1852,6 @@ class LightDesignerServer:
         "timezone",
         "use_ha_location",
         "month",
-        "brightness_sensitivity",
         "sun_saturation",  # Sun intensity saturation cap (1-100, default 40)
         "sun_saturation_ramp",  # Ramp curve: 'linear' or 'squared' (default squared)
         "turn_on_transition",  # Transition time in tenths of seconds for turn-on operations
@@ -2990,8 +2989,8 @@ class LightDesignerServer:
                     # Natural light factor for this area
                     area_sun_exposure = glozone.get_area_natural_light_exposure(area_id)
                     rhythm_cfg = glozone.get_zone_config_for_area(area_id)
-                    area_brightness_sensitivity = glozone.get_config().get(
-                        "brightness_sensitivity", 5.0
+                    area_brightness_sensitivity = rhythm_cfg.get(
+                        "brightness_sensitivity", 1.0
                     )
                     # Brightness sun bright uses raw outdoor_norm (no daylight fade —
                     # fade applies to color solar rules only, not brightness)
@@ -4983,8 +4982,8 @@ class LightDesignerServer:
 
             # Pipeline factors for inverting actual → curve brightness
             area_sun_exposure = glozone.get_area_natural_light_exposure(area_id)
-            area_bri_sensitivity = glozone.get_config().get(
-                "brightness_sensitivity", 5.0
+            area_bri_sensitivity = glozone.get_zone_config_for_area(area_id).get(
+                "brightness_sensitivity", 1.0
             )
             outdoor_norm = lux_tracker.get_outdoor_normalized() or 0.0
             sun_bright_factor = calculate_natural_light_factor(

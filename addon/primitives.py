@@ -685,7 +685,9 @@ class CircadianLightPrimitives:
         outdoor_norm = lux_tracker.get_outdoor_normalized()
         if outdoor_norm is None:
             outdoor_norm = 0.0
-        sensitivity = glozone.get_config().get("brightness_sensitivity", 5.0)
+        sensitivity = glozone.get_zone_config_for_area(area_id).get(
+            "brightness_sensitivity", 1.0
+        )
         return calculate_natural_light_factor(
             natural_exposure, outdoor_norm, sensitivity
         )
@@ -725,7 +727,7 @@ class CircadianLightPrimitives:
         import lux_tracker
         from pipeline import PipelineContext
 
-        # Config (effective = rhythm + globals like brightness_sensitivity)
+        # Config (effective = zone rhythm settings + globals like latitude/longitude)
         config_dict = glozone.get_effective_config_for_area(area_id)
         config = Config.from_dict(config_dict)
 

@@ -368,6 +368,7 @@ def get_zone_config(zone_name: str) -> Dict[str, Any]:
         "daylight_end": -60,
         "activity_preset": "adult",
         "max_dim_steps": 10,
+        "brightness_sensitivity": 1.0,
     }
     glozones = get_glozones()
     zone = glozones.get(zone_name, {})
@@ -620,6 +621,7 @@ RHYTHM_SETTINGS = {
     "daylight_fade",
     "activity_preset",
     "max_dim_steps",
+    "brightness_sensitivity",
 }
 
 # Settings that are global (not per-rhythm)
@@ -635,7 +637,6 @@ GLOBAL_SETTINGS = {
     "lux_smoothing_interval",
     "lux_learned_ceiling",
     "lux_learned_floor",
-    "brightness_sensitivity",
 }
 
 
@@ -914,10 +915,18 @@ def load_config_from_files(data_dir: Optional[str] = None) -> Dict[str, Any]:
     needs_migration = "glozones" not in config or "circadian_rhythms" in config
     config = _migrate_config(config)
 
+    # One-shot inherit of brightness_sensitivity, which used to be a home-level
+    # global: seed every zone that doesn't already have one with the old value
+    # BEFORE the general RHYTHM_SETTINGS migration below strips it from top level.
+    glozones = config.get("glozones", {})
+    legacy_brightness_sensitivity = config.get("brightness_sensitivity")
+    if legacy_brightness_sensitivity is not None and glozones:
+        for zdata in glozones.values():
+            zdata.setdefault("brightness_sensitivity", legacy_brightness_sensitivity)
+
     # Move any top-level RHYTHM_SETTINGS into the first zone.
     # Only set the key in the zone if it's not already there, to avoid
     # stale top-level values overriding correct zone values.
-    glozones = config.get("glozones", {})
     if glozones:
         first_zone_name = list(glozones.keys())[0]
         first_zone = glozones[first_zone_name]
@@ -926,16 +935,6 @@ def load_config_from_files(data_dir: Optional[str] = None) -> Dict[str, Any]:
                 if key not in first_zone:
                     first_zone[key] = config[key]
                 del config[key]
-
-    # Migrate brightness_sensitivity from per-zone to global
-    if "brightness_sensitivity" not in config:
-        best_val = 5.0
-        for zdata in glozones.values():
-            if "brightness_sensitivity" in zdata:
-                best_val = max(best_val, zdata["brightness_sensitivity"])
-        config["brightness_sensitivity"] = best_val
-    for zdata in glozones.values():
-        zdata.pop("brightness_sensitivity", None)
 
     # Log what ended up in the zones after loading + merging
     for zname, zdata in glozones.items():

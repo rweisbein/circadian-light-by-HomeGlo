@@ -776,7 +776,7 @@
     let tuneDebounceTimers = {};
     let pendingSensorSave = Promise.resolve();
     let expandedAreas = {};  // areaId -> true/false
-    let tuneSnapshot = null;  // { areas: { [areaId]: { lumenStep, solarStep, lightFilters: {entityId: filterName} } }, sensitivityStep: int }
+    let tuneSnapshot = null;  // { areas: { [areaId]: { lumenStep, solarStep, lightFilters: {entityId: filterName} } } }
 
     // ============================================================
     // Constants
@@ -1171,9 +1171,7 @@
     // ============================================================
     function captureTuneSnapshot() {
       if (!tuneData) { tuneSnapshot = null; return; }
-      const snap = { areas: {}, sensitivityStep: 0 };
-      const sensEl = document.getElementById('tune-global-sensitivity');
-      snap.sensitivityStep = sensEl ? parseInt(sensEl.value) : 0;
+      const snap = { areas: {} };
       document.querySelectorAll('.tune-area').forEach(el => {
         const areaId = el.dataset.areaId;
         const lumenSlider = el.querySelector('.tune-lumen-slider');
@@ -1197,8 +1195,6 @@
 
     function isTuneDirty() {
       if (!tuneSnapshot) return false;
-      const sensEl = document.getElementById('tune-global-sensitivity');
-      if (sensEl && parseInt(sensEl.value) !== tuneSnapshot.sensitivityStep) return true;
       let dirty = false;
       for (const [areaId, snap] of Object.entries(tuneSnapshot.areas)) {
         const el = document.querySelector(`.tune-area[data-area-id="${areaId}"]`);
@@ -1229,14 +1225,6 @@
       const btn = document.getElementById('tune-save-btn');
       if (btn) { btn.textContent = 'Saving...'; btn.disabled = true; btn.style.opacity = '0.6'; }
       const promises = [];
-      const sensEl = document.getElementById('tune-global-sensitivity');
-      if (sensEl && parseInt(sensEl.value) !== tuneSnapshot.sensitivityStep) {
-        const step = parseInt(sensEl.value);
-        promises.push(fetch('./api/config', {
-          method: 'POST', headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ brightness_sensitivity: SENSITIVITY_STEPS[step].multiplier })
-        }));
-      }
       for (const [areaId, snap] of Object.entries(tuneSnapshot.areas)) {
         const el = document.querySelector(`.tune-area[data-area-id="${areaId}"]`);
         if (!el) continue;
@@ -1281,22 +1269,6 @@
     function cancelAllTuneChanges() {
       cancelColorChanges();
       if (!tuneSnapshot) return;
-      // Restore global sensitivity
-      const sensEl = document.getElementById('tune-global-sensitivity');
-      if (sensEl) {
-        sensEl.value = tuneSnapshot.sensitivityStep;
-        const step = tuneSnapshot.sensitivityStep;
-        const wordEl = document.getElementById('tune-global-sensitivity-word');
-        if (wordEl) wordEl.textContent = SENSITIVITY_STEPS[step].label;
-        const valEl = document.getElementById('tune-global-sensitivity-val');
-        if (valEl) valEl.textContent = fmtVal(SENSITIVITY_STEPS[step].multiplier);
-        if (tuneData) tuneData.brightness_sensitivity = SENSITIVITY_STEPS[step].multiplier;
-        const newSensitivity = SENSITIVITY_STEPS[step].multiplier;
-        document.querySelectorAll('.tune-area').forEach(el => {
-          el.dataset.sensitivity = newSensitivity;
-        });
-        updateSunMultiplierCard();
-      }
       // Restore per-area
       for (const [areaId, snap] of Object.entries(tuneSnapshot.areas)) {
         const el = document.querySelector(`.tune-area[data-area-id="${areaId}"]`);
@@ -1425,40 +1397,12 @@
     // ============================================================
     // Sensitivity card collapse
     // ============================================================
-    function toggleSensitivityBody() {
-      const card = document.getElementById('tune-sensitivity-card');
-      if (!card) return;
-      card.classList.toggle('is-open');
-      const isOpen = card.classList.contains('is-open');
-      localStorage.setItem('tune_sensitivity_open', isOpen ? '1' : '0');
-    }
-
-    function getSunMultiplier() {
-      const sensitivity = tuneData?.brightness_sensitivity ?? 1.0;
-      const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
-      return outdoorNorm * sensitivity;
-    }
-
-    function fmtSunMultiplier(mult) {
-      return Math.round(mult * 100) + '%';
-    }
-
-    function updateSunMultiplierCard() {
+    function updateSunInfoPanel() {
       const d = tuneOutdoorData;
-      const sensEl = document.getElementById('tune-global-sensitivity');
-      const step = sensEl ? parseInt(sensEl.value) : 5;
-      const sensitivity = SENSITIVITY_STEPS[step].multiplier;
       const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
       const anglePct = d?.angle_factor != null ? Math.round(d.angle_factor * 100) : 0;
       const condPct = d?.condition_multiplier != null ? Math.round(d.condition_multiplier * 100) : 100;
       const sunBriPct = Math.round(outdoorNorm * 100);
-      const mult = outdoorNorm * sensitivity;
-
-      // Header summary (always visible)
-      const summaryEl = document.getElementById('tune-sensitivity-summary');
-      if (summaryEl) summaryEl.textContent = fmtSunMultiplier(mult);
-      const mathEl = document.getElementById('tune-sensitivity-math');
-      if (mathEl) mathEl.textContent = sunBriPct + '% \u00d7 ' + fmtVal(sensitivity) + ' =';
 
       // Persistent sun info icon
       const sunIconEl = document.getElementById('tune-sun-info-icon');
@@ -1535,7 +1479,7 @@
     }
 
     function updateAllZoneSunMeta() {
-      updateSunMultiplierCard();
+      updateSunInfoPanel();
     }
 
     // ============================================================
@@ -1580,7 +1524,7 @@
           el.dataset.outdoorNorm = newNorm;
           updateTuneNowPreview(el, {});
         });
-        updateSunMultiplierCard();
+        updateSunInfoPanel();
       } catch (err) {
         console.error('refreshOutdoorInPlace error:', err);
       }
@@ -1791,12 +1735,12 @@
       if (!tuneArea) return;
       const lights = tuneArea.lights || [];
       const presets = tuneData?.presets || {};
-      const sensitivity = tuneData?.brightness_sensitivity ?? 1.0;
+      const zoneName = tuneArea?._zoneName;
+      const sensitivity = zoneStates?.[zoneName]?.brightness_sensitivity ?? 1.0;
       const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
       const offThresh = tuneData?.off_threshold ?? 0;
       const areaFactor = tuneArea?.brightness_factor ?? 1.0;
       const exposure = tuneArea?.natural_light_exposure ?? 0.0;
-      const zoneName = tuneArea?._zoneName;
       const zoneBri = zoneStates?.[zoneName]?.brightness ?? 50;
       const rhythmBri = Math.round(zoneBri);
       const fadeWeight = zoneStates?.[zoneName]?.brightness_fade_weight ?? 1.0;
@@ -1878,7 +1822,6 @@
       const presets = tuneData?.presets || {};
       const presetNames = Object.keys(presets);
       if (presetNames.indexOf('Standard') < 0) presetNames.unshift('Standard');
-      const sensitivity = tuneData?.brightness_sensitivity ?? 1.0;
       const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
       const offThresh = tuneData?.off_threshold ?? 0;
 
@@ -1888,6 +1831,7 @@
       const areaFactor = tuneArea?.brightness_factor ?? 1.0;
       const exposure = tuneArea?.natural_light_exposure ?? 0.0;
       const zoneName = tuneArea?._zoneName;
+      const sensitivity = zoneStates?.[zoneName]?.brightness_sensitivity ?? 1.0;
       const zoneBri = zoneStates?.[zoneName]?.brightness ?? 50;
       const rhythmBri = Math.round(zoneBri);
       const fadeWeight = zoneStates?.[zoneName]?.brightness_fade_weight ?? 1.0;
@@ -2519,8 +2463,8 @@
 
       const gzZonesObj = cachedGlozones?.zones || {};
       const gzZoneNames = Object.keys(gzZonesObj);
-      const sensitivity = tuneData?.brightness_sensitivity ?? 1.0;
       const outdoorNorm = tuneData?.outdoor_normalized ?? 0.0;
+      const zoneSensitivity = (zn) => zoneStates?.[zn]?.brightness_sensitivity ?? 1.0;
       const collapsedState = getCollapsedZones();
       // Build merged area list from glozone data
       let allAreas = [];
@@ -2578,8 +2522,8 @@
           const boostA = ta?.boosted ? (ta.boost_brightness || 0) : 0;
           const boostB = tb?.boosted ? (tb.boost_brightness || 0) : 0;
           const ovrA = ta?.bri_override || 0, ovrB = tb?.bri_override || 0;
-          const briA = Math.min(100, computeNowBrightness(zoneStates?.[znA]?.brightness ?? 50, fa, ea, outdoorNorm, sensitivity) + ovrA + boostA);
-          const briB = Math.min(100, computeNowBrightness(zoneStates?.[znB]?.brightness ?? 50, fb, eb, outdoorNorm, sensitivity) + ovrB + boostB);
+          const briA = Math.min(100, computeNowBrightness(zoneStates?.[znA]?.brightness ?? 50, fa, ea, outdoorNorm, zoneSensitivity(znA)) + ovrA + boostA);
+          const briB = Math.min(100, computeNowBrightness(zoneStates?.[znB]?.brightness ?? 50, fb, eb, outdoorNorm, zoneSensitivity(znB)) + ovrB + boostB);
           return dir * (briA - briB);
         });
       }
@@ -2606,35 +2550,6 @@
 
       let html = '';
 
-      // Sun multiplier collapsible card
-      const tuneSensStep = findClosestSensitivityStep(sensitivity);
-      const d = tuneOutdoorData;
-      const anglePct = d?.angle_factor != null ? Math.round(d.angle_factor * 100) : 0;
-      const condPct = d?.condition_multiplier != null ? Math.round(d.condition_multiplier * 100) : 100;
-      const sunBriPct = Math.round(outdoorNorm * 100);
-      const snappedSens = SENSITIVITY_STEPS[tuneSensStep].multiplier;
-      const sunMult = outdoorNorm * snappedSens;
-      const condIcon = buildOutdoorIcon(d);
-      const sensIsOpen = localStorage.getItem('tune_sensitivity_open') === '1';
-      html += `
-        <div class="tune-sensitivity-card ${sensIsOpen ? 'is-open' : ''}" id="tune-sensitivity-card">
-          <div class="tune-sensitivity-header" onclick="toggleSensitivityBody()">
-            <span class="tune-sensitivity-chevron" id="tune-sensitivity-chevron">&#x203A;</span>
-            <span class="tune-sensitivity-title">Sun multiplier</span>
-            <span class="tune-sensitivity-math" id="tune-sensitivity-math">${sunBriPct}% \u00d7 ${fmtVal(snappedSens)} =</span>
-            <span class="tune-sensitivity-val" id="tune-sensitivity-summary">${fmtSunMultiplier(sunMult)}</span>
-          </div>
-          <div class="tune-sensitivity-body" id="tune-sensitivity-body">
-            <div class="tune-sensitivity-slider-row">
-              <span class="tune-zone-ctrl-label" style="margin-right:4px;">Sensitivity</span>
-              <input type="range" class="tune-sensitivity-slider" id="tune-global-sensitivity" min="0" max="8" step="1" value="${tuneSensStep}" onclick="event.stopPropagation()">
-              <span class="tune-zone-ctrl-word tune-sensitivity-word" id="tune-global-sensitivity-word">${SENSITIVITY_STEPS[tuneSensStep].label}</span>
-              <span class="tune-zone-ctrl-val" id="tune-global-sensitivity-val">${fmtVal(snappedSens)}</span>
-            </div>
-          </div>
-        </div>
-      `;
-
       // Render zone groups
       for (const [zoneName, areasInZone] of Object.entries(zoneOrderedAreas)) {
         if (areasInZone.length === 0) continue;
@@ -2645,6 +2560,7 @@
         const zoneMinBri = zoneStates?.[zoneName]?.min_brightness ?? 1;
         const zoneMaxBri = zoneStates?.[zoneName]?.max_brightness ?? 100;
         const briFadeWeight = zoneStates?.[zoneName]?.brightness_fade_weight ?? 1.0;
+        const sensitivity = zoneSensitivity(zoneName);
 
         const areaRows = areasInZone.map(area => {
           const tuneArea = getTuneArea(area.area_id);
@@ -2762,16 +2678,6 @@
         ]);
         if (filtersResp.ok) tuneData = await filtersResp.json();
         if (outdoorResp.ok) tuneOutdoorData = await outdoorResp.json();
-
-        // Snap sensitivity to nearest valid step and persist if it changed
-        if (tuneData?.brightness_sensitivity != null) {
-          const step = findClosestSensitivityStep(tuneData.brightness_sensitivity);
-          const snapped = SENSITIVITY_STEPS[step].multiplier;
-          if (Math.abs(tuneData.brightness_sensitivity - snapped) > 0.001) {
-            tuneData.brightness_sensitivity = snapped;
-            fetch('./api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ brightness_sensitivity: snapped }) });
-          }
-        }
         if (zoneStatesResp.ok) {
           const zs = await zoneStatesResp.json();
           zoneStates = zs.zone_states || {};
@@ -2940,23 +2846,6 @@
 
       // Slider input events (live feedback)
       container.addEventListener('input', (e) => {
-        // Global sensitivity slider
-        if (e.target.id === 'tune-global-sensitivity') {
-          const step = parseInt(e.target.value);
-          const newSensitivity = SENSITIVITY_STEPS[step].multiplier;
-          const wordEl = document.getElementById('tune-global-sensitivity-word');
-          if (wordEl) wordEl.textContent = SENSITIVITY_STEPS[step].label;
-          const valEl = document.getElementById('tune-global-sensitivity-val');
-          if (valEl) valEl.textContent = fmtVal(newSensitivity);
-          if (tuneData) tuneData.brightness_sensitivity = newSensitivity;
-          document.querySelectorAll('.tune-area').forEach(el => {
-            el.dataset.sensitivity = newSensitivity;
-            updateTuneNowPreview(el, {});
-          });
-          updateSunMultiplierCard();
-          updateTuneActionBar();
-          return;
-        }
         // Per-area controls
         const tuneArea = e.target.closest('.tune-area');
         if (!tuneArea) return;
@@ -2983,8 +2872,7 @@
 
       // Slider change events (deferred — just update action bar)
       container.addEventListener('change', (e) => {
-        if (e.target.id === 'tune-global-sensitivity' ||
-            e.target.classList.contains('tune-lumen-slider') ||
+        if (e.target.classList.contains('tune-lumen-slider') ||
             e.target.classList.contains('tune-solar-slider')) {
           updateTuneActionBar();
         }
