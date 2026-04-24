@@ -627,7 +627,10 @@
     .auto-sched-card--sub { background: transparent; border: none; border-radius: 0; transition: background 0.3s; }
     .auto-sched-card--sub + .auto-sched-card--sub { border-top: 1px solid var(--line); }
     /* Sub-card bodies are always visible (outer Auto controls collapse) */
-    .auto-sched-card--sub > .auto-sched-body { max-height: none; opacity: 1; overflow: visible; }
+    .auto-sched-card--sub > .auto-sched-body { max-height: none; opacity: 1; overflow: visible; transition: opacity 0.2s; }
+    /* Disabled sub-card: body fades to signal the toggle is off without
+       collapsing or disabling inputs (so users can still pre-configure). */
+    .auto-sched-card--sub.is-disabled > .auto-sched-body { opacity: 0.5; }
     .auto-sched-card--sub.focus-flash,
     .tune-card.focus-flash { background: rgba(254, 172, 96, 0.12); box-shadow: inset 0 0 0 2px rgba(254, 172, 96, 0.85); transition: background 0.3s, box-shadow 0.3s; }
     /* Outer Auto card: holds both On and Off sub-sections. Large max-height so
@@ -687,6 +690,9 @@
     .auto-sched-offset-btn:hover { border-color: var(--accent); color: var(--accent); }
     .auto-sched-offset-val { font-size: 0.85rem; color: var(--text); min-width: 3.5em; text-align: center; font-variant-numeric: tabular-nums; }
     .auto-sched-next { font-size: 1.1rem; color: var(--text); font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    /* Tint resolved time when an override is active — paired with the
+       "clear override" link underneath to double-signal modified state. */
+    .auto-sched-next.has-override { color: rgba(254, 172, 96, 0.95); }
     .auto-sched-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transform: rotate(0deg); transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
     .auto-sched-card.is-open .auto-sched-chevron { transform: rotate(90deg); }
 
@@ -722,7 +728,6 @@
     .auto-sched-days-wrap { padding: 0 0 2px; }
     .auto-sched-days-summary { font-size: 0.7rem; color: var(--muted2); font-variant-numeric: tabular-nums; }
     .auto-sched-days-summary:empty { display: none; }
-    .auto-sched-override-link { font-size: 0.75rem; color: var(--muted2); text-decoration: underline; cursor: pointer; }
 
     /* Temp override popover (auto schedule) */
     .auto-override-popover { position: fixed; z-index: 200; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 0; min-width: 260px; max-width: 320px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); overflow: hidden; }
@@ -1213,7 +1218,7 @@
           </label>
           <span style="margin-left:auto; display:flex; flex-direction:column; align-items:flex-end;">
             <span class="auto-sched-next" id="auto-on-next"></span>
-            <a id="auto-on-override-clear" href="#" onclick="event.preventDefault(); event.stopPropagation(); clearAutoOverride('on');" style="display:none; font-size:0.65rem; color:var(--muted2); text-decoration:underline; line-height:1;">clear override</a>
+            <a id="auto-on-override-link" href="#" style="display:none; font-size:0.65rem; color:var(--muted2); text-decoration:underline; line-height:1;">set override</a>
           </span>
         </div>
         <div class="auto-sched-body" id="auto-on-body">
@@ -1293,12 +1298,6 @@
               <input type="hidden" id="auto-on-trigger-mode" value="always">
             </div>
           </div>
-          <div class="auto-sched-field" id="auto-on-override-row" style="display:none; align-items:center;">
-            <span class="auto-sched-field-label">Override</span>
-            <div class="auto-sched-field-content">
-              <a id="auto-on-override-link" class="auto-sched-override-link" href="#" onclick="event.preventDefault(); event.stopPropagation(); openAutoOverridePopup('on', this);">set</a>
-            </div>
-          </div>
           <div class="section-action-bar" id="auto-on-action-bar" style="display:none;">
             <button class="section-cancel-btn" onclick="cancelAutoChanges('on')">Cancel</button>
             <button class="section-save-btn" onclick="saveAutoChanges('on')">Save</button>
@@ -1316,7 +1315,7 @@
           </label>
           <span style="margin-left:auto; display:flex; flex-direction:column; align-items:flex-end;">
             <span class="auto-sched-next" id="auto-off-next"></span>
-            <a id="auto-off-override-clear" href="#" onclick="event.preventDefault(); event.stopPropagation(); clearAutoOverride('off');" style="display:none; font-size:0.65rem; color:var(--muted2); text-decoration:underline; line-height:1;">clear override</a>
+            <a id="auto-off-override-link" href="#" style="display:none; font-size:0.65rem; color:var(--muted2); text-decoration:underline; line-height:1;">set override</a>
           </span>
         </div>
         <div class="auto-sched-body" id="auto-off-body">
@@ -1381,12 +1380,6 @@
               <input type="checkbox" id="auto-off-untouched" onchange="onAutoFieldChanged('off')" style="accent-color:var(--muted); margin:0; cursor:pointer;">
               <span>lights not touched since Auto On</span>
             </label>
-          </div>
-          <div class="auto-sched-field" id="auto-off-override-row" style="display:none; align-items:center;">
-            <span class="auto-sched-field-label">Override</span>
-            <div class="auto-sched-field-content">
-              <a id="auto-off-override-link" class="auto-sched-override-link" href="#" onclick="event.preventDefault(); event.stopPropagation(); openAutoOverridePopup('off', this);">set</a>
-            </div>
           </div>
           <div class="section-action-bar" id="auto-off-action-bar" style="display:none;">
             <button class="section-cancel-btn" onclick="cancelAutoChanges('off')">Cancel</button>
@@ -2086,9 +2079,12 @@
     function renderMiniChart(cfg, state, sunTimes, currentHour, isActive, adjustedTimes, markerOverride) {
       if (!cfg || !sunTimes) return;
 
-      // Source per-area sun_bright_factor from live status (not cached globally)
+      // Source per-area sun_bright_factor from live status (not cached globally).
+      // state.live_sbf, when set, is a pre-save projection derived from the
+      // Sun-exposure slider — takes priority over backend value so the chart
+      // reflects the live slider position.
       const areaLive = (selectedArea && areaStatus) ? (areaStatus[selectedArea.area_id] || {}) : {};
-      const sbfNow = areaLive.sun_bright_factor ?? sunTimes.sunBrightFactorNow ?? 1.0;
+      const sbfNow = state.live_sbf ?? areaLive.sun_bright_factor ?? sunTimes.sunBrightFactorNow ?? 1.0;
       const curveSunTimes = Object.assign({}, sunTimes, { sunBrightFactorNow: sbfNow });
 
       // Always anchor at ascend_start so the full day reads left-to-right
@@ -3904,6 +3900,23 @@
         if (tuneState.brightnessSensitivity != null) {
           areaState.brightness_sensitivity = tuneState.brightnessSensitivity;
         }
+        // Project sun_bright_factor for the live exposure so Sun-exposure
+        // slider drags reshape the sun-dimming curve pre-save. Backend formula:
+        // sbf = max(0, 1 − exposure × intensity × sensitivity). We only have
+        // backend sbf (computed with the saved exposure), so recover the
+        // intensity×sensitivity product from it and reapply with live exposure.
+        // Only meaningful when saved exposure > 0 and slider has moved off its
+        // saved position; otherwise fall through to backend sbf.
+        if (tuneSnapshot && tuneState.backendSunBrightFactor != null &&
+            typeof SOLAR_STEPS !== 'undefined' &&
+            SOLAR_STEPS[tuneState.solarStep] && SOLAR_STEPS[tuneSnapshot.solarStep]) {
+          const savedExp = SOLAR_STEPS[tuneSnapshot.solarStep].exposure;
+          const liveExp = SOLAR_STEPS[tuneState.solarStep].exposure;
+          if (liveExp !== savedExp && savedExp > 0) {
+            const intensityProd = (1 - tuneState.backendSunBrightFactor) / savedExp;
+            areaState.live_sbf = Math.max(0, 1 - liveExp * intensityProd);
+          }
+        }
       }
 
       let currentHour;
@@ -4482,11 +4495,12 @@
       tuneState.areaFactor = LUMEN_STEPS[tuneSnapshot.lumenStep].factor;
       tuneState.solarStep = tuneSnapshot.solarStep;
       const lumenSlider = document.getElementById('tune-slider-lumen');
-      if (lumenSlider) lumenSlider.value = tuneSnapshot.lumenStep;
+      if (lumenSlider) { lumenSlider.value = tuneSnapshot.lumenStep; updateSliderFill(lumenSlider); }
       const solarSlider = document.getElementById('tune-slider-solar');
-      if (solarSlider) solarSlider.value = tuneSnapshot.solarStep;
+      if (solarSlider) { solarSlider.value = tuneSnapshot.solarStep; updateSliderFill(solarSlider); }
       recalcTune();
       updateTuneButtons();
+      if (selectedArea) renderMiniChartForArea(selectedArea.area_id);
     }
 
     function cancelLightsChanges() {
@@ -4559,7 +4573,16 @@
       });
       fetchNextAutoSchedule(type);
       updateAutoOverrideIndicator(type);
+      updateAutoSubCardEnabledUI(type);
       captureAutoSnapshot(type);
+    }
+
+    // Fade the sub-card body when its enable toggle is off — inputs stay
+    // interactive for pre-configuration, but visually recede.
+    function updateAutoSubCardEnabledUI(type) {
+      const card = document.getElementById('auto-' + type + '-card');
+      const enabled = document.getElementById('auto-' + type + '-enabled')?.checked;
+      if (card) card.classList.toggle('is-disabled', !enabled);
     }
 
     function onAutoFieldChanged(type) {
@@ -5801,6 +5824,7 @@
           // Override indicator
           const hasOverride = !!(settings[prefix + '_override']);
           updateAutoOverrideIndicator(type, hasOverride);
+          updateAutoSubCardEnabledUI(type);
 
           showResolvedAutoTime(type);
           captureAutoSnapshot(type);
@@ -5856,18 +5880,30 @@
       }
     }
 
+    // Cache last-known override state per type so callers that don't know
+    // (toggle flips, card expand/collapse) preserve the indicator instead of
+    // reverting to "set override" until the next settings fetch.
+    const _autoOverrideState = { on: false, off: false };
     function updateAutoOverrideIndicator(type, hasOverride) {
-      // If hasOverride not passed, check from settings cache
-      if (hasOverride === undefined) hasOverride = false;
+      // Single header link: reads "set override" when none, "clear override"
+      // when active. Tints the resolved time orange when active.
+      if (hasOverride === undefined) hasOverride = _autoOverrideState[type] || false;
+      else _autoOverrideState[type] = !!hasOverride;
       const enabled = document.getElementById('auto-' + type + '-enabled')?.checked;
-      const clearEl = document.getElementById('auto-' + type + '-override-clear');
-      const overrideRow = document.getElementById('auto-' + type + '-override-row');
-      if (clearEl) clearEl.style.display = hasOverride ? '' : 'none';
-      // Show override link whenever auto is enabled and no override is set.
-      // The row inherits visibility from the outer Auto card's collapse state
-      // (sub-cards stopped toggling is-open when on/off merged into one outer
-      // card in v1.2.137), so no further body-visible check is needed.
-      if (overrideRow) overrideRow.style.display = (!hasOverride && enabled) ? '' : 'none';
+      const link = document.getElementById('auto-' + type + '-override-link');
+      const timeEl = document.getElementById('auto-' + type + '-next');
+      if (timeEl) timeEl.classList.toggle('has-override', !!hasOverride);
+      if (link) {
+        if (!enabled) {
+          link.style.display = 'none';
+        } else {
+          link.style.display = '';
+          link.textContent = hasOverride ? 'clear override' : 'set override';
+          link.onclick = hasOverride
+            ? (e) => { e.preventDefault(); e.stopPropagation(); clearAutoOverride(type); }
+            : (e) => { e.preventDefault(); e.stopPropagation(); openAutoOverridePopup(type, link); };
+        }
+      }
     }
 
     async function saveAutoScheduleSettings(type) {
