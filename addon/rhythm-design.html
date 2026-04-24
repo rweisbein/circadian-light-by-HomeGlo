@@ -49,20 +49,11 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 .rhythm-card-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.35s ease, opacity 0.25s ease; padding: 0 14px; }
 .rhythm-card.is-open .rhythm-card-body { max-height: 1200px; opacity: 1; padding-bottom: 14px; }
 
-/* Sub-section collapse (within cards) */
-.sub-section { border-top: 1px solid var(--line); }
-.sub-section:first-child { border-top: none; }
-.sub-section-header { display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 8px 0; user-select: none; }
-.sub-section-chevron { display: inline-block; font-size: var(--font-card-title); line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
-.sub-section.is-open .sub-section-chevron { transform: rotate(90deg); }
+/* Sub-section: flat, always-visible grouping within a card */
+.sub-section-header { display: flex; align-items: center; gap: 6px; padding: 8px 0; user-select: none; }
 .sub-section-title { font-size: var(--font-value); font-weight: 600; color: var(--text); }
-.sub-section-val { margin-left: auto; font-size: var(--font-value); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.sub-section-val b { font-weight: 600; color: var(--text); }
-.sub-section-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.2s ease; }
-.sub-section.is-open .sub-section-body { max-height: 800px; opacity: 1; }
-/* Sleep sub-sections: no border separators, hide summary when open */
-#rhythm-sleep-body .sub-section { border-top: none; }
-#rhythm-sleep-body .sub-section.is-open .sub-section-val { display: none; }
+/* Sleep card: Wake and Bed stacked, separated by a divider */
+#rhythm-sleep-body .sub-section + .sub-section { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
 
 /* Sleep card header summary (two-line stack) */
 .rhythm-sleep-summary { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
@@ -246,6 +237,13 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
   padding-bottom: 4px;
 }
 .reveal-group > .tune-control-row { cursor: pointer; }
+
+/* Sleep Brightness/Speed rows: cap width so value sits closer to label */
+.sleep-summary-row > .tune-control-row { max-width: 260px; }
+
+/* Brightness-card sensitivity slider: full-width to match min/max gradient */
+.brightness-sensitivity-group > .tune-slider-row { max-width: none; padding-left: 14px; padding-right: 14px; }
+.brightness-sensitivity-group > .tune-slider-row input[type=range] { width: 100%; }
 
 /* Section block (chart) */
 .section-block {
@@ -1306,10 +1304,8 @@ input[type=range]::-moz-range-thumb {
       </div>
 
       <div class="sub-section" id="wake-sub-section">
-        <div class="sub-section-header" onclick="toggleSubSection('wake-sub-section')">
-          <span class="sub-section-chevron">&#x203A;</span>
+        <div class="sub-section-header">
           <span class="sub-section-title">Wake</span>
-          <span class="sub-section-val" id="wake-sub-val"></span>
         </div>
         <div class="sub-section-body">
           <!-- Hidden day bubbles (data source) -->
@@ -1346,7 +1342,7 @@ input[type=range]::-moz-range-thumb {
               </div>
             </div>
           </div>
-          <div class="reveal-group">
+          <div class="reveal-group sleep-summary-row">
             <div class="tune-control-row">
               <span class="tune-control-left">
                 <span class="tune-control-label">Brightness</span>
@@ -1358,7 +1354,7 @@ input[type=range]::-moz-range-thumb {
               <input type="range" id="wake-brightness" min="10" max="90" step="5" value="50">
             </div>
           </div>
-          <div class="reveal-group">
+          <div class="reveal-group sleep-summary-row">
             <div class="tune-control-row">
               <span class="tune-control-left">
                 <span class="tune-control-label">Speed</span>
@@ -1374,10 +1370,8 @@ input[type=range]::-moz-range-thumb {
       </div>
 
       <div class="sub-section" id="bed-sub-section">
-        <div class="sub-section-header" onclick="toggleSubSection('bed-sub-section')">
-          <span class="sub-section-chevron">&#x203A;</span>
+        <div class="sub-section-header">
           <span class="sub-section-title">Bed</span>
-          <span class="sub-section-val" id="bed-sub-val"></span>
         </div>
         <div class="sub-section-body">
           <!-- Hidden day bubbles (data source) -->
@@ -1414,7 +1408,7 @@ input[type=range]::-moz-range-thumb {
               </div>
             </div>
           </div>
-          <div class="reveal-group">
+          <div class="reveal-group sleep-summary-row">
             <div class="tune-control-row">
               <span class="tune-control-left">
                 <span class="tune-control-label">Brightness</span>
@@ -1426,7 +1420,7 @@ input[type=range]::-moz-range-thumb {
               <input type="range" id="bed-brightness" min="10" max="90" step="5" value="50">
             </div>
           </div>
-          <div class="reveal-group">
+          <div class="reveal-group sleep-summary-row">
             <div class="tune-control-row">
               <span class="tune-control-left">
                 <span class="tune-control-label">Speed</span>
@@ -1475,37 +1469,43 @@ input[type=range]::-moz-range-thumb {
           <input type="hidden" id="warm-night-mode" value="all">
           <input type="hidden" id="warm-night-target" value="2700">
           <div class="color-rule-stack-body" id="warm-night-body">
-            <div class="tune-control-row">
-              <span class="tune-control-left">
-                <span class="tune-control-label">Start</span>
-                <span class="tune-control-reset" id="reset-warm-night-start" data-default="-60">reset</span>
-              </span>
-              <span class="tune-control-impact" id="warm-night-start-impact"></span>
+            <div class="reveal-group">
+              <div class="tune-control-row">
+                <span class="tune-control-left">
+                  <span class="tune-control-label">Start</span>
+                  <span class="tune-control-reset" id="reset-warm-night-start" data-default="-60">reset</span>
+                </span>
+                <span class="tune-control-impact" id="warm-night-start-impact"></span>
+              </div>
+              <div class="tune-slider-row">
+                <input type="range" id="warm-night-start" min="-180" max="180" step="30" value="-60">
+                <div class="tune-slider-word" id="warm-night-start-text">1 hr before sunset</div>
+              </div>
             </div>
-            <div class="tune-slider-row">
-              <input type="range" id="warm-night-start" min="-180" max="180" step="30" value="-60">
-              <div class="tune-slider-word" id="warm-night-start-text">1 hr before sunset</div>
+            <div class="reveal-group">
+              <div class="tune-control-row">
+                <span class="tune-control-left">
+                  <span class="tune-control-label">End</span>
+                  <span class="tune-control-reset" id="reset-warm-night-end" data-default="60">reset</span>
+                </span>
+                <span class="tune-control-impact" id="warm-night-end-impact"></span>
+              </div>
+              <div class="tune-slider-row">
+                <input type="range" id="warm-night-end" min="-180" max="180" step="30" value="60">
+                <div class="tune-slider-word" id="warm-night-end-text">1 hr after sunrise</div>
+              </div>
             </div>
-            <div class="tune-control-row">
-              <span class="tune-control-left">
-                <span class="tune-control-label">End</span>
-                <span class="tune-control-reset" id="reset-warm-night-end" data-default="60">reset</span>
-              </span>
-              <span class="tune-control-impact" id="warm-night-end-impact"></span>
-            </div>
-            <div class="tune-slider-row">
-              <input type="range" id="warm-night-end" min="-180" max="180" step="30" value="60">
-              <div class="tune-slider-word" id="warm-night-end-text">1 hr after sunrise</div>
-            </div>
-            <div class="tune-control-row">
-              <span class="tune-control-left">
-                <span class="tune-control-label">Fade</span>
-                <span class="tune-control-reset" id="reset-warm-night-fade" data-default="60">reset</span>
-              </span>
-              <span class="tune-control-impact" id="warm-night-fade-text">1 hr</span>
-            </div>
-            <div class="tune-slider-row">
-              <input type="range" id="warm-night-fade" min="0" max="300" step="30" value="60">
+            <div class="reveal-group">
+              <div class="tune-control-row">
+                <span class="tune-control-left">
+                  <span class="tune-control-label">Fade</span>
+                  <span class="tune-control-reset" id="reset-warm-night-fade" data-default="60">reset</span>
+                </span>
+                <span class="tune-control-impact" id="warm-night-fade-text">1 hr</span>
+              </div>
+              <div class="tune-slider-row">
+                <input type="range" id="warm-night-fade" min="0" max="300" step="30" value="60">
+              </div>
             </div>
           </div>
         </div>
@@ -1519,47 +1519,55 @@ input[type=range]::-moz-range-thumb {
           </div>
           <input type="hidden" id="daylight-cct" value="5500">
           <div class="color-rule-stack-body" id="daylight-body">
-            <div class="tune-control-row">
-              <span class="tune-control-left">
-                <span class="tune-control-label">Start</span>
-                <span class="tune-control-reset" id="reset-daylight-start" data-default="60">reset</span>
-              </span>
-              <span class="tune-control-impact" id="daylight-start-impact"></span>
+            <div class="reveal-group">
+              <div class="tune-control-row">
+                <span class="tune-control-left">
+                  <span class="tune-control-label">Start</span>
+                  <span class="tune-control-reset" id="reset-daylight-start" data-default="60">reset</span>
+                </span>
+                <span class="tune-control-impact" id="daylight-start-impact"></span>
+              </div>
+              <div class="tune-slider-row">
+                <input type="range" id="daylight-start" min="-180" max="180" step="30" value="60">
+                <div class="tune-slider-word" id="daylight-start-text">1 hr after sunrise</div>
+              </div>
             </div>
-            <div class="tune-slider-row">
-              <input type="range" id="daylight-start" min="-180" max="180" step="30" value="60">
-              <div class="tune-slider-word" id="daylight-start-text">1 hr after sunrise</div>
+            <div class="reveal-group">
+              <div class="tune-control-row">
+                <span class="tune-control-left">
+                  <span class="tune-control-label">End</span>
+                  <span class="tune-control-reset" id="reset-daylight-end" data-default="-60">reset</span>
+                </span>
+                <span class="tune-control-impact" id="daylight-end-impact"></span>
+              </div>
+              <div class="tune-slider-row">
+                <input type="range" id="daylight-end" min="-180" max="180" step="30" value="-60">
+                <div class="tune-slider-word" id="daylight-end-text">1 hr before sunset</div>
+              </div>
             </div>
-            <div class="tune-control-row">
-              <span class="tune-control-left">
-                <span class="tune-control-label">End</span>
-                <span class="tune-control-reset" id="reset-daylight-end" data-default="-60">reset</span>
-              </span>
-              <span class="tune-control-impact" id="daylight-end-impact"></span>
+            <div class="reveal-group">
+              <div class="tune-control-row">
+                <span class="tune-control-left">
+                  <span class="tune-control-label">Fade</span>
+                  <span class="tune-control-reset" id="reset-daylight-fade" data-default="60">reset</span>
+                </span>
+                <span class="tune-control-impact" id="daylight-fade-text">1 hr</span>
+              </div>
+              <div class="tune-slider-row">
+                <input type="range" id="daylight-fade" min="0" max="300" step="30" value="60">
+              </div>
             </div>
-            <div class="tune-slider-row">
-              <input type="range" id="daylight-end" min="-180" max="180" step="30" value="-60">
-              <div class="tune-slider-word" id="daylight-end-text">1 hr before sunset</div>
-            </div>
-            <div class="tune-control-row">
-              <span class="tune-control-left">
-                <span class="tune-control-label">Fade</span>
-                <span class="tune-control-reset" id="reset-daylight-fade" data-default="60">reset</span>
-              </span>
-              <span class="tune-control-impact" id="daylight-fade-text">1 hr</span>
-            </div>
-            <div class="tune-slider-row">
-              <input type="range" id="daylight-fade" min="0" max="300" step="30" value="60">
-            </div>
-            <div class="tune-control-row">
-              <span class="tune-control-left">
-                <span class="tune-control-label">Sun sensitivity</span>
-                <span class="tune-control-reset" id="reset-color-sensitivity" data-default="5">reset</span>
-              </span>
-              <span class="tune-control-impact" id="color-sensitivity-text">1.00: standard</span>
-            </div>
-            <div class="tune-slider-row">
-              <input type="range" id="color-sensitivity" min="0" max="8" step="1" value="5">
+            <div class="reveal-group">
+              <div class="tune-control-row">
+                <span class="tune-control-left">
+                  <span class="tune-control-label">Sun sensitivity</span>
+                  <span class="tune-control-reset" id="reset-color-sensitivity" data-default="5">reset</span>
+                </span>
+                <span class="tune-control-impact" id="color-sensitivity-text">1.00: standard</span>
+              </div>
+              <div class="tune-slider-row">
+                <input type="range" id="color-sensitivity" min="0" max="8" step="1" value="5">
+              </div>
             </div>
           </div>
         </div>
@@ -1582,15 +1590,17 @@ input[type=range]::-moz-range-thumb {
       <div id="rhythm-bri-gradient-container" class="ct-gradient-wrap"></div>
       <input type="hidden" id="brightness-min" value="1">
       <input type="hidden" id="brightness-max" value="100">
-      <div class="tune-control-row">
-        <span class="tune-control-left">
-          <span class="tune-control-label">Sun sensitivity</span>
-          <span class="tune-control-reset" id="reset-brightness-sensitivity" data-default="5">reset</span>
-        </span>
-        <span class="tune-control-impact" id="brightness-sensitivity-text">1.00: standard</span>
-      </div>
-      <div class="tune-slider-row">
-        <input type="range" id="brightness-sensitivity" min="0" max="8" step="1" value="5">
+      <div class="reveal-group brightness-sensitivity-group">
+        <div class="tune-control-row">
+          <span class="tune-control-left">
+            <span class="tune-control-label">Sun sensitivity</span>
+            <span class="tune-control-reset" id="reset-brightness-sensitivity" data-default="5">reset</span>
+          </span>
+          <span class="tune-control-impact" id="brightness-sensitivity-text">1.00: standard</span>
+        </div>
+        <div class="tune-slider-row">
+          <input type="range" id="brightness-sensitivity" min="0" max="8" step="1" value="5">
+        </div>
       </div>
       <div class="section-actions" id="brightness-section-actions">
         <button class="section-cancel-btn" onclick="cancelBrightnessChanges()">Cancel</button>
@@ -3568,8 +3578,6 @@ function updateSleepSummary() {
     const blocks = document.getElementById(`${prefix}-time-blocks`);
     if (blocks) blocks.classList.toggle('no-alt', !hasAlt);
   });
-
-  updateSubSectionSummaries();
 }
 
 function getBrightnessWord(val) {
@@ -3578,23 +3586,6 @@ function getBrightnessWord(val) {
   if (val <= 55) return 'Moderate';
   if (val <= 70) return 'Bright';
   return 'Very bright';
-}
-
-function toggleSubSection(sectionId) {
-  const section = document.getElementById(sectionId);
-  if (!section) return;
-  section.classList.toggle('is-open');
-}
-
-function updateSubSectionSummaries() {
-  const wakeVal = document.getElementById('wake-sub-val');
-  if (wakeVal) {
-    wakeVal.innerHTML = '';
-  }
-  const bedVal = document.getElementById('bed-sub-val');
-  if (bedVal) {
-    bedVal.innerHTML = '';
-  }
 }
 
 function toggleRhythmCard(cardId, storageKey) {

@@ -638,7 +638,7 @@
     .auto-sched-card--sub > .auto-sched-body { max-height: none; opacity: 1; overflow: visible; transition: opacity 0.2s; }
     /* Disabled sub-card: body fades to signal the toggle is off without
        collapsing or disabling inputs (so users can still pre-configure). */
-    .auto-sched-card--sub.is-disabled > .auto-sched-body { opacity: 0.5; }
+    .auto-sched-card.is-open .auto-sched-card--sub.is-disabled > .auto-sched-body { opacity: 0.5; }
     .auto-sched-card--sub.focus-flash,
     .tune-card.focus-flash { background: rgba(254, 172, 96, 0.12); box-shadow: inset 0 0 0 2px rgba(254, 172, 96, 0.85); transition: background 0.3s, box-shadow 0.3s; }
     /* Outer Auto card: holds both On and Off sub-sections. Large max-height so
@@ -727,6 +727,7 @@
 
     /* Auto-hide slider reveal pattern on Fade row — slider collapses until user taps the row, value stays visible. */
     .auto-fade-row { cursor: pointer; }
+    .auto-fade-row .auto-sched-field-content { justify-content: flex-end; }
     .auto-fade-row .auto-sched-fade-slider {
       flex: 0 0 0;
       width: 0;
@@ -4627,7 +4628,10 @@
     function onAutoFieldChanged(type) {
       showResolvedAutoTime(type);
       updateAutoButtons(type);
-      // Live preview: refresh from server so next-trigger data stays current.
+      // Live header preview from current UI state, before the server round-trip.
+      updateAutoHeaderText(type);
+      // Backend refresh keeps day-suffix + _cachedNextAuto current for when the
+      // user saves and the dirty check falls back to the cached value.
       fetchNextAutoSchedule(type);
       updateMergedAutoHeader();
     }
@@ -5908,15 +5912,38 @@
       const enabled = document.getElementById('auto-' + type + '-enabled')?.checked;
       if (!enabled) { nextEl.textContent = ''; return; }
 
-      // Sub-card headers (always visible when outer Auto is expanded): show the
-      // fully-resolved absolute time (e.g. "6:19p Fri") so the user can see the
-      // actual computed trigger value even when the source is a sun word.
+      // When the user has pending edits, project the header from current UI state
+      // so it responds live before save. When clean, show the backend-resolved
+      // absolute time (includes day suffix).
+      if (isAutoDirty(type)) {
+        const projected = projectAutoHeaderFromUI(type);
+        if (projected) { nextEl.textContent = projected; return; }
+      }
+
       const nxt = _cachedNextAuto[type];
       if (nxt) {
         nextEl.textContent = nxt.time + (nxt.day ? ' ' + nxt.day : '');
       } else {
         nextEl.textContent = '';
       }
+    }
+
+    // Project the header's resolved-time from the current UI state (pre-save).
+    function projectAutoHeaderFromUI(type) {
+      const s = autoState[type];
+      if (!s) return '';
+      const source = s.source;
+      if (source === 'sunrise' || source === 'sunset') {
+        const base = getAutoSunBase(type);
+        if (base == null) return '';
+        return formatAutoTime(base + (s.offset || 0) / 60);
+      }
+      // Custom: use the first time input (time-1). If today maps to time-2 days,
+      // we'd need day-routing logic — skip that edge case and show time-1.
+      const t1 = document.getElementById('auto-' + type + '-time-1')?.value;
+      if (!t1) return '';
+      const [hh, mm] = t1.split(':').map(n => parseInt(n) || 0);
+      return formatAutoTime(hh + mm / 60);
     }
 
     // Cache last-known override state per type so callers that don't know
@@ -6181,10 +6208,12 @@
         const word = source === 'sunrise' ? 'Sunrise' : 'Sunset';
         const offStr = s.offset === 0 ? '' : ' ' + formatOffset(s.offset);
         core = word + offStr;
+      } else if (isAutoDirty(type)) {
+        const projected = projectAutoHeaderFromUI(type);
+        core = projected ? formatAutoTimeCompact(projected) : (nxt?.time ? formatAutoTimeCompact(nxt.time) : '—');
       } else if (nxt && nxt.time) {
         core = formatAutoTimeCompact(nxt.time);
       } else {
-        // Enabled but no computed time yet (e.g. custom without days selected)
         core = '—';
       }
       const daySuffix = formatAutoDaySuffix(nxt);
