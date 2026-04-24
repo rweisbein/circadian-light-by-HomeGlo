@@ -5862,10 +5862,12 @@
       const enabled = document.getElementById('auto-' + type + '-enabled')?.checked;
       const clearEl = document.getElementById('auto-' + type + '-override-clear');
       const overrideRow = document.getElementById('auto-' + type + '-override-row');
-      const bodyVisible = document.getElementById('auto-' + type + '-card')?.classList.contains('is-open');
       if (clearEl) clearEl.style.display = hasOverride ? '' : 'none';
-      // Suppress override link when auto is off
-      if (overrideRow) overrideRow.style.display = (!hasOverride && bodyVisible && enabled) ? '' : 'none';
+      // Show override link whenever auto is enabled and no override is set.
+      // The row inherits visibility from the outer Auto card's collapse state
+      // (sub-cards stopped toggling is-open when on/off merged into one outer
+      // card in v1.2.137), so no further body-visible check is needed.
+      if (overrideRow) overrideRow.style.display = (!hasOverride && enabled) ? '' : 'none';
     }
 
     async function saveAutoScheduleSettings(type) {
