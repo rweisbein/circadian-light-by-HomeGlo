@@ -651,7 +651,7 @@
     .auto-sched-card--sub .auto-sched-conditions-header,
     .auto-sched-card--sub .section-action-bar { padding-left: 28px; }
     /* Custom schedule 2 header: inline "Schedule 2" label + "− remove" link */
-    .auto-sched-custom-header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 10px; margin-bottom: 4px; }
+    .auto-sched-custom-header { display: flex; align-items: baseline; gap: 10px; margin-top: 10px; margin-bottom: 4px; }
     .auto-sched-remove-link { font-size: 0.7rem; color: var(--muted2); text-decoration: underline; cursor: pointer; }
     .auto-sched-remove-link:hover { color: var(--text); }
     .auto-sched-header { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 14px; user-select: none; }
@@ -667,8 +667,16 @@
     .auto-sched-body-inner { padding: 4px 0 14px 0; }
     .auto-sched-row { display: flex; align-items: center; margin-bottom: 4px; }
     .auto-sched-days { display: flex; gap: 6px; margin-bottom: 4px; }
+    .auto-sched-days-time { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: nowrap; }
+    .auto-sched-days-time .auto-sched-days { margin-bottom: 0; gap: 4px; }
+    .auto-sched-days-time .auto-sched-day-col { gap: 0; }
+    .auto-sched-days-time .auto-sched-day-btn { width: 19px; height: 19px; font-size: 0.48rem; border-width: 1.25px; }
     .auto-sched-day-col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
     .auto-sched-day-btn { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; color: var(--muted); font-size: 0.55rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; transition: all 0.15s; }
+    .auto-sched-time-input--inline { padding: 3px 6px; font-size: 0.78rem; max-width: 108px; flex-shrink: 0; }
+    .auto-sched-time-input--inline::-webkit-datetime-edit-ampm-field { text-transform: lowercase; font-size: 0.68rem; padding: 0 1px; }
+    .auto-sched-time-input--inline::-webkit-datetime-edit-hour-field,
+    .auto-sched-time-input--inline::-webkit-datetime-edit-minute-field { padding: 0 1px; }
     .auto-sched-day-btn:hover { border-color: var(--text); color: var(--text); }
     .auto-sched-day-btn.active { background: #eef1f5; border-color: #eef1f5; color: #000; }
     .auto-sched-day-time { font-size: 0.6rem; color: var(--muted2); height: 0.75rem; line-height: 0.75rem; font-variant-numeric: tabular-nums; }
@@ -811,6 +819,8 @@
     .tune-lights-title { font-size: 1.0rem; font-weight: 600; color: var(--text); }
     .tune-lights-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transform: rotate(0deg); transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
     .tune-lights-card.is-open .tune-lights-chevron { transform: rotate(90deg); }
+    .tune-lights-count { margin-left: auto; font-size: 0.85rem; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; transition: opacity 0.25s; }
+    .tune-lights-card.is-open .tune-lights-count { opacity: 0; }
     .tune-lights-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; padding-bottom: 0; }
     .tune-lights-card.is-open .tune-lights-body { max-height: 1000px; opacity: 1; padding-bottom: 8px; }
     .tune-light-item { padding: 0 14px; border-bottom: 1px solid var(--line); }
@@ -996,6 +1006,8 @@
       font-size: 0.72rem; color: var(--text); white-space: nowrap;
       display: flex; justify-content: space-between; margin-top: 0;
     }
+    .tune-slider-word .tune-solar-main { font-size: 0.78rem; font-weight: 600; color: var(--text); }
+    .tune-slider-word .tune-solar-peak { color: var(--muted2); font-size: 0.68rem; }
 
     /* Individual section: peer header to "Adjustments" with leading chevron */
     .tune-individual-toggle {
@@ -1171,6 +1183,15 @@
         </div>
       </div>
     </div>
+    <div class="tune-card tune-controls-card" id="tune-controls-card" style="display:none;">
+      <div class="tune-brightness-header" onclick="toggleControlsBody()">
+        <span class="tune-brightness-chevron" id="tune-controls-chevron">&#x203A;</span>
+        <span class="tune-brightness-title">Controls</span>
+        <span class="tune-brightness-val" id="tune-controls-count" style="font-size:0.85rem;font-weight:500;color:var(--muted);"></span>
+      </div>
+      <div class="tune-brightness-body" id="tune-controls-body">
+      </div>
+    </div>
     <div class="auto-sched-card auto-sched-card--auto" id="auto-outer-card">
       <div class="auto-sched-header" onclick="toggleAutoOuter(event)">
         <span class="auto-sched-chevron" id="auto-outer-chevron">&#x203A;</span>
@@ -1211,14 +1232,17 @@
                 <label onclick="setAutoSource('on','sunset')"><input type="radio" name="auto-on-source" id="auto-on-src-sunset"> Sunset</label>
                 <label onclick="setAutoSource('on','custom')"><input type="radio" name="auto-on-source" id="auto-on-src-custom"> Custom</label>
               </div>
-              <div class="auto-sched-days" id="auto-on-days">
-                <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="0" onclick="toggleAutoDay('on',this)">Mo</button><span class="auto-sched-day-time" data-daytime="0"></span></div>
-                <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="1" onclick="toggleAutoDay('on',this)">Tu</button><span class="auto-sched-day-time" data-daytime="1"></span></div>
-                <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="2" onclick="toggleAutoDay('on',this)">We</button><span class="auto-sched-day-time" data-daytime="2"></span></div>
-                <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="3" onclick="toggleAutoDay('on',this)">Th</button><span class="auto-sched-day-time" data-daytime="3"></span></div>
-                <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="4" onclick="toggleAutoDay('on',this)">Fr</button><span class="auto-sched-day-time" data-daytime="4"></span></div>
-                <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="5" onclick="toggleAutoDay('on',this)">Sa</button><span class="auto-sched-day-time" data-daytime="5"></span></div>
-                <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="6" onclick="toggleAutoDay('on',this)">Su</button><span class="auto-sched-day-time" data-daytime="6"></span></div>
+              <div class="auto-sched-days-time">
+                <div class="auto-sched-days" id="auto-on-days">
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="0" onclick="toggleAutoDay('on',this)">Mo</button><span class="auto-sched-day-time" data-daytime="0"></span></div>
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="1" onclick="toggleAutoDay('on',this)">Tu</button><span class="auto-sched-day-time" data-daytime="1"></span></div>
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="2" onclick="toggleAutoDay('on',this)">We</button><span class="auto-sched-day-time" data-daytime="2"></span></div>
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="3" onclick="toggleAutoDay('on',this)">Th</button><span class="auto-sched-day-time" data-daytime="3"></span></div>
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="4" onclick="toggleAutoDay('on',this)">Fr</button><span class="auto-sched-day-time" data-daytime="4"></span></div>
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="5" onclick="toggleAutoDay('on',this)">Sa</button><span class="auto-sched-day-time" data-daytime="5"></span></div>
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="6" onclick="toggleAutoDay('on',this)">Su</button><span class="auto-sched-day-time" data-daytime="6"></span></div>
+                </div>
+                <input type="time" class="auto-sched-time-input auto-sched-time-input--inline" id="auto-on-time-1" value="07:00" style="display:none;" oninput="onAutoFieldChanged('on')" onchange="onAutoFieldChanged('on')">
               </div>
               <div id="auto-on-sun-controls" class="auto-sched-row">
                 <div class="auto-sched-offset">
@@ -1228,25 +1252,22 @@
                 </div>
               </div>
               <div id="auto-on-custom-controls" style="display:none;">
-                <div class="auto-sched-row">
-                  <input type="time" class="auto-sched-time-input" id="auto-on-time-1" value="07:00" oninput="onAutoFieldChanged('on')" onchange="onAutoFieldChanged('on')">
-                </div>
                 <div class="auto-sched-custom-group" id="auto-on-sched-2" style="display:none;">
                   <div class="auto-sched-custom-header">
                     <span class="auto-sched-custom-label">Schedule 2</span>
-                    <a class="auto-sched-remove-link" onclick="removeAutoSchedule2('on')">− remove</a>
+                    <a class="auto-sched-remove-link" onclick="removeAutoSchedule2('on')">remove</a>
                   </div>
-                  <div class="auto-sched-days" id="auto-on-days-2">
-                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="0" onclick="toggleAutoCustomDay('on',2,this)">Mo</button></div>
-                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="1" onclick="toggleAutoCustomDay('on',2,this)">Tu</button></div>
-                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="2" onclick="toggleAutoCustomDay('on',2,this)">We</button></div>
-                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="3" onclick="toggleAutoCustomDay('on',2,this)">Th</button></div>
-                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="4" onclick="toggleAutoCustomDay('on',2,this)">Fr</button></div>
-                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="5" onclick="toggleAutoCustomDay('on',2,this)">Sa</button></div>
-                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="6" onclick="toggleAutoCustomDay('on',2,this)">Su</button></div>
-                  </div>
-                  <div class="auto-sched-row">
-                    <input type="time" class="auto-sched-time-input" id="auto-on-time-2" value="09:00" oninput="onAutoFieldChanged('on')" onchange="onAutoFieldChanged('on')">
+                  <div class="auto-sched-days-time">
+                    <div class="auto-sched-days" id="auto-on-days-2">
+                      <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="0" onclick="toggleAutoCustomDay('on',2,this)">Mo</button></div>
+                      <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="1" onclick="toggleAutoCustomDay('on',2,this)">Tu</button></div>
+                      <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="2" onclick="toggleAutoCustomDay('on',2,this)">We</button></div>
+                      <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="3" onclick="toggleAutoCustomDay('on',2,this)">Th</button></div>
+                      <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="4" onclick="toggleAutoCustomDay('on',2,this)">Fr</button></div>
+                      <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="5" onclick="toggleAutoCustomDay('on',2,this)">Sa</button></div>
+                      <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="6" onclick="toggleAutoCustomDay('on',2,this)">Su</button></div>
+                    </div>
+                    <input type="time" class="auto-sched-time-input auto-sched-time-input--inline" id="auto-on-time-2" value="09:00" oninput="onAutoFieldChanged('on')" onchange="onAutoFieldChanged('on')">
                   </div>
                 </div>
                 <div class="auto-sched-add-schedule" id="auto-on-add-sched" onclick="showAutoSchedule2('on')">+ add schedule</div>
@@ -1307,14 +1328,17 @@
                 <label onclick="setAutoSource('off','sunset')"><input type="radio" name="auto-off-source" id="auto-off-src-sunset"> Sunset</label>
                 <label onclick="setAutoSource('off','custom')"><input type="radio" name="auto-off-source" id="auto-off-src-custom"> Custom</label>
               </div>
-              <div class="auto-sched-days" id="auto-off-days">
-                <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="0" onclick="toggleAutoDay('off',this)">Mo</button><span class="auto-sched-day-time" data-daytime="0"></span></div>
-                <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="1" onclick="toggleAutoDay('off',this)">Tu</button><span class="auto-sched-day-time" data-daytime="1"></span></div>
-                <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="2" onclick="toggleAutoDay('off',this)">We</button><span class="auto-sched-day-time" data-daytime="2"></span></div>
-                <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="3" onclick="toggleAutoDay('off',this)">Th</button><span class="auto-sched-day-time" data-daytime="3"></span></div>
-                <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="4" onclick="toggleAutoDay('off',this)">Fr</button><span class="auto-sched-day-time" data-daytime="4"></span></div>
-                <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="5" onclick="toggleAutoDay('off',this)">Sa</button><span class="auto-sched-day-time" data-daytime="5"></span></div>
-                <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="6" onclick="toggleAutoDay('off',this)">Su</button><span class="auto-sched-day-time" data-daytime="6"></span></div>
+              <div class="auto-sched-days-time">
+                <div class="auto-sched-days" id="auto-off-days">
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="0" onclick="toggleAutoDay('off',this)">Mo</button><span class="auto-sched-day-time" data-daytime="0"></span></div>
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="1" onclick="toggleAutoDay('off',this)">Tu</button><span class="auto-sched-day-time" data-daytime="1"></span></div>
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="2" onclick="toggleAutoDay('off',this)">We</button><span class="auto-sched-day-time" data-daytime="2"></span></div>
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="3" onclick="toggleAutoDay('off',this)">Th</button><span class="auto-sched-day-time" data-daytime="3"></span></div>
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="4" onclick="toggleAutoDay('off',this)">Fr</button><span class="auto-sched-day-time" data-daytime="4"></span></div>
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="5" onclick="toggleAutoDay('off',this)">Sa</button><span class="auto-sched-day-time" data-daytime="5"></span></div>
+                  <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="6" onclick="toggleAutoDay('off',this)">Su</button><span class="auto-sched-day-time" data-daytime="6"></span></div>
+                </div>
+                <input type="time" class="auto-sched-time-input auto-sched-time-input--inline" id="auto-off-time-1" value="22:00" style="display:none;" oninput="onAutoFieldChanged('off')" onchange="onAutoFieldChanged('off')">
               </div>
               <div id="auto-off-sun-controls" class="auto-sched-row">
                 <div class="auto-sched-offset">
@@ -1324,25 +1348,22 @@
                 </div>
               </div>
               <div id="auto-off-custom-controls" style="display:none;">
-                <div class="auto-sched-row">
-                  <input type="time" class="auto-sched-time-input" id="auto-off-time-1" value="22:00" oninput="onAutoFieldChanged('off')" onchange="onAutoFieldChanged('off')">
-                </div>
                 <div class="auto-sched-custom-group" id="auto-off-sched-2" style="display:none;">
                   <div class="auto-sched-custom-header">
                     <span class="auto-sched-custom-label">Schedule 2</span>
-                    <a class="auto-sched-remove-link" onclick="removeAutoSchedule2('off')">− remove</a>
+                    <a class="auto-sched-remove-link" onclick="removeAutoSchedule2('off')">remove</a>
                   </div>
-                  <div class="auto-sched-days" id="auto-off-days-2">
-                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="0" onclick="toggleAutoCustomDay('off',2,this)">Mo</button></div>
-                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="1" onclick="toggleAutoCustomDay('off',2,this)">Tu</button></div>
-                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="2" onclick="toggleAutoCustomDay('off',2,this)">We</button></div>
-                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="3" onclick="toggleAutoCustomDay('off',2,this)">Th</button></div>
-                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="4" onclick="toggleAutoCustomDay('off',2,this)">Fr</button></div>
-                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="5" onclick="toggleAutoCustomDay('off',2,this)">Sa</button></div>
-                    <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="6" onclick="toggleAutoCustomDay('off',2,this)">Su</button></div>
-                  </div>
-                  <div class="auto-sched-row">
-                    <input type="time" class="auto-sched-time-input" id="auto-off-time-2" value="23:00" oninput="onAutoFieldChanged('off')" onchange="onAutoFieldChanged('off')">
+                  <div class="auto-sched-days-time">
+                    <div class="auto-sched-days" id="auto-off-days-2">
+                      <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="0" onclick="toggleAutoCustomDay('off',2,this)">Mo</button></div>
+                      <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="1" onclick="toggleAutoCustomDay('off',2,this)">Tu</button></div>
+                      <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="2" onclick="toggleAutoCustomDay('off',2,this)">We</button></div>
+                      <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="3" onclick="toggleAutoCustomDay('off',2,this)">Th</button></div>
+                      <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="4" onclick="toggleAutoCustomDay('off',2,this)">Fr</button></div>
+                      <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="5" onclick="toggleAutoCustomDay('off',2,this)">Sa</button></div>
+                      <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="6" onclick="toggleAutoCustomDay('off',2,this)">Su</button></div>
+                    </div>
+                    <input type="time" class="auto-sched-time-input auto-sched-time-input--inline" id="auto-off-time-2" value="23:00" oninput="onAutoFieldChanged('off')" onchange="onAutoFieldChanged('off')">
                   </div>
                 </div>
                 <div class="auto-sched-add-schedule" id="auto-off-add-sched" onclick="showAutoSchedule2('off')">+ add schedule</div>
@@ -1360,7 +1381,7 @@
             <span class="auto-sched-field-label">If</span>
             <label class="auto-sched-field-content" style="display:flex; align-items:center; gap:6px; font-size:0.78rem; color:var(--muted); cursor:pointer;">
               <input type="checkbox" id="auto-off-untouched" onchange="onAutoFieldChanged('off')" style="accent-color:var(--muted); margin:0; cursor:pointer;">
-              <span>Skip if manually touched since last Auto On</span>
+              <span>lights not touched since Auto On</span>
             </label>
           </div>
           <div class="auto-sched-field" id="auto-off-override-row" style="display:none; align-items:center;">
@@ -1385,15 +1406,6 @@
     <div id="area-tune-section" style="display:none; margin: 0 0 16px;">
       <div class="tune-card tune-brightness-card" id="tune-brightness-card"></div>
       <div class="tune-card tune-lights-card" id="tune-lights-card" style="display:none;"></div>
-      <div class="tune-card tune-controls-card" id="tune-controls-card" style="display:none;">
-        <div class="tune-brightness-header" onclick="toggleControlsBody()">
-          <span class="tune-brightness-chevron" id="tune-controls-chevron">&#x203A;</span>
-          <span class="tune-brightness-title">Controls</span>
-          <span class="tune-brightness-val" id="tune-controls-count" style="font-size:0.85rem;font-weight:500;color:var(--muted);"></span>
-        </div>
-        <div class="tune-brightness-body" id="tune-controls-body">
-        </div>
-      </div>
       <div class="tune-save-status" id="tune-save-status">Saved</div>
     </div>
   </main>
@@ -2254,10 +2266,10 @@
       // Daily (default) wake/bed lines — muted phase color when shifted (so the
       // user can see the gap between daily and adjusted) rather than neutral gray.
       const wakeDailyLine = hasAdjWake
-        ? { color: 'rgba(92, 179, 255, 0.28)', width: 1.25, dash: 'dot' }
+        ? { color: 'rgba(92, 179, 255, 0.28)', width: 1.25 }
         : { color: wakeColor, width: wakeWidth };
       const bedDailyLine = hasAdjBed
-        ? { color: 'rgba(255, 230, 128, 0.28)', width: 1.25, dash: 'dot' }
+        ? { color: 'rgba(255, 230, 128, 0.28)', width: 1.25 }
         : { color: bedColor, width: bedWidth };
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
@@ -2471,16 +2483,31 @@
       const effectiveWake = hasAdjWake ? shiftIntoWindow(adjustedTimes.wake) : wakeTime;
       const effectiveBed = hasAdjBed ? shiftIntoWindow(adjustedTimes.bed) : bedTime;
 
-      // Sunrise (custom SVG half-sun over horizon) / sunset (🌙) markers.
+      // Sunrise (smiling sun) / sunset (🌙) markers.
       const cursorHour = shiftIntoWindow(currentHour);
-      const svgSunrise = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 14"><circle cx="12" cy="13" r="5" fill="rgb(244,201,107)"/><line x1="2" y1="13" x2="22" y2="13" stroke="rgb(180,180,180)" stroke-width="1.2" stroke-linecap="round"/></svg>';
+      const svgSunrise = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+        + '<circle cx="12" cy="12" r="5" fill="rgb(244,201,107)"/>'
+        + '<g stroke="rgb(244,201,107)" stroke-width="1.6" stroke-linecap="round">'
+        + '<line x1="12" y1="1.5" x2="12" y2="4"/>'
+        + '<line x1="12" y1="20" x2="12" y2="22.5"/>'
+        + '<line x1="1.5" y1="12" x2="4" y2="12"/>'
+        + '<line x1="20" y1="12" x2="22.5" y2="12"/>'
+        + '<line x1="4.4" y1="4.4" x2="6.2" y2="6.2"/>'
+        + '<line x1="17.8" y1="17.8" x2="19.6" y2="19.6"/>'
+        + '<line x1="4.4" y1="19.6" x2="6.2" y2="17.8"/>'
+        + '<line x1="17.8" y1="6.2" x2="19.6" y2="4.4"/>'
+        + '</g>'
+        + '<circle cx="10.3" cy="11" r="0.7" fill="rgb(60,40,20)"/>'
+        + '<circle cx="13.7" cy="11" r="0.7" fill="rgb(60,40,20)"/>'
+        + '<path d="M10 13 Q12 14.8 14 13" stroke="rgb(60,40,20)" stroke-width="0.9" fill="none" stroke-linecap="round"/>'
+        + '</svg>';
       const images = [];
       if (Number.isFinite(sunrise)) {
         images.push({
           source: 'data:image/svg+xml;utf8,' + encodeURIComponent(svgSunrise),
           xref: 'x', yref: 'paper',
-          x: sunriseX, y: 1.02,
-          sizex: 0.9, sizey: 0.16,
+          x: sunriseX, y: 1.05,
+          sizex: 1.0, sizey: 0.14,
           xanchor: 'center', yanchor: 'top',
           layer: 'above'
         });
@@ -4740,7 +4767,7 @@
           const peakDrop = Math.round((1.0 - peakNl) * 100);
           rightText = 'peak sun \u2193 ' + Math.min(peakDrop, 100) + '%';
         }
-        elSolarWord.innerHTML = '<span>' + leftText + '</span>' + (rightText ? '<span>' + rightText + '</span>' : '');
+        elSolarWord.innerHTML = '<span class="tune-solar-main">' + leftText + '</span>' + (rightText ? '<span class="tune-solar-peak">' + rightText + '</span>' : '');
       }
 
       // -- Card 3: Lights --
@@ -5069,7 +5096,7 @@
       bhtml += '<div class="tune-source-info" id="tune-source-info"></div>';
       bhtml += '<div class="tune-wf-slider">'
         + '<input type="range" class="tune-inline-slider tune-inline-slider--sun" id="tune-slider-solar" min="0" max="9" step="1" value="' + solarStep + '">'
-        + '<span class="tune-slider-word" id="tune-solar-word"><span>' + SOLAR_STEPS[solarStep].label + '</span></span></div>';
+        + '<span class="tune-slider-word" id="tune-solar-word"><span class="tune-solar-main">' + SOLAR_STEPS[solarStep].label + '</span></span></div>';
       // + Room balance (with slider beneath)
       bhtml += '<div class="tune-wf-row">'
         + '<span class="tune-wf-op">+</span>'
@@ -5130,10 +5157,11 @@
       let lhtml = '<div class="tune-lights-header" onclick="toggleLightsBody()">'
         + '<span class="tune-lights-chevron">&#x203A;</span>'
         + '<span class="tune-lights-title">Lights</span>'
+        + '<span class="tune-lights-count" id="tune-lights-count">' + (sortedLights.length || '') + '</span>'
         + '</div>';
       lhtml += '<div class="tune-lights-body">';
 
-      // Feedback target selector — goes into Controls card
+      // Feedback target selector — top of Lights body
       const currentFeedback = areaInfo.feedback_target || null;
       const purposeCounts = {};
       for (const light of lightsArr) {
@@ -5158,9 +5186,10 @@
       }
       fbhtml += '</optgroup>';
       fbhtml += '</select></div>';
+      lhtml += fbhtml;
       const controlsBody = document.getElementById('tune-controls-body');
       const controlsListHtml = renderAreaControlsList();
-      if (controlsBody) controlsBody.innerHTML = controlsListHtml + (controlsListHtml ? '<div class="ctrl-list-divider"></div>' : '') + fbhtml;
+      if (controlsBody) controlsBody.innerHTML = controlsListHtml;
       const controlsCard = document.getElementById('tune-controls-card');
       if (controlsCard) {
         controlsCard.style.display = '';
@@ -5900,6 +5929,8 @@
       document.getElementById('auto-' + type + '-src-custom').checked = (source === 'custom');
       document.getElementById('auto-' + type + '-sun-controls').style.display = source !== 'custom' ? '' : 'none';
       document.getElementById('auto-' + type + '-custom-controls').style.display = source === 'custom' ? '' : 'none';
+      const t1 = document.getElementById('auto-' + type + '-time-1');
+      if (t1) t1.style.display = source === 'custom' ? '' : 'none';
     }
 
     function adjustAutoOffset(type, delta) {

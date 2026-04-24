@@ -2895,26 +2895,16 @@
 
       // Compare to zone header's displayed midpoint — only show if different
       const zoneName = area.zone_name || status.zone_name;
-      let deltaHint = '';
       if (zoneName) {
         const zoneDefault = _zoneEffectiveMidpoint[zoneName];
         if (zoneDefault != null && Math.abs(midpoint - zoneDefault) < 0.05) {
           return ''; // matches zone default, don't show
         }
-        if (zoneDefault != null) {
-          const deltaMin = Math.round((midpoint - zoneDefault) * 60);
-          if (deltaMin !== 0) {
-            const sign = deltaMin > 0 ? '+' : '−';
-            const abs = Math.abs(deltaMin);
-            const body = abs >= 60 ? `${Math.floor(abs / 60)}:${String(abs % 60).padStart(2, '0')}` : `${abs}`;
-            deltaHint = `<span class="phase-midpoint-delta">(${sign}${body})</span>`;
-          }
-        }
       }
 
       const label = phase === 'wake' ? 'Wake' : 'Bed';
       const time = formatDecimalHour(midpoint);
-      return `<span class="phase-midpoint">${label} ${time}${deltaHint}</span>`;
+      return `<span class="phase-midpoint">${label} ${time}</span>`;
     }
 
     function getSliderPct(brightness, area) {
