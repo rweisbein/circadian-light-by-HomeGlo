@@ -2781,7 +2781,10 @@ class LightDesignerServer:
         auto_on_time = auto_on_fired.get("time")
 
         if not auto_on_date:
-            return None  # Auto-on has never fired — auto-off won't fire
+            # Auto-on has never fired (this session) — no baseline to compare
+            # "untouched" against. Show the scheduled auto-off time anyway so
+            # the user isn't left with a blank header.
+            return result
 
         # Check if user touched since last auto-on (regardless of day)
         last_action = state.get_last_user_action(area_id)

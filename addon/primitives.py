@@ -4303,7 +4303,7 @@ class CircadianLightPrimitives:
                     any_ct_exceeded = False
                     for area_id in matching:
                         last_ct = state.get_last_sent_kelvin(area_id)
-                        if last_ct is not None and abs(ct - last_ct) >= ct_threshold:
+                        if last_ct is None or abs(ct - last_ct) >= ct_threshold:
                             any_ct_exceeded = True
                             break
 
@@ -4324,13 +4324,12 @@ class CircadianLightPrimitives:
 
                         # Check brightness delta threshold
                         if not shared_on:
-                            # Off→on
-                            if bri >= bri_delta_threshold:
-                                needs_2step = True
-                                brightening = True
-                                # Phase 1: color at 1%, Phase 2: target brightness + color
-                                phase1_data = (1, True)
-                                phase2_data = (bri, True)
+                            # Off→on — always 2-step (Phase 1 at 1% has no visual cost)
+                            needs_2step = True
+                            brightening = True
+                            # Phase 1: color at 1%, Phase 2: target brightness + color
+                            phase1_data = (1, True)
+                            phase2_data = (bri, True)
                         else:
                             bri_delta = abs(bri - shared_bri)
                             if bri_delta >= bri_delta_threshold:

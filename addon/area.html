@@ -650,9 +650,8 @@
     .auto-sched-card--sub .auto-sched-field { padding-left: 28px; }
     .auto-sched-card--sub .auto-sched-conditions-header,
     .auto-sched-card--sub .section-action-bar { padding-left: 28px; }
-    /* Custom schedule 2 header: inline "Schedule 2" label + "− remove" link */
-    .auto-sched-custom-header { display: flex; align-items: baseline; gap: 10px; margin-top: 10px; margin-bottom: 4px; }
-    .auto-sched-remove-link { font-size: 0.7rem; color: var(--muted2); text-decoration: underline; cursor: pointer; }
+    /* Inline × remove link for a 2nd custom schedule */
+    .auto-sched-remove-link { font-size: 1rem; color: var(--muted2); text-decoration: none; cursor: pointer; line-height: 1; padding: 0 4px; flex-shrink: 0; }
     .auto-sched-remove-link:hover { color: var(--text); }
     .auto-sched-header { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 14px; user-select: none; }
     .auto-sched-title { font-size: 1.0rem; font-weight: 600; color: var(--text); }
@@ -667,7 +666,7 @@
     .auto-sched-body-inner { padding: 4px 0 14px 0; }
     .auto-sched-row { display: flex; align-items: center; margin-bottom: 4px; }
     .auto-sched-days { display: flex; gap: 6px; margin-bottom: 4px; }
-    .auto-sched-days-time { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: nowrap; }
+    .auto-sched-days-time { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: nowrap; }
     .auto-sched-days-time .auto-sched-days { margin-bottom: 0; gap: 4px; }
     .auto-sched-days-time .auto-sched-day-col { gap: 0; }
     .auto-sched-days-time .auto-sched-day-btn { width: 19px; height: 19px; font-size: 0.48rem; border-width: 1.25px; }
@@ -705,8 +704,8 @@
     .auto-sched-radios label { display: flex; align-items: center; gap: 4px; font-size: 0.78rem; color: var(--muted); cursor: pointer; white-space: nowrap; }
     .auto-sched-radios input[type="radio"] { accent-color: var(--muted); margin: 0; cursor: pointer; }
 
-    .auto-sched-custom-group { margin-bottom: 4px; margin-top: 10px; }
-    .auto-sched-custom-label { font-size: 0.7rem; font-weight: 500; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+    .auto-sched-custom-group { margin-top: 0; margin-bottom: 0; }
+    .auto-sched-custom-group .auto-sched-days-time { margin-bottom: 0; }
 
     .auto-sched-fade-slider { flex: 1; }
     .auto-sched-fade-val { font-size: 0.85rem; color: var(--text); font-weight: 600; min-width: 3.5em; text-align: right; font-variant-numeric: tabular-nums; }
@@ -1253,10 +1252,6 @@
               </div>
               <div id="auto-on-custom-controls" style="display:none;">
                 <div class="auto-sched-custom-group" id="auto-on-sched-2" style="display:none;">
-                  <div class="auto-sched-custom-header">
-                    <span class="auto-sched-custom-label">Schedule 2</span>
-                    <a class="auto-sched-remove-link" onclick="removeAutoSchedule2('on')">remove</a>
-                  </div>
                   <div class="auto-sched-days-time">
                     <div class="auto-sched-days" id="auto-on-days-2">
                       <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="0" onclick="toggleAutoCustomDay('on',2,this)">Mo</button></div>
@@ -1268,6 +1263,7 @@
                       <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="6" onclick="toggleAutoCustomDay('on',2,this)">Su</button></div>
                     </div>
                     <input type="time" class="auto-sched-time-input auto-sched-time-input--inline" id="auto-on-time-2" value="09:00" oninput="onAutoFieldChanged('on')" onchange="onAutoFieldChanged('on')">
+                    <a class="auto-sched-remove-link" onclick="removeAutoSchedule2('on')" title="Remove schedule" aria-label="Remove schedule">&times;</a>
                   </div>
                 </div>
                 <div class="auto-sched-add-schedule" id="auto-on-add-sched" onclick="showAutoSchedule2('on')">+ add schedule</div>
@@ -1349,10 +1345,6 @@
               </div>
               <div id="auto-off-custom-controls" style="display:none;">
                 <div class="auto-sched-custom-group" id="auto-off-sched-2" style="display:none;">
-                  <div class="auto-sched-custom-header">
-                    <span class="auto-sched-custom-label">Schedule 2</span>
-                    <a class="auto-sched-remove-link" onclick="removeAutoSchedule2('off')">remove</a>
-                  </div>
                   <div class="auto-sched-days-time">
                     <div class="auto-sched-days" id="auto-off-days-2">
                       <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="0" onclick="toggleAutoCustomDay('off',2,this)">Mo</button></div>
@@ -1364,6 +1356,7 @@
                       <div class="auto-sched-day-col"><button class="auto-sched-day-btn" data-day="6" onclick="toggleAutoCustomDay('off',2,this)">Su</button></div>
                     </div>
                     <input type="time" class="auto-sched-time-input auto-sched-time-input--inline" id="auto-off-time-2" value="23:00" oninput="onAutoFieldChanged('off')" onchange="onAutoFieldChanged('off')">
+                    <a class="auto-sched-remove-link" onclick="removeAutoSchedule2('off')" title="Remove schedule" aria-label="Remove schedule">&times;</a>
                   </div>
                 </div>
                 <div class="auto-sched-add-schedule" id="auto-off-add-sched" onclick="showAutoSchedule2('off')">+ add schedule</div>
@@ -2472,6 +2465,11 @@
         hovertext: 'now \u00B7 ' + formatHourLabel(currentHour)
           + ' \u00B7 ' + Math.round(markerBri) + '% \u00B7 ' + Math.round(markerCCT) + 'K',
         hoverinfo: 'text',
+        hoverlabel: {
+          bgcolor: colorWithAlpha(cctToRGB(markerCCT), 0.92),
+          bordercolor: colorWithAlpha(cctToRGB(markerCCT), 0.65),
+          font: { color: readableTextColor(cctToRGB(markerCCT)), size: 13 }
+        },
         showlegend: false,
       });
 
@@ -2483,7 +2481,7 @@
       const effectiveWake = hasAdjWake ? shiftIntoWindow(adjustedTimes.wake) : wakeTime;
       const effectiveBed = hasAdjBed ? shiftIntoWindow(adjustedTimes.bed) : bedTime;
 
-      // Sunrise (smiling sun) / sunset (🌙) markers.
+      // Sunrise / sunset markers — simple rayed sun + crescent moon.
       const cursorHour = shiftIntoWindow(currentHour);
       const svgSunrise = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
         + '<circle cx="12" cy="12" r="5" fill="rgb(244,201,107)"/>'
@@ -2497,9 +2495,6 @@
         + '<line x1="4.4" y1="19.6" x2="6.2" y2="17.8"/>'
         + '<line x1="17.8" y1="6.2" x2="19.6" y2="4.4"/>'
         + '</g>'
-        + '<circle cx="10.3" cy="11" r="0.7" fill="rgb(60,40,20)"/>'
-        + '<circle cx="13.7" cy="11" r="0.7" fill="rgb(60,40,20)"/>'
-        + '<path d="M10 13 Q12 14.8 14 13" stroke="rgb(60,40,20)" stroke-width="0.9" fill="none" stroke-linecap="round"/>'
         + '</svg>';
       const images = [];
       if (Number.isFinite(sunrise)) {
@@ -2519,14 +2514,17 @@
           hoverinfo: 'text', showlegend: false, cliponaxis: false
         });
       }
+      const svgSunset = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+        + '<path d="M15 4 A 8 8 0 1 0 15 20 A 6 6 0 1 1 15 4 Z" fill="rgb(230,225,195)"/>'
+        + '</svg>';
       if (Number.isFinite(sunset)) {
-        annotations.push({
+        images.push({
+          source: 'data:image/svg+xml;utf8,' + encodeURIComponent(svgSunset),
           xref: 'x', yref: 'paper',
-          x: sunsetX, y: 0.99,
-          text: '\uD83C\uDF19',
-          showarrow: false,
+          x: sunsetX, y: 1.05,
+          sizex: 1.0, sizey: 0.14,
           xanchor: 'center', yanchor: 'top',
-          font: { size: 14 }
+          layer: 'above'
         });
         traces.push({
           type: 'scatter', mode: 'markers',

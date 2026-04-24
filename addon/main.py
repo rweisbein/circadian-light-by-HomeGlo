@@ -3865,9 +3865,7 @@ class HomeAssistantWebSocketClient:
                     if ct_diff < ct_threshold:
                         continue
                 else:
-                    # Unknown CT: 2-step for off→on (flash is jarring), skip for already-on
-                    if not is_off:
-                        continue
+                    # Unknown CT: always force 2-step (can't verify color safety)
                     ct_diff = None
 
                 # Require brightness delta >= threshold for 2-step
@@ -3881,9 +3879,7 @@ class HomeAssistantWebSocketClient:
                         continue
                     brightening = filtered_bri > current_bri_pct
                 else:
-                    # Off→on: skip 2-step if target brightness < threshold
-                    if filtered_bri < bri_delta_threshold:
-                        continue
+                    # Off→on: always 2-step (Phase 1 is 1% — no visual cost)
                     current_bri_pct = 0
                     brightening = True
 
