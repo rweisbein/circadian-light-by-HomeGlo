@@ -628,7 +628,8 @@
     .auto-sched-card--sub + .auto-sched-card--sub { border-top: 1px solid var(--line); }
     /* Sub-card bodies are always visible (outer Auto controls collapse) */
     .auto-sched-card--sub > .auto-sched-body { max-height: none; opacity: 1; overflow: visible; }
-    .auto-sched-card--sub.focus-flash { background: rgba(254, 172, 96, 0.12); box-shadow: inset 0 0 0 2px rgba(254, 172, 96, 0.85); transition: background 0.3s, box-shadow 0.3s; }
+    .auto-sched-card--sub.focus-flash,
+    .tune-card.focus-flash { background: rgba(254, 172, 96, 0.12); box-shadow: inset 0 0 0 2px rgba(254, 172, 96, 0.85); transition: background 0.3s, box-shadow 0.3s; }
     /* Outer Auto card: holds both On and Off sub-sections. Large max-height so
        both subs fully expanded (including action bars) never clip. */
     .auto-sched-card--auto.is-open .auto-sched-body { max-height: 6000px; }
@@ -640,6 +641,10 @@
     .auto-outer-next .auto-outer-sep { color: var(--muted2); font-weight: 400; }
     .auto-outer-next .auto-outer-off-label { color: var(--muted); }
     .auto-sched-card--auto.is-open .auto-outer-next { display: none; }
+    /* Adjust card: mirror merged header for live brightness/kelvin */
+    .adjust-outer-next { margin-left: auto; display: flex; align-items: baseline; gap: 6px; font-size: 0.95rem; color: var(--text); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .adjust-outer-next .adjust-outer-sep { color: var(--muted2); font-weight: 400; }
+    .auto-sched-card--headline.is-open .adjust-outer-next { display: none; }
     /* Indent field rows inside On/Off sub-sections so labels sit under (not
        at the same x as) the sub-title "On"/"Off" — visual hierarchy cue. */
     .auto-sched-card--sub .auto-sched-field { padding-left: 28px; }
@@ -960,18 +965,36 @@
       font-size: 1.1em; line-height: 1; color: var(--muted2);
     }
 
-    /* Adjustments details sit directly under the hero — no left rule needed */
-    #tune-adj-details { padding-bottom: 4px; }
-
-    /* Zone labels inside the adjustments details */
-    .tune-zone-label {
-      font-size: 0.6rem; font-weight: 500; color: var(--muted2);
-      text-transform: uppercase; letter-spacing: 0.08em;
-      padding: 10px 14px 4px;
+    /* ── Tune waterfall (math-equation layout) ── */
+    .tune-wf { padding: 4px 0 6px; }
+    .tune-wf-row {
+      display: grid;
+      grid-template-columns: 1.5em 1fr auto auto;
+      align-items: baseline;
+      padding: 5px 14px;
+      gap: 0 10px;
+      font-variant-numeric: tabular-nums;
     }
-    .tune-activity-empty {
-      padding: 8px 14px 4px 30px; font-size: 0.75rem;
-      color: var(--muted2); font-style: italic;
+    .tune-wf-op { font-size: 0.9rem; color: var(--muted2); text-align: center; line-height: 1; }
+    .tune-wf-label { font-size: 0.85rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tune-wf-reset {
+      font-size: 0.7rem; color: var(--muted2); cursor: pointer; opacity: 0;
+      transition: opacity 0.15s; text-transform: uppercase; letter-spacing: 0.03em;
+      pointer-events: none;
+    }
+    .tune-wf-reset.is-dirty { pointer-events: auto; opacity: 0.6; }
+    .tune-wf-reset.is-dirty:hover { opacity: 1; color: var(--accent); }
+    .tune-wf-val { text-align: right; font-size: 0.85rem; color: var(--text); white-space: nowrap; min-width: 3.2em; }
+    .tune-wf-total .tune-wf-op,
+    .tune-wf-total .tune-wf-label { color: var(--text); font-weight: 600; }
+    .tune-wf-total .tune-wf-val { font-size: 1.1rem; font-weight: 700; }
+    .tune-wf-divider { border-top: 1px solid var(--line); margin: 6px 14px 4px; }
+    /* Slider sits under its row, indented to align with the label column */
+    .tune-wf-slider { padding: 2px 22px 6px 52px; max-width: 70%; }
+    .tune-wf-slider input[type=range] { width: 100%; }
+    .tune-wf-slider .tune-slider-word {
+      font-size: 0.72rem; color: var(--text); white-space: nowrap;
+      display: flex; justify-content: space-between; margin-top: 0;
     }
 
     /* Individual section: peer header to "Adjustments" with leading chevron */
@@ -1088,6 +1111,7 @@
       <div class="auto-sched-header" onclick="toggleChartCard()">
         <span class="auto-sched-chevron">&#x203A;</span>
         <span class="auto-sched-title">Adjust</span>
+        <span class="adjust-outer-next" id="adjust-outer-next"></span>
       </div>
       <div class="auto-sched-body" id="chart-body">
         <div id="chart-shell">
@@ -1360,6 +1384,7 @@
         <!-- Tune Section -->
     <div id="area-tune-section" style="display:none; margin: 0 0 16px;">
       <div class="tune-card tune-brightness-card" id="tune-brightness-card"></div>
+      <div class="tune-card tune-lights-card" id="tune-lights-card" style="display:none;"></div>
       <div class="tune-card tune-controls-card" id="tune-controls-card" style="display:none;">
         <div class="tune-brightness-header" onclick="toggleControlsBody()">
           <span class="tune-brightness-chevron" id="tune-controls-chevron">&#x203A;</span>
@@ -1369,7 +1394,6 @@
         <div class="tune-brightness-body" id="tune-controls-body">
         </div>
       </div>
-      <div class="tune-card tune-lights-card" id="tune-lights-card"></div>
       <div class="tune-save-status" id="tune-save-status">Saved</div>
     </div>
   </main>
@@ -2715,10 +2739,21 @@
       });
 
       const heroBri = document.getElementById('slider-hero-brightness');
-      if (heroBri) heroBri.textContent = Math.round(areaState.actual_brightness ?? currentBri) + '%';
+      const briDisp = Math.round(areaState.actual_brightness ?? currentBri);
+      if (heroBri) heroBri.textContent = briDisp + '%';
 
       const heroColor = document.getElementById('slider-hero-color');
-      if (heroColor) heroColor.textContent = Math.round(effectiveCCT) + 'K';
+      const kDisp = Math.round(effectiveCCT);
+      if (heroColor) heroColor.textContent = kDisp + 'K';
+
+      // Collapsed Adjust card header mirror — live brightness + kelvin
+      const adjHeader = document.getElementById('adjust-outer-next');
+      if (adjHeader) {
+        const kColor = cctToRGB(kDisp);
+        adjHeader.innerHTML = briDisp + '%'
+          + '<span class="adjust-outer-sep">\u00B7</span>'
+          + '<span style="color:' + kColor + '">' + kDisp + 'K</span>';
+      }
 
       updateChartHero(phaseCtx, cfg, areaState);
 
@@ -4152,7 +4187,7 @@
 
     function formatImpact(val) {
       if (val > 0) return '+' + val;
-      if (val < 0) return '' + val;
+      if (val < 0) return '\u2212' + Math.abs(val);
       return '0';
     }
 
@@ -4898,7 +4933,7 @@
       items.forEach(item => list.appendChild(item));
 
       // Update active-sort class + direction on headers
-      const card = list.closest('.tune-lights-card') || list.closest('#tune-lights-inline') || list.closest('.tune-lights-body')?.parentElement;
+      const card = list.closest('.tune-lights-card');
       if (card) {
         card.querySelectorAll('.tune-light-sort').forEach(h => {
           const isActive = h.dataset.sort === lightSortOrder;
@@ -5007,83 +5042,96 @@
         boostBrightness: status.boost_brightness || 0,
       });
 
-      // ── Brightness card ──
+      // ── Tune card (waterfall equation) ──
       const brightnessCard = document.getElementById('tune-brightness-card');
-      const briExpanded = _pageFrom === 'tune' || (_persistCards && localStorage.getItem('tune_details_expanded') === 'true');
-      const adjOpenInit = _pageFrom === 'tune' || (_persistCards && localStorage.getItem('tune_adj_open') === 'true');
-      const individualOpenInit = _pageFrom === 'tune' || !_persistCards || localStorage.getItem('tune_individual_open') !== 'false';
+      const briExpanded = _pageFocus === 'tune' || (_persistCards && localStorage.getItem('tune_collapsed') !== 'true');
       let bhtml = '<div class="tune-brightness-header" onclick="toggleBrightnessBody()">';
       bhtml += '<span class="tune-brightness-chevron" id="tune-brightness-chevron">&#x203A;</span>';
-      bhtml += '<span class="tune-brightness-title">Lights</span>';
+      bhtml += '<span class="tune-brightness-title">Tune</span>';
       bhtml += '<span class="tune-brightness-val" id="tune-brightness-header-val">--</span>';
       bhtml += '</div>';
       bhtml += '<div class="tune-brightness-body" id="tune-brightness-body">';
-      // Hero: Area Brightness with breadcrumb equation
-      bhtml += '<div class="tune-hero-block">';
-      bhtml += '<div class="tune-hero-label">Area Brightness</div>';
-      bhtml += '<div class="tune-hero-val" id="tune-det-final-val">--</div>';
-      bhtml += '<div class="tune-hero-breadcrumb" onclick="toggleAdjustmentDetails(event)">'
-        + '<span id="tune-det-base-total">' + baseBri + '%</span>&nbsp;curve'
-        + '<span class="tune-hero-dot">\u00B7</span>'
-        + '<span class="tune-adj-target">'
-        + '<span id="tune-det-adj-net">0%</span>'
-        + '<span>adjustments</span>'
-        + '</span>'
-        + '<span class="tune-adj-chevron-inline" id="tune-adj-chevron" style="' + (adjOpenInit ? 'transform:rotate(90deg);' : '') + '">&#x203A;</span>'
+      bhtml += '<div class="tune-wf">';
+      // Curve (starting value)
+      bhtml += '<div class="tune-wf-row">'
+        + '<span class="tune-wf-op"></span>'
+        + '<span class="tune-wf-label">Curve</span>'
+        + '<span class="tune-wf-reset"></span>'
+        + '<span class="tune-wf-val" id="tune-det-base-total">' + baseBri + '%</span>'
         + '</div>';
-      bhtml += '</div>';
-      // Collapsible detail rows with Tuning / Activity zones
-      bhtml += '<div id="tune-adj-details" style="display:' + (adjOpenInit ? '' : 'none') + ';">';
-      // --- TUNING zone ---
-      bhtml += '<div class="tune-zone-label">Tuning</div>';
-      // Sun exposure with inline slider
-      bhtml += '<div class="tune-control-row"><span class="tune-control-left"><span class="tune-control-label">Sun exposure</span>'
-        + '<span class="tune-control-reset" id="tune-reset-solar">reset</span></span>'
-        + '<span class="tune-control-impact" id="tune-det-solar-val"></span></div>';
+      // + Sun exposure (with slider beneath)
+      bhtml += '<div class="tune-wf-row">'
+        + '<span class="tune-wf-op">+</span>'
+        + '<span class="tune-wf-label">Sun exposure</span>'
+        + '<span class="tune-wf-reset" id="tune-reset-solar">reset</span>'
+        + '<span class="tune-wf-val" id="tune-det-solar-val">0%</span>'
+        + '</div>';
       bhtml += '<div class="tune-source-info" id="tune-source-info"></div>';
-      bhtml += '<div class="tune-slider-row">'
+      bhtml += '<div class="tune-wf-slider">'
         + '<input type="range" class="tune-inline-slider tune-inline-slider--sun" id="tune-slider-solar" min="0" max="9" step="1" value="' + solarStep + '">'
         + '<span class="tune-slider-word" id="tune-solar-word"><span>' + SOLAR_STEPS[solarStep].label + '</span></span></div>';
-      // Room Balance with inline slider
-      bhtml += '<div class="tune-control-row"><span class="tune-control-left"><span class="tune-control-label">Room balance</span>'
-        + '<span class="tune-control-reset" id="tune-reset-lumen">reset</span></span>'
-        + '<span class="tune-control-impact" id="tune-det-lumen-val"></span></div>';
-      bhtml += '<div class="tune-slider-row">'
+      // + Room balance (with slider beneath)
+      bhtml += '<div class="tune-wf-row">'
+        + '<span class="tune-wf-op">+</span>'
+        + '<span class="tune-wf-label">Room balance</span>'
+        + '<span class="tune-wf-reset" id="tune-reset-lumen">reset</span>'
+        + '<span class="tune-wf-val" id="tune-det-lumen-val">0%</span>'
+        + '</div>';
+      bhtml += '<div class="tune-wf-slider">'
         + '<input type="range" class="tune-inline-slider tune-inline-slider--light" id="tune-slider-lumen" min="0" max="8" step="1" value="' + lumenStep + '">'
         + '<span class="tune-slider-word" id="tune-lumen-word">' + LUMEN_STEPS[lumenStep].label + (function(f){ if(Math.abs(f-1)<0.005) return ''; var p=Math.round((f-1)*100); return (p>0?' +':' ')+p+'%'; })(factor) + '</span></div>';
-      // --- ACTIVITY zone ---
-      bhtml += '<div class="tune-zone-label">Activity</div>';
-      bhtml += '<div id="tune-activity-list">';
-      bhtml += '<div class="tune-bk-row tune-activity-row" id="tune-det-override-row"><span class="tune-bk-label" id="tune-det-override-label">User brightened</span>'
-        + '<span class="tune-bk-total" id="tune-det-override-val">0%</span></div>';
-      bhtml += '<div class="tune-bk-row tune-activity-row" id="tune-det-boost-row"><span class="tune-bk-label">Boost</span>'
-        + '<span class="tune-bk-total" id="tune-det-boost-val">0%</span></div>';
-      bhtml += '<div class="tune-bk-row tune-activity-row" id="tune-det-dim-row"><span class="tune-bk-label">Dimming</span>'
-        + '<span class="tune-bk-total" id="tune-det-dim-val">0%</span></div>';
-      bhtml += '<div class="tune-bk-row tune-activity-row" id="tune-det-fade-row"><span class="tune-bk-label" id="tune-det-fade-label">Auto-on fade</span>'
-        + '<span class="tune-bk-total" id="tune-det-fade-val">0%</span></div>';
-      bhtml += '<div class="tune-activity-empty" id="tune-activity-empty" style="display:none;">None active</div>';
-      bhtml += '</div>';
-      bhtml += '</div>'; // end tune-adj-details
+      // + User override / Boost / Dimming / Fade (show 0% rows)
+      bhtml += '<div class="tune-wf-row" id="tune-det-override-row">'
+        + '<span class="tune-wf-op">+</span>'
+        + '<span class="tune-wf-label" id="tune-det-override-label">User brightened</span>'
+        + '<span class="tune-wf-reset"></span>'
+        + '<span class="tune-wf-val" id="tune-det-override-val">0%</span>'
+        + '</div>';
+      bhtml += '<div class="tune-wf-row" id="tune-det-boost-row">'
+        + '<span class="tune-wf-op">+</span>'
+        + '<span class="tune-wf-label">Boost</span>'
+        + '<span class="tune-wf-reset"></span>'
+        + '<span class="tune-wf-val" id="tune-det-boost-val">0%</span>'
+        + '</div>';
+      bhtml += '<div class="tune-wf-row" id="tune-det-dim-row">'
+        + '<span class="tune-wf-op">+</span>'
+        + '<span class="tune-wf-label">Dimming</span>'
+        + '<span class="tune-wf-reset"></span>'
+        + '<span class="tune-wf-val" id="tune-det-dim-val">0%</span>'
+        + '</div>';
+      bhtml += '<div class="tune-wf-row" id="tune-det-fade-row">'
+        + '<span class="tune-wf-op">+</span>'
+        + '<span class="tune-wf-label" id="tune-det-fade-label">Auto-on fade</span>'
+        + '<span class="tune-wf-reset"></span>'
+        + '<span class="tune-wf-val" id="tune-det-fade-val">0%</span>'
+        + '</div>';
+      // Divider + total
+      bhtml += '<div class="tune-wf-divider"></div>';
+      bhtml += '<div class="tune-wf-row tune-wf-total">'
+        + '<span class="tune-wf-op">=</span>'
+        + '<span class="tune-wf-label">Area Brightness</span>'
+        + '<span class="tune-wf-reset"></span>'
+        + '<span class="tune-wf-val" id="tune-det-final-val">--</span>'
+        + '</div>';
+      bhtml += '</div>'; // end .tune-wf
       bhtml += '<div class="section-action-bar" id="tune-action-bar" style="display:none;">';
       bhtml += '<button class="section-cancel-btn" onclick="cancelBrightnessChanges()">Cancel</button>';
       bhtml += '<button class="section-save-btn" onclick="saveBrightnessChanges()">Save</button>';
       bhtml += '</div>';
-      // Per-Light sub-section (content merged from separate Lights card)
-      bhtml += '<div id="tune-lights-inline"></div>';
       bhtml += '</div>';
       brightnessCard.innerHTML = bhtml;
 
       // Set initial expanded state
       if (briExpanded) brightnessCard.classList.add('is-open');
 
-      // ── Per-Light sub-section (inside Brightness card) ──
-      const lightsCard = document.getElementById('tune-lights-inline');
-      let lhtml = '<div class="tune-individual-toggle" onclick="toggleIndividualSection(event)">'
-        + '<span class="tune-individual-chevron-el" id="tune-individual-chevron" style="' + (individualOpenInit ? 'transform:rotate(90deg);' : '') + '">&#x203A;</span>'
-        + '<span>Individual</span>'
+      // ── Lights card (separate, per-light list) ──
+      const lightsCard = document.getElementById('tune-lights-card');
+      const lightsExpanded = _pageFocus === 'lights' || (_persistCards && localStorage.getItem('lights_collapsed') !== 'true');
+      let lhtml = '<div class="tune-lights-header" onclick="toggleLightsBody()">'
+        + '<span class="tune-lights-chevron">&#x203A;</span>'
+        + '<span class="tune-lights-title">Lights</span>'
         + '</div>';
-      lhtml += '<div id="tune-individual-body" style="display:' + (individualOpenInit ? '' : 'none') + ';">';
+      lhtml += '<div class="tune-lights-body">';
 
       // Feedback target selector — goes into Controls card
       const currentFeedback = areaInfo.feedback_target || null;
@@ -5150,11 +5198,11 @@
       lhtml += '<button class="section-cancel-btn" onclick="cancelLightsChanges()">Cancel</button>';
       lhtml += '<button class="section-save-btn" onclick="saveLightsChanges()">Save</button>';
       lhtml += '</div>';
-      lhtml += '</div>'; // end #tune-individual-body
+      lhtml += '</div>'; // end .tune-lights-body
       lightsCard.innerHTML = lhtml;
-      // Hide the separate lights card (content is now inside brightness card)
-      const separateLightsCard = document.getElementById('tune-lights-card');
-      if (separateLightsCard) separateLightsCard.style.display = 'none';
+      lightsCard.style.display = '';
+      if (lightsExpanded) lightsCard.classList.add('is-open');
+      else lightsCard.classList.remove('is-open');
 
       // ── Wire events ──
 
@@ -5237,7 +5285,7 @@
       }
 
       // Light column sort headers
-      const lightsCardEl = document.getElementById('tune-lights-inline') || document.getElementById('tune-lights-card');
+      const lightsCardEl = document.getElementById('tune-lights-card');
       if (lightsCardEl) {
         lightsCardEl.querySelectorAll('.tune-light-sort').forEach(h => {
           h.addEventListener('click', () => {
@@ -5453,7 +5501,7 @@
       const card = document.querySelector('.tune-brightness-card');
       if (!card) return;
       const isOpen = card.classList.toggle('is-open');
-      if (_persistCards) localStorage.setItem('tune_details_expanded', isOpen ? 'true' : 'false');
+      if (_persistCards) localStorage.setItem('tune_collapsed', isOpen ? 'false' : 'true');
     }
 
     function toggleAdjustmentDetails(event) {
@@ -5478,23 +5526,8 @@
       if (_persistCards) localStorage.setItem('tune_individual_open', isHidden ? 'true' : 'false');
     }
 
-    function updateActivityVisibility(vals) {
-      const rows = {
-        override: document.getElementById('tune-det-override-row'),
-        boost: document.getElementById('tune-det-boost-row'),
-        dim: document.getElementById('tune-det-dim-row'),
-        fade: document.getElementById('tune-det-fade-row'),
-      };
-      let anyActive = false;
-      for (const key of Object.keys(rows)) {
-        const row = rows[key];
-        if (!row) continue;
-        const isActive = Math.round(vals[key] || 0) !== 0;
-        row.style.display = isActive ? '' : 'none';
-        if (isActive) anyActive = true;
-      }
-      const empty = document.getElementById('tune-activity-empty');
-      if (empty) empty.style.display = anyActive ? 'none' : '';
+    function updateActivityVisibility(_vals) {
+      // Waterfall shows all rows (including 0%) — no hiding.
     }
 
     function toggleControlsBody() {
@@ -5508,7 +5541,7 @@
       const card = document.querySelector('.tune-lights-card');
       if (!card) return;
       const isOpen = card.classList.toggle('is-open');
-      if (_persistCards) localStorage.setItem('tune_lights_expanded', isOpen ? 'true' : 'false');
+      if (_persistCards) localStorage.setItem('lights_collapsed', isOpen ? 'false' : 'true');
     }
 
     // ============================================================
@@ -5537,8 +5570,8 @@
     function initChartCardState() {
       const card = document.getElementById('chart-card');
       if (!card) return;
-      // Deep-linked into an auto card → collapse curve so target stays near top
-      if (_pageFocus === 'auto_on' || _pageFocus === 'auto_off' || _pageFocus === 'controls') {
+      // Deep-linked elsewhere → collapse curve so target stays near top
+      if (_pageFocus && _pageFocus !== 'chart') {
         card.classList.remove('is-open');
         return;
       }
@@ -5578,6 +5611,15 @@
       setTimeout(() => {
         if (focus === 'auto_on' || focus === 'auto_off') {
           focusAutoSub(focus === 'auto_on' ? 'on' : 'off');
+          return;
+        }
+        if (focus === 'tune') {
+          const card = document.getElementById('tune-brightness-card');
+          if (!card) return;
+          card.classList.add('is-open');
+          card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          card.classList.add('focus-flash');
+          setTimeout(() => card.classList.remove('focus-flash'), 2000);
           return;
         }
         if (focus === 'controls') {
