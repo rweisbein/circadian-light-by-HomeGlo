@@ -679,6 +679,7 @@
     .auto-sched-day-btn:hover { border-color: var(--text); color: var(--text); }
     .auto-sched-day-btn.active { background: #eef1f5; border-color: #eef1f5; color: #000; }
     .auto-sched-day-time { font-size: 0.6rem; color: var(--muted2); height: 0.75rem; line-height: 0.75rem; font-variant-numeric: tabular-nums; }
+    .auto-sched-day-time:empty { display: none; }
     .auto-sched-time-input { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 0.85rem; outline: none; }
     .auto-sched-time-input:focus { border-color: var(--accent); }
     .auto-sched-offset { display: flex; align-items: center; gap: 6px; }
@@ -2514,8 +2515,12 @@
           hoverinfo: 'text', showlegend: false, cliponaxis: false
         });
       }
+      // Crescent moon: outer disc minus offset inner disc via evenodd fill.
+      // Use near-closed arcs (tiny delta on close point) to avoid the
+      // degenerate "chord == diameter" case where sweep flags are ambiguous.
       const svgSunset = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-        + '<path d="M15 4 A 8 8 0 1 0 15 20 A 6 6 0 1 1 15 4 Z" fill="rgb(230,225,195)"/>'
+        + '<path fill="rgb(230,225,195)" fill-rule="evenodd"'
+        + ' d="M 12 2 A 10 10 0 1 1 12.01 2 Z M 15 5 A 7 7 0 1 1 15.01 5 Z"/>'
         + '</svg>';
       if (Number.isFinite(sunset)) {
         images.push({
@@ -2604,20 +2609,17 @@
         borderpad: 4
       });
 
-      // Curve labels — anchor at peak divergence when the two curves are meaningfully apart
+      // Curve label — "sun exposure" anchors at peak divergence when the two
+      // curves are meaningfully apart. The bulb curve is the main graph, so
+      // leaving it unlabeled reads cleanly; only the dotted natural-light
+      // reference line needs naming.
       if (hasDivergence) {
         const divX = hours[maxDivergenceIdx];
         const divRoomY = brightnessPct[maxDivergenceIdx];
-        const divBulbY = bulbPct[maxDivergenceIdx];
         annotations.push({
           x: divX, y: divRoomY, xref: 'x', yref: 'y',
           text: 'sun exposure', showarrow: false, yshift: 10,
           font: { size: 9, color: 'rgba(220, 220, 220, 0.7)' }
-        });
-        annotations.push({
-          x: divX, y: divBulbY, xref: 'x', yref: 'y',
-          text: 'bulbs', showarrow: false, yshift: -10,
-          font: { size: 9, color: 'rgba(220, 220, 220, 0.85)' }
         });
       }
 
