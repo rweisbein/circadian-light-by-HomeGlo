@@ -18,6 +18,14 @@
       --success: #22c55e;
       --warning: #f59e0b;
       --danger: #ef4444;
+      --font-hero: 1.4rem;
+      --font-display: 1.1rem;
+      --font-card-title: 0.95rem;
+      --font-value: 0.85rem;
+      --font-body: 0.78rem;
+      --font-muted: 0.7rem;
+      --font-caps: 0.65rem;
+      --font-micro: 0.55rem;
     }
 
     * {
@@ -72,7 +80,7 @@
     }
 
     .page-title {
-      font-size: 1.1rem;
+      font-size: var(--font-display);
       font-weight: 600;
       flex: 1;
       min-width: 0;
@@ -100,7 +108,7 @@
     .page-header-meta a {
       color: var(--accent);
       text-decoration: none;
-      font-size: 1.1rem;
+      font-size: var(--font-display);
       white-space: nowrap;
     }
 
@@ -109,7 +117,7 @@
     }
 
     .page-header-meta-label {
-      font-size: 0.55rem;
+      font-size: var(--font-micro);
       color: var(--text);
       opacity: 0.35;
       white-space: nowrap;
@@ -118,7 +126,7 @@
     }
 
     .zone-type-chip {
-      font-size: 0.54rem;
+      font-size: var(--font-micro);
       font-weight: 600;
       letter-spacing: 0.14em;
       text-transform: uppercase;
@@ -172,14 +180,14 @@
     }
 
     .row-slider-section { margin-bottom: 4px; padding: 6px 16px; }
-    .adjusted-schedule-label { font-size: 0.7rem; color: var(--muted2); text-align: center; padding: 4px 0 0; letter-spacing: 0.02em; }
+    .adjusted-schedule-label { font-size: var(--font-muted); color: var(--muted2); text-align: center; padding: 4px 0 0; letter-spacing: 0.02em; }
     .row-slider-track { height: 10px; position: relative; cursor: pointer; touch-action: none; border-radius: 5px; overflow: visible; }
     .row-slider-fill { display: none; }
     .row-slider-thumb { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 30px; height: 16px; border-radius: 8px 8px 5px 5px; background: rgba(255,255,255,0.9); box-shadow: 0 1px 4px rgba(0,0,0,0.4); pointer-events: none; transition: left 0.15s; }
     .row-slider-track.dragging .row-slider-thumb { transition: none; }
 
     .area-state-values {
-      font-size: 1.4rem;
+      font-size: var(--font-hero);
       font-weight: 500;
       display: flex;
       align-items: center;
@@ -211,7 +219,7 @@
       align-items: flex-end;
     }
     .control-cluster-label {
-      font-size: 0.52rem;
+      font-size: var(--font-micro);
       font-weight: 700;
       color: rgba(255,255,255,0.78);
       opacity: 1;
@@ -235,7 +243,7 @@
       align-items: center;
       justify-content: center;
       transition: all 0.2s;
-      font-size: 1.1rem;
+      font-size: var(--font-display);
       -webkit-tap-highlight-color: transparent;
       outline: none;
     }
@@ -278,7 +286,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: 0.8rem;
+      font-size: var(--font-body);
       margin-left: auto;
     }
 
@@ -362,7 +370,7 @@
       gap: 8px;
     }
     .hslider-label {
-      font-size: 0.62rem;
+      font-size: var(--font-caps);
       font-weight: 600;
       color: var(--muted2);
       text-transform: uppercase;
@@ -370,7 +378,7 @@
       min-width: 42px;
     }
     .hslider-value {
-      font-size: 1rem;
+      font-size: var(--font-card-title);
       font-weight: 500;
       color: var(--text);
     }
@@ -383,7 +391,7 @@
       border-radius: 11px;
       cursor: pointer;
       padding: 0;
-      font-size: 0.85rem;
+      font-size: var(--font-value);
       line-height: 1;
       display: flex;
       align-items: center;
@@ -448,7 +456,7 @@
       position: absolute;
       top: 0;
       transform: translateX(-50%);
-      font-size: 0.58rem;
+      font-size: var(--font-micro);
       font-weight: 500;
       color: var(--muted2);
       letter-spacing: 0.02em;
@@ -467,7 +475,7 @@
       flex-direction: column;
       align-items: center;
       gap: 1px;
-      font-size: 0.56rem;
+      font-size: var(--font-micro);
       font-weight: 500;
       color: rgba(255, 215, 120, 0.95);
       letter-spacing: 0.02em;
@@ -488,7 +496,7 @@
       position: absolute;
       top: 0;
       transform: translateX(-50%);
-      font-size: 0.58rem;
+      font-size: var(--font-micro);
       font-weight: 600;
       color: rgba(140, 210, 255, 0.95);
       letter-spacing: 0.04em;
@@ -523,7 +531,7 @@
       pointer-events: auto;
     }
     .chart-hero-label {
-      font-size: 0.72rem;
+      font-size: var(--font-body);
       font-weight: 600;
       letter-spacing: 0.04em;
       text-transform: uppercase;
@@ -537,7 +545,7 @@
       background: none;
       border: none;
       color: rgba(200, 200, 200, 0.65);
-      font-size: 0.85rem;
+      font-size: var(--font-value);
       line-height: 1;
       padding: 2px 4px;
       cursor: pointer;
@@ -551,7 +559,7 @@
       display: none;
     }
     .chart-hero-time {
-      font-size: 1.15rem;
+      font-size: var(--font-display);
       font-weight: 600;
       color: var(--text);
       min-width: 60px;
@@ -561,7 +569,7 @@
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.12);
       color: rgba(220, 220, 220, 0.85);
-      font-size: 0.7rem;
+      font-size: var(--font-muted);
       line-height: 1;
       padding: 4px 7px;
       border-radius: 4px;
@@ -598,7 +606,7 @@
       background: rgba(0,0,0,0.7);
       padding: 10px 20px;
       border-radius: 8px;
-      font-size: 0.9rem;
+      font-size: var(--font-value);
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -638,14 +646,14 @@
     .auto-sched-card--auto.is-open .auto-sched-body { max-height: 6000px; }
     /* Merged next-trigger header display (only visible when outer is collapsed —
        sub-header resolved times render it redundant when expanded) */
-    .auto-outer-next { margin-left: auto; display: flex; align-items: baseline; gap: 6px; font-size: 0.95rem; color: var(--text); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .auto-outer-next { margin-left: auto; display: flex; align-items: baseline; gap: 6px; font-size: var(--font-card-title); color: var(--text); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .auto-outer-next a { color: inherit; text-decoration: none; padding: 2px 4px; border-radius: 4px; transition: background 0.15s; }
     .auto-outer-next a:hover { background: rgba(255,255,255,0.04); }
     .auto-outer-next .auto-outer-sep { color: var(--muted2); font-weight: 400; }
     .auto-outer-next .auto-outer-off-label { color: var(--muted); }
     .auto-sched-card--auto.is-open .auto-outer-next { display: none; }
     /* Adjust card: mirror merged header for live brightness/kelvin */
-    .adjust-outer-next { margin-left: auto; display: flex; align-items: baseline; gap: 6px; font-size: 0.95rem; color: var(--text); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .adjust-outer-next { margin-left: auto; display: flex; align-items: baseline; gap: 6px; font-size: var(--font-card-title); color: var(--text); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .adjust-outer-next .adjust-outer-sep { color: var(--muted2); font-weight: 400; }
     .auto-sched-card--headline.is-open .adjust-outer-next { display: none; }
     /* Indent field rows inside On/Off sub-sections so labels sit under (not
@@ -654,10 +662,10 @@
     .auto-sched-card--sub .auto-sched-conditions-header,
     .auto-sched-card--sub .section-action-bar { padding-left: 28px; }
     /* Inline × remove link for a 2nd custom schedule */
-    .auto-sched-remove-link { font-size: 1rem; color: var(--muted2); text-decoration: none; cursor: pointer; line-height: 1; padding: 0 4px; flex-shrink: 0; }
+    .auto-sched-remove-link { font-size: var(--font-card-title); color: var(--muted2); text-decoration: none; cursor: pointer; line-height: 1; padding: 0 4px; flex-shrink: 0; }
     .auto-sched-remove-link:hover { color: var(--text); }
     .auto-sched-header { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 14px; user-select: none; }
-    .auto-sched-title { font-size: 1.0rem; font-weight: 600; color: var(--text); }
+    .auto-sched-title { font-size: var(--font-card-title); font-weight: 600; color: var(--text); }
     .auto-sched-toggle { position: relative; width: 32px; height: 16px; }
     .auto-sched-toggle input { opacity: 0; width: 0; height: 0; }
     .auto-sched-toggle .slider { position: absolute; inset: 0; background: var(--line); border-radius: 8px; cursor: pointer; transition: background 0.2s; }
@@ -672,28 +680,28 @@
     .auto-sched-days-time { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: nowrap; }
     .auto-sched-days-time .auto-sched-days { margin-bottom: 0; gap: 4px; }
     .auto-sched-days-time .auto-sched-day-col { gap: 0; }
-    .auto-sched-days-time .auto-sched-day-btn { width: 19px; height: 19px; font-size: 0.48rem; border-width: 1.25px; }
+    .auto-sched-days-time .auto-sched-day-btn { width: 19px; height: 19px; font-size: var(--font-micro); border-width: 1.25px; }
     .auto-sched-day-col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-    .auto-sched-day-btn { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; color: var(--muted); font-size: 0.55rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; transition: all 0.15s; }
-    .auto-sched-time-input--inline { padding: 3px 6px; font-size: 0.78rem; max-width: 108px; flex-shrink: 0; }
-    .auto-sched-time-input--inline::-webkit-datetime-edit-ampm-field { text-transform: lowercase; font-size: 0.68rem; padding: 0 1px; }
+    .auto-sched-day-btn { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; color: var(--muted); font-size: var(--font-micro); font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; transition: all 0.15s; }
+    .auto-sched-time-input--inline { padding: 3px 6px; font-size: var(--font-body); max-width: 108px; flex-shrink: 0; }
+    .auto-sched-time-input--inline::-webkit-datetime-edit-ampm-field { text-transform: lowercase; font-size: var(--font-muted); padding: 0 1px; }
     .auto-sched-time-input--inline::-webkit-datetime-edit-hour-field,
     .auto-sched-time-input--inline::-webkit-datetime-edit-minute-field { padding: 0 1px; }
     .auto-sched-day-btn:hover { border-color: var(--text); color: var(--text); }
     .auto-sched-day-btn.active { background: #eef1f5; border-color: #eef1f5; color: #000; }
-    .auto-sched-day-time { font-size: 0.6rem; color: var(--muted2); height: 0.75rem; line-height: 0.75rem; font-variant-numeric: tabular-nums; }
+    .auto-sched-day-time { font-size: var(--font-caps); color: var(--muted2); height: 0.75rem; line-height: 0.75rem; font-variant-numeric: tabular-nums; }
     .auto-sched-day-time:empty { display: none; }
-    .auto-sched-time-input { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 0.85rem; outline: none; }
+    .auto-sched-time-input { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: var(--font-value); outline: none; }
     .auto-sched-time-input:focus { border-color: var(--accent); }
     .auto-sched-offset { display: flex; align-items: center; gap: 6px; }
-    .auto-sched-offset-btn { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+    .auto-sched-offset-btn { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: var(--font-card-title); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
     .auto-sched-offset-btn:hover { border-color: var(--accent); color: var(--accent); }
-    .auto-sched-offset-val { font-size: 0.85rem; color: var(--text); min-width: 3.5em; text-align: center; font-variant-numeric: tabular-nums; }
-    .auto-sched-next { font-size: 1.1rem; color: var(--text); font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .auto-sched-offset-val { font-size: var(--font-value); color: var(--text); min-width: 3.5em; text-align: center; font-variant-numeric: tabular-nums; }
+    .auto-sched-next { font-size: var(--font-display); color: var(--text); font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
     /* Tint resolved time when an override is active — paired with the
        "clear override" link underneath to double-signal modified state. */
     .auto-sched-next.has-override { color: rgba(254, 172, 96, 0.95); }
-    .auto-sched-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transform: rotate(0deg); transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
+    .auto-sched-chevron { display: inline-block; font-size: var(--font-display); line-height: 1; transform: rotate(0deg); transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
     .auto-sched-card.is-open .auto-sched-chevron { transform: rotate(90deg); }
 
     /* Headline variant: always-open card, no chevron, static header */
@@ -704,46 +712,46 @@
 
     /* Unified field row — label left, content right */
     .auto-sched-field { display: flex; align-items: flex-start; gap: 8px; padding: 5px 14px 5px 14px; }
-    .auto-sched-field-label { font-size: 0.78rem; color: var(--muted); min-width: 5.5em; flex-shrink: 0; padding-top: 1px; line-height: 1.4; }
+    .auto-sched-field-label { font-size: var(--font-body); color: var(--muted); min-width: 5.5em; flex-shrink: 0; padding-top: 1px; line-height: 1.4; }
     .auto-sched-field-content { flex: 1; min-width: 0; }
 
     .auto-sched-radios { display: flex; gap: 10px; margin-bottom: 10px; }
-    .auto-sched-radios label { display: flex; align-items: center; gap: 4px; font-size: 0.78rem; color: var(--muted); cursor: pointer; white-space: nowrap; }
+    .auto-sched-radios label { display: flex; align-items: center; gap: 4px; font-size: var(--font-body); color: var(--muted); cursor: pointer; white-space: nowrap; }
     .auto-sched-radios input[type="radio"] { accent-color: var(--muted); margin: 0; cursor: pointer; }
 
     .auto-sched-custom-group { margin-top: 0; margin-bottom: 0; }
     .auto-sched-custom-group .auto-sched-days-time { margin-bottom: 0; }
 
     .auto-sched-fade-slider { flex: 1; }
-    .auto-sched-fade-val { font-size: 0.85rem; color: var(--text); font-weight: 600; min-width: 3.5em; text-align: right; font-variant-numeric: tabular-nums; }
+    .auto-sched-fade-val { font-size: var(--font-value); color: var(--text); font-weight: 600; min-width: 3.5em; text-align: right; font-variant-numeric: tabular-nums; }
 
     .auto-sched-light-pills { display: flex; gap: 4px; }
-    .auto-sched-light-pill { padding: 3px 10px; border-radius: 12px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 0.72rem; cursor: pointer; transition: all 0.15s; }
+    .auto-sched-light-pill { padding: 3px 10px; border-radius: 12px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: var(--font-body); cursor: pointer; transition: all 0.15s; }
     .auto-sched-light-pill:hover { border-color: var(--text); color: var(--text); }
     .auto-sched-light-pill.active { background: #eef1f5; border-color: #eef1f5; color: #000; }
-    .auto-sched-add-schedule { font-size: 0.72rem; color: var(--muted2); text-decoration: underline; cursor: pointer; padding: 2px 0 4px; }
+    .auto-sched-add-schedule { font-size: var(--font-body); color: var(--muted2); text-decoration: underline; cursor: pointer; padding: 2px 0 4px; }
     .auto-sched-add-schedule:hover { color: var(--text); }
-    .auto-sched-trigger-select { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 2px 4px; font-size: 0.78rem; }
-    .auto-sched-conditions-header { font-size: 0.65rem; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.08em; padding: 10px 14px 4px; }
+    .auto-sched-trigger-select { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 2px 4px; font-size: var(--font-body); }
+    .auto-sched-conditions-header { font-size: var(--font-caps); color: var(--muted2); text-transform: uppercase; letter-spacing: 0.08em; padding: 10px 14px 4px; }
     .auto-sched-days-wrap { padding: 0 0 2px; }
-    .auto-sched-days-summary { font-size: 0.7rem; color: var(--muted2); font-variant-numeric: tabular-nums; }
+    .auto-sched-days-summary { font-size: var(--font-muted); color: var(--muted2); font-variant-numeric: tabular-nums; }
     .auto-sched-days-summary:empty { display: none; }
 
     /* Temp override popover (auto schedule) */
     .auto-override-popover { position: fixed; z-index: 200; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 0; min-width: 260px; max-width: 320px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); overflow: hidden; }
-    .auto-override-popover .aop-title { font-weight: 600; font-size: 0.9rem; padding: 10px 14px 4px; }
-    .auto-override-popover .aop-section-label { font-size: 0.7rem; font-weight: 500; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 14px 4px; }
+    .auto-override-popover .aop-title { font-weight: 600; font-size: var(--font-value); padding: 10px 14px 4px; }
+    .auto-override-popover .aop-section-label { font-size: var(--font-muted); font-weight: 500; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 14px 4px; }
     .auto-override-popover .aop-options { padding: 0 14px 0 22px; }
-    .auto-override-popover .aop-option { display: flex; align-items: center; gap: 6px; padding: 5px 0; font-size: 0.82rem; color: var(--muted); cursor: pointer; }
+    .auto-override-popover .aop-option { display: flex; align-items: center; gap: 6px; padding: 5px 0; font-size: var(--font-value); color: var(--muted); cursor: pointer; }
     .auto-override-popover .aop-option input[type="radio"] { accent-color: var(--muted); margin: 0; cursor: pointer; flex-shrink: 0; }
-    .auto-override-popover .aop-info { font-size: 0.88rem; font-weight: 600; padding: 6px 14px; text-align: center; }
+    .auto-override-popover .aop-info { font-size: var(--font-value); font-weight: 600; padding: 6px 14px; text-align: center; }
     .auto-override-popover .aop-clear { padding: 6px 14px 10px; text-align: center; }
-    .auto-override-popover .aop-clear button { background: none; border: none; color: #ef4444; font-size: 0.75rem; cursor: pointer; opacity: 0.7; padding: 4px 8px; }
+    .auto-override-popover .aop-clear button { background: none; border: none; color: #ef4444; font-size: var(--font-body); cursor: pointer; opacity: 0.7; padding: 4px 8px; }
     .auto-override-popover .aop-clear button:hover { opacity: 1; }
     .auto-override-popover .aop-buttons { display: flex; justify-content: flex-end; gap: 8px; padding: 8px 14px 10px; border-top: 1px solid var(--line); margin-top: 6px; }
-    .auto-override-popover .aop-btn-cancel { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 0.8rem; cursor: pointer; }
+    .auto-override-popover .aop-btn-cancel { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: var(--font-body); cursor: pointer; }
     .auto-override-popover .aop-btn-cancel:hover { background: rgba(255,255,255,0.05); color: var(--text); }
-    .auto-override-popover .aop-btn-save { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #000; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+    .auto-override-popover .aop-btn-save { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #000; font-size: var(--font-body); font-weight: 600; cursor: pointer; }
     .auto-override-popover .aop-btn-save:hover { opacity: 0.9; }
 
         /* Tune section — shared */
@@ -752,9 +760,9 @@
        the tune-card margin-bottom would otherwise stack on top of the gap
        (16px visible) and break the 8px rhythm established by the other cards. */
     #auto-sched-section .tune-card { margin-bottom: 0; }
-    .tune-card-title { padding: 10px 16px 2px; font-size: 0.75rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
-    .tune-section-header { padding: 10px 16px 6px; font-size: 0.75rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
-    .tune-save-status { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; background: var(--success); color: white; border-radius: 8px; font-size: 0.9rem; opacity: 0; transform: translateY(10px); transition: all 0.3s; z-index: 50; }
+    .tune-card-title { padding: 10px 16px 2px; font-size: var(--font-body); font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .tune-section-header { padding: 10px 16px 6px; font-size: var(--font-body); font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .tune-save-status { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; background: var(--success); color: white; border-radius: 8px; font-size: var(--font-value); opacity: 0; transform: translateY(10px); transition: all 0.3s; z-index: 50; }
     .tune-save-status.visible { opacity: 1; transform: translateY(0); }
 
     .section-action-bar {
@@ -767,13 +775,13 @@
     }
     .section-cancel-btn {
       padding: 6px 16px; border-radius: 6px; border: 1px solid var(--line);
-      background: transparent; color: var(--muted); font-size: 0.8rem;
+      background: transparent; color: var(--muted); font-size: var(--font-body);
       cursor: pointer; transition: all 0.15s;
     }
     .section-cancel-btn:hover { background: rgba(255,255,255,0.05); color: var(--text); border-color: var(--muted); }
     .section-save-btn {
       padding: 6px 16px; border-radius: 6px; border: 1px solid var(--accent);
-      background: var(--accent); color: #000; font-size: 0.8rem; font-weight: 600;
+      background: var(--accent); color: #000; font-size: var(--font-body); font-weight: 600;
       cursor: pointer; transition: all 0.15s;
     }
     .section-save-btn:hover { opacity: 0.9; }
@@ -810,42 +818,42 @@
     /* Room Balance / Solar sliders */
     .tune-control-row { display: grid; grid-template-columns: 1fr auto; align-items: baseline; padding: 8px 14px 2px 30px; gap: 0 12px; }
     .tune-control-left { display: flex; align-items: center; gap: 6px; }
-    .tune-control-label { font-size: 0.82rem; color: var(--muted); }
+    .tune-control-label { font-size: var(--font-value); color: var(--muted); }
     .tune-control-label.primary { color: var(--text); font-weight: 600; }
-    .tune-control-reset { font-size: 0.7rem; color: var(--muted2); cursor: pointer; opacity: 0; transition: opacity 0.15s; text-transform: uppercase; letter-spacing: 0.03em; pointer-events: none; }
+    .tune-control-reset { font-size: var(--font-muted); color: var(--muted2); cursor: pointer; opacity: 0; transition: opacity 0.15s; text-transform: uppercase; letter-spacing: 0.03em; pointer-events: none; }
     .tune-control-reset.is-dirty { pointer-events: auto; opacity: 0.6; }
     .tune-control-reset.is-dirty:hover { opacity: 1; }
     .tune-control-reset:hover { color: var(--accent); }
     .tune-slider-row { padding: 0px 22px 2px 52px; max-width: 70%; }
     .tune-slider-row input[type=range] { }
-    .tune-slider-word { font-size: 0.75rem; color: var(--text); white-space: nowrap; display: flex; justify-content: space-between; margin-top: 0; }
+    .tune-slider-word { font-size: var(--font-body); color: var(--text); white-space: nowrap; display: flex; justify-content: space-between; margin-top: 0; }
     .tune-inline-slider { width: 100%; cursor: pointer; min-width: 80px; }
     .tune-inline-slider--light { }
     .tune-inline-slider--sun { }
 
     /* Lights card — collapsible like brightness/alarm */
     .tune-lights-header { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 14px; user-select: none; }
-    .tune-lights-title { font-size: 1.0rem; font-weight: 600; color: var(--text); }
-    .tune-lights-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transform: rotate(0deg); transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
+    .tune-lights-title { font-size: var(--font-card-title); font-weight: 600; color: var(--text); }
+    .tune-lights-chevron { display: inline-block; font-size: var(--font-display); line-height: 1; transform: rotate(0deg); transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
     .tune-lights-card.is-open .tune-lights-chevron { transform: rotate(90deg); }
-    .tune-lights-count { margin-left: auto; font-size: 0.85rem; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; transition: opacity 0.25s; }
+    .tune-lights-count { margin-left: auto; font-size: var(--font-value); font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; transition: opacity 0.25s; }
     .tune-lights-card.is-open .tune-lights-count { opacity: 0; }
     .tune-lights-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; padding-bottom: 0; }
     .tune-lights-card.is-open .tune-lights-body { max-height: 1000px; opacity: 1; padding-bottom: 8px; }
     .tune-light-item { padding: 0 14px; border-bottom: 1px solid var(--line); }
     .tune-light-item:last-child { border-bottom: none; }
     .tune-light-summary { display: grid; grid-template-columns: 1fr 1fr 56px 56px; align-items: baseline; padding: 8px 0; gap: 0 4px; }
-    .tune-light-name { font-size: 0.82rem; color: var(--text); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .tune-light-behaviour { font-size: 0.75rem; color: var(--muted); cursor: pointer; white-space: nowrap; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
+    .tune-light-name { font-size: var(--font-value); color: var(--text); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tune-light-behaviour { font-size: var(--font-body); color: var(--muted); cursor: pointer; white-space: nowrap; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
     .tune-light-behaviour:hover { color: var(--accent); }
-    .tune-light-impact { font-size: 0.82rem; color: var(--muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
-    .tune-light-bri { font-size: 0.85rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; color: var(--text); position: relative; }
-    .tune-capped-star { position: absolute; font-size: 0.7rem; font-weight: 400; color: var(--muted2); margin-left: 1px; }
+    .tune-light-impact { font-size: var(--font-value); color: var(--muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+    .tune-light-bri { font-size: var(--font-value); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; color: var(--text); position: relative; }
+    .tune-capped-star { position: absolute; font-size: var(--font-muted); font-weight: 400; color: var(--muted2); margin-left: 1px; }
 
     /* Brightness card — alarm-style collapsible */
     .tune-brightness-header { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 14px; user-select: none; }
-    .tune-brightness-title { font-size: 1.0rem; font-weight: 600; color: var(--text); }
-    .tune-brightness-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transform: rotate(0deg); transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
+    .tune-brightness-title { font-size: var(--font-card-title); font-weight: 600; color: var(--text); }
+    .tune-brightness-chevron { display: inline-block; font-size: var(--font-display); line-height: 1; transform: rotate(0deg); transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
     .tune-brightness-card.is-open .tune-brightness-chevron { transform: rotate(90deg); }
     .tune-controls-card.is-open .tune-brightness-chevron { transform: rotate(90deg); }
     .tune-controls-card.is-open .tune-brightness-val { opacity: 0; }
@@ -857,48 +865,48 @@
     .ctrl-list-row:active { background: rgba(255,255,255,0.04); }
     .ctrl-list-icon { flex-shrink: 0; color: var(--muted); display: flex; align-items: center; }
     .ctrl-list-info { flex: 1; min-width: 0; }
-    .ctrl-list-name { font-size: 0.82rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .ctrl-list-name .ctrl-paused-badge { font-size: 0.65rem; font-weight: 400; color: #f90; background: rgba(255,153,0,0.12); padding: 1px 5px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
-    .ctrl-list-impact { flex-shrink: 0; font-size: 0.75rem; color: var(--muted); text-align: right; white-space: nowrap; }
-    .ctrl-list-chevron { flex-shrink: 0; color: var(--muted2); font-size: 0.9rem; }
+    .ctrl-list-name { font-size: var(--font-value); font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ctrl-list-name .ctrl-paused-badge { font-size: var(--font-caps); font-weight: 400; color: #f90; background: rgba(255,153,0,0.12); padding: 1px 5px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
+    .ctrl-list-impact { flex-shrink: 0; font-size: var(--font-body); color: var(--muted); text-align: right; white-space: nowrap; }
+    .ctrl-list-chevron { flex-shrink: 0; color: var(--muted2); font-size: var(--font-value); }
     .ctrl-list-divider { border-top: 1px solid var(--line); margin: 0; }
-    .tune-brightness-val { margin-left: auto; font-size: 1.1rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; transition: opacity 0.25s; }
+    .tune-brightness-val { margin-left: auto; font-size: var(--font-display); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; transition: opacity 0.25s; }
     .tune-brightness-card.is-open .tune-brightness-val { opacity: 0; }
     .tune-brightness-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; padding-bottom: 0; }
     .tune-brightness-card.is-open .tune-brightness-body { max-height: 2000px; opacity: 1; padding-bottom: 8px; }
-    .tune-detail-sub { padding: 0 22px 2px 52px; font-size: 0.7rem; color: var(--muted2); }
-    .tune-source-info { font-size: 0.7rem; color: var(--muted2); padding: 2px 22px 0 52px; }
-    .tune-refresh-btn { background: none; border: none; color: var(--muted2); font-size: 0.8rem; padding: 0 2px; cursor: pointer; vertical-align: middle; }
+    .tune-detail-sub { padding: 0 22px 2px 52px; font-size: var(--font-muted); color: var(--muted2); }
+    .tune-source-info { font-size: var(--font-muted); color: var(--muted2); padding: 2px 22px 0 52px; }
+    .tune-refresh-btn { background: none; border: none; color: var(--muted2); font-size: var(--font-body); padding: 0 2px; cursor: pointer; vertical-align: middle; }
     .tune-refresh-btn:hover { color: var(--text); }
     .tune-col-headers { display: grid; grid-template-columns: 1fr auto; padding: 0 14px 2px; gap: 0 12px; }
     .tune-col-header { font-size: 11px; color: var(--muted2); text-align: right; white-space: nowrap; }
     .tune-bk-row { display: grid; grid-template-columns: 1fr auto; align-items: baseline; padding: 5px 14px 5px 30px; gap: 0 12px; }
-    .tune-bk-row .tune-bk-label { color: var(--muted); font-size: 0.82rem; }
+    .tune-bk-row .tune-bk-label { color: var(--muted); font-size: var(--font-value); }
     .tune-bk-row .tune-bk-label.primary { color: var(--text); font-weight: 600; }
     .tune-bk-row .tune-bk-total { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 3em; }
-    .tune-bk-row .tune-bk-total.final { font-size: 1.1rem; font-weight: 700; }
-    .tune-control-impact { font-size: 0.82rem; color: var(--text); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 3em; }
-    .tune-group-label { font-size: 0.75rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 14px 4px; }
+    .tune-bk-row .tune-bk-total.final { font-size: var(--font-display); font-weight: 700; }
+    .tune-control-impact { font-size: var(--font-value); color: var(--text); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 3em; }
+    .tune-group-label { font-size: var(--font-body); font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 14px 4px; }
     .tune-area-total { padding-top: 8px; margin-top: 4px; position: relative; }
     .tune-area-total::before { content: ''; position: absolute; top: 0; right: 14px; width: 3em; border-top: 1px solid rgba(255,255,255,0.15); }
 
     /* Custom behaviour dropdown */
     .tune-light-dropdown { position: absolute; z-index: 100; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.4); width: 320px; overflow: hidden; }
-    .tune-light-dropdown-header { display: grid; grid-template-columns: 14px 1fr 44px 44px 36px 48px; gap: 8px; padding: 8px 12px 6px; font-size: 0.6rem; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--line); }
+    .tune-light-dropdown-header { display: grid; grid-template-columns: 14px 1fr 44px 44px 36px 48px; gap: 8px; padding: 8px 12px 6px; font-size: var(--font-caps); color: var(--muted2); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--line); }
     .tune-light-dropdown-header > span:nth-child(3), .tune-light-dropdown-header > span:nth-child(4), .tune-light-dropdown-header > span:nth-child(5), .tune-light-dropdown-header > span:nth-child(6) { text-align: right; }
     .tune-light-dropdown-row { display: grid; grid-template-columns: 14px 1fr 44px 44px 36px 48px; gap: 8px; padding: 9px 12px; cursor: pointer; align-items: center; border-bottom: 1px solid var(--line); }
     .tune-light-dropdown-row:hover { background: rgba(255,255,255,0.05); }
     .tune-light-dropdown-row.selected { background: rgba(254,172,96,0.08); }
-    .tune-light-dropdown-dot { color: #feac60; font-size: 0.7rem; line-height: 1; }
-    .tune-light-dropdown-name { font-size: 0.72rem; color: var(--text); text-transform: uppercase; letter-spacing: 0.04em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .tune-light-dropdown-num { text-align: right; font-size: 0.78rem; color: var(--muted2); font-variant-numeric: tabular-nums; }
-    .tune-light-dropdown-final { text-align: right; font-size: 0.82rem; color: var(--text); font-variant-numeric: tabular-nums; font-weight: 500; }
-    .tune-light-dropdown-new { padding: 8px 12px; font-size: 0.72rem; color: var(--muted2); opacity: 0.5; cursor: not-allowed; border-top: 1px dashed var(--line); text-transform: uppercase; letter-spacing: 0.04em; }
+    .tune-light-dropdown-dot { color: #feac60; font-size: var(--font-muted); line-height: 1; }
+    .tune-light-dropdown-name { font-size: var(--font-body); color: var(--text); text-transform: uppercase; letter-spacing: 0.04em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tune-light-dropdown-num { text-align: right; font-size: var(--font-body); color: var(--muted2); font-variant-numeric: tabular-nums; }
+    .tune-light-dropdown-final { text-align: right; font-size: var(--font-value); color: var(--text); font-variant-numeric: tabular-nums; font-weight: 500; }
+    .tune-light-dropdown-new { padding: 8px 12px; font-size: var(--font-body); color: var(--muted2); opacity: 0.5; cursor: not-allowed; border-top: 1px dashed var(--line); text-transform: uppercase; letter-spacing: 0.04em; }
 
     /* Light brightness column headers — same grid as data rows for alignment */
     .tune-light-col-super { display: grid; grid-template-columns: 1fr 1fr 56px 56px; padding: 6px 14px 0; gap: 0 4px; }
-    .tune-light-super-label { grid-column: 3 / 5; text-align: center; font-size: 0.6rem; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.05em; }
-    .tune-light-col-headers { display: grid; grid-template-columns: 1fr 1fr 56px 56px; padding: 4px 14px; gap: 0 4px; font-size: 0.6rem; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--line); }
+    .tune-light-super-label { grid-column: 3 / 5; text-align: center; font-size: var(--font-caps); color: var(--muted2); text-transform: uppercase; letter-spacing: 0.05em; }
+    .tune-light-col-headers { display: grid; grid-template-columns: 1fr 1fr 56px 56px; padding: 4px 14px; gap: 0 4px; font-size: var(--font-caps); color: var(--muted2); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--line); }
     .tune-light-col-headers span:nth-child(n+3) { text-align: right; }
     .tune-light-sort { cursor: pointer; transition: color 0.15s; }
     .tune-light-sort:hover { color: var(--text); }
@@ -907,11 +915,11 @@
     .tune-light-sort.active-sort.sort-asc::after { content: " \2191"; color: var(--accent); margin-left: 3px; font-size: 1.1em; vertical-align: -1px; line-height: 1; }
     .tune-light-sort.active-sort.sort-desc::after { content: " \2193"; color: var(--accent); margin-left: 3px; font-size: 1.1em; vertical-align: -1px; line-height: 1; }
     .tune-light-sort-final { /* no longer bold/white — value carries the weight */ }
-    .tune-light-ct { font-size: 0.82rem; color: var(--muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+    .tune-light-ct { font-size: var(--font-value); color: var(--muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
     .tune-light-impact-info {
       display: inline-block;
       margin-left: 4px;
-      font-size: 0.82rem;
+      font-size: var(--font-value);
       color: var(--muted2);
       cursor: pointer;
       user-select: none;
@@ -922,7 +930,7 @@
     .tune-light-impact-breakdown {
       grid-column: 1 / -1;
       padding: 0 0 8px 0;
-      font-size: 0.7rem;
+      font-size: var(--font-muted);
       text-align: right;
       font-variant-numeric: tabular-nums;
       color: var(--muted);
@@ -943,7 +951,7 @@
       border-radius: 999px;
       text-decoration: none !important;
       color: var(--muted);
-      font-size: 0.72rem;
+      font-size: var(--font-body);
       line-height: 1.3;
       max-width: 100%;
       overflow: hidden;
@@ -958,17 +966,17 @@
     /* ── Lights card hero + zones ── */
     .tune-hero-block { padding: 4px 14px 6px; }
     .tune-hero-label {
-      font-size: 0.65rem; font-weight: 500; color: var(--muted2);
+      font-size: var(--font-caps); font-weight: 500; color: var(--muted2);
       text-transform: uppercase; letter-spacing: 0.08em;
     }
     .tune-hero-val {
-      font-size: 1.8rem; font-weight: 700; color: var(--text);
+      font-size: var(--font-hero); font-weight: 700; color: var(--text);
       font-variant-numeric: tabular-nums; line-height: 1.1; margin-top: 1px;
     }
     /* Full-row tappable band — the whole breadcrumb reveals/hides the details */
     .tune-hero-breadcrumb {
       display: flex; align-items: center; justify-content: flex-start;
-      font-size: 0.78rem; color: var(--muted); margin-top: 6px;
+      font-size: var(--font-body); color: var(--muted); margin-top: 6px;
       font-variant-numeric: tabular-nums;
       padding: 6px 8px; margin-left: -8px; margin-right: -8px;
       border-radius: 6px; cursor: pointer; user-select: none;
@@ -994,35 +1002,35 @@
       gap: 0 10px;
       font-variant-numeric: tabular-nums;
     }
-    .tune-wf-op { font-size: 0.9rem; color: var(--muted2); text-align: center; line-height: 1; }
-    .tune-wf-label { font-size: 0.85rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tune-wf-op { font-size: var(--font-value); color: var(--muted2); text-align: center; line-height: 1; }
+    .tune-wf-label { font-size: var(--font-value); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .tune-wf-reset {
-      font-size: 0.7rem; color: var(--muted2); cursor: pointer; opacity: 0;
+      font-size: var(--font-muted); color: var(--muted2); cursor: pointer; opacity: 0;
       transition: opacity 0.15s; text-transform: uppercase; letter-spacing: 0.03em;
       pointer-events: none;
     }
     .tune-wf-reset.is-dirty { pointer-events: auto; opacity: 0.6; }
     .tune-wf-reset.is-dirty:hover { opacity: 1; color: var(--accent); }
-    .tune-wf-val { text-align: right; font-size: 0.85rem; color: var(--text); white-space: nowrap; min-width: 3.2em; }
+    .tune-wf-val { text-align: right; font-size: var(--font-value); color: var(--text); white-space: nowrap; min-width: 3.2em; }
     .tune-wf-total .tune-wf-op,
     .tune-wf-total .tune-wf-label { color: var(--text); font-weight: 600; }
-    .tune-wf-total .tune-wf-val { font-size: 1.1rem; font-weight: 700; }
+    .tune-wf-total .tune-wf-val { font-size: var(--font-display); font-weight: 700; }
     .tune-wf-divider { border-top: 1px solid var(--line); margin: 6px 14px 4px; }
     /* Slider sits under its row, indented to align with the label column */
     .tune-wf-slider { padding: 2px 22px 6px 52px; max-width: 70%; }
     .tune-wf-slider input[type=range] { width: 100%; }
     .tune-wf-slider .tune-slider-word {
-      font-size: 0.72rem; color: var(--text); white-space: nowrap;
+      font-size: var(--font-body); color: var(--text); white-space: nowrap;
       display: flex; justify-content: space-between; margin-top: 0;
     }
-    .tune-slider-word .tune-solar-main { font-size: 0.78rem; font-weight: 600; color: var(--text); }
-    .tune-slider-word .tune-solar-peak { color: var(--muted2); font-size: 0.68rem; }
+    .tune-slider-word .tune-solar-main { font-size: var(--font-body); font-weight: 600; color: var(--text); }
+    .tune-slider-word .tune-solar-peak { color: var(--muted2); font-size: var(--font-muted); }
 
     /* Individual section: peer header to "Adjustments" with leading chevron */
     .tune-individual-toggle {
       display: flex; align-items: center; gap: 6px;
       padding: 9px 14px; cursor: pointer; user-select: none;
-      font-size: 0.82rem; color: var(--muted);
+      font-size: var(--font-value); color: var(--muted);
       border-top: 1px solid var(--line); margin-top: 4px;
     }
     .tune-individual-toggle:hover { color: var(--text); }
@@ -1196,7 +1204,7 @@
       <div class="tune-brightness-header" onclick="toggleControlsBody()">
         <span class="tune-brightness-chevron" id="tune-controls-chevron">&#x203A;</span>
         <span class="tune-brightness-title">Controls</span>
-        <span class="tune-brightness-val" id="tune-controls-count" style="font-size:0.85rem;font-weight:500;color:var(--muted);"></span>
+        <span class="tune-brightness-val" id="tune-controls-count" style="font-size:var(--font-value);font-weight:500;color:var(--muted);"></span>
       </div>
       <div class="tune-brightness-body" id="tune-controls-body">
       </div>
@@ -1218,7 +1226,7 @@
           </label>
           <span style="margin-left:auto; display:flex; flex-direction:column; align-items:flex-end;">
             <span class="auto-sched-next" id="auto-on-next"></span>
-            <a id="auto-on-override-link" href="#" style="display:none; font-size:0.65rem; color:var(--muted2); text-decoration:underline; line-height:1;">set override</a>
+            <a id="auto-on-override-link" href="#" style="display:none; font-size:var(--font-caps); color:var(--muted2); text-decoration:underline; line-height:1;">set override</a>
           </span>
         </div>
         <div class="auto-sched-body" id="auto-on-body">
@@ -1315,7 +1323,7 @@
           </label>
           <span style="margin-left:auto; display:flex; flex-direction:column; align-items:flex-end;">
             <span class="auto-sched-next" id="auto-off-next"></span>
-            <a id="auto-off-override-link" href="#" style="display:none; font-size:0.65rem; color:var(--muted2); text-decoration:underline; line-height:1;">set override</a>
+            <a id="auto-off-override-link" href="#" style="display:none; font-size:var(--font-caps); color:var(--muted2); text-decoration:underline; line-height:1;">set override</a>
           </span>
         </div>
         <div class="auto-sched-body" id="auto-off-body">
@@ -1376,7 +1384,7 @@
           </div>
           <div class="auto-sched-field" style="align-items:center;">
             <span class="auto-sched-field-label">If</span>
-            <label class="auto-sched-field-content" style="display:flex; align-items:center; gap:6px; font-size:0.78rem; color:var(--muted); cursor:pointer;">
+            <label class="auto-sched-field-content" style="display:flex; align-items:center; gap:6px; font-size:var(--font-body); color:var(--muted); cursor:pointer;">
               <input type="checkbox" id="auto-off-untouched" onchange="onAutoFieldChanged('off')" style="accent-color:var(--muted); margin:0; cursor:pointer;">
               <span>lights not touched since Auto On</span>
             </label>
@@ -4026,7 +4034,7 @@
               if (existing) existing.remove();
               const toast = document.createElement('div');
               toast.id = 'action-hint-toast';
-              toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(30,30,30,0.95);color:var(--text);padding:10px 16px;border-radius:8px;font-size:0.82rem;z-index:300;border:1px solid var(--line);max-width:90%;text-align:center;';
+              toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(30,30,30,0.95);color:var(--text);padding:10px 16px;border-radius:8px;font-size:var(--font-value);z-index:300;border:1px solid var(--line);max-width:90%;text-align:center;';
               toast.textContent = result.hint;
               document.body.appendChild(toast);
               setTimeout(() => toast.remove(), 4000);
@@ -5200,9 +5208,9 @@
       const mostPopular = Object.keys(purposeCounts).sort((a, b) => purposeCounts[b] - purposeCounts[a])[0] || 'Standard';
       const purposes = [...new Set(lightsArr.map(l => l.filterName))].sort();
 
-      let fbhtml = '<div style="display:flex;align-items:center;gap:6px;padding:6px 14px;font-size:0.78rem;color:var(--muted);">';
+      let fbhtml = '<div style="display:flex;align-items:center;gap:6px;padding:6px 14px;font-size:var(--font-body);color:var(--muted);">';
       fbhtml += '<span>Feedback light:</span>';
-      fbhtml += '<select id="tune-feedback-target" onchange="saveFeedbackTarget()" style="background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:2px 4px;font-size:0.78rem;">';
+      fbhtml += '<select id="tune-feedback-target" onchange="saveFeedbackTarget()" style="background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:2px 4px;font-size:var(--font-body);">';
       fbhtml += '<option value=""' + (!currentFeedback ? ' selected' : '') + '>Auto (' + mostPopular + ')</option>';
       fbhtml += '<optgroup label="Purposes">';
       for (const p of purposes) {
@@ -5232,7 +5240,7 @@
 
       lhtml += '<div id="tune-lights-list">';
       if (sortedLights.length === 0) {
-        lhtml += '<div style="padding:10px 14px;color:var(--muted2);font-size:0.82rem;">No lights found</div>';
+        lhtml += '<div style="padding:10px 14px;color:var(--muted2);font-size:var(--font-value);">No lights found</div>';
       } else {
         lhtml += '<div class="tune-light-col-headers">'
           + '<span class="tune-light-sort" data-sort="name">light</span>'
@@ -5252,7 +5260,7 @@
         }
       }
       lhtml += '</div>';
-      lhtml += '<div id="tune-lights-legend" style="display:none; padding:4px 14px 6px; font-size:0.65rem; color:var(--muted2);"></div>';
+      lhtml += '<div id="tune-lights-legend" style="display:none; padding:4px 14px 6px; font-size:var(--font-caps); color:var(--muted2);"></div>';
       lhtml += '<div class="section-action-bar" id="lights-action-bar" style="display:none;">';
       lhtml += '<button class="section-cancel-btn" onclick="cancelLightsChanges()">Cancel</button>';
       lhtml += '<button class="section-save-btn" onclick="saveLightsChanges()">Save</button>';
