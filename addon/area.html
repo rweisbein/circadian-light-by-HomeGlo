@@ -743,6 +743,10 @@
 
         /* Tune section — shared */
     .tune-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; overflow: hidden; font-size: 13px; }
+    /* Inside the flex auto-sched-section, gap:8px already handles spacing —
+       the tune-card margin-bottom would otherwise stack on top of the gap
+       (16px visible) and break the 8px rhythm established by the other cards. */
+    #auto-sched-section .tune-card { margin-bottom: 0; }
     .tune-card-title { padding: 10px 16px 2px; font-size: 0.75rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
     .tune-section-header { padding: 10px 16px 6px; font-size: 0.75rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
     .tune-save-status { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; background: var(--success); color: white; border-radius: 8px; font-size: 0.9rem; opacity: 0; transform: translateY(10px); transition: all 0.3s; z-index: 50; }
@@ -2515,12 +2519,16 @@
           hoverinfo: 'text', showlegend: false, cliponaxis: false
         });
       }
-      // Crescent moon: outer disc minus offset inner disc via evenodd fill.
-      // Use near-closed arcs (tiny delta on close point) to avoid the
-      // degenerate "chord == diameter" case where sweep flags are ambiguous.
+      // Crescent moon: outer disc masked by an offset disc. Masks are more
+      // reliable than evenodd-fill paths for this shape — the "two near-full
+      // circle arcs" approach has intermittent rendering issues in Plotly's
+      // image embedding at small sizes.
       const svgSunset = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-        + '<path fill="rgb(230,225,195)" fill-rule="evenodd"'
-        + ' d="M 12 2 A 10 10 0 1 1 12.01 2 Z M 15 5 A 7 7 0 1 1 15.01 5 Z"/>'
+        + '<defs><mask id="cresmask">'
+        + '<rect width="24" height="24" fill="white"/>'
+        + '<circle cx="16" cy="11" r="8" fill="black"/>'
+        + '</mask></defs>'
+        + '<circle cx="11" cy="12" r="9" fill="rgb(230,225,195)" mask="url(#cresmask)"/>'
         + '</svg>';
       if (Number.isFinite(sunset)) {
         images.push({
