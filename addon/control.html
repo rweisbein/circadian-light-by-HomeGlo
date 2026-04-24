@@ -1324,7 +1324,12 @@
           sensitivitySelect.innerHTML = opts.join('');
           sensitivitySelect.disabled = false;
         } else {
-          sensitivitySelect.innerHTML = '<option value="">Not available</option>';
+          // No sensitivity entity reported by HA — device doesn't expose
+          // the cluster (e.g. Third Reality 3RMS16BZ). Hide the row entirely
+          // rather than showing a useless "Not available" option. The row is
+          // re-shown by the render gate on the next open, so if HA starts
+          // reporting it later the UI will pick it up.
+          document.getElementById('sensitivity-row').style.display = 'none';
         }
 
       } catch (err) {
