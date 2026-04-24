@@ -622,11 +622,21 @@
     /* Auto schedule section */
     .auto-sched-section { margin: 8px 0 8px; display: flex; flex-direction: column; gap: 8px; }
     .auto-sched-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; transition: border-color 0.2s; }
-    /* Bonded Auto panel: single outer shell wrapping On + Off sub-sections */
-    .auto-sched-bonded { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; transition: border-color 0.2s; }
+    /* Bonded Auto panel: now an inner container inside the outer Auto card */
+    .auto-sched-bonded { background: transparent; border: none; border-radius: 0; overflow: visible; }
     .auto-sched-card--sub { background: transparent; border: none; border-radius: 0; transition: background 0.3s; }
     .auto-sched-card--sub + .auto-sched-card--sub { border-top: 1px solid var(--line); }
-    .auto-sched-card--sub.focus-flash { background: rgba(254, 172, 96, 0.08); }
+    /* Sub-card bodies are always visible (outer Auto controls collapse) */
+    .auto-sched-card--sub > .auto-sched-body { max-height: none; opacity: 1; overflow: visible; }
+    .auto-sched-card--sub.focus-flash { background: rgba(254, 172, 96, 0.12); box-shadow: inset 0 0 0 2px rgba(254, 172, 96, 0.85); transition: background 0.3s, box-shadow 0.3s; }
+    /* Outer Auto card: holds both On and Off sub-sections */
+    .auto-sched-card--auto.is-open .auto-sched-body { max-height: 3000px; }
+    /* Merged next-trigger header display */
+    .auto-outer-next { margin-left: auto; display: flex; align-items: baseline; gap: 6px; font-size: 0.95rem; color: var(--text); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .auto-outer-next a { color: inherit; text-decoration: none; padding: 2px 4px; border-radius: 4px; transition: background 0.15s; }
+    .auto-outer-next a:hover { background: rgba(255,255,255,0.04); }
+    .auto-outer-next .auto-outer-sep { color: var(--muted2); font-weight: 400; }
+    .auto-outer-next .auto-outer-off-label { color: var(--muted); }
     .auto-sched-header { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 14px; user-select: none; }
     .auto-sched-title { font-size: 1.0rem; font-weight: 600; color: var(--text); }
     .auto-sched-toggle { position: relative; width: 32px; height: 16px; }
@@ -1125,10 +1135,16 @@
         </div>
       </div>
     </div>
+    <div class="auto-sched-card auto-sched-card--auto" id="auto-outer-card">
+      <div class="auto-sched-header" onclick="toggleAutoOuter(event)">
+        <span class="auto-sched-chevron" id="auto-outer-chevron">&#x203A;</span>
+        <span class="auto-sched-title">Auto</span>
+        <span class="auto-outer-next" id="auto-outer-next"></span>
+      </div>
+      <div class="auto-sched-body" id="auto-outer-body">
     <div class="auto-sched-bonded" id="auto-bonded-panel">
     <div class="auto-sched-card auto-sched-card--sub" id="auto-on-card">
-        <div class="auto-sched-header" onclick="toggleAutoBody('on')">
-          <span class="auto-sched-chevron" id="auto-on-chevron">&#x203A;</span>
+        <div class="auto-sched-header auto-sched-header--static">
           <span class="auto-sched-title">Auto On</span>
           <label class="auto-sched-toggle" onclick="event.stopPropagation()">
             <input type="checkbox" id="auto-on-enabled" onchange="onAutoToggleChanged('on')">
@@ -1172,7 +1188,7 @@
               <div id="auto-on-sun-controls" class="auto-sched-row">
                 <div class="auto-sched-offset">
                   <button class="auto-sched-offset-btn" onclick="adjustAutoOffset('on',-5)">-</button>
-                  <span class="auto-sched-offset-val" id="auto-on-offset-val">0 min</span>
+                  <span class="auto-sched-offset-val" id="auto-on-offset-val"></span>
                   <button class="auto-sched-offset-btn" onclick="adjustAutoOffset('on',5)">+</button>
                 </div>
               </div>
@@ -1233,8 +1249,7 @@
       </div>
 
     <div class="auto-sched-card auto-sched-card--sub" id="auto-off-card">
-        <div class="auto-sched-header" onclick="toggleAutoBody('off')">
-          <span class="auto-sched-chevron" id="auto-off-chevron">&#x203A;</span>
+        <div class="auto-sched-header auto-sched-header--static">
           <span class="auto-sched-title">Auto Off</span>
           <label class="auto-sched-toggle" onclick="event.stopPropagation()">
             <input type="checkbox" id="auto-off-enabled" onchange="onAutoToggleChanged('off')">
@@ -1268,7 +1283,7 @@
               <div id="auto-off-sun-controls" class="auto-sched-row">
                 <div class="auto-sched-offset">
                   <button class="auto-sched-offset-btn" onclick="adjustAutoOffset('off',-5)">-</button>
-                  <span class="auto-sched-offset-val" id="auto-off-offset-val">0 min</span>
+                  <span class="auto-sched-offset-val" id="auto-off-offset-val"></span>
                   <button class="auto-sched-offset-btn" onclick="adjustAutoOffset('off',5)">+</button>
                 </div>
               </div>
@@ -1323,6 +1338,8 @@
           </div>
          </div>
         </div>
+      </div>
+      </div>
       </div>
       </div>
     </div>
@@ -3374,6 +3391,7 @@
       startRefresh();
       initSliderHandlers();
       initChartCardState();
+      initAutoOuterState();
       handleDeepLink();
 
     });
@@ -4447,6 +4465,7 @@
       const nextEl = document.getElementById('auto-' + type + '-next');
       if (nextEl && s.snapshot.headerText !== undefined) nextEl.textContent = s.snapshot.headerText;
       updateAutoButtons(type);
+      updateMergedAutoHeader();
     }
 
     async function onAutoToggleChanged(type) {
@@ -4464,9 +4483,9 @@
     function onAutoFieldChanged(type) {
       showResolvedAutoTime(type);
       updateAutoButtons(type);
-      // Live preview: update header with client-computed next time
-      const nextEl = document.getElementById('auto-' + type + '-next');
-      if (nextEl) nextEl.textContent = computeNextAutoTime(type) || '';
+      // Live preview: refresh from server so next-trigger data stays current.
+      fetchNextAutoSchedule(type);
+      updateMergedAutoHeader();
     }
 
     // ---- Custom behaviour dropdown ----
@@ -5517,6 +5536,26 @@
       }
     }
 
+    function initAutoOuterState() {
+      const card = document.getElementById('auto-outer-card');
+      if (!card) return;
+      // Deep-linked to an auto subsection → always open outer (focusAutoSub will run)
+      if (_pageFocus === 'auto_on' || _pageFocus === 'auto_off') {
+        card.classList.add('is-open');
+        return;
+      }
+      // Deep-linked elsewhere → collapsed
+      if (_pageFocus) {
+        card.classList.remove('is-open');
+        return;
+      }
+      if (_persistCards) {
+        const stored = localStorage.getItem('auto_collapsed');
+        if (stored === 'true') card.classList.remove('is-open');
+        else card.classList.add('is-open');
+      }
+    }
+
     function handleDeepLink() {
       const params = new URLSearchParams(window.location.search);
       const focus = params.get('focus');
@@ -5524,59 +5563,61 @@
 
       // Wait for content to render
       setTimeout(() => {
-        let targetCard = null;
-        if (focus === 'auto_on') {
-          targetCard = document.getElementById('auto-on-card');
-        } else if (focus === 'auto_off') {
-          targetCard = document.getElementById('auto-off-card');
-        } else if (focus === 'controls') {
-          targetCard = document.getElementById('tune-controls-card');
+        if (focus === 'auto_on' || focus === 'auto_off') {
+          focusAutoSub(focus === 'auto_on' ? 'on' : 'off');
+          return;
         }
-        if (targetCard) {
-          // Open the card if closed
-          if (focus === 'auto_on' || focus === 'auto_off') {
-            const type = focus === 'auto_on' ? 'on' : 'off';
-            if (!targetCard.classList.contains('is-open')) {
-              targetCard.classList.add('is-open');
-            }
-            updateAutoHeaderText(type);
-          } else if (focus === 'controls') {
-            if (!targetCard.classList.contains('is-open')) {
-              targetCard.classList.add('is-open');
-            }
-          }
-          // Scroll into view
-          targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          // Brief highlight — flash the sub-card's background + the outer bonded border
-          const outer = targetCard.classList.contains('auto-sched-card--sub')
-            ? document.getElementById('auto-bonded-panel')
-            : targetCard;
-          if (targetCard.classList.contains('auto-sched-card--sub')) {
-            targetCard.classList.add('focus-flash');
-            setTimeout(() => targetCard.classList.remove('focus-flash'), 2000);
-          }
-          if (outer) {
-            outer.style.transition = 'border-color 0.3s';
-            outer.style.borderColor = 'var(--accent)';
-            setTimeout(() => { outer.style.borderColor = ''; }, 2000);
-          }
+        if (focus === 'controls') {
+          const card = document.getElementById('tune-controls-card');
+          if (!card) return;
+          card.classList.add('is-open');
+          card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          card.style.transition = 'border-color 0.3s';
+          card.style.borderColor = 'var(--accent)';
+          setTimeout(() => { card.style.borderColor = ''; }, 2000);
         }
       }, 500);
     }
 
-    async function toggleAutoBody(type) {
-      const card = document.getElementById('auto-' + type + '-card');
+    async function toggleAutoOuter(event) {
+      // Don't toggle when click originated on a hit-zone anchor inside the merged header.
+      if (event && event.target && event.target.closest('a[data-auto-hit]')) return;
+      const card = document.getElementById('auto-outer-card');
       if (!card) return;
       const wasOpen = card.classList.contains('is-open');
-      // Auto-save on collapse if dirty
-      if (wasOpen && isAutoDirty(type)) {
-        await saveAutoChanges(type);
+      // Auto-save on collapse if either sub is dirty.
+      if (wasOpen) {
+        for (const t of ['on', 'off']) {
+          if (isAutoDirty(t)) await saveAutoChanges(t);
+        }
       }
       card.classList.toggle('is-open');
       const isOpen = card.classList.contains('is-open');
-      if (_persistCards && !_pageFocus) localStorage.setItem('auto_' + type + '_collapsed', isOpen ? 'false' : 'true');
-      updateAutoHeaderText(type);
-      updateAutoOverrideIndicator(type);
+      if (_persistCards) localStorage.setItem('auto_collapsed', isOpen ? 'false' : 'true');
+      updateAutoHeaderText('on');
+      updateAutoHeaderText('off');
+      updateAutoOverrideIndicator('on');
+      updateAutoOverrideIndicator('off');
+    }
+
+    // Open outer Auto, scroll the target sub-section to the top of the viewport,
+    // and flash its orange focus outline. Shared by merged-header hit zones and
+    // the ?focus=auto_on|auto_off deep link.
+    function focusAutoSub(type) {
+      const outer = document.getElementById('auto-outer-card');
+      const sub = document.getElementById('auto-' + type + '-card');
+      if (!outer || !sub) return;
+      outer.classList.add('is-open');
+      updateAutoHeaderText('on');
+      updateAutoHeaderText('off');
+      // Scroll so the whole target sub-section is visible — block:'start' puts
+      // the top of the sub-section near the top of the viewport, which keeps
+      // the lower sub (auto-off) fully visible when targeted.
+      setTimeout(() => {
+        sub.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        sub.classList.add('focus-flash');
+        setTimeout(() => sub.classList.remove('focus-flash'), 2000);
+      }, 60);
     }
 
     async function loadAutoScheduleSettings() {
@@ -5595,16 +5636,6 @@
 
           // Enabled toggle
           document.getElementById('auto-' + type + '-enabled').checked = settings[prefix + '_enabled'] || false;
-
-          const card = document.getElementById('auto-' + type + '-card');
-          const focusedHere = (_pageFocus === 'auto_' + type);
-          if (focusedHere) {
-            card?.classList.add('is-open');
-          } else if (_persistCards && localStorage.getItem('auto_' + type + '_collapsed') === 'false') {
-            card?.classList.add('is-open');
-          } else {
-            card?.classList.remove('is-open');
-          }
 
           // Light preset (on only)
           if (type === 'on') {
@@ -5701,6 +5732,7 @@
         const status = data[selectedArea.area_id];
         _cachedNextAuto[type] = status?.['next_auto_' + type] || null;
         updateAutoHeaderText(type);
+        updateMergedAutoHeader();
       } catch (err) {
         // fall back to client-side display
       }
@@ -5709,18 +5741,10 @@
     function _getAutoSourceLabel(type) {
       const srcSunrise = document.getElementById('auto-' + type + '-src-sunrise');
       const srcSunset = document.getElementById('auto-' + type + '-src-sunset');
-      if (srcSunrise?.checked) {
-        const offsetEl = document.getElementById('auto-' + type + '-offset-val');
-        const offsetText = offsetEl?.textContent?.trim() || '0 min';
-        if (offsetText === '0 min') return 'Sunrise';
-        return 'Sunrise ' + offsetText.replace(' min', 'm');
-      }
-      if (srcSunset?.checked) {
-        const offsetEl = document.getElementById('auto-' + type + '-offset-val');
-        const offsetText = offsetEl?.textContent?.trim() || '0 min';
-        if (offsetText === '0 min') return 'Sunset';
-        return 'Sunset ' + offsetText.replace(' min', 'm');
-      }
+      const offset = autoState[type]?.offset || 0;
+      const offsetSuffix = offset === 0 ? '' : ' ' + formatOffset(offset);
+      if (srcSunrise?.checked) return 'Sunrise' + offsetSuffix;
+      if (srcSunset?.checked) return 'Sunset' + offsetSuffix;
       return '';
     }
 
@@ -5730,27 +5754,14 @@
       const enabled = document.getElementById('auto-' + type + '-enabled')?.checked;
       if (!enabled) { nextEl.textContent = ''; return; }
 
-      const card = document.getElementById('auto-' + type + '-card');
-      const isOpen = card?.classList.contains('is-open');
+      // Sub-card headers (always visible when outer Auto is expanded): show the
+      // fully-resolved absolute time (e.g. "6:19p Fri") so the user can see the
+      // actual computed trigger value even when the source is a sun word.
       const nxt = _cachedNextAuto[type];
-
-      if (isOpen) {
-        // Expanded: show resolved time + day
-        if (nxt) {
-          nextEl.textContent = nxt.time + (nxt.day ? ' ' + nxt.day : '');
-        } else {
-          nextEl.textContent = '';
-        }
+      if (nxt) {
+        nextEl.textContent = nxt.time + (nxt.day ? ' ' + nxt.day : '');
       } else {
-        // Collapsed: show source label (Sunrise, Sunset -10m, etc.)
-        const srcLabel = _getAutoSourceLabel(type);
-        if (srcLabel) {
-          nextEl.textContent = srcLabel;
-        } else if (nxt) {
-          nextEl.textContent = nxt.time + (nxt.day ? ' ' + nxt.day : '');
-        } else {
-          nextEl.textContent = '';
-        }
+        nextEl.textContent = '';
       }
     }
 
@@ -5940,8 +5951,13 @@
     }
 
     function formatOffset(minutes) {
-      if (minutes === 0) return 'on time';
-      return Math.abs(minutes) + ' min ' + (minutes < 0 ? 'before' : 'after');
+      if (minutes === 0) return '';
+      const sign = minutes < 0 ? '−' : '+';
+      const abs = Math.abs(minutes);
+      if (abs < 60) return sign + abs + 'm';
+      const h = Math.floor(abs / 60);
+      const m = abs % 60;
+      return sign + h + ':' + String(m).padStart(2, '0');
     }
 
     function formatAutoTime(decimalHours) {
@@ -5954,6 +5970,23 @@
       return h + ':' + String(m).padStart(2, '0') + suffix;
     }
 
+    // Strip ":00" when the target is on the hour (e.g. "5:00p" → "5p").
+    // Used for the compact merged header; expanded subsection headers keep full precision.
+    function formatAutoTimeCompact(timeStr) {
+      if (!timeStr) return '';
+      return timeStr.replace(/:00([ap])$/, '$1');
+    }
+
+    // Day suffix matching home-page algorithm: bare within 24h, abbr 2-6 days out, date 7+.
+    function formatAutoDaySuffix(nxt) {
+      if (!nxt) return '';
+      const offset = nxt.offset;
+      if (offset == null || offset < 0) return '';
+      if (offset <= 1) return '';
+      if (offset <= 6) return nxt.day_abbr || '';
+      return (nxt.date_short || '').replace(' ', '');
+    }
+
     function getAutoSunBase(type) {
       const source = autoState[type].source;
       if (source === 'custom') return null;
@@ -5964,66 +5997,44 @@
       return source === 'sunrise' ? 6.0 : 18.0;
     }
 
-    function computeNextAutoTime(type) {
-      const s = autoState[type];
-      const source = s.source;
+    // Build one side of the merged header: "Sunset +30m [Fri]" or "5p [Apr26]".
+    // Sun-based triggers use the word form; clock-based use absolute time (with :00 stripped).
+    function formatMergedAutoSide(type, nxt) {
       const enabled = document.getElementById('auto-' + type + '-enabled')?.checked;
-      if (!enabled) return null;
+      const label = type === 'on' ? 'On' : 'Off';
+      if (!enabled) return { enabled: false, html: `<span class="auto-outer-off-label">${label} —</span>` };
 
-      const now = new Date();
-      const todayWd = (now.getDay() + 6) % 7; // JS Sun=0 → Python Mon=0
-      const nowDecimal = now.getHours() + now.getMinutes() / 60;
-      const lat = cachedConfig?.latitude || 35.0;
-      const lon = cachedConfig?.longitude || -78.6;
-
-      const dayAbbrs = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      const monthAbbrs = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-      // Read active days from current UI state
-      const readActiveDays = (sel) => {
-        const d = [];
-        document.querySelectorAll(sel).forEach(b => { if (b.classList.contains('active')) d.push(parseInt(b.dataset.day)); });
-        return d;
+      const s = autoState[type];
+      const source = s?.source;
+      let core;
+      if (source === 'sunrise' || source === 'sunset') {
+        const word = source === 'sunrise' ? 'Sunrise' : 'Sunset';
+        const offStr = s.offset === 0 ? '' : ' ' + formatOffset(s.offset);
+        core = word + offStr;
+      } else if (nxt && nxt.time) {
+        core = formatAutoTimeCompact(nxt.time);
+      } else {
+        // Enabled but no computed time yet (e.g. custom without days selected)
+        core = '—';
+      }
+      const daySuffix = formatAutoDaySuffix(nxt);
+      const text = daySuffix ? core + ' ' + daySuffix : core;
+      return {
+        enabled: true,
+        html: `<a href="#" data-auto-hit="${type}" onclick="event.preventDefault(); event.stopPropagation(); focusAutoSub('${type}');">${label} ${text}</a>`
       };
+    }
 
-      function getTimeForDay(pyDay, dateObj) {
-        if (source === 'sunrise' || source === 'sunset') {
-          const activeDays = readActiveDays('#auto-' + type + '-days .auto-sched-day-btn');
-          if (!activeDays.includes(pyDay)) return null;
-          const sun = getSunTimes(lat, lon, dateObj);
-          const base = source === 'sunrise' ? sun.sunrise : sun.sunset;
-          return base + s.offset / 60.0;
-        } else if (source === 'custom') {
-          const days1 = readActiveDays('#auto-' + type + '-days .auto-sched-day-btn');
-          const days2 = readActiveDays('#auto-' + type + '-days-2 .auto-sched-day-btn');
-          if (days1.includes(pyDay)) {
-            const v = document.getElementById('auto-' + type + '-time-1')?.value;
-            if (v) { const [h, m] = v.split(':').map(Number); return h + m / 60.0; }
-          } else if (days2.includes(pyDay)) {
-            const v = document.getElementById('auto-' + type + '-time-2')?.value;
-            if (v) { const [h, m] = v.split(':').map(Number); return h + m / 60.0; }
-          }
-        }
-        return null;
+    function updateMergedAutoHeader() {
+      const el = document.getElementById('auto-outer-next');
+      if (!el) return;
+      const on = formatMergedAutoSide('on', _cachedNextAuto.on);
+      const off = formatMergedAutoSide('off', _cachedNextAuto.off);
+      if (!on.enabled && !off.enabled) {
+        el.innerHTML = `<span class="auto-outer-off-label">Off</span>`;
+        return;
       }
-
-      for (let i = 0; i < 14; i++) {
-        const pyDay = (todayWd + i) % 7;
-        const dateObj = new Date(now);
-        dateObj.setDate(dateObj.getDate() + i);
-        const at = getTimeForDay(pyDay, dateObj);
-        if (at === null) continue;
-        if (i === 0 && nowDecimal >= at) continue;
-
-        const timeStr = formatAutoTime(at);
-        let dayLabel;
-        if (i === 0) dayLabel = 'today';
-        else if (i === 1) dayLabel = 'tomorrow (' + dayAbbrs[pyDay] + ')';
-        else if (i > 5) dayLabel = dayAbbrs[pyDay] + ' (' + monthAbbrs[dateObj.getMonth()] + ' ' + dateObj.getDate() + ')';
-        else dayLabel = dayAbbrs[pyDay];
-        return timeStr + ' ' + dayLabel;
-      }
-      return null;
+      el.innerHTML = on.html + '<span class="auto-outer-sep">•</span>' + off.html;
     }
 
     function showResolvedAutoTime(type) {
