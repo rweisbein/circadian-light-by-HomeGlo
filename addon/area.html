@@ -725,6 +725,25 @@
     .auto-sched-fade-slider { flex: 1; }
     .auto-sched-fade-val { font-size: var(--font-value); color: var(--text); font-weight: 600; min-width: 3.5em; text-align: right; font-variant-numeric: tabular-nums; }
 
+    /* Auto-hide slider reveal pattern on Fade row — slider collapses until user taps the row, value stays visible. */
+    .auto-fade-row { cursor: pointer; }
+    .auto-fade-row .auto-sched-fade-slider {
+      flex: 0 0 0;
+      width: 0;
+      min-width: 0;
+      opacity: 0;
+      margin: 0;
+      padding: 0;
+      pointer-events: none;
+      transition: flex-basis 0.25s ease, opacity 0.2s ease;
+    }
+    .auto-fade-row.is-revealing .auto-sched-fade-slider {
+      flex: 1 1 auto;
+      width: auto;
+      opacity: 1;
+      pointer-events: auto;
+    }
+
     .auto-sched-light-pills { display: flex; gap: 4px; }
     .auto-sched-light-pill { padding: 3px 10px; border-radius: 12px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: var(--font-body); cursor: pointer; transition: all 0.15s; }
     .auto-sched-light-pill:hover { border-color: var(--text); color: var(--text); }
@@ -1288,7 +1307,7 @@
               </div>
             </div>
           </div>
-          <div class="auto-sched-field" style="align-items:center;">
+          <div class="auto-sched-field auto-fade-row reveal-group" style="align-items:center;">
             <span class="auto-sched-field-label">Fade</span>
             <div class="auto-sched-field-content" style="display:flex; align-items:center; gap:8px;">
               <input type="range" class="auto-sched-fade-slider" id="auto-on-fade" min="0" max="7" step="1" value="4" oninput="onAutoFieldChanged('on'); updateAutoFadeDisplay('on')">
@@ -1375,7 +1394,7 @@
               </div>
             </div>
           </div>
-          <div class="auto-sched-field" style="align-items:center;">
+          <div class="auto-sched-field auto-fade-row reveal-group" style="align-items:center;">
             <span class="auto-sched-field-label">Fade</span>
             <div class="auto-sched-field-content" style="display:flex; align-items:center; gap:8px;">
               <input type="range" class="auto-sched-fade-slider" id="auto-off-fade" min="0" max="7" step="1" value="4" oninput="onAutoFieldChanged('off'); updateAutoFadeDisplay('off')">
@@ -3478,9 +3497,21 @@
       initSliderHandlers();
       initChartCardState();
       initAutoOuterState();
+      initAutoHideSliders();
       handleDeepLink();
 
     });
+
+    // Document-level handler: reveal the tapped .reveal-group, collapse all others.
+    function initAutoHideSliders() {
+      document.addEventListener('click', (e) => {
+        const rg = e.target.closest('.reveal-group');
+        document.querySelectorAll('.reveal-group.is-revealing').forEach(g => {
+          if (g !== rg) g.classList.remove('is-revealing');
+        });
+        if (rg) rg.classList.add('is-revealing');
+      });
+    }
 
     async function loadInitialData() {
       try {

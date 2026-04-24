@@ -23,21 +23,29 @@
   --ascend-border: rgba(120, 185, 245, 0.5);
   --descend: rgba(255, 220, 100, 0.12);
   --descend-border: rgba(255, 230, 128, 0.45);
+  --font-hero: 1.4rem;
+  --font-display: 1.1rem;
+  --font-card-title: 0.95rem;
+  --font-value: 0.85rem;
+  --font-body: 0.78rem;
+  --font-muted: 0.7rem;
+  --font-caps: 0.65rem;
+  --font-micro: 0.55rem;
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
 body { padding: 0; }
 h1 { margin: 0 0 18px; font-size: 28px; font-weight: 600; }
-h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
+h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 
 /* Rhythm tune-cards (collapsible settings sections) */
 .rhythm-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 16px; overflow: hidden; font-size: 13px; }
 .rhythm-card-header { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 14px; user-select: none; }
-.rhythm-card-chevron { display: inline-block; font-size: 1.1rem; line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
+.rhythm-card-chevron { display: inline-block; font-size: var(--font-display); line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
 .rhythm-card.is-open .rhythm-card-chevron { transform: rotate(90deg); }
-.rhythm-card-title { font-size: 1.0rem; font-weight: 600; color: var(--text); }
-.rhythm-card-val { margin-left: auto; font-size: 0.85rem; color: var(--muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
-.rhythm-card-val b { font-weight: 700; font-size: 0.95rem; color: var(--text); }
+.rhythm-card-title { font-size: var(--font-card-title); font-weight: 600; color: var(--text); }
+.rhythm-card-val { margin-left: auto; font-size: var(--font-value); color: var(--muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+.rhythm-card-val b { font-weight: 700; font-size: var(--font-card-title); color: var(--text); }
 .rhythm-card-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.35s ease, opacity 0.25s ease; padding: 0 14px; }
 .rhythm-card.is-open .rhythm-card-body { max-height: 1200px; opacity: 1; padding-bottom: 14px; }
 
@@ -45,10 +53,10 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
 .sub-section { border-top: 1px solid var(--line); }
 .sub-section:first-child { border-top: none; }
 .sub-section-header { display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 8px 0; user-select: none; }
-.sub-section-chevron { display: inline-block; font-size: 1rem; line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
+.sub-section-chevron { display: inline-block; font-size: var(--font-card-title); line-height: 1; transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
 .sub-section.is-open .sub-section-chevron { transform: rotate(90deg); }
-.sub-section-title { font-size: 0.9rem; font-weight: 600; color: var(--text); }
-.sub-section-val { margin-left: auto; font-size: 0.82rem; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sub-section-title { font-size: var(--font-value); font-weight: 600; color: var(--text); }
+.sub-section-val { margin-left: auto; font-size: var(--font-value); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .sub-section-val b { font-weight: 600; color: var(--text); }
 .sub-section-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.2s ease; }
 .sub-section.is-open .sub-section-body { max-height: 800px; opacity: 1; }
@@ -59,28 +67,28 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
 /* Sleep card header summary (two-line stack) */
 .rhythm-sleep-summary { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
 .rhythm-sleep-summary-row { display: flex; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums; }
-.rhythm-sleep-summary-label { font-size: 0.7rem; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.05em; }
-.rhythm-sleep-summary-time { font-size: 0.95rem; font-weight: 700; color: var(--text); }
-.rhythm-sleep-summary-bri { font-size: 0.75rem; color: var(--muted); }
+.rhythm-sleep-summary-label { font-size: var(--font-muted); color: var(--muted2); text-transform: uppercase; letter-spacing: 0.05em; }
+.rhythm-sleep-summary-time { font-size: var(--font-card-title); font-weight: 700; color: var(--text); }
+.rhythm-sleep-summary-bri { font-size: var(--font-body); color: var(--muted); }
 
 /* Color temp header rule labels */
-.rhythm-ct-rules { font-size: 0.7rem; color: var(--muted2); margin-left: 8px; }
+.rhythm-ct-rules { font-size: var(--font-muted); color: var(--muted2); margin-left: 8px; }
 
 /* Tune-control-row pattern (label + reset + impact, then indented slider + word) */
 .tune-control-row { display: grid; grid-template-columns: 1fr auto; align-items: baseline; padding: 4px 14px 2px 16px; gap: 0 12px; }
 .tune-control-left { display: flex; align-items: center; gap: 6px; }
-.tune-control-label { font-size: 0.82rem; color: var(--muted); }
+.tune-control-label { font-size: var(--font-value); color: var(--muted); }
 .tune-control-label.primary { color: var(--text); font-weight: 600; }
-.tune-control-reset { font-size: 0.7rem; color: var(--muted2); cursor: pointer; opacity: 0; transition: opacity 0.15s; text-transform: uppercase; letter-spacing: 0.03em; pointer-events: none; }
+.tune-control-reset { font-size: var(--font-muted); color: var(--muted2); cursor: pointer; opacity: 0; transition: opacity 0.15s; text-transform: uppercase; letter-spacing: 0.03em; pointer-events: none; }
 .tune-control-reset.is-dirty { pointer-events: auto; opacity: 0.6; }
 .tune-control-reset.is-dirty:hover { opacity: 1; }
 .tune-control-reset:hover { color: var(--accent); }
-.tune-control-impact { font-size: 0.82rem; color: var(--text); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 3em; }
+.tune-control-impact { font-size: var(--font-value); color: var(--text); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 3em; }
 .tune-slider-row { padding: 0px 14px 2px 44px; max-width: 75%; }
 .tune-slider-row input[type=range] { }
-.tune-slider-word { font-size: 0.75rem; color: var(--muted2); margin-top: 0; }
-.tune-group-label { font-size: 0.75rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 0 4px 0; }
-.rhythm-select { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; color: var(--text); font-size: 0.82rem; padding: 4px 8px; outline: none; }
+.tune-slider-word { font-size: var(--font-body); color: var(--muted2); margin-top: 0; }
+.tune-group-label { font-size: var(--font-body); font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 0 4px 0; }
+.rhythm-select { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; color: var(--text); font-size: var(--font-value); padding: 4px 8px; outline: none; }
 .rhythm-select:focus { border-color: var(--muted2); }
 
 .container { max-width: 1200px; margin: 0 auto; padding: 10px; }
@@ -98,7 +106,7 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   z-index: 100;
 }
 .rhythm-name-input {
-  font-size: 1.05rem;
+  font-size: var(--font-display);
   font-weight: 600;
   background: transparent;
   border: none;
@@ -121,7 +129,7 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
 
 /* Rhythm group labels */
 .rhythm-group-label {
-  font-size: 0.7rem;
+  font-size: var(--font-muted);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--muted);
@@ -146,7 +154,7 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   border: 1px solid var(--line);
   background: transparent;
   color: var(--muted);
-  font-size: 0.65rem;
+  font-size: var(--font-caps);
   font-weight: 600;
   cursor: pointer;
   display: flex;
@@ -199,7 +207,7 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
   border: 1px solid var(--line);
   background: transparent;
   color: var(--muted2);
-  font-size: 0.55rem;
+  font-size: var(--font-micro);
   font-weight: 600;
   cursor: pointer;
   display: flex;
@@ -221,6 +229,23 @@ h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 600; }
 .sleep-time-group.no-alt .alt-block {
   display: none;
 }
+
+/* Auto-hide slider reveal pattern — slider collapses until user taps the row */
+.reveal-group > .tune-slider-row {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  padding-top: 0;
+  padding-bottom: 0;
+  transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.2s ease;
+}
+.reveal-group.is-revealing > .tune-slider-row {
+  max-height: 80px;
+  opacity: 1;
+  padding-top: 2px;
+  padding-bottom: 4px;
+}
+.reveal-group > .tune-control-row { cursor: pointer; }
 
 /* Section block (chart) */
 .section-block {
@@ -297,7 +322,7 @@ input[type=range]::-moz-range-thumb {
   max-width: 300px;
 }
 .chart-date-display {
-  font-size: 0.8rem;
+  font-size: var(--font-body);
   color: var(--text);
   transition: color 0.15s;
   min-width: 50px;
@@ -318,7 +343,7 @@ input[type=range]::-moz-range-thumb {
   border: 1px solid var(--line);
   background: var(--panel2);
   color: var(--text);
-  font-size: 0.75rem;
+  font-size: var(--font-body);
 }
 .chart-below-row {
   display: flex;
@@ -346,7 +371,7 @@ input[type=range]::-moz-range-thumb {
   background: var(--btn-bg);
   border: 1px solid rgba(255,255,255,0.2);
   color: var(--btn-text);
-  font-size: 0.7rem;
+  font-size: var(--font-muted);
   padding: 8px 12px;
   border-radius: 999px;
   cursor: pointer;
@@ -369,7 +394,7 @@ input[type=range]::-moz-range-thumb {
 }
 
 /* Schedule toggles in chart toolbar */
-.chart-schedule-toggles { display: flex; gap: 10px; align-items: center; font-size: 0.75rem; color: var(--muted); }
+.chart-schedule-toggles { display: flex; gap: 10px; align-items: center; font-size: var(--font-body); color: var(--muted); }
 .schedule-toggle { display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none; }
 .schedule-toggle input[type=checkbox] { width: 13px; height: 13px; accent-color: var(--muted2); }
 
@@ -382,7 +407,7 @@ input[type=range]::-moz-range-thumb {
   border: 1px solid rgba(255,255,255,0.3);
   background: rgba(5,5,5,0.88);
   color: #fff;
-  font-size: 0.75rem;
+  font-size: var(--font-body);
   font-weight: 600;
   pointer-events: none;
   transform: translateX(-50%);
@@ -402,7 +427,7 @@ input[type=range]::-moz-range-thumb {
   border: 1.5px solid #fdfdfd;
   background: rgba(10,10,10,0.85);
   color: #fff;
-  font-size: 0.78rem;
+  font-size: var(--font-body);
   font-weight: 600;
   pointer-events: none;
   transform: translateX(-50%);
@@ -416,7 +441,7 @@ input[type=range]::-moz-range-thumb {
 /* Color gradient layout: cursor above, gradient, ticks, labels+K below */
 .ct-gradient-wrap { margin-top: 8px; position: relative; }
 .ct-cursor-layer { position: relative; height: 36px; margin-bottom: 2px; }
-.ct-cursor-pill { position: absolute; top: 0; transform: translateX(-50%); padding: 2px 8px; border-radius: 8px; border: 1.5px solid #fdfdfd; font-size: 0.75rem; font-weight: 600; white-space: nowrap; pointer-events: none; }
+.ct-cursor-pill { position: absolute; top: 0; transform: translateX(-50%); padding: 2px 8px; border-radius: 8px; border: 1.5px solid #fdfdfd; font-size: var(--font-body); font-weight: 600; white-space: nowrap; pointer-events: none; }
 .ct-cursor-dot { position: absolute; bottom: 0; height: 14px; border-left: 1px dotted rgba(255,255,255,0.4); pointer-events: none; }
 .ct-gradient-bar { height: 12px; border-radius: 6px; position: relative; overflow: visible; }
 .ct-grey-left, .ct-grey-right { position: absolute; top: 0; height: 100%; background: rgba(0,0,0,0.72); pointer-events: none; z-index: 1; }
@@ -435,16 +460,16 @@ input[type=range]::-moz-range-thumb {
 /* Layers below gradient */
 .ct-layers { margin-top: 2px; }
 .ct-axis { position: relative; height: 15px; }
-.ct-axis-label { position: absolute; transform: translateX(-50%); font-size: 0.65rem; white-space: nowrap; }
+.ct-axis-label { position: absolute; transform: translateX(-50%); font-size: var(--font-caps); white-space: nowrap; }
 .ct-axis-tick .ct-axis-label { color: var(--muted2); }
 /* Ref labels: prominent, interactive look */
-.ct-axis-ref .ct-axis-label { color: var(--text); font-weight: 600; font-size: 0.75rem; }
+.ct-axis-ref .ct-axis-label { color: var(--text); font-weight: 600; font-size: var(--font-body); }
 .ct-axis-ref .ct-axis-label.ct-draggable { cursor: grab; user-select: none; transition: color 0.15s; }
 .ct-axis-ref .ct-axis-label.ct-draggable:hover { color: var(--accent); }
 .ct-axis-ref .ct-axis-label.ct-draggable:active { cursor: grabbing; color: var(--accent); }
 /* K values row below labels */
 .ct-axis-kval { position: relative; height: 14px; }
-.ct-axis-kval .ct-axis-label { color: var(--muted); font-weight: 400; font-size: 0.65rem; }
+.ct-axis-kval .ct-axis-label { color: var(--muted); font-weight: 400; font-size: var(--font-caps); }
 /* Draggable handles on gradient bar */
 .ct-handle { position: absolute; top: -16px; width: 44px; height: 44px; transform: translateX(-50%); cursor: grab; z-index: 5; touch-action: none; }
 .ct-handle:active, .ct-handle.dragging { cursor: grabbing; }
@@ -457,7 +482,7 @@ input[type=range]::-moz-range-thumb {
   align-items: center;
   gap: 4px;
   margin-left: 8px;
-  font-size: 0.75rem;
+  font-size: var(--font-body);
   color: #888;
   cursor: pointer;
   user-select: none;
@@ -470,7 +495,7 @@ input[type=range]::-moz-range-thumb {
   accent-color: #666;
 }
 .lock-checkbox-wrap .lock-icon {
-  font-size: 0.8rem;
+  font-size: var(--font-body);
   opacity: 0.6;
 }
 .lock-checkbox-wrap input[type="checkbox"]:checked + .lock-icon {
@@ -513,10 +538,10 @@ input[type=range]::-moz-range-thumb {
   border: 1px solid var(--line);
   background: var(--panel2);
   color: var(--text);
-  font-size: 0.85rem;
+  font-size: var(--font-value);
 }
 .color-rule-label {
-  font-size: 0.7rem;
+  font-size: var(--font-muted);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--muted);
@@ -554,7 +579,7 @@ input[type=range]::-moz-range-thumb {
   background: rgba(30,30,35,0.98);
   border: 1px solid rgba(255,255,255,0.2);
   border-radius: 8px;
-  font-size: 0.85rem;
+  font-size: var(--font-value);
   font-weight: 400;
   line-height: 1.4;
   color: rgba(255,255,255,0.85);
@@ -592,7 +617,7 @@ input[type=range]::-moz-range-thumb {
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: var(--font-value);
   transition: all 0.15s;
 }
 .btn:hover { background: rgba(255,255,255,0.15); }
@@ -615,14 +640,14 @@ input[type=range]::-moz-range-thumb {
   cursor: pointer;
   user-select: none;
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: var(--font-value);
 }
 .collapsible-header:hover {
   color: var(--text);
 }
 .collapsible-arrow {
   transition: transform 0.2s ease;
-  font-size: 0.7rem;
+  font-size: var(--font-muted);
 }
 .collapsible-section.is-open .collapsible-arrow {
   transform: rotate(90deg);
@@ -645,7 +670,7 @@ input[type=range]::-moz-range-thumb {
   gap: 4px;
 }
 .location-field label {
-  font-size: 0.8rem;
+  font-size: var(--font-body);
   color: var(--muted);
 }
 .location-field input {
@@ -654,7 +679,7 @@ input[type=range]::-moz-range-thumb {
   border: 1px solid var(--line);
   background: var(--panel2);
   color: var(--text);
-  font-size: 0.9rem;
+  font-size: var(--font-value);
 }
 .location-field input:disabled {
   opacity: 0.5;
@@ -664,7 +689,7 @@ input[type=range]::-moz-range-thumb {
   align-items: center;
   gap: 8px;
   margin-bottom: 12px;
-  font-size: 0.85rem;
+  font-size: var(--font-value);
   color: var(--muted);
 }
 .location-toggle input[type=checkbox] {
@@ -675,7 +700,7 @@ input[type=range]::-moz-range-thumb {
 /* Status Messages */
 .success {
   color: #51cf66;
-  font-size: 0.9rem;
+  font-size: var(--font-value);
   margin: 10px 0;
   padding: 12px 16px;
   background: rgba(81,207,102,0.15);
@@ -685,7 +710,7 @@ input[type=range]::-moz-range-thumb {
 }
 .error {
   color: #ff6b6b;
-  font-size: 0.9rem;
+  font-size: var(--font-value);
   margin: 10px 0;
   padding: 12px 16px;
   background: rgba(255,107,107,0.15);
@@ -707,7 +732,7 @@ input[type=range]::-moz-range-thumb {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 1.0rem;
+  font-size: var(--font-card-title);
   font-weight: 600;
   color: var(--text);
   white-space: nowrap;
@@ -728,7 +753,7 @@ input[type=range]::-moz-range-thumb {
   background: rgba(255,255,255,0.06);
   color: #fff;
   min-width: 140px;
-  font-size: 0.8rem;
+  font-size: var(--font-body);
 }
 .live-design-controls select:focus {
   outline: none;
@@ -739,7 +764,7 @@ input[type=range]::-moz-range-thumb {
   background: rgba(254,172,96,0.08);
 }
 .live-design-link {
-  font-size: 0.75rem;
+  font-size: var(--font-body);
   color: var(--muted);
   cursor: pointer;
   text-decoration: none;
@@ -750,7 +775,7 @@ input[type=range]::-moz-range-thumb {
 }
 .live-design-link:hover { color: var(--text); text-decoration: underline; }
 .live-design-status {
-  font-size: 0.75rem;
+  font-size: var(--font-body);
   color: var(--muted);
   margin-left: 2px;
 }
@@ -778,7 +803,7 @@ input[type=range]::-moz-range-thumb {
   background: rgba(254,172,96,0.15);
   border: 1px solid rgba(254,172,96,0.4);
   color: var(--accent);
-  font-size: 0.65rem;
+  font-size: var(--font-caps);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -812,7 +837,7 @@ input[type=range]::-moz-range-thumb {
 }
 .glozone-header h2 {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--font-card-title);
   color: var(--muted);
 }
 .glozone-tabs {
@@ -825,7 +850,7 @@ input[type=range]::-moz-range-thumb {
   border-radius: 6px;
   background: var(--panel);
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: var(--font-value);
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -875,10 +900,10 @@ input[type=range]::-moz-range-thumb {
 }
 .glozone-item-name {
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: var(--font-card-title);
 }
 .glozone-item-meta {
-  font-size: 0.75rem;
+  font-size: var(--font-body);
   color: var(--muted2);
 }
 .glozone-item-actions {
@@ -887,7 +912,7 @@ input[type=range]::-moz-range-thumb {
 }
 .glozone-item-actions button {
   padding: 4px 10px;
-  font-size: 0.75rem;
+  font-size: var(--font-body);
   border: 1px solid var(--line);
   border-radius: 4px;
   background: transparent;
@@ -915,7 +940,7 @@ input[type=range]::-moz-range-thumb {
   border-radius: 8px;
   background: transparent;
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: var(--font-value);
   cursor: pointer;
   transition: all 0.15s;
   width: 100%;
@@ -942,11 +967,11 @@ input[type=range]::-moz-range-thumb {
 }
 .glozone-detail-title {
   font-weight: 600;
-  font-size: 1rem;
+  font-size: var(--font-card-title);
 }
 .glozone-rename-btn {
   padding: 4px 10px;
-  font-size: 0.75rem;
+  font-size: var(--font-body);
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 4px;
@@ -966,7 +991,7 @@ input[type=range]::-moz-range-thumb {
   margin-bottom: 10px;
 }
 .glozone-detail-row label {
-  font-size: 0.85rem;
+  font-size: var(--font-value);
   color: var(--muted);
   min-width: 80px;
 }
@@ -978,7 +1003,7 @@ input[type=range]::-moz-range-thumb {
   border-radius: 6px;
   background: var(--panel);
   color: var(--text);
-  font-size: 0.9rem;
+  font-size: var(--font-value);
 }
 
 /* Area Assignment */
@@ -986,7 +1011,7 @@ input[type=range]::-moz-range-thumb {
   margin-top: 12px;
 }
 .area-assignment-header {
-  font-size: 0.85rem;
+  font-size: var(--font-value);
   color: var(--muted);
   margin-bottom: 8px;
 }
@@ -1003,13 +1028,13 @@ input[type=range]::-moz-range-thumb {
   background: rgba(30, 144, 255, 0.15);
   border: 1px solid rgba(30, 144, 255, 0.3);
   border-radius: 12px;
-  font-size: 0.8rem;
+  font-size: var(--font-body);
   color: var(--text);
 }
 .area-chip .remove {
   cursor: pointer;
   opacity: 0.6;
-  font-size: 0.9rem;
+  font-size: var(--font-value);
 }
 .area-chip .remove:hover {
   opacity: 1;
@@ -1049,7 +1074,7 @@ input[type=range]::-moz-range-thumb {
   text-align: center;
   padding: 20px;
   color: var(--muted2);
-  font-size: 0.9rem;
+  font-size: var(--font-value);
 }
 
 /* Modal Styles */
@@ -1081,7 +1106,7 @@ input[type=range]::-moz-range-thumb {
 }
 .glozone-modal h3 {
   margin: 0 0 16px;
-  font-size: 1.1rem;
+  font-size: var(--font-display);
 }
 .glozone-modal-actions {
   display: flex;
@@ -1092,7 +1117,7 @@ input[type=range]::-moz-range-thumb {
 .glozone-modal-actions button {
   padding: 8px 16px;
   border-radius: 6px;
-  font-size: 0.9rem;
+  font-size: var(--font-value);
   cursor: pointer;
 }
 .glozone-modal-actions .btn-cancel {
@@ -1131,7 +1156,7 @@ input[type=range]::-moz-range-thumb {
 }
 
 /* Header action links */
-.header-link { background: none; border: none; font-size: 0.8rem; cursor: pointer; padding: 0; }
+.header-link { background: none; border: none; font-size: var(--font-body); cursor: pointer; padding: 0; }
 .header-link-cancel { color: var(--muted); }
 .header-link-cancel:hover { color: var(--text); }
 .header-link-save { color: var(--accent); font-weight: 600; transition: color 0.6s ease; }
@@ -1157,13 +1182,13 @@ input[type=range]::-moz-range-thumb {
 }
 .section-cancel-btn {
   padding: 6px 16px; border-radius: 6px; border: 1px solid var(--line);
-  background: transparent; color: var(--muted); font-size: 0.8rem;
+  background: transparent; color: var(--muted); font-size: var(--font-body);
   cursor: pointer; transition: all 0.15s;
 }
 .section-cancel-btn:hover { background: rgba(255,255,255,0.05); color: var(--text); border-color: var(--muted); }
 .section-save-btn {
   padding: 6px 16px; border-radius: 6px; border: 1px solid var(--accent);
-  background: var(--accent); color: #000; font-size: 0.8rem; font-weight: 600;
+  background: var(--accent); color: #000; font-size: var(--font-body); font-weight: 600;
   cursor: pointer; transition: all 0.15s;
 }
 .section-save-btn:hover { opacity: 0.9; }
@@ -1177,7 +1202,7 @@ input[type=range]::-moz-range-thumb {
       <polyline points="15 18 9 12 15 6"/>
     </svg>
   </button>
-  <span style="color: var(--muted); font-size: 0.9rem; font-weight: 500;">Rhythm zone:</span>
+  <span style="color: var(--muted); font-size: var(--font-value); font-weight: 500;">Rhythm zone:</span>
   <input type="text" class="rhythm-name-input" id="rhythm-name" value="Daily Rhythm 1" placeholder="Zone name">
 </header>
 
@@ -1298,46 +1323,52 @@ input[type=range]::-moz-range-thumb {
             <button class="day-bubble" data-day="6">Su</button>
           </div>
           <div class="sleep-time-group no-alt" id="wake-time-blocks">
-            <div class="primary-block">
+            <div class="primary-block reveal-group">
               <div class="tune-control-row">
-                <span class="tune-control-left"><span class="tune-control-label" id="wake-primary-label">Time</span></span>
+                <span class="tune-control-left">
+                  <div class="day-indicators" id="wake-primary-days"></div>
+                </span>
                 <span class="tune-control-impact" id="wake-time-display">7:00a</span>
               </div>
               <div class="tune-slider-row">
                 <input type="range" id="wake-time" min="0" max="24" step="0.25" value="7">
-                <div class="day-indicators" id="wake-primary-days"></div>
               </div>
             </div>
-            <div class="alt-block" id="wake-alt-time-row">
+            <div class="alt-block reveal-group" id="wake-alt-time-row">
               <div class="tune-control-row">
-                <span class="tune-control-left"><span class="tune-control-label" id="wake-alt-label">Secondary</span></span>
+                <span class="tune-control-left">
+                  <div class="day-indicators" id="wake-alt-days"></div>
+                </span>
                 <span class="tune-control-impact" id="wake-alt-time-display">9:00a</span>
               </div>
               <div class="tune-slider-row">
                 <input type="range" id="wake-alt-time" min="0" max="24" step="0.25" value="9">
-                <div class="day-indicators" id="wake-alt-days"></div>
               </div>
             </div>
           </div>
-          <div class="tune-control-row">
-            <span class="tune-control-left">
-              <span class="tune-control-label">Brightness</span>
-              <span class="tune-control-reset" id="reset-wake-brightness" data-default="25">reset</span>
-            </span>
-            <span class="tune-control-impact" id="wake-brightness-display">50%</span>
+          <div class="reveal-group">
+            <div class="tune-control-row">
+              <span class="tune-control-left">
+                <span class="tune-control-label">Brightness</span>
+                <span class="tune-control-reset" id="reset-wake-brightness" data-default="25">reset</span>
+              </span>
+              <span class="tune-control-impact" id="wake-brightness-display">50%</span>
+            </div>
+            <div class="tune-slider-row">
+              <input type="range" id="wake-brightness" min="10" max="90" step="5" value="50">
+            </div>
           </div>
-          <div class="tune-slider-row">
-            <input type="range" id="wake-brightness" min="10" max="90" step="5" value="50">
-          </div>
-          <div class="tune-control-row">
-            <span class="tune-control-left">
-              <span class="tune-control-label">Speed</span>
-              <span class="tune-control-reset" id="reset-wake-speed" data-default="6">reset</span>
-            </span>
-            <span class="tune-control-impact" id="wake-speed-display">Crisp (6)</span>
-          </div>
-          <div class="tune-slider-row">
-            <input type="range" id="wake-speed" min="1" max="10" step="1" value="6">
+          <div class="reveal-group">
+            <div class="tune-control-row">
+              <span class="tune-control-left">
+                <span class="tune-control-label">Speed</span>
+                <span class="tune-control-reset" id="reset-wake-speed" data-default="6">reset</span>
+              </span>
+              <span class="tune-control-impact" id="wake-speed-display">Crisp (6)</span>
+            </div>
+            <div class="tune-slider-row">
+              <input type="range" id="wake-speed" min="1" max="10" step="1" value="6">
+            </div>
           </div>
         </div>
       </div>
@@ -1360,46 +1391,52 @@ input[type=range]::-moz-range-thumb {
             <button class="day-bubble" data-day="6">Su</button>
           </div>
           <div class="sleep-time-group no-alt" id="bed-time-blocks">
-            <div class="primary-block">
+            <div class="primary-block reveal-group">
               <div class="tune-control-row">
-                <span class="tune-control-left"><span class="tune-control-label" id="bed-primary-label">Time</span></span>
+                <span class="tune-control-left">
+                  <div class="day-indicators" id="bed-primary-days"></div>
+                </span>
                 <span class="tune-control-impact" id="bed-time-display">9:00p</span>
               </div>
               <div class="tune-slider-row">
                 <input type="range" id="bed-time" min="0" max="36" step="0.25" value="21">
-                <div class="day-indicators" id="bed-primary-days"></div>
               </div>
             </div>
-            <div class="alt-block" id="bed-alt-time-row">
+            <div class="alt-block reveal-group" id="bed-alt-time-row">
               <div class="tune-control-row">
-                <span class="tune-control-left"><span class="tune-control-label" id="bed-alt-label">Secondary</span></span>
+                <span class="tune-control-left">
+                  <div class="day-indicators" id="bed-alt-days"></div>
+                </span>
                 <span class="tune-control-impact" id="bed-alt-time-display">11:00p</span>
               </div>
               <div class="tune-slider-row">
                 <input type="range" id="bed-alt-time" min="0" max="36" step="0.25" value="23">
-                <div class="day-indicators" id="bed-alt-days"></div>
               </div>
             </div>
           </div>
-          <div class="tune-control-row">
-            <span class="tune-control-left">
-              <span class="tune-control-label">Brightness</span>
-              <span class="tune-control-reset" id="reset-bed-brightness" data-default="25">reset</span>
-            </span>
-            <span class="tune-control-impact" id="bed-brightness-display">50%</span>
+          <div class="reveal-group">
+            <div class="tune-control-row">
+              <span class="tune-control-left">
+                <span class="tune-control-label">Brightness</span>
+                <span class="tune-control-reset" id="reset-bed-brightness" data-default="25">reset</span>
+              </span>
+              <span class="tune-control-impact" id="bed-brightness-display">50%</span>
+            </div>
+            <div class="tune-slider-row">
+              <input type="range" id="bed-brightness" min="10" max="90" step="5" value="50">
+            </div>
           </div>
-          <div class="tune-slider-row">
-            <input type="range" id="bed-brightness" min="10" max="90" step="5" value="50">
-          </div>
-          <div class="tune-control-row">
-            <span class="tune-control-left">
-              <span class="tune-control-label">Speed</span>
-              <span class="tune-control-reset" id="reset-bed-speed" data-default="6">reset</span>
-            </span>
-            <span class="tune-control-impact" id="bed-speed-display">Smooth (4)</span>
-          </div>
-          <div class="tune-slider-row">
-            <input type="range" id="bed-speed" min="1" max="10" step="1" value="4">
+          <div class="reveal-group">
+            <div class="tune-control-row">
+              <span class="tune-control-left">
+                <span class="tune-control-label">Speed</span>
+                <span class="tune-control-reset" id="reset-bed-speed" data-default="6">reset</span>
+              </span>
+              <span class="tune-control-impact" id="bed-speed-display">Smooth (4)</span>
+            </div>
+            <div class="tune-slider-row">
+              <input type="range" id="bed-speed" min="1" max="10" step="1" value="4">
+            </div>
           </div>
         </div>
       </div>
@@ -3504,12 +3541,6 @@ function updateSleepSummary() {
     updateDisplay(`${prefix}-speed-word`, SPEED_LABELS[speed]);
     updateDisplay(`${prefix}-brightness-word`, getBrightnessWord(bri));
 
-    // Time control labels — "Time" when single, "Primary"/"Secondary" when alt exists
-    const primaryLabel = document.getElementById(`${prefix}-primary-label`);
-    const altLabel = document.getElementById(`${prefix}-alt-label`);
-    if (primaryLabel) primaryLabel.textContent = hasAlt ? '1 - Primary' : 'Time';
-    if (altLabel) altLabel.textContent = '2 - Secondary';
-
     // Render clickable day indicators inside time blocks
     const primaryDaysEl = document.getElementById(`${prefix}-primary-days`);
     const altDaysEl = document.getElementById(`${prefix}-alt-days`);
@@ -3568,6 +3599,16 @@ function toggleRhythmCard(cardId, storageKey) {
   if (!wasOpen) {
     card.classList.add('is-open');
   }
+}
+
+function initAutoHideSliders() {
+  document.addEventListener('click', (e) => {
+    const rg = e.target.closest('.reveal-group');
+    document.querySelectorAll('.reveal-group.is-revealing').forEach(g => {
+      if (g !== rg) g.classList.remove('is-revealing');
+    });
+    if (rg) rg.classList.add('is-revealing');
+  });
 }
 
 function initSleepDayIndicators() {
@@ -4074,6 +4115,9 @@ function setupEventListeners() {
 
   // Sleep day indicators
   initSleepDayIndicators();
+
+  // Tap-to-reveal sliders
+  initAutoHideSliders();
 
   // All rhythm cards start collapsed (no localStorage restore)
 
@@ -5186,7 +5230,7 @@ async function saveZoneSettings() {
       takeConfigSnapshot();
       updateSectionDirtyState();
       // Brief "Saved" toast
-      statusEl.innerHTML = '<div style="color: var(--success); font-size: 0.85rem;">Saved</div>';
+      statusEl.innerHTML = '<div style="color: var(--success); font-size: var(--font-value);">Saved</div>';
       setTimeout(() => { statusEl.innerHTML = ''; }, 1500);
     } else {
       const data = await response.json();
