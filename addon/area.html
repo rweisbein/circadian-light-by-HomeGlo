@@ -2536,8 +2536,8 @@
         type: 'scatter', mode: 'markers',
         x: [cursorHourForDot], y: [bulbYAt(cursorHourForDot)],
         marker: {
-          size: 8, color: 'rgba(140, 210, 255, 0.95)', symbol: 'circle',
-          line: { width: 1.5, color: '#0a0a0a' },
+          size: 16, color: 'rgba(140, 210, 255, 0.95)', symbol: 'circle',
+          line: { width: 2, color: '#0a0a0a' },
         },
         cliponaxis: false,
         hovertext: 'now \u00B7 ' + formatHourLabel(currentHour)
@@ -2580,7 +2580,7 @@
           source: 'data:image/svg+xml;utf8,' + encodeURIComponent(svgSunrise),
           xref: 'x', yref: 'paper',
           x: sunriseX, y: 1.05,
-          sizex: 1.0, sizey: 0.14,
+          sizex: 1.0, sizey: 0.10,
           xanchor: 'center', yanchor: 'top',
           layer: 'above'
         });
@@ -2607,7 +2607,7 @@
           source: 'data:image/svg+xml;utf8,' + encodeURIComponent(svgSunset),
           xref: 'x', yref: 'paper',
           x: sunsetX, y: 1.05,
-          sizex: 1.0, sizey: 0.14,
+          sizex: 1.0, sizey: 0.10,
           xanchor: 'center', yanchor: 'top',
           layer: 'above'
         });
@@ -2644,7 +2644,7 @@
       const cursorDotPaperY = cursorBulbY / 110;
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: cursorHour, x1: cursorHour, y0: cursorDotPaperY + 0.04, y1: 1.18,
+        x0: cursorHour, x1: cursorHour, y0: cursorDotPaperY + 0.04, y1: 1.24,
         line: cursorLineStyle, layer: 'above'
       });
 
@@ -2657,7 +2657,7 @@
       traces.push({
         type: 'scatter', mode: 'markers',
         x: [cursorHour], y: [cursorBulbY],
-        marker: { size: 9, color: nowDotFill, symbol: 'circle', line: { width: 1.5, color: nowDotBorder } },
+        marker: { size: 16, color: nowDotFill, symbol: 'circle', line: { width: 2, color: nowDotBorder } },
         cliponaxis: false, hoverinfo: 'skip', showlegend: false
       });
 
@@ -2675,18 +2675,19 @@
       } else {
         const tintedBg = tintColorByBrightness(cctToRGB(markerCCT), nowBriPct);
         pillBg = tintedBg;
-        pillBorder = colorWithAlpha(cctToRGB(markerCCT), 0.55);
+        pillBorder = colorWithAlpha(cctToRGB(markerCCT), 0.85);
         pillColor = readableTextColor(tintedBg);
       }
       annotations.push({
-        x: cursorHour, y: 1.26, xref: 'x', yref: 'paper',
+        x: cursorHour, y: 1.32, xref: 'x', yref: 'paper',
         text: pillText, showarrow: false,
-        font: { size: 10, color: pillColor },
+        font: { size: 13, color: pillColor, weight: 600 },
         align: 'center',
         bgcolor: pillBg,
         bordercolor: pillBorder,
-        borderwidth: 1,
-        borderpad: 4
+        borderwidth: 1.5,
+        borderpad: 5,
+        borderradius: 8
       });
 
       // Curve label — "sun contribution" anchors at peak divergence when the

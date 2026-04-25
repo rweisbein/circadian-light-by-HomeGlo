@@ -75,7 +75,10 @@ function tintColorByBrightness(rgbStr, brightness) {
   const match = rgbStr.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
   if (!match) return rgbStr;
   const fraction = Math.max(0, Math.min(1, brightness / 100));
-  const f = 0.25 + 0.75 * fraction;
+  // Floor at 0.50 so low-brightness chips/pills/cards never fade into the dark
+  // page bg — the brightness signal still varies (0.50 → 1.00 is a clear range)
+  // but the lower half is clipped where it became unreadable on dark surfaces.
+  const f = 0.50 + 0.50 * fraction;
   const [sr, sg, sb] = [Number(match[1]), Number(match[2]), Number(match[3])];
   // Blend toward dark warm brown (40,25,10) instead of black to keep warm hues
   const r = Math.round(40 * (1 - f) + sr * f);

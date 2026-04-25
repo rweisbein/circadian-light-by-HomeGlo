@@ -1592,12 +1592,19 @@
       const arrow = type === 'on' ? '\u25B2' : '\u25BC';
       const focus = type === 'on' ? 'auto_on' : 'auto_off';
       const href = areaId ? `./area/${encodeURIComponent(areaId)}?focus=${focus}` : '#';
-      // Relative hint (e.g. "22m", "11h"); suppress for paused or missing data.
+      // Relative hint (e.g. "22m", "11h"); show only when fire is imminent
+      // (within 2h) — at longer ranges the absolute time / Sunset+offset
+      // already conveys "when" and the trailing "· 7h" adds visual noise.
       let relative = '';
-      if (t && t !== 'paused') {
+      if (t && t !== 'paused' && nxt.decimal_hour != null) {
         const fireOff = nxt.fire_offset ?? nxt.offset ?? 0;
-        const rel = formatRelativeFromFire(fireOff, nxt.decimal_hour);
-        if (rel) relative = ` <span class="timer-alarm-rel">· ${rel}</span>`;
+        const now = new Date();
+        const nowH = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
+        const diffH = fireOff * 24 + nxt.decimal_hour - nowH;
+        if (diffH > 0 && diffH <= 2) {
+          const rel = formatRelativeFromFire(fireOff, nxt.decimal_hour);
+          if (rel) relative = ` <span class="timer-alarm-rel">· ${rel}</span>`;
+        }
       }
       return `<a href="${href}" class="timer-alarm" style="text-decoration:none; color:inherit;">${arrow} ${text}${relative}</a>`;
     }
