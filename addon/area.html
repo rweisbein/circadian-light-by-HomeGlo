@@ -515,6 +515,28 @@
       padding: 4px 0 2px;
       margin-bottom: 4px;
     }
+    /* Sun-conditions chip in top-right of chart (intensity % + weather icon).
+       Visible only between sunrise and sunset. */
+    .chart-sun-info {
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      display: none;
+      align-items: center;
+      gap: 4px;
+      font-size: var(--font-body);
+      font-weight: 600;
+      color: rgba(245, 230, 200, 0.9);
+      background: rgba(20, 22, 28, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 2px 7px;
+      border-radius: 10px;
+      z-index: 6;
+      pointer-events: none;
+      letter-spacing: 0.02em;
+    }
+    .chart-sun-info.visible { display: inline-flex; }
+    .chart-sun-info-icon { font-size: var(--font-value); line-height: 1; }
     .chart-hero {
       position: absolute;
       left: 0;
@@ -1169,6 +1191,10 @@
     <div id="auto-sched-section" class="auto-sched-section" style="display:none;">
     <div id="chart-shell">
       <div id="mini-chart"></div>
+      <div id="chart-sun-info" class="chart-sun-info">
+        <span class="chart-sun-info-icon" id="chart-sun-info-icon">&#x2600;</span>
+        <span id="chart-sun-info-pct">&mdash;</span>
+      </div>
       <div id="chart-hero" class="chart-hero" style="display:none;">
         <div class="chart-hero-line1">
           <span class="chart-hero-label" id="chart-hero-label">Wake</span>
@@ -2368,12 +2394,13 @@
       });
 
       // Inactive-phase mute — dark overlay recedes the inactive half (including the
-      // bulb-curve trace beneath) so the active phase reads as primary.
+      // bulb-curve trace beneath) so the active phase reads as primary. y1 stops short
+      // of the plot top so the moon image (y=0.91..1.05) stays bright.
       const inactiveLeft = wakeIsActive ? tDescendGeom_ : tAscendGeom_;
       const inactiveRight = wakeIsActive ? (tAscendGeom_ + 24) : tDescendGeom_;
       shapes.push({
         type: 'rect', xref: 'x', yref: 'paper',
-        x0: inactiveLeft, x1: inactiveRight, y0: 0, y1: 1,
+        x0: inactiveLeft, x1: inactiveRight, y0: 0, y1: 0.88,
         fillcolor: 'rgba(8, 10, 14, 0.55)', line: { width: 0 }, layer: 'above'
       });
 
@@ -3683,6 +3710,16 @@
             }
             updateContent();
             renderMiniChartForArea(selectedArea.area_id);
+            // Re-fetch controls so the Recent strip picks up newly-pressed switches
+            // (last_action.timestamp on each control). Filter for current area.
+            try {
+              const cres = await fetch(basePath + '/api/controls');
+              if (cres.ok) {
+                const cd = await cres.json();
+                areaControls = filterControlsForArea(cd.controls || [], selectedArea.area_id);
+                refreshRecentControlsStrip();
+              }
+            } catch (_) { /* non-fatal */ }
           }
           updateAllSliders();
         } catch (err) {
@@ -3909,6 +3946,47 @@
     // ============================================================
     // Chart Rendering
     // ============================================================
+    // Map weather_condition string + condition multiplier to a small icon.
+    // Returns a single-glyph string suitable for the chart-sun-info chip.
+    function chartConditionIcon(weatherCondition, condMultiplier) {
+      const c = (weatherCondition || '').toLowerCase();
+      if (c.includes('lightning') || c.includes('storm')) return '\u26C8';      // ⛈
+      if (c.includes('snow') || c.includes('hail') || c.includes('sleet')) return '\u2744'; // ❄
+      if (c.includes('rain') || c.includes('drizzle') || c.includes('pour')) return '\u2614'; // ☔
+      if (c.includes('fog') || c.includes('haze') || c.includes('mist')) return '\u2601';   // ☁ fallback
+      if (c.includes('partly') || c.includes('partial')) return '\u26C5';        // ⛅
+      if (c.includes('cloud')) return '\u2601';                                  // ☁
+      if (c.includes('sun') || c.includes('clear')) return '\u2600';             // ☀
+      // Fallback by conditionMultiplier (1.0 = clear sky, lower = cloudier)
+      if (condMultiplier != null) {
+        if (condMultiplier > 0.85) return '\u2600';
+        if (condMultiplier > 0.55) return '\u26C5';
+        return '\u2601';
+      }
+      return '\u2600';
+    }
+
+    // Updates the chart's top-right sun-info chip. Visible only between sunrise
+    // and sunset (approximate — uses cachedSunTimes.sunrise / .sunset hours).
+    function updateChartSunInfo(currentHour, sunTimes, status) {
+      const el = document.getElementById('chart-sun-info');
+      if (!el) return;
+      const sunrise = sunTimes?.sunrise;
+      const sunset = sunTimes?.sunset;
+      const isDay = Number.isFinite(sunrise) && Number.isFinite(sunset)
+        && currentHour >= sunrise && currentHour < sunset;
+      if (!isDay) { el.classList.remove('visible'); return; }
+      const norm = sunTimes?.outdoorNormalized ?? 0;
+      const pct = Math.round(norm * 100);
+      const condMult = sunTimes?.conditionMultiplier ?? null;
+      const weather = status?.weather_condition ?? null;
+      const iconEl = document.getElementById('chart-sun-info-icon');
+      const pctEl = document.getElementById('chart-sun-info-pct');
+      if (iconEl) iconEl.textContent = chartConditionIcon(weather, condMult);
+      if (pctEl) pctEl.textContent = pct + '%';
+      el.classList.add('visible');
+    }
+
     function renderMiniChartForArea(areaId) {
       const status = areaStatus[areaId] || {};
       if (!cachedConfig || !cachedSunTimes) return;
@@ -3992,6 +4070,7 @@
         areaState.color_mid = shiftedMid;
       }
       renderMiniChart(cfg, areaState, cachedSunTimes, currentHour, isActive, adjustedTimes);
+      updateChartSunInfo(currentHour, cachedSunTimes, status);
 
       if (isDragActive) {
         const newBri = calcMiniBrightness(currentHour, cfg, areaState, currentHour) * 100;
@@ -5615,7 +5694,7 @@
       if (recent.length === 0) return '';
       const areaId = selectedArea ? encodeURIComponent(selectedArea.area_id) : '';
       let html = '<div class="ctrl-recent-section">';
-      html += '<div class="ctrl-recent-label">Recently active</div>';
+      html += '<div class="ctrl-recent-label">Recent</div>';
       for (const { ctrl, t } of recent) {
         const icon = controlCategoryIcon(ctrl.category);
         const impact = controlImpactLabel(ctrl);

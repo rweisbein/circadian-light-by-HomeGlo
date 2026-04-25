@@ -51,7 +51,7 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 .rhythm-sleep-title-expanded { display: none; }
 .rhythm-card.is-open .rhythm-sleep-title-collapsed { display: none; }
 .rhythm-card.is-open .rhythm-sleep-title-expanded { display: inline; }
-.rhythm-sleep-pattern-val { display: none; margin-left: auto; }
+.rhythm-sleep-pattern-val { display: none; }
 .rhythm-card.is-open #rhythm-sleep-val { display: none; }
 .rhythm-card.is-open .rhythm-sleep-pattern-val { display: inline-flex; align-items: center; }
 .rhythm-pattern-inline-select {
@@ -242,6 +242,18 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
   background: #eef1f5;
   border-color: #eef1f5;
   color: #000;
+}
+.sleep-time-group .day-indicator { position: relative; }
+.sleep-time-group .day-indicator.today::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
 }
 .sleep-time-group.no-alt .alt-block {
   display: none;
@@ -596,10 +608,11 @@ input[type=range]::-moz-range-thumb {
   align-items: center;
   gap: 10px;
 }
-/* Tooltip on color-rule header info-icon: anchor right so it doesn't clip the card edge */
+/* Tooltip on color-rule header info-icon: anchor left so it extends right into the card body
+   (header icons sit at the left of the card; right-anchoring would push the tooltip off-screen left) */
 .color-rule-stack-label .info-tooltip {
-  left: auto;
-  right: 0;
+  left: 0;
+  right: auto;
   transform: none;
 }
 .color-rule-stack-label select {
@@ -3673,13 +3686,15 @@ function updateSleepSummary() {
     // Render clickable day indicators inside time blocks
     const primaryDaysEl = document.getElementById(`${prefix}-primary-days`);
     const altDaysEl = document.getElementById(`${prefix}-alt-days`);
+    const _jsDay = new Date().getDay();
+    const _pyToday = (_jsDay + 6) % 7;  // 0=Mon..6=Sun
     [
       { el: primaryDaysEl, days: hasAlt ? primaryDays : ALL, isPrimary: true },
       { el: altDaysEl, days: altDays, isPrimary: false }
     ].forEach(({ el, days, isPrimary }) => {
       if (!el) return;
       el.innerHTML = ALL.map(d =>
-        `<button class="day-indicator${days.includes(d) ? ' active' : ''}" data-day="${d}" data-block="${isPrimary ? 'primary' : 'secondary'}">${DAY_SHORT[d]}</button>`
+        `<button class="day-indicator${days.includes(d) ? ' active' : ''}${d === _pyToday ? ' today' : ''}" data-day="${d}" data-block="${isPrimary ? 'primary' : 'secondary'}">${DAY_SHORT[d]}</button>`
       ).join('');
     });
 
@@ -3688,9 +3703,11 @@ function updateSleepSummary() {
     if (blocks) blocks.classList.toggle('no-alt', !hasAlt);
   });
 
-  // Single-row card-val: "{bed} – {wake}" using shared phase logic
+  // Single-row card-val: "{bed} – {wake}" using shared phase logic. Wrap in <b> so the
+  // value picks up the .rhythm-card-val b color rule (matches Color/Brightness card values).
   if (headerTimes.bed != null && headerTimes.wake != null) {
-    updateDisplay('rhythm-sleep-val', `${formatHour(headerTimes.bed)} \u2013 ${formatHour(headerTimes.wake)}`);
+    const sleepValEl = document.getElementById('rhythm-sleep-val');
+    if (sleepValEl) sleepValEl.innerHTML = `<b>${formatHour(headerTimes.bed)} \u2013 ${formatHour(headerTimes.wake)}</b>`;
   }
 }
 
