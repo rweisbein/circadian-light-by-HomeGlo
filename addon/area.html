@@ -928,9 +928,6 @@
     .tune-brightness-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; padding-bottom: 0; }
     .tune-brightness-card.is-open .tune-brightness-body { max-height: 2000px; opacity: 1; padding-bottom: 8px; }
     .tune-detail-sub { padding: 0 22px 2px 52px; font-size: var(--font-muted); color: var(--muted2); }
-    .tune-source-info { font-size: var(--font-muted); color: var(--muted2); padding: 2px 22px 0 52px; }
-    .tune-refresh-btn { background: none; border: none; color: var(--muted2); font-size: var(--font-body); padding: 0 2px; cursor: pointer; vertical-align: middle; }
-    .tune-refresh-btn:hover { color: var(--text); }
     .tune-col-headers { display: grid; grid-template-columns: 1fr auto; padding: 0 14px 2px; gap: 0 12px; }
     .tune-col-header { font-size: 11px; color: var(--muted2); text-align: right; white-space: nowrap; }
     .tune-bk-row { display: grid; grid-template-columns: 1fr auto; align-items: baseline; padding: 5px 14px 5px 30px; gap: 0 12px; }
@@ -2692,16 +2689,16 @@
         borderpad: 4
       });
 
-      // Curve label — "sun exposure" anchors at peak divergence when the two
-      // curves are meaningfully apart. The bulb curve is the main graph, so
-      // leaving it unlabeled reads cleanly; only the dotted natural-light
+      // Curve label — "sun contribution" anchors at peak divergence when the
+      // two curves are meaningfully apart. The bulb curve is the main graph,
+      // so leaving it unlabeled reads cleanly; only the dotted natural-light
       // reference line needs naming.
       if (hasDivergence) {
         const divX = hours[maxDivergenceIdx];
         const divRoomY = brightnessPct[maxDivergenceIdx];
         annotations.push({
           x: divX, y: divRoomY, xref: 'x', yref: 'y',
-          text: 'sun exposure', showarrow: false, yshift: 10,
+          text: 'sun contribution', showarrow: false, yshift: 10,
           font: { size: 9, color: 'rgba(220, 220, 220, 0.7)' }
         });
       }
@@ -2810,6 +2807,21 @@
       const ctx = getSliderCfgAndState();
       if (!ctx) return;
       const { cfg, areaState, currentHour } = ctx;
+      // Overlay live tuneState so unsaved Sun-exposure / Room-balance edits
+      // drive the Bright slider thumb + hero pill in real time.
+      applyTuneStateOverlay(areaState);
+      // When Tune brightness sliders are dirty, replace actual_brightness with
+      // the live-projected bulb value so the Bright slider tracks the chart
+      // curve as the user drags Sun-exposure or Room-balance.
+      if (tuneState && tuneState.initialized && typeof isBrightnessDirty === 'function' && isBrightnessDirty()) {
+        const pureRoom = calcMiniBrightness(currentHour, cfg, areaState, currentHour, { skipOverride: true }) * 100;
+        const overridePct = calcOverrideDecay(currentHour, cfg, areaState) * 100;
+        const sbfNow = areaState.live_sbf
+          ?? areaStatus[selectedArea?.area_id]?.sun_bright_factor
+          ?? cachedSunTimes?.sunBrightFactorNow
+          ?? 1.0;
+        areaState.actual_brightness = Math.max(0, Math.min(100, pureRoom * sbfNow + overridePct));
+      }
       const currentBri = calcMiniBrightness(currentHour, cfg, areaState, currentHour) * 100;
       const currentCCT = calcMiniColor(currentHour, cfg, areaState, cachedSunTimes, currentHour);
       const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
@@ -5112,25 +5124,6 @@
         else elAdjNet.textContent = (netAdj > 0 ? '\u2191' : '\u2193') + Math.abs(netAdj) + '%';
       }
 
-      // -- Solar source info (above slider) --
-      const sourceInfo = document.getElementById('tune-source-info');
-      if (sourceInfo) {
-        const sunIntPct = Math.round(ts.outdoorNormalized * 100);
-        sourceInfo.innerHTML = 'outdoor brightness: ' + sunIntPct + '%'
-          + ' <button class="tune-refresh-btn" id="tune-refresh-outdoor" title="Refresh">&#x21bb;</button>';
-        const refreshBtn = document.getElementById('tune-refresh-outdoor');
-        if (refreshBtn && !refreshBtn._bound) {
-          refreshBtn._bound = true;
-          refreshBtn.addEventListener('click', async () => {
-            refreshBtn.textContent = '\u22ef';
-            try {
-              await fetch('./api/refresh-outdoor', { method: 'POST' });
-            } catch (e) {}
-            setTimeout(() => { refreshBtn.innerHTML = '&#x21bb;'; }, 1500);
-          });
-        }
-      }
-
       sortLightsList();
     }
 
@@ -5306,7 +5299,6 @@
         + '<span class="tune-wf-reset" id="tune-reset-solar">reset</span>'
         + '<span class="tune-wf-val" id="tune-det-solar-val">0%</span>'
         + '</div>';
-      bhtml += '<div class="tune-source-info" id="tune-source-info"></div>';
       bhtml += '<div class="tune-wf-slider">'
         + '<input type="range" class="tune-inline-slider tune-inline-slider--sun" id="tune-slider-solar" min="0" max="9" step="1" value="' + solarStep + '">'
         + '<span class="tune-slider-word" id="tune-solar-word"><span class="tune-solar-main">' + SOLAR_STEPS[solarStep].label + '</span></span></div>';
@@ -5459,6 +5451,7 @@
           updateTuneButtons();
           updateSliderFill(lumenSlider);
           if (selectedArea) renderMiniChartForArea(selectedArea.area_id);
+          updateAllSliders();
         });
         lumenSlider.addEventListener('change', () => {
           sliderInteracting = false;
@@ -5477,6 +5470,7 @@
           updateTuneButtons();
           updateSliderFill(solarSlider);
           if (selectedArea) renderMiniChartForArea(selectedArea.area_id);
+          updateAllSliders();
         });
         solarSlider.addEventListener('change', () => {
           sliderInteracting = false;
@@ -5496,6 +5490,7 @@
           recalcTune();
           updateTuneButtons();
           if (selectedArea) renderMiniChartForArea(selectedArea.area_id);
+          updateAllSliders();
         };
       }
 
@@ -5510,6 +5505,7 @@
           recalcTune();
           updateTuneButtons();
           if (selectedArea) renderMiniChartForArea(selectedArea.area_id);
+          updateAllSliders();
         };
       }
 
