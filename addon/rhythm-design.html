@@ -238,12 +238,30 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 }
 .reveal-group > .tune-control-row { cursor: pointer; }
 
-/* Sleep Brightness/Speed rows: cap width so value sits closer to label */
-.sleep-summary-row > .tune-control-row { max-width: 260px; }
+/* Left-aligned value column: values start a bit after widest label, no big right-edge gap */
+.sleep-summary-row > .tune-control-row {
+  grid-template-columns: 90px 1fr;
+  gap: 0 12px;
+}
+.sleep-summary-row > .tune-control-row .tune-control-impact {
+  text-align: left;
+  min-width: 0;
+}
+/* Warm night + cool day share one label column across all 7 rows */
+.color-rule-stack-body .reveal-group > .tune-control-row {
+  grid-template-columns: 110px 1fr;
+  gap: 0 12px;
+}
+.color-rule-stack-body .reveal-group > .tune-control-row .tune-control-impact {
+  text-align: left;
+  min-width: 0;
+}
 
 /* Brightness-card sensitivity slider: full-width to match min/max gradient */
 .brightness-sensitivity-group > .tune-slider-row { max-width: none; padding-left: 14px; padding-right: 14px; }
 .brightness-sensitivity-group > .tune-slider-row input[type=range] { width: 100%; }
+/* Narrow brightness-card gradient to match .tune-control-row horizontal padding (16px L, 14px R) */
+#rhythm-brightness-body > .ct-gradient-wrap { margin-left: 16px; margin-right: 14px; }
 
 /* Section block (chart) */
 .section-block {
