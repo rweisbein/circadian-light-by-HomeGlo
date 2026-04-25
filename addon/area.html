@@ -646,7 +646,7 @@
     .auto-sched-card--auto.is-open .auto-sched-body { max-height: 6000px; }
     /* Merged next-trigger header display (only visible when outer is collapsed —
        sub-header resolved times render it redundant when expanded) */
-    .auto-outer-next { margin-left: auto; display: flex; align-items: baseline; gap: 6px; font-size: var(--font-card-title); color: var(--text); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .auto-outer-next { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; font-size: var(--font-card-title); color: var(--text); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .auto-outer-next a { color: inherit; text-decoration: none; padding: 2px 4px; border-radius: 4px; transition: background 0.15s; }
     .auto-outer-next a:hover { background: rgba(255,255,255,0.04); }
     .auto-outer-next .auto-outer-sep { color: var(--muted2); font-weight: 400; }
@@ -6229,11 +6229,11 @@
       if (!el) return;
       const on = formatMergedAutoSide('on', _cachedNextAuto.on);
       const off = formatMergedAutoSide('off', _cachedNextAuto.off);
-      if (!on.enabled && !off.enabled) {
-        el.innerHTML = `<span class="auto-outer-off-label">Off</span>`;
-        return;
-      }
-      el.innerHTML = on.html + '<span class="auto-outer-sep">•</span>' + off.html;
+      // Two-row stacked layout: only show enabled sides; if neither enabled, show nothing.
+      const rows = [];
+      if (on.enabled) rows.push(on.html);
+      if (off.enabled) rows.push(off.html);
+      el.innerHTML = rows.join('');
     }
 
     function showResolvedAutoTime(type) {
