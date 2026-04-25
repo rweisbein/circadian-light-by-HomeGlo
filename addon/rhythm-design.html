@@ -238,12 +238,14 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 }
 .reveal-group > .tune-control-row { cursor: pointer; }
 
-/* Left-aligned value column: values start a bit after widest label, no big right-edge gap */
-.sleep-summary-row > .tune-control-row {
-  grid-template-columns: 90px 1fr;
+/* Sleep sub-section: time-rows AND Brightness/Speed rows share one left-aligned value column.
+   Col 1 (210px) fits the day-pill block (7 × 24px + 6 × 3px = 186px) plus a buffer; col 2 starts
+   "a bit after Sunday" so 7:00a / 8:00a / 25% / 8: snappy all left-align in the same column. */
+.sub-section-body .tune-control-row {
+  grid-template-columns: 210px 1fr;
   gap: 0 12px;
 }
-.sleep-summary-row > .tune-control-row .tune-control-impact {
+.sub-section-body .tune-control-row .tune-control-impact {
   text-align: left;
   min-width: 0;
 }
@@ -263,9 +265,16 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 /* Narrow brightness-card gradient to match .tune-control-row horizontal padding (16px L, 14px R) */
 #rhythm-brightness-body > .ct-gradient-wrap { margin-left: 16px; margin-right: 14px; }
 
-/* Brightness "Sun response" sub-section: section header gives equal weight to min/max gradient */
-.bri-sub-section { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
-.bri-sub-section-header { padding: 0 14px 4px 16px; }
+/* Brightness "Sun response" sub-section: divider above for equal weight; label + value inline left-aligned */
+.bri-sub-section { margin-top: 18px; padding-top: 6px; border-top: 1px solid var(--line); }
+.bri-sub-section .tune-control-row {
+  grid-template-columns: max-content 1fr;
+  gap: 0 12px;
+}
+.bri-sub-section .tune-control-impact {
+  text-align: left;
+  min-width: 0;
+}
 
 /* Section block (chart) */
 .section-block {
@@ -1614,12 +1623,10 @@ input[type=range]::-moz-range-thumb {
       <input type="hidden" id="brightness-min" value="1">
       <input type="hidden" id="brightness-max" value="100">
       <div class="bri-sub-section">
-        <div class="bri-sub-section-header">
-          <label class="color-rule-label">Sun response<span class="info-icon" data-tooltip="brightness-sensitivity-info">i<span class="info-tooltip" id="brightness-sensitivity-info">How aggressively brightness pulls back when sun is high. Higher = more dimming on bright sunny days.</span></span></label>
-        </div>
         <div class="reveal-group brightness-sensitivity-group">
           <div class="tune-control-row">
             <span class="tune-control-left">
+              <label class="color-rule-label">Sun response<span class="info-icon" data-tooltip="brightness-sensitivity-info">i<span class="info-tooltip" id="brightness-sensitivity-info">How aggressively brightness pulls back when sun is high. Higher = more dimming on bright sunny days.</span></span></label>
               <span class="tune-control-reset" id="reset-brightness-sensitivity" data-default="5">reset</span>
             </span>
             <span class="tune-control-impact" id="brightness-sensitivity-text">1.00: standard</span>
@@ -3653,10 +3660,11 @@ function toggleRhythmCard(cardId, storageKey) {
 function initAutoHideSliders() {
   document.addEventListener('click', (e) => {
     const rg = e.target.closest('.reveal-group');
+    const wasOpen = rg && rg.classList.contains('is-revealing');
     document.querySelectorAll('.reveal-group.is-revealing').forEach(g => {
       if (g !== rg) g.classList.remove('is-revealing');
     });
-    if (rg) rg.classList.add('is-revealing');
+    if (rg) rg.classList.toggle('is-revealing', !wasOpen);
   });
 }
 

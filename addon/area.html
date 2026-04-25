@@ -3503,14 +3503,16 @@
 
     });
 
-    // Document-level handler: reveal the tapped .reveal-group, collapse all others.
+    // Document-level handler: tap to toggle the reveal-group; collapse all others.
+    // Tapping the same group again closes it.
     function initAutoHideSliders() {
       document.addEventListener('click', (e) => {
         const rg = e.target.closest('.reveal-group');
+        const wasOpen = rg && rg.classList.contains('is-revealing');
         document.querySelectorAll('.reveal-group.is-revealing').forEach(g => {
           if (g !== rg) g.classList.remove('is-revealing');
         });
-        if (rg) rg.classList.add('is-revealing');
+        if (rg) rg.classList.toggle('is-revealing', !wasOpen);
       });
     }
 
