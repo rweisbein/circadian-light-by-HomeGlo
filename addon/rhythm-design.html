@@ -2450,11 +2450,11 @@ function renderColorGradient() {
   let refHtml = '';
   refHtml += '<span class="ct-axis-label ct-draggable" data-handle="warmest" style="' + refStyle(ctPct(minK)) + '">warmest</span>';
   if (warmEnabled) {
-    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="night-max" style="' + refStyle(ctPct(warmTarget)) + '">night max</span>';
+    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="night-max" style="' + refStyle(ctPct(warmTarget)) + '">coolest: night</span>';
   }
   if (dayEnabled) {
-    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-base" style="' + refStyle(ctPct(maxK)) + '">no-sun max</span>';
-    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-day" style="' + refStyle(ctPct(dayCct)) + '">coolest</span>';
+    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-base" style="' + refStyle(ctPct(maxK)) + '">coolest: no-sun</span>';
+    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-day" style="' + refStyle(ctPct(dayCct)) + '">coolest: sunny</span>';
   } else {
     refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-base" style="' + refStyle(ctPct(maxK)) + '">coolest</span>';
   }

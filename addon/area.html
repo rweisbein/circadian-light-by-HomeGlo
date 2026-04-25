@@ -1770,7 +1770,28 @@
       return resolved;
     }
 
-    function calcMiniBrightness(hour, cfg, state, currentHour) {
+    // Returns the brightness-override delta (as a 0..1 fraction) at hour h,
+    // accounting for linear decay from set_at to the next phase boundary.
+    // Returns 0 when no override is active or h is outside the override's window.
+    function calcOverrideDecay(hour, cfg, state) {
+      const briOverride = state?.brightness_override;
+      const briSetAt = state?.brightness_override_set_at;
+      if (briOverride == null || briSetAt == null) return 0;
+      const tAscend = cfg.ascend_start;
+      let tDescend = cfg.descend_start;
+      if (tDescend <= tAscend) tDescend += 24;
+      const h48 = hour < tAscend ? hour + 24 : hour;
+      const setAt48 = briSetAt < tAscend ? briSetAt + 24 : briSetAt;
+      const setInAscend = setAt48 >= tAscend && setAt48 < tDescend;
+      const expiresAt = setInAscend ? tDescend : tAscend + 24;
+      const total = expiresAt - setAt48;
+      if (total <= 0 || h48 < setAt48 || h48 >= expiresAt) return 0;
+      const remaining = expiresAt - h48;
+      const decay = Math.max(0, Math.min(1, remaining / total));
+      return (briOverride / 100) * decay;
+    }
+
+    function calcMiniBrightness(hour, cfg, state, currentHour, opts) {
       const tAscend = cfg.ascend_start;
       let tDescend = cfg.descend_start;
       if (tDescend <= tAscend) tDescend += 24;
@@ -1830,20 +1851,15 @@
       const areaFactor = state.area_factor ?? 1.0;
       curveBri *= areaFactor;
 
-      // Brightness override with decay projection — only applies from when it was set
-      // forward, within the active phase (no leak across the next phase boundary)
-      const briOverride = state.brightness_override;
-      const briSetAt = state.brightness_override_set_at;
-      if (briOverride != null && briSetAt != null) {
-        const setAt48 = briSetAt < tAscend ? briSetAt + 24 : briSetAt;
-        const setInAscend = setAt48 >= tAscend && setAt48 < tDescend;
-        const expiresAt = setInAscend ? tDescend : tAscend + 24;
-        const total = expiresAt - setAt48;
-        if (total > 0 && h48 >= setAt48 && h48 < expiresAt) {
-          const remaining = expiresAt - h48;
-          const decay = Math.max(0, Math.min(1, remaining / total));
-          curveBri += (briOverride / 100) * decay;
-        }
+      // Brightness override is added in room-space here for callers that
+      // want the room-target including the user's adjustment (slider thumbs,
+      // hero pill fallback). Chart rendering passes { skipOverride: true } so
+      // the override can be applied at bulb-level instead — the override is
+      // stored by the backend in bulb-space (target − last_sent_bulb), so
+      // re-applying it at bulb-level avoids the documented accounting drift
+      // where a large override gets squished by sun_bright_factor.
+      if (!(opts && opts.skipOverride)) {
+        curveBri += calcOverrideDecay(hour, cfg, state);
       }
 
       return Math.max(0, Math.min(1, curveBri));
@@ -1991,9 +2007,16 @@
         const h = xAnchor + (i / numSamples) * 24;
         const hMod = ((h % 24) + 24) % 24;
         hours.push(h);
-        const room = calcMiniBrightness(hMod, cfg, state, currentHour) * 100;
-        brightnessPct.push(room);
-        bulbPct.push(calcBulbBrightnessAt(hMod, sunTimes, currentHour, room));
+        // Pure room target (no override) — drives the dotted natural-light line
+        // and is the basis for the sun-dimming reduction.
+        const pureRoom = calcMiniBrightness(hMod, cfg, state, currentHour, { skipOverride: true }) * 100;
+        brightnessPct.push(pureRoom);
+        // Bulb output = pure_room × sun_factor + override (decayed). Override is
+        // added in bulb-space, not pre-sun, so the override doesn't get squished
+        // by sun_bright_factor — matching backend's set_position accounting.
+        const bulbNatural = calcBulbBrightnessAt(hMod, sunTimes, currentHour, pureRoom);
+        const overridePct = calcOverrideDecay(hMod, cfg, state) * 100;
+        bulbPct.push(Math.max(0, Math.min(100, bulbNatural + overridePct)));
         cct.push(calcMiniColor(hMod, cfg, state, sunTimes, currentHour));
       }
 
@@ -2270,8 +2293,10 @@
       //       override (pre-everything) — ~2% drift on steep descend.
       // Fall back to the computed (pure + override) values only when the
       // server-truth fields aren't populated (cold start / mode switch).
-      const markerRoom = calcMiniBrightness(currentHour, cfg, state, currentHour) * 100;
-      let markerBri = calcBulbBrightnessAt(currentHour, curveSunTimes, currentHour, markerRoom);
+      const markerPureRoom = calcMiniBrightness(currentHour, cfg, state, currentHour, { skipOverride: true }) * 100;
+      const markerOverridePct = calcOverrideDecay(currentHour, cfg, state) * 100;
+      let markerBri = Math.max(0, Math.min(100,
+        calcBulbBrightnessAt(currentHour, curveSunTimes, currentHour, markerPureRoom) + markerOverridePct));
       let markerCCT = calcMiniColor(currentHour, cfg, state, sunTimes, currentHour);
       if (Number.isFinite(areaLive.actual_brightness)) markerBri = areaLive.actual_brightness;
       if (Number.isFinite(areaLive.api_kelvin)) markerCCT = areaLive.api_kelvin;
@@ -3436,7 +3461,7 @@
         // and move the wake/bed vertical line to the dragged target.
         if (selectedArea) {
           const shiftedMid24 = ((shiftedMid % 24) + 24) % 24;
-          const previewAreaState = { ...areaState, brightness_mid: shiftedMid24, color_mid: shiftedMid24 };
+          const previewAreaState = applyTuneStateOverlay({ ...areaState, brightness_mid: shiftedMid24, color_mid: shiftedMid24 });
           const isActive = selectedArea.is_on || selectedArea.is_circadian;
           const adjustedTimes = {
             wake: phaseCtx.cursorInAscend ? targetTime24 : null,
@@ -3471,14 +3496,26 @@
       // Wake/Bed edge — matching what the lights will do after release.
       if (selectedArea) {
         const isActive = selectedArea.is_on || selectedArea.is_circadian;
-        const previewState = { ...areaState };
+        // Overlay live tuneState (sun_exposure / area_factor / live_sbf) so
+        // unsaved Tune edits stay reflected in the curve while the user
+        // drags the Bright/Color slider — otherwise the curve would snap
+        // back to the saved status values.
+        const previewState = applyTuneStateOverlay({ ...areaState });
         if (dragMode === 'brightness') {
-          const pureState = { ...areaState, brightness_override: null, brightness_override_set_at: null };
-          const pureBriAtNow = calcMiniBrightness(currentHour, cfg, pureState, currentHour) * 100;
-          previewState.brightness_override = previewBri - pureBriAtNow;
+          // Compute pure bulb at NOW (room × sun_factor with no override) so the
+          // override delta is in bulb-space — matches calcMiniCurveData where
+          // override is now applied at bulb level.
+          const pureState = { ...previewState, brightness_override: null, brightness_override_set_at: null };
+          const pureRoomAtNow = calcMiniBrightness(currentHour, cfg, pureState, currentHour, { skipOverride: true }) * 100;
+          const sbfNow = previewState.live_sbf
+            ?? (areaStatus[selectedArea.area_id]?.sun_bright_factor)
+            ?? cachedSunTimes.sunBrightFactorNow ?? 1.0;
+          const previewSunTimes = Object.assign({}, cachedSunTimes, { sunBrightFactorNow: sbfNow });
+          const pureBulbAtNow = calcBulbBrightnessAt(currentHour, previewSunTimes, currentHour, pureRoomAtNow);
+          previewState.brightness_override = previewBri - pureBulbAtNow;
           previewState.brightness_override_set_at = currentHour;
         } else if (dragMode === 'color') {
-          const pureColorState = { ...areaState, color_override: null, color_override_set_at: null };
+          const pureColorState = { ...previewState, color_override: null, color_override_set_at: null };
           const pureCCTAtNow = calcMiniColor(currentHour, cfg, pureColorState, cachedSunTimes, currentHour);
           previewState.color_override = previewCCT - pureCCTAtNow;
           previewState.color_override_set_at = currentHour;
@@ -3968,9 +4005,24 @@
 
     // Updates the chart's top-right sun-info chip. Visible only between sunrise
     // and sunset (approximate — uses cachedSunTimes.sunrise / .sunset hours).
+    // Also suppressed when sun isn't a factor in this area's curve: sun_exposure
+    // is 0 (area gets no daylight) or brightness_sensitivity is 0 (rhythm sun
+    // response disabled). Reads live tuneState first so unsaved Tune edits
+    // hide/show the chip immediately.
     function updateChartSunInfo(currentHour, sunTimes, status) {
       const el = document.getElementById('chart-sun-info');
       if (!el) return;
+      let exposure = status?.natural_light_exposure ?? 0;
+      let sensitivity = status?.brightness_sensitivity ?? 5.0;
+      if (tuneState && tuneState.initialized) {
+        if (typeof SOLAR_STEPS !== 'undefined' && SOLAR_STEPS[tuneState.solarStep]) {
+          exposure = SOLAR_STEPS[tuneState.solarStep].exposure;
+        }
+        if (tuneState.brightnessSensitivity != null) {
+          sensitivity = tuneState.brightnessSensitivity;
+        }
+      }
+      if (exposure <= 0 || sensitivity <= 0) { el.classList.remove('visible'); return; }
       const sunrise = sunTimes?.sunrise;
       const sunset = sunTimes?.sunset;
       const isDay = Number.isFinite(sunrise) && Number.isFinite(sunset)
@@ -3985,6 +4037,38 @@
       if (iconEl) iconEl.textContent = chartConditionIcon(weather, condMult);
       if (pctEl) pctEl.textContent = pct + '%';
       el.classList.add('visible');
+    }
+
+    // Mutates areaState in place, overlaying live tuneState pipeline factors so
+    // unsaved Sun-exposure / Room-balance edits reshape the chart pre-save. Used
+    // by both the auto-render path and the Bright/Color slider drag preview, so
+    // dragging the Bright slider while Tune has unsaved changes doesn't snap the
+    // curve back to saved values.
+    function applyTuneStateOverlay(areaState) {
+      if (!areaState || !tuneState || !tuneState.initialized) return areaState;
+      if (tuneState.areaFactor != null) areaState.area_factor = tuneState.areaFactor;
+      if (typeof SOLAR_STEPS !== 'undefined' && SOLAR_STEPS[tuneState.solarStep]) {
+        areaState.sun_exposure = SOLAR_STEPS[tuneState.solarStep].exposure;
+      }
+      if (tuneState.brightnessSensitivity != null) {
+        areaState.brightness_sensitivity = tuneState.brightnessSensitivity;
+      }
+      // Project sun_bright_factor for the live exposure so Sun-exposure slider
+      // drags reshape the sun-dimming curve pre-save. Backend formula:
+      // sbf = max(0, 1 − exposure × intensity × sensitivity). We only have
+      // backend sbf (computed with the saved exposure), so recover the
+      // intensity×sensitivity product from it and reapply with live exposure.
+      if (tuneSnapshot && tuneState.backendSunBrightFactor != null &&
+          typeof SOLAR_STEPS !== 'undefined' &&
+          SOLAR_STEPS[tuneState.solarStep] && SOLAR_STEPS[tuneSnapshot.solarStep]) {
+        const savedExp = SOLAR_STEPS[tuneSnapshot.solarStep].exposure;
+        const liveExp = SOLAR_STEPS[tuneState.solarStep].exposure;
+        if (liveExp !== savedExp && savedExp > 0) {
+          const intensityProd = (1 - tuneState.backendSunBrightFactor) / savedExp;
+          areaState.live_sbf = Math.max(0, 1 - liveExp * intensityProd);
+        }
+      }
+      return areaState;
     }
 
     function renderMiniChartForArea(areaId) {
@@ -4012,35 +4096,7 @@
         outdoor_condition_mult: cachedSunTimes.conditionMultiplier ?? 1.0,
       };
 
-      // If the tune section is loaded, prefer live tuneState for the pipeline
-      // factors so dragging Solar exposure / Room balance sliders re-renders
-      // the chart immediately (pre-save, without waiting on a server round-trip).
-      if (tuneState && tuneState.initialized) {
-        if (tuneState.areaFactor != null) areaState.area_factor = tuneState.areaFactor;
-        if (typeof SOLAR_STEPS !== 'undefined' && SOLAR_STEPS[tuneState.solarStep]) {
-          areaState.sun_exposure = SOLAR_STEPS[tuneState.solarStep].exposure;
-        }
-        if (tuneState.brightnessSensitivity != null) {
-          areaState.brightness_sensitivity = tuneState.brightnessSensitivity;
-        }
-        // Project sun_bright_factor for the live exposure so Sun-exposure
-        // slider drags reshape the sun-dimming curve pre-save. Backend formula:
-        // sbf = max(0, 1 − exposure × intensity × sensitivity). We only have
-        // backend sbf (computed with the saved exposure), so recover the
-        // intensity×sensitivity product from it and reapply with live exposure.
-        // Only meaningful when saved exposure > 0 and slider has moved off its
-        // saved position; otherwise fall through to backend sbf.
-        if (tuneSnapshot && tuneState.backendSunBrightFactor != null &&
-            typeof SOLAR_STEPS !== 'undefined' &&
-            SOLAR_STEPS[tuneState.solarStep] && SOLAR_STEPS[tuneSnapshot.solarStep]) {
-          const savedExp = SOLAR_STEPS[tuneSnapshot.solarStep].exposure;
-          const liveExp = SOLAR_STEPS[tuneState.solarStep].exposure;
-          if (liveExp !== savedExp && savedExp > 0) {
-            const intensityProd = (1 - tuneState.backendSunBrightFactor) / savedExp;
-            areaState.live_sbf = Math.max(0, 1 - liveExp * intensityProd);
-          }
-        }
-      }
+      applyTuneStateOverlay(areaState);
 
       let currentHour;
       if (status.frozen && status.frozen_at != null) {
