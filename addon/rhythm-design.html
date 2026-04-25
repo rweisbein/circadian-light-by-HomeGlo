@@ -46,6 +46,32 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 .rhythm-card-title { font-size: var(--font-card-title); font-weight: 600; color: var(--text); }
 .rhythm-card-val { margin-left: auto; font-size: var(--font-value); color: var(--muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
 .rhythm-card-val b { font-weight: 700; font-size: var(--font-card-title); color: var(--text); }
+
+/* Sleep card header: collapsed shows window time; expanded shows the pattern dropdown */
+.rhythm-sleep-title-expanded { display: none; }
+.rhythm-card.is-open .rhythm-sleep-title-collapsed { display: none; }
+.rhythm-card.is-open .rhythm-sleep-title-expanded { display: inline; }
+.rhythm-sleep-pattern-val { display: none; margin-left: auto; }
+.rhythm-card.is-open #rhythm-sleep-val { display: none; }
+.rhythm-card.is-open .rhythm-sleep-pattern-val { display: inline-flex; align-items: center; }
+.rhythm-pattern-inline-select {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: var(--font-card-title);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0 14px 0 0;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M2 4l3 3 3-3' stroke='%23bbb' stroke-width='1.4' fill='none'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right center;
+  outline: none;
+}
+.rhythm-pattern-inline-select:focus { color: var(--accent); }
+.rhythm-pattern-inline-select option { background: var(--panel2); color: var(--text); font-weight: 400; }
 .rhythm-card-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.35s ease, opacity 0.25s ease; padding: 0 14px; }
 .rhythm-card.is-open .rhythm-card-body { max-height: 1200px; opacity: 1; padding-bottom: 14px; }
 
@@ -241,6 +267,9 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 /* Sleep sub-section: time-rows AND Brightness/Speed rows share one left-aligned value column.
    Col 1 (210px) fits the day-pill block (7 × 24px + 6 × 3px = 186px) plus a buffer; col 2 starts
    "a bit after Sunday" so 7:00a / 8:00a / 25% / 8: snappy all left-align in the same column. */
+/* Indent Wake/Bed body content so the section headers stay prominent and the
+   four-row stack reads as belonging to its parent section. */
+.sub-section-body { padding-left: 20px; }
 .sub-section-body .tune-control-row {
   grid-template-columns: 210px 1fr;
   gap: 0 12px;
@@ -248,6 +277,12 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 .sub-section-body .tune-control-row .tune-control-impact {
   text-align: left;
   min-width: 0;
+}
+/* Brightness/Speed rows: extra vertical breathing so they match the visual rhythm of
+   the day-pill time rows above (24px pills make those rows feel taller). */
+.sub-section-body .sleep-summary-row > .tune-control-row {
+  padding-top: 10px;
+  padding-bottom: 4px;
 }
 /* Warm night + cool day share one label column across all 7 rows */
 .color-rule-stack-body .reveal-group > .tune-control-row {
@@ -545,9 +580,9 @@ input[type=range]::-moz-range-thumb {
 }
 .color-rule-stack-label {
   display: grid;
-  grid-template-columns: 140px 1fr;
+  grid-template-columns: 110px 1fr;
   align-items: center;
-  gap: 10px;
+  gap: 0 12px;
   margin-bottom: 4px;
   max-width: 600px;
 }
@@ -560,6 +595,12 @@ input[type=range]::-moz-range-thumb {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+/* Tooltip on color-rule header info-icon: anchor right so it doesn't clip the card edge */
+.color-rule-stack-label .info-tooltip {
+  left: auto;
+  right: 0;
+  transform: none;
 }
 .color-rule-stack-label select {
   padding: 4px 8px;
@@ -591,6 +632,8 @@ input[type=range]::-moz-range-thumb {
   cursor: pointer;
   vertical-align: middle;
   user-select: none;
+  text-transform: none;
+  letter-spacing: 0;
   transition: all 0.15s ease;
 }
 .info-icon:hover {
@@ -612,6 +655,8 @@ input[type=range]::-moz-range-thumb {
   font-weight: 400;
   line-height: 1.4;
   color: rgba(255,255,255,0.85);
+  text-transform: none;
+  letter-spacing: 0;
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
   z-index: 100;
 }
@@ -634,6 +679,10 @@ input[type=range]::-moz-range-thumb {
   max-height: 0;
   opacity: 0;
   padding: 0 0 0 22px;
+}
+.color-rule-stack-body.is-disabled {
+  opacity: 0.4;
+  pointer-events: none;
 }
 
 
@@ -1307,8 +1356,21 @@ input[type=range]::-moz-range-thumb {
   <div class="rhythm-card" id="rhythm-sleep-card">
     <div class="rhythm-card-header" onclick="toggleRhythmCard('rhythm-sleep-card', 'rhythm_sleep_expanded')">
       <span class="rhythm-card-chevron" id="rhythm-sleep-chevron">&#x203A;</span>
-      <span class="rhythm-card-title">Sleep</span>
+      <span class="rhythm-card-title">
+        <span class="rhythm-sleep-title-collapsed">Sleep</span>
+        <span class="rhythm-sleep-title-expanded">Sleep pattern:</span>
+      </span>
       <span class="rhythm-card-val" id="rhythm-sleep-val">9:00p &ndash; 7:00a</span>
+      <span class="rhythm-sleep-pattern-val" id="rhythm-sleep-pattern-val">
+        <select id="activity-preset" class="rhythm-pattern-inline-select" onclick="event.stopPropagation()">
+          <option value="young">Young Child</option>
+          <option value="adult" selected>Adult</option>
+          <option value="nightowl">Night Owl</option>
+          <option value="duskbat">Dusk Bat</option>
+          <option value="shiftearly">Shift Early</option>
+          <option value="shiftlate">Shift Late</option>
+        </select>
+      </span>
       <div class="rhythm-sleep-summary" id="rhythm-sleep-summary" style="display:none">
         <div class="rhythm-sleep-summary-row">
           <span class="rhythm-sleep-summary-label">wake</span>
@@ -1323,18 +1385,6 @@ input[type=range]::-moz-range-thumb {
       </div>
     </div>
     <div class="rhythm-card-body" id="rhythm-sleep-body">
-      <div style="display:flex;align-items:center;gap:8px;padding:0 0 2px;">
-        <span class="tune-control-label primary">Pattern</span>
-        <select id="activity-preset" class="rhythm-select">
-          <option value="young">Young Child</option>
-          <option value="adult" selected>Adult</option>
-          <option value="nightowl">Night Owl</option>
-          <option value="duskbat">Dusk Bat</option>
-          <option value="shiftearly">Shift Early</option>
-          <option value="shiftlate">Shift Late</option>
-        </select>
-      </div>
-
       <div class="sub-section" id="wake-sub-section">
         <div class="sub-section-header">
           <span class="sub-section-title">Wake</span>
@@ -1493,9 +1543,10 @@ input[type=range]::-moz-range-thumb {
       <div class="color-rule-grid">
         <div class="color-rule-stack" data-color-row="night">
           <div class="color-rule-stack-label">
-            <div class="color-rule-label-left">
-              <label class="color-rule-label">Night warming<span class="info-icon" data-tooltip="warm-night-info">i<span class="info-tooltip" id="warm-night-info">Caps color temperature when sun isn't up; if your curve is cool (high K) between sunset and sunrise, this warms it.</span></span></label>
+            <label class="color-rule-label">Night warming</label>
+            <div class="color-rule-controls">
               <div class="color-rule-toggle"><input type="checkbox" id="warm-night-enabled"></div>
+              <span class="info-icon" data-tooltip="warm-night-info">i<span class="info-tooltip" id="warm-night-info">Caps color temperature when sun isn't up; if your curve is cool (high K) between sunset and sunrise, this warms it.</span></span>
             </div>
           </div>
           <input type="hidden" id="warm-night-mode" value="all">
@@ -1544,9 +1595,10 @@ input[type=range]::-moz-range-thumb {
 
         <div class="color-rule-stack" data-color-row="daylight">
           <div class="color-rule-stack-label">
-            <div class="color-rule-label-left">
-              <label class="color-rule-label">Sun cooling<span class="info-icon" data-tooltip="daylight-info">i<span class="info-tooltip" id="daylight-info">Pushes color toward a cooler target during the day based on outdoor brightness and sun elevation.</span></span></label>
+            <label class="color-rule-label">Sun cooling</label>
+            <div class="color-rule-controls">
               <div class="color-rule-toggle"><input type="checkbox" id="daylight-enabled" checked></div>
+              <span class="info-icon" data-tooltip="daylight-info">i<span class="info-tooltip" id="daylight-info">Pushes color toward a cooler target during the day based on outdoor brightness and sun elevation.</span></span>
             </div>
           </div>
           <input type="hidden" id="daylight-cct" value="5500">
@@ -3659,6 +3711,9 @@ function toggleRhythmCard(cardId, storageKey) {
 
 function initAutoHideSliders() {
   document.addEventListener('click', (e) => {
+    // Don't toggle when the click originated on a range input — mouseup on a slider
+    // dispatches a click that would otherwise close the row the user just dragged.
+    if (e.target.tagName === 'INPUT' && e.target.type === 'range') return;
     const rg = e.target.closest('.reveal-group');
     const wasOpen = rg && rg.classList.contains('is-revealing');
     document.querySelectorAll('.reveal-group.is-revealing').forEach(g => {
@@ -4024,21 +4079,21 @@ function updateSolarImpacts() {
 
 }
 
-// Sync color rule rows - toggle is-disabled based on checkbox + mode state
+// Sync color rule rows - grey out fields below when checkbox is off (kept visible, not hidden)
 function syncColorRuleRows() {
   const warmEnabled = config.warm_night_enabled;
 
-  // Warm night body — hide when unchecked
+  // Warm night body — grey out when unchecked
   const warmBody = document.getElementById('warm-night-body');
   if (warmBody) {
-    warmBody.classList.toggle('is-hidden', !warmEnabled);
+    warmBody.classList.toggle('is-disabled', !warmEnabled);
   }
 
-  // Cool day body — hide when unchecked
+  // Cool day body — grey out when unchecked
   const daylightEnabled = config.daylight_enabled !== false;
   const daylightBody = document.getElementById('daylight-body');
   if (daylightBody) {
-    daylightBody.classList.toggle('is-hidden', !daylightEnabled);
+    daylightBody.classList.toggle('is-disabled', !daylightEnabled);
   }
 
   // Grey out weather selector when cool day is off
