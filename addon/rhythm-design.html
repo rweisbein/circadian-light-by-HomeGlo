@@ -263,6 +263,10 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 /* Narrow brightness-card gradient to match .tune-control-row horizontal padding (16px L, 14px R) */
 #rhythm-brightness-body > .ct-gradient-wrap { margin-left: 16px; margin-right: 14px; }
 
+/* Brightness "Sun response" sub-section: section header gives equal weight to min/max gradient */
+.bri-sub-section { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.bri-sub-section-header { padding: 0 14px 4px 16px; }
+
 /* Section block (chart) */
 .section-block {
   background: var(--card);
@@ -1295,7 +1299,8 @@ input[type=range]::-moz-range-thumb {
     <div class="rhythm-card-header" onclick="toggleRhythmCard('rhythm-sleep-card', 'rhythm_sleep_expanded')">
       <span class="rhythm-card-chevron" id="rhythm-sleep-chevron">&#x203A;</span>
       <span class="rhythm-card-title">Sleep</span>
-      <div class="rhythm-sleep-summary" id="rhythm-sleep-summary">
+      <span class="rhythm-card-val" id="rhythm-sleep-val">9:00p &ndash; 7:00a</span>
+      <div class="rhythm-sleep-summary" id="rhythm-sleep-summary" style="display:none">
         <div class="rhythm-sleep-summary-row">
           <span class="rhythm-sleep-summary-label">wake</span>
           <span class="rhythm-sleep-summary-bri" id="sleep-sum-wake-bri">50%</span>
@@ -1480,7 +1485,7 @@ input[type=range]::-moz-range-thumb {
         <div class="color-rule-stack" data-color-row="night">
           <div class="color-rule-stack-label">
             <div class="color-rule-label-left">
-              <label class="color-rule-label">Warm night<span class="info-icon" data-tooltip="warm-night-info">i<span class="info-tooltip" id="warm-night-info">Caps color temperature when sun isn't up; if your curve is cool (high K) between sunset and sunrise, this warms it.</span></span></label>
+              <label class="color-rule-label">Night warming<span class="info-icon" data-tooltip="warm-night-info">i<span class="info-tooltip" id="warm-night-info">Caps color temperature when sun isn't up; if your curve is cool (high K) between sunset and sunrise, this warms it.</span></span></label>
               <div class="color-rule-toggle"><input type="checkbox" id="warm-night-enabled"></div>
             </div>
           </div>
@@ -1531,7 +1536,7 @@ input[type=range]::-moz-range-thumb {
         <div class="color-rule-stack" data-color-row="daylight">
           <div class="color-rule-stack-label">
             <div class="color-rule-label-left">
-              <label class="color-rule-label">Cool day<span class="info-icon" data-tooltip="daylight-info">i<span class="info-tooltip" id="daylight-info">Pushes color toward a cooler target during the day based on outdoor brightness and sun elevation.</span></span></label>
+              <label class="color-rule-label">Sun cooling<span class="info-icon" data-tooltip="daylight-info">i<span class="info-tooltip" id="daylight-info">Pushes color toward a cooler target during the day based on outdoor brightness and sun elevation.</span></span></label>
               <div class="color-rule-toggle"><input type="checkbox" id="daylight-enabled" checked></div>
             </div>
           </div>
@@ -1578,7 +1583,7 @@ input[type=range]::-moz-range-thumb {
             <div class="reveal-group">
               <div class="tune-control-row">
                 <span class="tune-control-left">
-                  <span class="tune-control-label">Sun sensitivity</span>
+                  <span class="tune-control-label">Sun response</span>
                   <span class="tune-control-reset" id="reset-color-sensitivity" data-default="5">reset</span>
                 </span>
                 <span class="tune-control-impact" id="color-sensitivity-text">1.00: standard</span>
@@ -1608,16 +1613,20 @@ input[type=range]::-moz-range-thumb {
       <div id="rhythm-bri-gradient-container" class="ct-gradient-wrap"></div>
       <input type="hidden" id="brightness-min" value="1">
       <input type="hidden" id="brightness-max" value="100">
-      <div class="reveal-group brightness-sensitivity-group">
-        <div class="tune-control-row">
-          <span class="tune-control-left">
-            <span class="tune-control-label">Sun sensitivity</span>
-            <span class="tune-control-reset" id="reset-brightness-sensitivity" data-default="5">reset</span>
-          </span>
-          <span class="tune-control-impact" id="brightness-sensitivity-text">1.00: standard</span>
+      <div class="bri-sub-section">
+        <div class="bri-sub-section-header">
+          <label class="color-rule-label">Sun response<span class="info-icon" data-tooltip="brightness-sensitivity-info">i<span class="info-tooltip" id="brightness-sensitivity-info">How aggressively brightness pulls back when sun is high. Higher = more dimming on bright sunny days.</span></span></label>
         </div>
-        <div class="tune-slider-row">
-          <input type="range" id="brightness-sensitivity" min="0" max="8" step="1" value="5">
+        <div class="reveal-group brightness-sensitivity-group">
+          <div class="tune-control-row">
+            <span class="tune-control-left">
+              <span class="tune-control-reset" id="reset-brightness-sensitivity" data-default="5">reset</span>
+            </span>
+            <span class="tune-control-impact" id="brightness-sensitivity-text">1.00: standard</span>
+          </div>
+          <div class="tune-slider-row">
+            <input type="range" id="brightness-sensitivity" min="0" max="8" step="1" value="5">
+          </div>
         </div>
       </div>
       <div class="section-actions" id="brightness-section-actions">
@@ -3540,6 +3549,11 @@ function updateSleepSummary() {
   const ALL = [0, 1, 2, 3, 4, 5, 6];
   const phase = getSleepPhase();
 
+  // For the single-row card-val "10:30p – 7a": both endpoints use bed-phase logic
+  // (awake → next bed → next wake; asleep → current bed → current wake).
+  const headerUseNext = phase.bed === 'next';
+  const headerTimes = {};
+
   ['wake', 'bed'].forEach(prefix => {
     const primaryDays = getSelectedDays(`${prefix}-days`);
     const altDays = primaryDays.length === 0
@@ -3569,7 +3583,25 @@ function updateSleepSummary() {
       }
     }
 
-    // Update header summary
+    // Compute the header-window value with shared useNext flag (separate from inline summary).
+    let headerTimeVal = primaryTime;
+    if (altTimeVal != null && altDays.length > 0) {
+      const jsToday = new Date().getDay();
+      const pyToday = jsToday === 0 ? 6 : jsToday - 1;
+      if (!headerUseNext) {
+        if (altDays.includes(pyToday)) headerTimeVal = altTimeVal;
+      } else {
+        const nowDecimal = new Date().getHours() + new Date().getMinutes() / 60;
+        let startOffset = 1;
+        if (prefix === 'bed' && nowDecimal < (config.descend_start || 20)) startOffset = 0;
+        if (prefix === 'wake' && nowDecimal < (config.ascend_start || 6)) startOffset = 0;
+        const checkDay = (pyToday + startOffset) % 7;
+        if (altDays.includes(checkDay)) headerTimeVal = altTimeVal;
+      }
+    }
+    headerTimes[prefix] = headerTimeVal;
+
+    // Update inline header summary (legacy)
     updateDisplay(`sleep-sum-${prefix}-time`, formatHour(timeVal));
     const bri = prefix === 'wake' ? (config.wake_brightness || 50) : (config.bed_brightness || 50);
     updateDisplay(`sleep-sum-${prefix}-bri`, bri + '%');
@@ -3596,6 +3628,11 @@ function updateSleepSummary() {
     const blocks = document.getElementById(`${prefix}-time-blocks`);
     if (blocks) blocks.classList.toggle('no-alt', !hasAlt);
   });
+
+  // Single-row card-val: "{bed} – {wake}" using shared phase logic
+  if (headerTimes.bed != null && headerTimes.wake != null) {
+    updateDisplay('rhythm-sleep-val', `${formatHour(headerTimes.bed)} \u2013 ${formatHour(headerTimes.wake)}`);
+  }
 }
 
 function getBrightnessWord(val) {
@@ -3609,15 +3646,8 @@ function getBrightnessWord(val) {
 function toggleRhythmCard(cardId, storageKey) {
   const card = document.getElementById(cardId);
   if (!card) return;
-  const wasOpen = card.classList.contains('is-open');
-  // Accordion: close all cards first
-  document.querySelectorAll('.rhythm-card.is-open').forEach(c => {
-    c.classList.remove('is-open');
-  });
-  // Toggle the clicked card (open if it was closed, stay closed if it was open)
-  if (!wasOpen) {
-    card.classList.add('is-open');
-  }
+  // Multi-open: just toggle this card; siblings stay as they were.
+  card.classList.toggle('is-open');
 }
 
 function initAutoHideSliders() {
@@ -3946,11 +3976,13 @@ function updateOffsetDisplays() {
     return `${fmtHrs(val)} ${direction} ${baseEvent}`;
   };
 
-  updateDisplay('warm-night-start-text', formatOffset(config.warm_night_start, 'sunset'));
-  updateDisplay('warm-night-end-text', formatOffset(config.warm_night_end, 'sunrise'));
+  // Collapsed view (impact): natural-language offset, e.g. "1 hr before sunset"
+  // Expanded view (slider-word): actual clock time — populated in updateSolarImpacts()
+  updateDisplay('warm-night-start-impact', formatOffset(config.warm_night_start, 'sunset'));
+  updateDisplay('warm-night-end-impact', formatOffset(config.warm_night_end, 'sunrise'));
   updateDisplay('warm-night-fade-text', fmtHrs(config.warm_night_fade));
-  updateDisplay('daylight-start-text', formatOffset(config.daylight_start ?? 60, 'sunrise'));
-  updateDisplay('daylight-end-text', formatOffset(config.daylight_end ?? -60, 'sunset'));
+  updateDisplay('daylight-start-impact', formatOffset(config.daylight_start ?? 60, 'sunrise'));
+  updateDisplay('daylight-end-impact', formatOffset(config.daylight_end ?? -60, 'sunset'));
   updateDisplay('daylight-fade-text', fmtHrs(config.daylight_fade));
   const sensStep = SENSITIVITY_STEPS[findClosestSensitivityStep(config.color_sensitivity)];
   updateDisplay('color-sensitivity-text', `${sensStep.multiplier.toFixed(2)}: ${sensStep.label.toLowerCase()}`);
@@ -3971,17 +4003,16 @@ function updateSolarImpacts() {
     return `${hr12}:${String(min).padStart(2, '0')} ${ampm}`;
   };
 
-  // Warm night start/end impacts — actual clock times
+  // Slider-word (expanded view): actual clock times
   const wnStart = sunset + (config.warm_night_start / 60);
-  updateDisplay('warm-night-start-impact', fmt12(wnStart));
+  updateDisplay('warm-night-start-text', fmt12(wnStart));
   const wnEnd = sunrise + (config.warm_night_end / 60);
-  updateDisplay('warm-night-end-impact', fmt12(wnEnd));
+  updateDisplay('warm-night-end-text', fmt12(wnEnd));
 
-  // Cool day start/end impacts
   const dlStart = sunrise + ((config.daylight_start ?? 60) / 60);
-  updateDisplay('daylight-start-impact', fmt12(dlStart));
+  updateDisplay('daylight-start-text', fmt12(dlStart));
   const dlEnd = sunset + ((config.daylight_end ?? -60) / 60);
-  updateDisplay('daylight-end-impact', fmt12(dlEnd));
+  updateDisplay('daylight-end-text', fmt12(dlEnd));
 
 }
 
