@@ -446,6 +446,23 @@
     .slider-track.dragging .slider-thumb {
       transition: none;
     }
+    /* Ghost thumb: faint outlined duplicate at drag-start position; stays put
+       while the live thumb follows the pointer. Mirrors the home page (areas.html)
+       row-slider-thumb-ghost pattern so the user can see the delta they're dialing. */
+    .slider-thumb-ghost {
+      position: absolute;
+      top: 50%;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: transparent;
+      border: 1.5px solid rgba(255,255,255,0.55);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      display: none;
+      z-index: 1;
+    }
+    .slider-track.dragging .slider-thumb-ghost { display: block; }
     .hslider-ticks {
       position: relative;
       height: 28px;
@@ -768,27 +785,24 @@
     .auto-sched-custom-group { margin-top: 0; margin-bottom: 0; }
     .auto-sched-custom-group .auto-sched-days-time { margin-bottom: 0; }
 
-    .auto-sched-fade-slider { flex: 1; }
-    .auto-sched-fade-val { font-size: var(--font-value); color: var(--text); font-weight: 600; min-width: 3.5em; text-align: right; font-variant-numeric: tabular-nums; }
+    .auto-sched-fade-slider { width: 100%; }
+    .auto-sched-fade-val { font-size: var(--font-value); color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
 
-    /* Auto-hide slider reveal pattern on Fade row — slider collapses until user taps the row, value stays visible. */
+    /* Auto-hide slider reveal pattern on Fade row — value sits left-aligned in
+       the content column (matching Time/Light/If); slider collapses on a row
+       below until the user taps to reveal. Mirrors rhythm-design.html
+       night-warming/sun-cooling Start/End/Fade reveal-group pattern. */
     .auto-fade-row { cursor: pointer; }
-    .auto-fade-row .auto-sched-field-content { justify-content: flex-end; }
-    .auto-fade-row .auto-sched-fade-slider {
-      flex: 0 0 0;
-      width: 0;
-      min-width: 0;
+    .auto-fade-row .auto-fade-slider-row {
+      max-height: 0;
       opacity: 0;
-      margin: 0;
-      padding: 0;
-      pointer-events: none;
-      transition: flex-basis 0.25s ease, opacity 0.2s ease;
+      overflow: hidden;
+      transition: max-height 0.25s ease, opacity 0.2s ease, margin-top 0.2s ease;
     }
-    .auto-fade-row.is-revealing .auto-sched-fade-slider {
-      flex: 1 1 auto;
-      width: auto;
+    .auto-fade-row.is-revealing .auto-fade-slider-row {
+      max-height: 32px;
       opacity: 1;
-      pointer-events: auto;
+      margin-top: 6px;
     }
 
     .auto-sched-light-pills { display: flex; gap: 4px; }
@@ -1241,6 +1255,7 @@
               </div>
               <div class="slider-track" data-mode="brightness">
                 <div class="slider-track-bg"></div>
+                <div class="slider-thumb-ghost"></div>
                 <div class="slider-thumb"></div>
               </div>
             </div>
@@ -1252,6 +1267,7 @@
               </div>
               <div class="slider-track" data-mode="color">
                 <div class="slider-track-bg"></div>
+                <div class="slider-thumb-ghost"></div>
                 <div class="slider-thumb"></div>
               </div>
             </div>
@@ -1362,11 +1378,13 @@
               </div>
             </div>
           </div>
-          <div class="auto-sched-field auto-fade-row reveal-group" style="align-items:center;">
+          <div class="auto-sched-field auto-fade-row reveal-group">
             <span class="auto-sched-field-label">Fade</span>
-            <div class="auto-sched-field-content" style="display:flex; align-items:center; gap:8px;">
-              <input type="range" class="auto-sched-fade-slider" id="auto-on-fade" min="0" max="7" step="1" value="4" oninput="onAutoFieldChanged('on'); updateAutoFadeDisplay('on')">
+            <div class="auto-sched-field-content">
               <span class="auto-sched-fade-val" id="auto-on-fade-val">5 min</span>
+              <div class="auto-fade-slider-row">
+                <input type="range" class="auto-sched-fade-slider" id="auto-on-fade" min="0" max="7" step="1" value="4" oninput="onAutoFieldChanged('on'); updateAutoFadeDisplay('on')">
+              </div>
             </div>
           </div>
           <div class="auto-sched-field" style="align-items:center;">
@@ -1449,11 +1467,13 @@
               </div>
             </div>
           </div>
-          <div class="auto-sched-field auto-fade-row reveal-group" style="align-items:center;">
+          <div class="auto-sched-field auto-fade-row reveal-group">
             <span class="auto-sched-field-label">Fade</span>
-            <div class="auto-sched-field-content" style="display:flex; align-items:center; gap:8px;">
-              <input type="range" class="auto-sched-fade-slider" id="auto-off-fade" min="0" max="7" step="1" value="4" oninput="onAutoFieldChanged('off'); updateAutoFadeDisplay('off')">
+            <div class="auto-sched-field-content">
               <span class="auto-sched-fade-val" id="auto-off-fade-val">5 min</span>
+              <div class="auto-fade-slider-row">
+                <input type="range" class="auto-sched-fade-slider" id="auto-off-fade" min="0" max="7" step="1" value="4" oninput="onAutoFieldChanged('off'); updateAutoFadeDisplay('off')">
+              </div>
             </div>
           </div>
           <div class="auto-sched-field" style="align-items:center;">
@@ -3419,6 +3439,18 @@
         function onDown(e) {
           e.preventDefault();
           sliderInteracting = true;
+          // Anchor ghost at the pre-drag thumb position for the life of the drag.
+          // CSS reveals it via .slider-track.dragging.
+          const thumb = track.querySelector('.slider-thumb');
+          const ghost = track.querySelector('.slider-thumb-ghost');
+          if (ghost && thumb) {
+            const startPct = parseFloat(thumb.style.left) || 0;
+            ghost.style.left = startPct + '%';
+            // Inherit the live thumb's tinted border so the ghost reads as a
+            // faint duplicate of the same control rather than a generic ring.
+            const borderColor = thumb.style.borderColor;
+            if (borderColor) ghost.style.borderColor = borderColor;
+          }
           track.classList.add('dragging');
           track.setPointerCapture(e.pointerId);
           lastPos = getPositionFromPointer(track, e);
@@ -3555,6 +3587,17 @@
       const pct = dragMode === 'brightness' ? briFrac : cctFrac;
       (track.querySelector('.slider-track-bg') || track).style.background = buildTrackGradient(dragMode, cfg, previewBri, previewCCT, effRange, phaseCtx);
       applyOneSlider(track, pct, previewBri, previewCCT, dragMode);
+
+      // Live-update the hero readouts as the user drags so the displayed value
+      // tracks the thumb in real time. Without this, "78%" / "2910K" stay frozen
+      // until pointerup triggers a state refresh.
+      if (dragMode === 'brightness') {
+        const heroBri = document.getElementById('slider-hero-brightness');
+        if (heroBri) heroBri.textContent = Math.round(previewBri) + '%';
+      } else if (dragMode === 'color') {
+        const heroColor = document.getElementById('slider-hero-color');
+        if (heroColor) heroColor.textContent = Math.round(previewCCT) + 'K';
+      }
 
       // Build a preview state that injects the new override as if it were just
       // set at NOW. calcMiniBrightness / calcMiniColor already handle linear
