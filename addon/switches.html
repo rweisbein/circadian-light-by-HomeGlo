@@ -1415,7 +1415,7 @@
       clearTimeout(_acpSearchTimer);
       _acpSearchTimer = setTimeout(async () => {
         try {
-          const res = await fetch(basePath + '/api/devices/search?q=' + encodeURIComponent(query));
+          const res = await fetch('./api/devices/search?q=' + encodeURIComponent(query));
           if (!res.ok) return;
           const devices = await res.json();
           renderDeviceList(devices);
@@ -1461,7 +1461,7 @@
     let _acpDevices = [];
     async function selectDevice(deviceId) {
       try {
-        const res = await fetch(basePath + '/api/devices/search');
+        const res = await fetch('./api/devices/search');
         if (!res.ok) return;
         _acpDevices = await res.json();
         const dev = _acpDevices.find(d => d.device_id === deviceId);
@@ -1522,7 +1522,7 @@
       if (btn) { btn.disabled = true; btn.textContent = 'Adding...'; }
 
       try {
-        const res = await fetch(basePath + '/api/controls/add', {
+        const res = await fetch('./api/controls/add', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1535,12 +1535,12 @@
           closeAddControlPicker();
           const data = await res.json();
           // Navigate to the new control's detail page
-          window.location.href = basePath + '/control/' + encodeURIComponent(data.id);
+          window.location.href = './control/' + encodeURIComponent(data.id);
         } else {
           const err = await res.json();
           if (err.error === 'Device already configured') {
             closeAddControlPicker();
-            window.location.href = basePath + '/control/' + encodeURIComponent(err.id);
+            window.location.href = './control/' + encodeURIComponent(err.id);
           } else {
             alert('Error: ' + (err.error || 'Unknown'));
           }
