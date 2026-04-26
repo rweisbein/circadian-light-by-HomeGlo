@@ -512,7 +512,7 @@
       top: 56px;
       z-index: 5;
       background: var(--bg);
-      padding: 4px 0 2px;
+      padding: 32px 0 2px;
       margin-bottom: 4px;
     }
     /* Sun-conditions chip in top-right of chart (intensity % + weather icon).
@@ -537,6 +537,25 @@
     }
     .chart-sun-info.visible { display: inline-flex; }
     .chart-sun-info-icon { font-size: var(--font-value); line-height: 1; }
+    /* NOW pill — HTML overlay positioned at the cursor x above the plot.
+       Uses HTML (not a Plotly annotation) so we get rounded corners + crisp
+       weighted font rendering that matches rhythm-design's chip styling. */
+    .chart-now-pill {
+      position: absolute;
+      top: 4px;
+      transform: translateX(-50%);
+      display: none;
+      padding: 3px 10px;
+      border-radius: 8px;
+      border: 1.5px solid;
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 6;
+      letter-spacing: 0.02em;
+    }
+    .chart-now-pill.visible { display: inline-block; }
     .chart-hero {
       position: absolute;
       left: 0;
@@ -1188,6 +1207,7 @@
     <div id="auto-sched-section" class="auto-sched-section" style="display:none;">
     <div id="chart-shell">
       <div id="mini-chart"></div>
+      <div id="chart-now-pill" class="chart-now-pill"></div>
       <div id="chart-sun-info" class="chart-sun-info">
         <span class="chart-sun-info-icon" id="chart-sun-info-icon">&#x2600;</span>
         <span id="chart-sun-info-pct">&mdash;</span>
@@ -2066,6 +2086,10 @@
     // Expose active-phase geometry for drag handlers to read/clamp on move
     let _chartGeom = { activeMidHour: null, phaseMin: null, phaseMax: null, phaseSlopeSigned: null, nowHour: null, cursorInAscend: null };
 
+    // NOW pill data, populated by renderMiniChart and consumed by updateChartNowPill
+    // after the chart renders (HTML overlay positioning needs the rendered _fullLayout).
+    let _chartNowPillData = null;
+
     function setupChartDragHandlers() {
       const chartDiv = document.getElementById('mini-chart');
       if (!chartDiv || _chartDrag.initialized) return;
@@ -2579,8 +2603,8 @@
         images.push({
           source: 'data:image/svg+xml;utf8,' + encodeURIComponent(svgSunrise),
           xref: 'x', yref: 'paper',
-          x: sunriseX, y: 1.05,
-          sizex: 1.0, sizey: 0.10,
+          x: sunriseX, y: 0.97,
+          sizex: 1.0, sizey: 0.08,
           xanchor: 'center', yanchor: 'top',
           layer: 'above'
         });
@@ -2606,8 +2630,8 @@
         images.push({
           source: 'data:image/svg+xml;utf8,' + encodeURIComponent(svgSunset),
           xref: 'x', yref: 'paper',
-          x: sunsetX, y: 1.05,
-          sizex: 1.0, sizey: 0.10,
+          x: sunsetX, y: 0.97,
+          sizex: 1.0, sizey: 0.08,
           xanchor: 'center', yanchor: 'top',
           layer: 'above'
         });
@@ -2651,9 +2675,9 @@
       const nowDotFill = isFrozen
         ? 'rgba(120, 190, 240, 0.95)'
         : tintColorByBrightness(cctToRGB(markerCCT), Math.round(markerBri));
-      const nowDotBorder = isFrozen
-        ? 'rgba(99, 179, 237, 0.9)'
-        : 'rgba(255, 255, 255, 0.7)';
+      // Black border matches the bed/wake handle marker for visual consistency
+      // — both anchor markers now read as the same kind of focal point.
+      const nowDotBorder = '#0a0a0a';
       traces.push({
         type: 'scatter', mode: 'markers',
         x: [cursorHour], y: [cursorBulbY],
@@ -2661,34 +2685,31 @@
         cliponaxis: false, hoverinfo: 'skip', showlegend: false
       });
 
-      // Now pill — above the plot with NOW prefix, tinted to match header
+      // Stash NOW pill data for the HTML overlay (positioned after Plotly render).
+      // HTML overlay path used instead of a Plotly annotation so we get crisp
+      // rounded corners (Plotly annotations don't natively support border-radius)
+      // and proper font-weight rendering.
       const cursorTimeStr = formatHourLabel(cursorHour);
       const nowBriPct = Math.round(markerBri);
       const nowK = Math.round(markerCCT);
-      const pillPrefix = isFrozen ? 'FROZEN' : 'NOW';
-      const pillText = `${pillPrefix}   ${cursorTimeStr} · ${nowBriPct}% · ${nowK}K`;
+      // Drop the "NOW" prefix in real-time mode (it's redundant with the time
+      // value — if the chart is live, the time IS now). Keep "FROZEN" prefix
+      // when frozen since the time then refers to the freeze moment, not now.
+      const pillText = isFrozen
+        ? `FROZEN   ${cursorTimeStr} · ${nowBriPct}% · ${nowK}K`
+        : `${cursorTimeStr} · ${nowBriPct}% · ${nowK}K`;
       let pillColor, pillBg, pillBorder;
       if (isFrozen) {
         pillColor = 'rgba(120, 190, 240, 0.95)';
-        pillBg = 'rgba(40, 60, 90, 0.55)';
-        pillBorder = 'rgba(99, 179, 237, 0.55)';
+        pillBg = 'rgba(40, 60, 90, 0.85)';
+        pillBorder = 'rgba(99, 179, 237, 0.85)';
       } else {
         const tintedBg = tintColorByBrightness(cctToRGB(markerCCT), nowBriPct);
         pillBg = tintedBg;
         pillBorder = colorWithAlpha(cctToRGB(markerCCT), 0.85);
         pillColor = readableTextColor(tintedBg);
       }
-      annotations.push({
-        x: cursorHour, y: 1.32, xref: 'x', yref: 'paper',
-        text: pillText, showarrow: false,
-        font: { size: 13, color: pillColor, weight: 600 },
-        align: 'center',
-        bgcolor: pillBg,
-        bordercolor: pillBorder,
-        borderwidth: 1.5,
-        borderpad: 5,
-        borderradius: 8
-      });
+      _chartNowPillData = { cursorHour, text: pillText, color: pillColor, bg: pillBg, border: pillBorder };
 
       // Curve label — "sun contribution" anchors at peak divergence when the
       // two curves are meaningfully apart. The bulb curve is the main graph,
@@ -2759,6 +2780,39 @@
         const phaseCtx = buildPhaseCtx(cfg, state, currentHour);
         updateChartHero(phaseCtx, cfg, state);
       } catch (e) {}
+      try { updateChartNowPill(); } catch (e) {}
+    }
+
+    // Position the HTML NOW-pill overlay at the cursor's x-pixel inside chart-shell.
+    // Mirrors updateChartHero's positioning math; data is staged on _chartNowPillData
+    // by renderMiniChart so this runs cleanly after Plotly.react.
+    function updateChartNowPill() {
+      const pill = document.getElementById('chart-now-pill');
+      if (!pill) return;
+      const data = _chartNowPillData;
+      if (!data) { pill.classList.remove('visible'); return; }
+      const chartDiv = document.getElementById('mini-chart');
+      const shell = document.getElementById('chart-shell');
+      const fl = chartDiv && chartDiv._fullLayout;
+      if (!fl || !fl.xaxis || !shell) { pill.classList.remove('visible'); return; }
+      const xAnchor = _chartGeom.xAnchor ?? 0;
+      let visHour = data.cursorHour;
+      while (visHour < xAnchor) visHour += 24;
+      while (visHour > xAnchor + 24) visHour -= 24;
+      const chartOffsetInShell = chartDiv.getBoundingClientRect().left - shell.getBoundingClientRect().left;
+      let px = chartOffsetInShell + fl.xaxis._offset + ((visHour - xAnchor) / 24) * fl.xaxis._length;
+      pill.textContent = data.text;
+      pill.style.color = data.color;
+      pill.style.background = data.bg;
+      pill.style.borderColor = data.border;
+      pill.classList.add('visible');
+      // Clamp to chart-shell edges so the pill never spills off.
+      const shellWidth = shell.offsetWidth;
+      const pillWidth = pill.offsetWidth || 160;
+      const minLeft = Math.max(4, pillWidth / 2);
+      const maxLeft = Math.max(minLeft, shellWidth - pillWidth / 2 - 4);
+      px = Math.max(minLeft, Math.min(maxLeft, px));
+      pill.style.left = px + 'px';
     }
 
     // ============================================================
@@ -4050,6 +4104,27 @@
       if (iconEl) iconEl.textContent = chartConditionIcon(weather, condMult);
       if (pctEl) pctEl.textContent = pct + '%';
       el.classList.add('visible');
+      // Position the chip at solar noon (midpoint between sunrise & sunset),
+      // vertically aligned with the sun/moon icon row inside the plot top
+      // (paper y ≈ 0.93 — between sun/moon top edge 0.97 and bottom 0.89).
+      const chartDiv = document.getElementById('mini-chart');
+      const shell = document.getElementById('chart-shell');
+      const fl = chartDiv && chartDiv._fullLayout;
+      if (fl && fl.xaxis && fl.yaxis && shell) {
+        const xAnchor = _chartGeom.xAnchor ?? 0;
+        const noonHour = (sunrise + sunset) / 2;
+        let visNoon = noonHour;
+        while (visNoon < xAnchor) visNoon += 24;
+        while (visNoon > xAnchor + 24) visNoon -= 24;
+        const chartLeftInShell = chartDiv.getBoundingClientRect().left - shell.getBoundingClientRect().left;
+        const chartTopInShell = chartDiv.getBoundingClientRect().top - shell.getBoundingClientRect().top;
+        const px = chartLeftInShell + fl.xaxis._offset + ((visNoon - xAnchor) / 24) * fl.xaxis._length;
+        // y_paper = 0.93 → 7% below plot top → chartTop + yOffset + 0.07 * yLength
+        const py = chartTopInShell + fl.yaxis._offset + 0.07 * fl.yaxis._length - el.offsetHeight / 2;
+        el.style.left = (px - el.offsetWidth / 2) + 'px';
+        el.style.right = 'auto';
+        el.style.top = py + 'px';
+      }
     }
 
     // Mutates areaState in place, overlaying live tuneState pipeline factors so
