@@ -6520,13 +6520,15 @@ class LightDesignerServer:
                     status=409,
                 )
 
-            # Create motion sensor config
+            # Create motion sensor config (no scopes yet — user assigns area
+            # on the control detail page after adding)
             sensor_config = switches.MotionSensorConfig(
                 id=device_id,
                 name=name,
-                areas=[],
+                scopes=[],
                 device_id=device_id,
                 trigger_entities=trigger_entities,
+                inactive=True,
             )
             switches.add_motion_sensor(sensor_config)
 
