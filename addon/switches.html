@@ -542,6 +542,10 @@
     .acp-btn-add { border-color: var(--accent); background: var(--accent); color: #000; font-weight: 600; }
     .acp-btn-add:disabled { opacity: 0.4; cursor: default; }
     .acp-empty { padding: 20px 16px; text-align: center; color: var(--muted2); font-size: 0.85rem; }
+    .acp-report-btn { position: absolute; top: 10px; right: 12px; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--line); background: transparent; color: var(--muted2); font-size: 0.68rem; cursor: pointer; opacity: 0.5; transition: opacity 0.15s; }
+    .acp-device:hover .acp-report-btn { opacity: 1; }
+    .acp-report-btn:hover { color: var(--text); border-color: var(--muted); }
+    .acp-report-btn:disabled { opacity: 0.5; cursor: default; }
   </style>
 </head>
 <body>
@@ -1450,12 +1454,36 @@
         const sensorCount = (dev.binary_sensors || []).length;
         const area = dev.area_name ? ' · ' + dev.area_name : '';
         const mfr = dev.manufacturer || '';
-        html += `<div class="acp-device" onclick="selectDevice('${dev.device_id}')">
+        html += `<div class="acp-device" style="position:relative;" onclick="selectDevice('${dev.device_id}')">
           <div class="acp-device-name">${dev.name || 'Unknown'}</div>
           <div class="acp-device-meta">${mfr}${area} · ${sensorCount} sensor${sensorCount !== 1 ? 's' : ''}</div>
+          <button class="acp-report-btn" onclick="event.stopPropagation(); reportDevice('${dev.device_id}', this)" title="Tell HomeGlo about this device so we can add support">Report</button>
         </div>`;
       }
       list.innerHTML = html;
+    }
+
+    async function reportDevice(deviceId, btn) {
+      const original = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+      try {
+        const res = await fetch('./api/devices/report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ device_id: deviceId }),
+        });
+        if (res.ok) {
+          btn.textContent = 'Thanks!';
+          setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 2500);
+        } else {
+          btn.textContent = 'Failed';
+          setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 2500);
+        }
+      } catch (e) {
+        btn.textContent = 'Failed';
+        setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 2500);
+      }
     }
 
     let _acpDevices = [];

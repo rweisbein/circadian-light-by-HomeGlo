@@ -40,6 +40,32 @@ from brain import (
 
 logger = logging.getLogger(__name__)
 
+# Webhook for unsupported-device reports — Cloudflare Worker that files
+# submissions as GitHub issues in rweisbein/device-requests.
+HOMEGLO_REPORT_WEBHOOK_URL = "https://homeglo-device-reports.rweisbein.workers.dev"
+
+
+def _get_addon_version() -> str:
+    """Read addon version from config.yaml. Cached after first call."""
+    global _ADDON_VERSION_CACHE
+    if _ADDON_VERSION_CACHE is not None:
+        return _ADDON_VERSION_CACHE
+    try:
+        config_path = os.path.join(os.path.dirname(__file__), "config.yaml")
+        with open(config_path) as f:
+            for line in f:
+                if line.startswith("version:"):
+                    val = line.split(":", 1)[1].strip().strip('"').strip("'")
+                    _ADDON_VERSION_CACHE = val
+                    return val
+    except Exception:
+        pass
+    _ADDON_VERSION_CACHE = "unknown"
+    return _ADDON_VERSION_CACHE
+
+
+_ADDON_VERSION_CACHE: Optional[str] = None
+
 
 def calculate_step_sequence(
     current_hour: float, action: str, max_steps: int, config: dict
@@ -615,6 +641,10 @@ class LightDesignerServer:
         self.app.router.add_post("/api/controls/add", self.add_control_source)
         self.app.router.add_route(
             "POST", "/{path:.*}/api/controls/add", self.add_control_source
+        )
+        self.app.router.add_post("/api/devices/report", self.report_device)
+        self.app.router.add_route(
+            "POST", "/{path:.*}/api/devices/report", self.report_device
         )
         self.app.router.add_post(
             "/api/controls/{control_id}/configure", self.configure_control
@@ -6553,6 +6583,106 @@ class LightDesignerServer:
             return web.json_response({"status": "ok", "id": device_id})
         except Exception as e:
             logger.error(f"Error adding control source: {e}", exc_info=True)
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def report_device(self, request: Request) -> Response:
+        """Submit an unsupported-device report to the homeglo webhook.
+
+        Builds a payload (manufacturer, model, integration, sw_version,
+        binary_sensors with device_class) from the device + entity
+        registry and forwards it to HOMEGLO_REPORT_WEBHOOK_URL, which
+        files it as a GitHub issue in rweisbein/device-requests.
+
+        Expects JSON: {"device_id": "..."}
+        """
+        if not self.client:
+            return web.json_response({"error": "Client not connected"}, status=503)
+
+        try:
+            data = await request.json()
+            device_id = data.get("device_id")
+            if not device_id:
+                return web.json_response({"error": "device_id required"}, status=400)
+
+            device = self.client.device_registry.get(device_id)
+            if not device:
+                return web.json_response({"error": "Device not found"}, status=404)
+
+            # Pick the first identifier's integration name (zha, hue,
+            # matter, eufy_security, reolink, etc.)
+            integration = None
+            for identifier in device.get("identifiers", []):
+                if isinstance(identifier, list) and len(identifier) >= 1:
+                    integration = identifier[0]
+                    break
+
+            # Collect all binary_sensor entities for this device, with
+            # device_class (the signal we use to pick triggers).
+            binary_sensors = []
+            for entity_id, entity in self.client.entity_registry.items():
+                if entity.get("device_id") != device_id:
+                    continue
+                if not entity_id.startswith("binary_sensor."):
+                    continue
+                dc = (
+                    entity.get("device_class")
+                    or entity.get("original_device_class")
+                    or ""
+                )
+                if not dc:
+                    s = self.client.cached_states.get(entity_id, {})
+                    dc = s.get("attributes", {}).get("device_class", "")
+                binary_sensors.append(
+                    {
+                        "entity_id": entity_id,
+                        "device_class": dc,
+                        "name": entity.get("name") or entity.get("original_name") or "",
+                    }
+                )
+
+            payload = {
+                "manufacturer": device.get("manufacturer") or "(unknown)",
+                "model": device.get("model_id") or device.get("model") or "(unknown)",
+                "integration": integration,
+                "sw_version": device.get("sw_version") or "",
+                "addon_version": _get_addon_version(),
+                "binary_sensors": binary_sensors,
+            }
+
+            try:
+                async with ClientSession() as session:
+                    async with session.post(
+                        HOMEGLO_REPORT_WEBHOOK_URL,
+                        json=payload,
+                        headers={"Content-Type": "application/json"},
+                        timeout=10,
+                    ) as resp:
+                        if resp.status == 200:
+                            result = await resp.json()
+                            logger.info(
+                                f"[Report] Submitted {payload['manufacturer']} "
+                                f"{payload['model']}: {result.get('issue_url')}"
+                            )
+                            return web.json_response(
+                                {
+                                    "ok": True,
+                                    "issue_url": result.get("issue_url"),
+                                }
+                            )
+                        err_text = await resp.text()
+                        logger.error(f"[Report] Webhook {resp.status}: {err_text}")
+                        return web.json_response(
+                            {
+                                "error": "Webhook returned error",
+                                "status": resp.status,
+                            },
+                            status=502,
+                        )
+            except asyncio.TimeoutError:
+                logger.error("[Report] Webhook timed out")
+                return web.json_response({"error": "Webhook timeout"}, status=504)
+        except Exception as e:
+            logger.error(f"Error reporting device: {e}", exc_info=True)
             return web.json_response({"error": str(e)}, status=500)
 
     async def get_controls_refresh(self, request: Request) -> Response:
