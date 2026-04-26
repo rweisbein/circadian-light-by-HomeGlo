@@ -529,7 +529,7 @@
       top: 56px;
       z-index: 5;
       background: var(--bg);
-      padding: 32px 0 2px;
+      padding: 16px 0 2px;
       margin-bottom: 4px;
     }
     /* Sun-conditions chip in top-right of chart (intensity % + weather icon).
@@ -2623,9 +2623,9 @@
         images.push({
           source: 'data:image/svg+xml;utf8,' + encodeURIComponent(svgSunrise),
           xref: 'x', yref: 'paper',
-          x: sunriseX, y: 0.97,
+          x: sunriseX, y: 1.04,
           sizex: 1.0, sizey: 0.16,
-          xanchor: 'center', yanchor: 'top',
+          xanchor: 'center', yanchor: 'bottom',
           layer: 'above'
         });
         traces.push({
@@ -2650,9 +2650,9 @@
         images.push({
           source: 'data:image/svg+xml;utf8,' + encodeURIComponent(svgSunset),
           xref: 'x', yref: 'paper',
-          x: sunsetX, y: 0.97,
+          x: sunsetX, y: 1.04,
           sizex: 1.0, sizey: 0.16,
-          xanchor: 'center', yanchor: 'top',
+          xanchor: 'center', yanchor: 'bottom',
           layer: 'above'
         });
         traces.push({
@@ -2748,7 +2748,7 @@
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        margin: { t: 36, r: 12, l: 32, b: 86 },
+        margin: { t: 50, r: 12, l: 32, b: 86 },
         hovermode: 'closest',
         xaxis: (() => {
           const tickvals = [];
@@ -4148,8 +4148,8 @@
       if (pctEl) pctEl.textContent = pct + '%';
       el.classList.add('visible');
       // Position the chip at solar noon (midpoint between sunrise & sunset),
-      // vertically aligned with the sun/moon icon row inside the plot top
-      // (paper y ≈ 0.93 — between sun/moon top edge 0.97 and bottom 0.89).
+      // vertically aligned with the sun/moon icon row above the plot top
+      // (~10% of plot height above the 100% line, sitting in the t margin).
       const chartDiv = document.getElementById('mini-chart');
       const shell = document.getElementById('chart-shell');
       const fl = chartDiv && chartDiv._fullLayout;
@@ -4162,8 +4162,9 @@
         const chartLeftInShell = chartDiv.getBoundingClientRect().left - shell.getBoundingClientRect().left;
         const chartTopInShell = chartDiv.getBoundingClientRect().top - shell.getBoundingClientRect().top;
         const px = chartLeftInShell + fl.xaxis._offset + ((visNoon - xAnchor) / 24) * fl.xaxis._length;
-        // y_paper = 0.93 → 7% below plot top → chartTop + yOffset + 0.07 * yLength
-        const py = chartTopInShell + fl.yaxis._offset + 0.07 * fl.yaxis._length - el.offsetHeight / 2;
+        // y_paper = 1.10 → 10% of plot height ABOVE 100% line, in the t-margin band
+        // shared with sun/moon icons → chartTop + yOffset − 0.10 * yLength.
+        const py = chartTopInShell + fl.yaxis._offset - 0.10 * fl.yaxis._length - el.offsetHeight / 2;
         el.style.left = (px - el.offsetWidth / 2) + 'px';
         el.style.right = 'auto';
         el.style.top = py + 'px';
