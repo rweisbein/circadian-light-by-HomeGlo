@@ -6435,9 +6435,17 @@ class LightDesignerServer:
         query = (request.query.get("q") or "").lower()
 
         try:
-            # Get already-configured motion sensor device_ids
+            # Get device_ids of all already-configured controls (motion
+            # sensors, switches, contact sensors) so they don't show up
+            # in the Add control picker.
             configured_device_ids = set()
             for sensor in switches.get_all_motion_sensors().values():
+                if sensor.device_id:
+                    configured_device_ids.add(sensor.device_id)
+            for switch in switches.get_all_switches().values():
+                if switch.device_id:
+                    configured_device_ids.add(switch.device_id)
+            for sensor in switches.get_all_contact_sensors().values():
                 if sensor.device_id:
                     configured_device_ids.add(sensor.device_id)
 
