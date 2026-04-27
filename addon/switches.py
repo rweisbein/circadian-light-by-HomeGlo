@@ -684,6 +684,17 @@ CAMERA_MODELS: Dict[str, Dict[str, Dict[str, Any]]] = {
             ],
         },
     },
+    "reolink": {
+        "Reolink Duo 3 WiFi": {
+            "name": "Reolink Duo 3 WiFi",
+            "trigger_patterns": [
+                "_motion",
+                "_person",
+                "_vehicle",
+                "_animal",
+            ],
+        },
+    },
 }
 
 

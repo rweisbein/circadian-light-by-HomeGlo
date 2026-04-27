@@ -46,10 +46,17 @@ HOMEGLO_REPORT_WEBHOOK_URL = "https://homeglo-device-reports.rweisbein.workers.d
 
 
 def _get_addon_version() -> str:
-    """Read addon version from config.yaml. Cached after first call."""
+    """Return addon version. Prefers ADDON_VERSION env var (set by
+    Dockerfile from the build arg); falls back to reading config.yaml
+    for local development. Cached after first call.
+    """
     global _ADDON_VERSION_CACHE
     if _ADDON_VERSION_CACHE is not None:
         return _ADDON_VERSION_CACHE
+    env_val = os.environ.get("ADDON_VERSION")
+    if env_val:
+        _ADDON_VERSION_CACHE = env_val
+        return env_val
     try:
         config_path = os.path.join(os.path.dirname(__file__), "config.yaml")
         with open(config_path) as f:
@@ -6642,7 +6649,8 @@ class LightDesignerServer:
 
             payload = {
                 "manufacturer": device.get("manufacturer") or "(unknown)",
-                "model": device.get("model_id") or device.get("model") or "(unknown)",
+                "model": device.get("model") or "(unknown)",
+                "model_id": device.get("model_id") or "",
                 "integration": integration,
                 "sw_version": device.get("sw_version") or "",
                 "addon_version": _get_addon_version(),
