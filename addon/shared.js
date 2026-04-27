@@ -154,6 +154,64 @@ function initNavOverflow() {
 document.addEventListener('DOMContentLoaded', initNavOverflow);
 
 /**
+ * Inject a channel badge ("DEV" / "BETA") into the nav and prefix the
+ * document title when running on the dev or beta release channel.
+ * Stable (main) shows nothing.
+ */
+async function initChannelBadge() {
+  let channel = 'main';
+  try {
+    const resp = await fetch('./api/channel');
+    if (resp.ok) {
+      const data = await resp.json();
+      channel = (data && data.channel) || 'main';
+    }
+  } catch (err) {
+    return;
+  }
+  if (channel !== 'dev' && channel !== 'beta') return;
+
+  const label = channel.toUpperCase();
+  const color = channel === 'dev' ? '#feac60' : '#5fa8ff';
+
+  if (!document.getElementById('channel-badge-styles')) {
+    const styles = document.createElement('style');
+    styles.id = 'channel-badge-styles';
+    styles.textContent = `
+      .channel-badge {
+        margin-left: 8px;
+        padding: 2px 8px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        border-radius: 999px;
+        border: 1.5px solid currentColor;
+        background: transparent;
+        white-space: nowrap;
+        align-self: center;
+        line-height: 1.4;
+      }
+    `;
+    document.head.appendChild(styles);
+  }
+
+  const brand = document.querySelector('.nav-brand');
+  if (brand && brand.parentNode && !brand.parentNode.querySelector('.channel-badge')) {
+    const badge = document.createElement('span');
+    badge.className = 'channel-badge';
+    badge.textContent = label;
+    badge.style.color = color;
+    brand.parentNode.insertBefore(badge, brand.nextSibling);
+  }
+
+  if (document.title && !document.title.startsWith(`[${label}]`)) {
+    document.title = `[${label}] ${document.title}`;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', initChannelBadge);
+
+/**
  * Get readable text color (black or white) for a background color.
  * @param {string} bgColor - Background color as rgb/rgba or hex
  * @returns {string} "#000" or "#fff"

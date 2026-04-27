@@ -1,4 +1,4 @@
 # https://developers.home-assistant.io/docs/add-ons/repository#repository-configuration
-name: Circadian Light by HomeGlo
+name: Circadian Light by HomeGlo (Dev)
 url: 'https://github.com/rweisbein/circadian-light-by-HomeGlo'
 maintainer: Ron W <ron@home-glo.com>
