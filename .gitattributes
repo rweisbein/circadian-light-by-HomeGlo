@@ -1,0 +1,5 @@
+# Per-branch channel identity — never overwrite on merge.
+# Requires `git config merge.ours.driver true` once per clone (see scripts/setup-git.sh).
+repository.yaml merge=ours
+addon/icon.png merge=ours
+addon/logo.png merge=ours
