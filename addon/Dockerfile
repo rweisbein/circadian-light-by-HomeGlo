@@ -17,6 +17,7 @@ ARG ADDON_VERSION
 ENV ADDON_VERSION=${ADDON_VERSION}
 WORKDIR /app
 COPY *.py *.html *.js *.png requirements.txt ./
+COPY .channel ./
 
 # Install only the packages not available from Alpine repos
 RUN pip3 install --no-cache-dir websockets==12.0 python-dateutil==2.8.2 astral==3.2 PyYAML==6.0.1
