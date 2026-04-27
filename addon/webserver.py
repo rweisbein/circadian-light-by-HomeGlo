@@ -74,6 +74,28 @@ def _get_addon_version() -> str:
 _ADDON_VERSION_CACHE: Optional[str] = None
 
 
+def _get_channel() -> str:
+    """Return release channel ('dev', 'beta', or 'main'). Read once
+    from addon/.channel; defaults to 'main' when missing."""
+    global _CHANNEL_CACHE
+    if _CHANNEL_CACHE is not None:
+        return _CHANNEL_CACHE
+    try:
+        path = os.path.join(os.path.dirname(__file__), ".channel")
+        with open(path) as f:
+            val = f.read().strip().lower()
+            if val in ("dev", "beta", "main"):
+                _CHANNEL_CACHE = val
+                return val
+    except Exception:
+        pass
+    _CHANNEL_CACHE = "main"
+    return _CHANNEL_CACHE
+
+
+_CHANNEL_CACHE: Optional[str] = None
+
+
 def calculate_step_sequence(
     current_hour: float, action: str, max_steps: int, config: dict
 ) -> list:
@@ -461,6 +483,7 @@ class LightDesignerServer:
         )
         self.app.router.add_route("GET", "/{path:.*}/api/presets", self.get_presets)
         self.app.router.add_route("GET", "/{path:.*}/api/sun_times", self.get_sun_times)
+        self.app.router.add_route("GET", "/{path:.*}/api/channel", self.get_channel)
         self.app.router.add_route("GET", "/{path:.*}/health", self.health_check)
         self.app.router.add_route("GET", "/{path:.*}/api/areas", self.get_areas)
         self.app.router.add_route(
@@ -479,6 +502,7 @@ class LightDesignerServer:
         self.app.router.add_get("/api/zone-states", self.get_zone_states)
         self.app.router.add_get("/api/presets", self.get_presets)
         self.app.router.add_get("/api/sun_times", self.get_sun_times)
+        self.app.router.add_get("/api/channel", self.get_channel)
         self.app.router.add_get("/health", self.health_check)
 
         # Live Design API routes
@@ -1512,6 +1536,10 @@ class LightDesignerServer:
         except Exception as e:
             logger.error(f"Error getting sun times: {e}")
             return web.json_response({"error": str(e)}, status=500)
+
+    async def get_channel(self, request: Request) -> Response:
+        """Return the release channel — 'dev' / 'beta' / 'main'."""
+        return web.json_response({"channel": _get_channel()})
 
     async def get_time(self, request: Request) -> Response:
         """Get current server time in Home Assistant timezone."""

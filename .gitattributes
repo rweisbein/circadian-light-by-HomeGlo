@@ -3,3 +3,4 @@
 repository.yaml merge=ours
 addon/icon.png merge=ours
 addon/logo.png merge=ours
+addon/.channel merge=ours
