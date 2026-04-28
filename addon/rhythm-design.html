@@ -23,6 +23,11 @@
   --ascend-border: rgba(120, 185, 245, 0.5);
   --descend: rgba(255, 220, 100, 0.12);
   --descend-border: rgba(255, 230, 128, 0.45);
+  --wake: #5cb3ff;
+  --wake-ink: #082544;
+  --bed: #ffe680;
+  --bed-ink: #3a2c00;
+  --live: #ff8a3a;
   --font-hero: 1.4rem;
   --font-display: 1.1rem;
   --font-card-title: 0.95rem;
@@ -384,60 +389,12 @@ input[type=range]::-moz-range-thumb {
 /* Chart Section */
 .chart-wrapper { position: relative; margin-bottom: 8px; }
 #chart { height: 240px; touch-action: pan-x pan-y; }
-.chart-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 2px 0 4px;
-}
-.chart-date-control {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  max-width: 300px;
-}
-.chart-date-display {
-  font-size: var(--font-body);
-  color: var(--text);
-  transition: color 0.15s;
-  min-width: 50px;
-  font-weight: 600;
-}
-.chart-date-display.is-offset { color: var(--accent); cursor: pointer; }
-.chart-date-display.is-offset:hover { text-decoration: underline; }
-.chart-date-control input[type=range] {
-  flex: 1;
-}
-.modeled-conditions {
-  display: flex;
-  align-items: center;
-}
-.modeled-conditions select {
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid var(--line);
-  background: var(--panel2);
-  color: var(--text);
-  font-size: var(--font-body);
-}
 .chart-below-row {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   margin-top: 2px;
-}
-.time-nav-group {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-.time-nav-divider {
-  width: 1px;
-  height: 16px;
-  background: rgba(255,255,255,0.15);
-  margin: 0 2px;
 }
 .time-nav-btn {
   --btn-bg: rgba(255,255,255,0.06);
@@ -469,11 +426,6 @@ input[type=range]::-moz-range-thumb {
   border-color: rgba(255,255,255,0.4);
 }
 
-/* Schedule toggles in chart toolbar */
-.chart-schedule-toggles { display: flex; gap: 10px; align-items: center; font-size: var(--font-body); color: var(--muted); }
-.schedule-toggle { display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none; }
-.schedule-toggle input[type=checkbox] { width: 13px; height: 13px; accent-color: var(--muted2); }
-
 /* Time hover label - above x-axis, shows time with phase color */
 .time-hover-label {
   position: absolute;
@@ -494,23 +446,359 @@ input[type=range]::-moz-range-thumb {
   z-index: 100;
 }
 
-/* Cursor callout - shows values at cursor position */
-.graph-cursor-callout {
+/* Chart shell — three vertical zones:
+   above chart  → NOW pill (and small LIVE pip)
+   chart body   → curve + cursor
+   below chart  → solar HTML labels + outdoor chip + wake/bed pill handles */
+#chart-shell {
+  position: relative;
+  background: var(--card);
+  border-radius: 10px;
+  padding: 8px 4px 86px;
+  margin-top: 8px;
+  overflow: visible;
+}
+#chart-shell #chart {
+  width: 100%;
+  height: 240px;
+  touch-action: none;
+  cursor: pointer;
+}
+
+/* NOW pill — above curve at cursor x */
+.now-pill {
   position: absolute;
-  bottom: 10px;
-  padding: 4px 10px;
-  border-radius: 8px;
-  border: 1.5px solid #fdfdfd;
-  background: rgba(10,10,10,0.85);
-  color: #fff;
-  font-size: var(--font-body);
-  font-weight: 600;
-  pointer-events: none;
+  top: 14px;
   transform: translateX(-50%);
-  opacity: 0;
-  transition: opacity 0.12s ease, left 0.08s ease;
+  padding: 4px 11px;
+  border-radius: 8px;
+  border: 1.5px solid;
+  font-size: 13px;
+  font-weight: 600;
   white-space: nowrap;
-  z-index: 100;
+  pointer-events: none;
+  z-index: 6;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.live-pip {
+  position: absolute;
+  top: 16px;
+  right: 14px;
+  display: none;
+  align-items: center;
+  gap: 5px;
+  color: var(--live);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  z-index: 7;
+}
+.live-pip.visible { display: inline-flex; }
+.live-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--live);
+  animation: live-pip-pulse 1.4s ease-in-out infinite;
+}
+@keyframes live-pip-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* Solar band — HTML overlays just below x-axis ticks */
+.solar-label {
+  position: absolute;
+  bottom: 65px;
+  transform: translateX(-50%);
+  font-size: 10px;
+  color: rgba(215,215,215,0.75);
+  cursor: help;
+  white-space: nowrap;
+  z-index: 4;
+}
+.solar-label:hover { color: rgba(255,255,255,0.95); }
+.solar-label::after {
+  content: attr(data-time);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 7px;
+  background: #3a3a3a;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s;
+  margin-bottom: 5px;
+  font-variant-numeric: tabular-nums;
+}
+.solar-label:hover::after { opacity: 1; }
+
+/* Outdoor chip — sits in the solar band at solar-noon x */
+.outdoor-chip {
+  position: absolute;
+  bottom: 60px;
+  transform: translateX(-50%);
+  background: rgba(20, 22, 28, 0.85);
+  border: 1px solid rgba(255,255,255,0.12);
+  padding: 3px 9px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(245, 230, 200, 0.92);
+  cursor: pointer;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+.outdoor-chip:hover { background: rgba(34, 38, 48, 0.95); }
+.outdoor-chip-icon { font-size: 12px; line-height: 1; }
+.outdoor-popover {
+  position: absolute;
+  bottom: 90px;
+  transform: translateX(-50%);
+  background: rgba(24, 26, 32, 0.98);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 8px;
+  padding: 6px;
+  min-width: 200px;
+  z-index: 20;
+  box-shadow: 0 -4px 16px rgba(0,0,0,0.5);
+  display: none;
+}
+.outdoor-popover.open { display: block; }
+.outdoor-popover .src-row {
+  display: flex;
+  gap: 4px;
+  padding: 4px 4px 8px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+}
+.outdoor-popover .src-btn {
+  flex: 1;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  padding: 6px;
+  border-radius: 5px;
+  font-size: 11px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.outdoor-popover .src-btn.active {
+  background: rgba(255, 215, 100, 0.15);
+  color: rgba(245, 230, 200, 0.95);
+  border-color: rgba(255, 215, 100, 0.5);
+}
+.outdoor-popover .opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border-radius: 5px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text);
+}
+.outdoor-popover .opt:hover { background: rgba(255,255,255,0.05); }
+.outdoor-popover .opt.selected { background: rgba(255,255,255,0.07); font-weight: 600; }
+.outdoor-popover .opt-icon { font-size: 14px; width: 18px; text-align: center; }
+.outdoor-popover .opt-pct {
+  margin-left: auto;
+  color: var(--muted2);
+  font-variant-numeric: tabular-nums;
+}
+.outdoor-popover.src-current .opt {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* Wake/Bed pill drag handles in bottom margin */
+.phase-handle {
+  position: absolute;
+  bottom: 32px;
+  transform: translateX(-50%);
+  cursor: grab;
+  user-select: none;
+  z-index: 5;
+  touch-action: none;
+  padding: 6px 4px;
+}
+.phase-handle.dragging { cursor: grabbing; }
+.phase-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 4px 10px;
+  min-width: 76px;
+  height: 22px;
+  border-radius: 11px 11px 8px 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  transition: transform 0.1s, box-shadow 0.15s;
+  white-space: nowrap;
+  justify-content: center;
+}
+.phase-wake .phase-pill { background: var(--wake); color: var(--wake-ink); }
+.phase-bed .phase-pill { background: var(--bed); color: var(--bed-ink); }
+.phase-handle:hover .phase-pill,
+.phase-handle.dragging .phase-pill {
+  transform: scale(1.06);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+}
+.phase-name {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.7;
+}
+.phase-time { font-variant-numeric: tabular-nums; }
+
+/* Ghost pill at saved x while dragging */
+.phase-ghost {
+  position: absolute;
+  bottom: 32px;
+  transform: translateX(-50%);
+  padding: 6px 4px;
+  pointer-events: none;
+  z-index: 4;
+  display: none;
+}
+.phase-ghost-pill {
+  width: 76px;
+  height: 22px;
+  border-radius: 11px 11px 8px 8px;
+  border: 1.5px dashed;
+  background: transparent;
+}
+.phase-ghost.for-wake .phase-ghost-pill { border-color: rgba(92,179,255,0.55); }
+.phase-ghost.for-bed .phase-ghost-pill { border-color: rgba(255,230,128,0.55); }
+
+/* Save / Reset action chips below moved pill */
+.handle-actions {
+  position: absolute;
+  bottom: 4px;
+  transform: translateX(-50%);
+  display: none;
+  align-items: center;
+  gap: 4px;
+  z-index: 7;
+}
+.handle-actions.visible { display: inline-flex; }
+.action-chip {
+  background: rgba(20, 22, 28, 0.95);
+  border: 1px solid rgba(255,255,255,0.18);
+  color: var(--text);
+  padding: 4px 9px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.15s, border-color 0.15s;
+  font-family: inherit;
+}
+.action-chip:hover { background: rgba(255,255,255,0.08); }
+
+/* Save popover */
+.save-popover {
+  position: absolute;
+  bottom: 36px;
+  transform: translateX(-50%);
+  background: rgba(24, 26, 32, 0.98);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 8px;
+  padding: 8px;
+  min-width: 240px;
+  z-index: 30;
+  box-shadow: 0 -6px 20px rgba(0,0,0,0.6);
+  display: none;
+}
+.save-popover.open { display: block; }
+.save-popover-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted2);
+  padding: 4px 6px 8px;
+}
+.save-popover-title strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.save-opt {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text);
+  padding: 8px 10px;
+  border-radius: 5px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.save-opt:hover { background: rgba(255,255,255,0.06); }
+.save-opt.is-today {
+  border-left: 2px solid var(--wake);
+  padding-left: 8px;
+}
+.save-opt-sub {
+  font-size: 11px;
+  color: var(--muted2);
+  display: block;
+  margin-top: 2px;
+}
+
+/* Month slider row (replaces date slider) */
+.month-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 4px 4px;
+}
+.month-label {
+  min-width: 80px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+.month-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+.month-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  cursor: pointer;
 }
 
 /* Interactive color gradient (ported from tune.html + handle additions) */
@@ -1315,54 +1603,77 @@ input[type=range]::-moz-range-thumb {
 
   <!-- Chart -->
   <div class="section-block" id="chart-section">
-    <div class="chart-toolbar" style="flex-wrap: wrap;">
-      <div class="chart-date-control" style="width: 100%;">
-        <span class="chart-date-display" id="chart-date-display">Today</span>
-        <input type="range" id="chart-date-slider" min="0" max="364" value="0">
-      </div>
-      <div style="display:flex;align-items:center;width:100%;">
-        <div class="chart-schedule-toggles" id="chart-schedule-toggles" style="display:none;">
-          <label class="schedule-toggle" id="chart-wake-secondary-toggle">
-            <input type="checkbox" id="chart-wake-secondary"> wake 2
-          </label>
-          <label class="schedule-toggle" id="chart-bed-secondary-toggle">
-            <input type="checkbox" id="chart-bed-secondary"> bed 2
-          </label>
-        </div>
-        <div class="modeled-conditions" style="margin-left:auto;">
-          <select id="modeled-conditions" title="Preview how weather affects the color curve" style="width: 130px;">
-            <option value="current" selected>Current</option>
-            <option value="1.0">Sunny (100%)</option>
-            <option value="0.6">Partly cloudy (60%)</option>
-            <option value="0.3">Cloudy (30%)</option>
-            <option value="0.2">Rainy / Snowy (20%)</option>
-            <option value="0.15">Fog (15%)</option>
-            <option value="0.1">Pouring / Hail (10%)</option>
-            <option value="0.08">Lightning (8%)</option>
-            <option value="0">Dark (0%)</option>
-          </select>
-        </div>
-      </div>
-    </div>
     <div class="chart-wrapper">
-      <div id="chart"></div>
-      <div class="time-hover-label" id="time-hover-label"></div>
-      <div class="graph-cursor-callout" id="cursor-callout"></div>
-      <div class="live-fab" id="live-fab">
-        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>
-        Live
+      <div id="chart-shell">
+        <!-- Top zone: NOW pill (cursor-tinted) + small LIVE pip -->
+        <div class="now-pill" id="now-pill"></div>
+        <div class="live-pip" id="live-pip"><span class="live-dot"></span>LIVE</div>
+
+        <div id="chart"></div>
+        <div class="time-hover-label" id="time-hover-label"></div>
+
+        <!-- Solar band: sunrise / outdoor chip / sunset -->
+        <div class="solar-label" id="sunrise-label" data-time="">sunrise</div>
+        <div class="outdoor-chip" id="outdoor-chip">
+          <span class="outdoor-chip-icon" id="outdoor-icon">&#9728;</span>
+          <span id="outdoor-pct">100%</span>
+        </div>
+        <div class="solar-label" id="sunset-label" data-time="">sunset</div>
+
+        <div class="outdoor-popover" id="outdoor-popover">
+          <div class="src-row">
+            <button class="src-btn" data-src="current">Current</button>
+            <button class="src-btn active" data-src="manual">Pick value</button>
+          </div>
+          <div class="opt selected" data-pct="100"><span class="opt-icon">&#9728;</span>Sunny<span class="opt-pct">100%</span></div>
+          <div class="opt" data-pct="60"><span class="opt-icon">&#9925;</span>Partly cloudy<span class="opt-pct">60%</span></div>
+          <div class="opt" data-pct="30"><span class="opt-icon">&#9729;</span>Cloudy<span class="opt-pct">30%</span></div>
+          <div class="opt" data-pct="20"><span class="opt-icon">&#9928;</span>Stormy<span class="opt-pct">20%</span></div>
+          <div class="opt" data-pct="15"><span class="opt-icon">&#127787;</span>Fog<span class="opt-pct">15%</span></div>
+          <div class="opt" data-pct="0"><span class="opt-icon">&#127769;</span>Dark<span class="opt-pct">0%</span></div>
+        </div>
+
+        <!-- Wake/bed handles -->
+        <div class="phase-ghost for-wake"><div class="phase-ghost-pill"></div></div>
+        <div class="phase-handle phase-wake" id="wake-handle">
+          <div class="phase-pill">
+            <span class="phase-name">wake</span>
+            <span class="phase-time">7:00a</span>
+          </div>
+        </div>
+        <div class="handle-actions" id="wake-actions">
+          <button class="action-chip save" data-kind="wake">Save &#9662;</button>
+          <button class="action-chip revert" data-kind="wake">&#x21BA;</button>
+        </div>
+
+        <div class="phase-ghost for-bed"><div class="phase-ghost-pill"></div></div>
+        <div class="phase-handle phase-bed" id="bed-handle">
+          <div class="phase-pill">
+            <span class="phase-name">bed</span>
+            <span class="phase-time">10:00p</span>
+          </div>
+        </div>
+        <div class="handle-actions" id="bed-actions">
+          <button class="action-chip save" data-kind="bed">Save &#9662;</button>
+          <button class="action-chip revert" data-kind="bed">&#x21BA;</button>
+        </div>
+
+        <div class="save-popover" id="save-popover"></div>
+
+        <div class="live-fab" id="live-fab">
+          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>
+          Live
+        </div>
       </div>
     </div>
 
     <div class="chart-below-row">
-      <div class="time-nav-group">
-        <button class="time-nav-btn" id="cursor-time-minus-30" title="-30 minutes">-30 min</button>
-        <button class="time-nav-btn" id="cursor-time-minus" title="-5 minutes">-5 min</button>
-        <button class="time-nav-btn" id="cursor-time-plus" title="+5 minutes">+5 min</button>
-        <button class="time-nav-btn" id="cursor-time-plus-30" title="+30 minutes">+30 min</button>
-      </div>
-      <div class="time-nav-divider"></div>
       <button class="time-nav-btn" id="cursor-time-now" title="Jump to current time">Now</button>
+    </div>
+
+    <div class="month-row">
+      <span class="month-label" id="month-label">April</span>
+      <input type="range" class="month-slider" id="month-slider" min="0" max="11" value="3">
     </div>
   </div>
 
@@ -1768,9 +2079,17 @@ function findClosestSensitivityStep(value) {
   return closest;
 }
 
-// Chart schedule toggles — pick which wake/bed timing the chart displays
-let chartWakeMode = 'primary';
-let chartBedMode = 'primary';
+// Chart drag/anchor state (replaces removed chart-date / variant toggles)
+let chartState = {
+  ascendStart: 3.0,
+  monthIdx: new Date().getMonth(),
+  wakeDragActive: false,
+  bedDragActive: false,
+  wakeDragVal: null,    // working wake time during drag (0-24)
+  bedDragVal: null,     // working bed time during drag (0-24)
+  outdoorSrc: 'current',  // 'current' or 'manual'
+  outdoorPctManual: 100,  // user-picked manual condition %
+};
 
 // State
 let config = {
@@ -1990,12 +2309,11 @@ function applySolarRuleAtHour(baseCCT, hour) {
   // Cool day color blend (intensity-based)
   let dayShift = 0;
   if (config.daylight_enabled !== false) {
-    const condDropdown = document.getElementById('modeled-conditions')?.value ?? '1.0';
     let conditionMult;
-    if (condDropdown === 'current') {
+    if (chartState.outdoorSrc === 'current') {
       conditionMult = _liveConditionMult ?? 1.0;
     } else {
-      conditionMult = parseFloat(condDropdown) || 1.0;
+      conditionMult = (chartState.outdoorPctManual / 100) || 0;
     }
     const dateStr = getSelectedDateISO();
     const elev = getSunElevationAtHour(hour, config.latitude, config.longitude, dateStr);
@@ -2028,10 +2346,8 @@ function applySolarRuleAtHour(baseCCT, hour) {
  * Get Python weekday (0=Mon..6=Sun) for the chart date slider.
  */
 function getChartWeekday() {
-  const slider = document.getElementById('chart-date-slider');
-  const dayOffset = slider ? parseInt(slider.value) : 0;
-  const target = new Date(new Date().getFullYear(), 0, 1 + dayOffset);
-  return (target.getDay() + 6) % 7;  // JS getDay (0=Sun) → Python weekday (0=Mon)
+  // Chart always reflects today's actual weekday (variant viewing dropped).
+  return (new Date().getDay() + 6) % 7;  // JS getDay (0=Sun) → Python weekday (0=Mon)
 }
 
 /**
@@ -2041,25 +2357,20 @@ function resolveEffectiveTiming(hour, weekday, wakeWeekdayOverride) {
   let wake = config.wake_time;
   let bed = config.bed_time;
 
-  // Chart schedule toggles override weekday-based logic
-  if (chartWakeMode === 'alt' && config.wake_alt_time != null) {
-    wake = config.wake_alt_time;
-  } else if (chartWakeMode === 'primary') {
-    // use primary (default)
+  // While dragging, override stored timing with the working drag value so the
+  // curve animates with the handle (no commit until Save).
+  if (chartState.wakeDragActive && chartState.wakeDragVal != null) {
+    wake = chartState.wakeDragVal;
   } else {
-    // Weekday-based fallback
     const wakeWd = wakeWeekdayOverride != null ? wakeWeekdayOverride : weekday;
     if (config.wake_alt_time != null && (config.wake_alt_days || []).includes(wakeWd)) {
       wake = config.wake_alt_time;
     }
   }
 
-  if (chartBedMode === 'alt' && config.bed_alt_time != null) {
-    bed = config.bed_alt_time;
-  } else if (chartBedMode === 'primary') {
-    // use primary (default)
+  if (chartState.bedDragActive && chartState.bedDragVal != null) {
+    bed = chartState.bedDragVal;
   } else {
-    // Weekday-based fallback
     let bedWeekday = weekday;
     if (hour < config.ascend_start) {
       bedWeekday = (weekday + 6) % 7;  // yesterday
@@ -2294,10 +2605,12 @@ function elevationToOutdoorNorm(elevDeg, conditionMultiplier) {
 }
 
 function getSelectedDateISO() {
-  const slider = document.getElementById('chart-date-slider');
-  const dayOffset = slider ? parseInt(slider.value) : 0;
+  // Month slider drives sunrise/sunset modeling — anchor to the 15th of the
+  // selected month so users see a representative day for that month.
   const now = new Date();
-  const target = new Date(now.getFullYear(), 0, 1 + dayOffset);
+  const monthIdx = (chartState && Number.isInteger(chartState.monthIdx))
+    ? chartState.monthIdx : now.getMonth();
+  const target = new Date(now.getFullYear(), monthIdx, 15);
   return target.toISOString().split('T')[0];
 }
 
@@ -2748,11 +3061,13 @@ function applyBriHandleValue(handleName, val) {
   updateRangeDisplays();
 }
 
-// Apply solar color rules to CCT curve (batch version for chart rendering)
+// Apply solar color rules to CCT curve (batch version for chart rendering).
+// hoursArray may be chart-frame coords (>=24 in the second half of a sliding
+// window); applySolarRuleAtHour expects wall-clock so wrap before passing.
 function adjustCCTForSolarRules(cctArray, hoursArray, sunrise, sunset) {
   if (!config.warm_night_enabled && !config.daylight_cct) return;
   for (let i = 0; i < cctArray.length; i++) {
-    cctArray[i] = applySolarRuleAtHour(cctArray[i], hoursArray[i]);
+    cctArray[i] = applySolarRuleAtHour(cctArray[i], wrapHour(hoursArray[i]));
   }
 }
 
@@ -2992,17 +3307,20 @@ function getPhaseAtHour(hour) {
  * Generate curve data for chart rendering.
  * Uses the core calculation functions to ensure consistency.
  */
-function calculateCurveData() {
+function calculateCurveData(xAnchor) {
   const tAscend = config.ascend_start;
   let tDescend = config.descend_start;
   if (tDescend <= tAscend) tDescend += 24;
 
-  const hours = Array.from({ length: 480 }, (_, i) => (i * 3) / 60);
+  // hours are chart-frame coordinates [xA, xA+24); calc functions take
+  // wall-clock 0-24, so wrap before computing.
+  const xA = xAnchor != null ? xAnchor : 0;
+  const N = 480;
+  const hours = Array.from({ length: N }, (_, i) => xA + (i * 24) / (N - 1));
 
-  // Use core calculation functions for each data point
-  const brightness = hours.map(h => calculateBrightnessAtHour(h));
-  const cct = hours.map(h => calculateColorAtHour(h, false));  // Solar rules applied separately in renderChart
-  const phase = hours.map(h => getPhaseAtHour(h));
+  const brightness = hours.map(h => calculateBrightnessAtHour(wrapHour(h)));
+  const cct = hours.map(h => calculateColorAtHour(wrapHour(h), false));
+  const phase = hours.map(h => getPhaseAtHour(wrapHour(h)));
 
   return { hours, brightness, cct, phase, tAscend, tDescend };
 }
@@ -3037,22 +3355,33 @@ function renderChart() {
   sunTimes = { sunrise, sunset, solarNoon, solarMid };
   updateSolarImpacts();
 
-  const data = calculateCurveData();
+  const xA = chartState.ascendStart;
+  const xE = xA + 24;
 
-  // Apply solar color rules to CCT
+  const data = calculateCurveData(xA);
+
+  // Apply solar color rules to CCT (frame-coord hours wrapped inside)
   adjustCCTForSolarRules(data.cct, data.hours, sunrise, sunset);
+
+  // Sun-contribution dotted reference: same brightness curve but with solar
+  // rules disabled (color_sensitivity / outdoor effect lifted). Used to show
+  // "what bulbs would do without sun pulling them up/down."
+  const showDottedTarget = ((chartState.outdoorSrc === 'current' ? (_liveConditionMult ?? 1.0) : (chartState.outdoorPctManual / 100)) > 0)
+                            && (config.color_sensitivity ?? 1.0) > 0
+                            && config.daylight_enabled !== false;
+  const targetCct = data.hours.map(h => calculateColorAtHour(wrapHour(h), false));
 
   const { hours, brightness, cct, phase, tAscend, tDescend } = data;
   const brightnessPct = brightness.map(v => v * 100);
 
   // Store graph data for cursor functions (include brightnessPct for 0-100 scale)
   graphData = { ...data, brightnessPct };
-  const samplesPerHour = hours.length / 24;
 
   // Build traces
   const traces = [];
 
-  // Color-gradient brightness curve (filled + line segments)
+  // Color-gradient brightness curve (filled + line segments). Fill alpha
+  // matches line color so the area under the curve is color-honest.
   const step = 2;
   for (let i = step; i < hours.length; i += step) {
     const color = cctToRGB(cct[i]);
@@ -3062,47 +3391,47 @@ function renderChart() {
     const y0 = brightnessPct[i - step];
     const y1 = brightnessPct[i];
 
-    // Filled area under curve
     traces.push({
-      type: 'scatter',
-      mode: 'lines',
-      x: [x0, x1, x1, x0],
-      y: [y0, y1, 0, 0],
-      fill: 'toself',
-      line: { width: 0 },
+      type: 'scatter', mode: 'lines',
+      x: [x0, x1, x1, x0], y: [y0, y1, 0, 0],
+      fill: 'toself', line: { width: 0 },
       fillcolor: fillColor,
-      hoverinfo: 'skip',
-      showlegend: false
+      hoverinfo: 'skip', showlegend: false,
     });
-
-    // Colored line segment
     traces.push({
-      type: 'scatter',
-      mode: 'lines',
-      x: [x0, x1],
-      y: [y0, y1],
+      type: 'scatter', mode: 'lines',
+      x: [x0, x1], y: [y0, y1],
       line: { width: 3, color },
-      hoverinfo: 'skip',
-      showlegend: false
+      hoverinfo: 'skip', showlegend: false,
     });
   }
 
-  // Hover trace - CCT colored background, shows phase, no time
+  // Sun-contribution dotted reference line (target = ignoring sun pulling colors).
+  // Drawn over the curve. Only shown when sun would actually have an effect.
+  if (showDottedTarget) {
+    // Compare base CCT (no solar) vs solar-adjusted; if they meaningfully differ,
+    // draw the base as a dotted reference of "where you'd be without the sun."
+    const targetBri = brightnessPct;  // brightness already independent of solar CCT rules
+    traces.push({
+      type: 'scatter', mode: 'lines',
+      x: hours, y: targetBri,
+      line: { width: 1.4, color: 'rgba(220,220,220,0.45)', dash: 'dot' },
+      hoverinfo: 'skip', showlegend: false,
+    });
+  }
+
+  // Hover trace - CCT colored background
   const hoverDetails = brightnessPct.map((v, i) => {
     const pct = Math.round(v);
     const kelvin = Math.round(cct[i]);
-    return `${pct}% • ${kelvin}K`;
+    return `${pct}% \u2022 ${kelvin}K`;
   });
-
   const hoverBgColors = cct.map(k => colorWithAlpha(cctToRGB(k), 0.92));
   const hoverTextColors = cct.map(k => readableTextColor(cctToRGB(k)));
   const hoverBorderColors = cct.map(k => colorWithAlpha(cctToRGB(k), 0.65));
-
   traces.push({
-    type: 'scatter',
-    mode: 'lines',
-    x: hours,
-    y: brightnessPct,
+    type: 'scatter', mode: 'lines',
+    x: hours, y: brightnessPct,
     line: { width: 0 },
     showlegend: false,
     text: hoverDetails,
@@ -3110,154 +3439,91 @@ function renderChart() {
     hoverlabel: {
       bgcolor: hoverBgColors,
       bordercolor: hoverBorderColors,
-      font: { color: hoverTextColors, size: 13 }
-    }
-  });
-
-  // Legend placeholder for Circadian Light
-  traces.push({
-    type: 'scatter',
-    mode: 'lines',
-    x: [null],
-    y: [null],
-    line: { width: 3, color: '#fff' },
-    name: 'Circadian Light',
-    hoverinfo: 'skip',
-    showlegend: true
+      font: { color: hoverTextColors, size: 13 },
+    },
   });
 
   // Cursor point marker trace (CCT-colored ball at cursor position)
   traces.push({
-    x: [null],
-    y: [null],
+    x: [null], y: [null],
     mode: 'markers',
     marker: { size: 14, color: '#fff', line: { width: 2, color: '#fff' } },
-    hoverinfo: 'skip',
-    showlegend: false,
-    name: 'cursor-point'
+    hoverinfo: 'skip', showlegend: false,
+    name: 'cursor-point',
   });
   window.cursorTraceIndex = traces.length - 1;
 
-  // Shapes and annotations
-  const shapes = [];
-  const annotations = [];
-
-  const ascendStart = wrap24(config.ascend_start);
-  const descendStart = wrap24(config.descend_start);
-
-  // Below-axis annotation positions (tiered: x-ticks → phase → solar → cursor)
-  const phaseLabelLineY = -0.12;
-  const phaseLabelY = -0.24;
-  const solarLabelLineY = -0.26;
-  const solarLabelY = -0.33;
-  const cursorExtendY = -0.38;
-
-  // X-axis labels (from top to bottom):
-  // 1. Time labels (handled by xaxis ticktext at y=0)
-  // 2. Phase labels (ascend starts, wake, descend starts, bed)
-  // 3. Solar labels (sunrise, sunset, etc.), muted grey
-
-  // Phase labels with vertical lines — phase-aware timing for alt days
-  const chartWeekday = getChartWeekday();
-  // Determine current phase to resolve correct day for wake vs bed lines
-  const nowH = typeof cursorHour !== 'undefined' && cursorHour !== null
-    ? cursorHour : new Date().getHours() + new Date().getMinutes() / 60;
-  const h48c = nowH < ascendStart ? nowH + 24 : nowH;
-  const dStart48 = descendStart <= ascendStart ? descendStart + 24 : descendStart;
-  const chartInAscend = h48c >= ascendStart && h48c < dStart48;
-  // During ascend: wake=today, bed=today
-  // During descend: wake=tomorrow, bed=today (or yesterday if post-midnight)
-  let wakeWeekday, bedWeekday;
-  if (chartInAscend) {
-    wakeWeekday = chartWeekday;
-    bedWeekday = chartWeekday;
-  } else {
-    wakeWeekday = nowH < ascendStart ? chartWeekday : (chartWeekday + 1) % 7;
-    bedWeekday = nowH < ascendStart ? (chartWeekday + 6) % 7 : chartWeekday;
+  // Wake/bed drag circles ON the curve when that handle is active — CCT-tinted.
+  const tFor = h => visHour(h, xA);
+  const idxFor = h => Math.max(0, Math.min(hours.length - 1,
+                       Math.round(((tFor(h) - xA) / 24) * (hours.length - 1))));
+  if (chartState.wakeDragActive) {
+    const wt = chartState.wakeDragVal != null ? chartState.wakeDragVal : config.wake_time;
+    const wIdx = idxFor(wt);
+    traces.push({
+      type: 'scatter', mode: 'markers',
+      x: [tFor(wt)], y: [brightnessPct[wIdx]],
+      marker: { size: 14, color: cctToRGB(cct[wIdx]),
+                line: { width: 2, color: 'rgba(0,0,0,0.55)' } },
+      cliponaxis: false, hoverinfo: 'skip', showlegend: false,
+    });
   }
-  const wakeTiming = resolveEffectiveTiming(nowH, wakeWeekday);
-  const bedTiming = resolveEffectiveTiming(nowH, bedWeekday);
-  const phaseLabels = [
-    { label: 'wake', x: wrap24(wakeTiming.wake), color: ASCEND_COLORS.text, lineColor: ASCEND_COLORS.axis },
-    { label: 'bed', x: wrap24(bedTiming.bed), color: DESCEND_COLORS.text, lineColor: DESCEND_COLORS.axis }
-  ];
+  if (chartState.bedDragActive) {
+    const bt = chartState.bedDragVal != null ? chartState.bedDragVal : config.bed_time;
+    const bIdx = idxFor(bt);
+    traces.push({
+      type: 'scatter', mode: 'markers',
+      x: [tFor(bt)], y: [brightnessPct[bIdx]],
+      marker: { size: 14, color: cctToRGB(cct[bIdx]),
+                line: { width: 2, color: 'rgba(0,0,0,0.55)' } },
+      cliponaxis: false, hoverinfo: 'skip', showlegend: false,
+    });
+  }
 
-  phaseLabels.forEach(marker => {
-    // Vertical line from label up through the graph
-    shapes.push({
-      type: 'line', xref: 'x', yref: 'paper',
-      x0: marker.x, x1: marker.x,
-      y0: phaseLabelLineY,
-      y1: 1,
-      line: { color: marker.lineColor, width: 1, dash: 'dot' }
-    });
-    const hoverBg = marker.color === ASCEND_COLORS.text ? ASCEND_COLORS.hoverBg : DESCEND_COLORS.hoverBg;
-    annotations.push({
-      x: marker.x, y: phaseLabelY, xref: 'x', yref: 'paper',
-      text: marker.label,
-      showarrow: false,
-      font: { size: 11, color: marker.color },
-      hovertext: fmtTime(marker.x),
-      hoverlabel: {
-        bgcolor: hoverBg,
-        bordercolor: hoverBg,
-        font: { color: readableTextColor(hoverBg), size: 12 }
-      }
-    });
-  });
-
-  // Solar labels - all same muted grey color, lower position
-  const solarLabelColor = 'rgba(215,215,215,0.8)';
-  const solarLineColor = 'rgba(200,200,200,0.35)';
-  const solarLabels = [
-    { label: 'sunrise', x: wrap24(sunrise) },
-    { label: 'sunset', x: wrap24(sunset) }
-  ];
-
-  const solarHoverBg = '#3a3a3a';
-  solarLabels.forEach(marker => {
-    if (!Number.isFinite(marker.x)) return;
-    shapes.push({
-      type: 'line', xref: 'x', yref: 'paper',
-      x0: marker.x, x1: marker.x,
-      y0: solarLabelLineY,
-      y1: 0,
-      line: { color: solarLineColor, width: 1, dash: 'dot' }
-    });
-    annotations.push({
-      x: marker.x, y: solarLabelY, xref: 'x', yref: 'paper',
-      text: marker.label,
-      showarrow: false,
-      font: { size: 10, color: solarLabelColor },
-      hovertext: fmtTime(marker.x),
-      hoverlabel: {
-        bgcolor: solarHoverBg,
-        bordercolor: solarHoverBg,
-        font: { color: '#fff', size: 12 }
-      }
-    });
-  });
+  // Vertical lines — wake/bed only when actively dragging. Cursor line is
+  // managed by applyCursor() (with the gap around the marker).
+  const shapes = [];
+  if (chartState.wakeDragActive) {
+    const wt = chartState.wakeDragVal != null ? chartState.wakeDragVal : config.wake_time;
+    shapes.push({ type: 'line', xref: 'x', yref: 'paper',
+      x0: tFor(wt), x1: tFor(wt), y0: 0, y1: 1,
+      line: { color: ASCEND_COLORS.text, width: 1.5 } });
+  }
+  if (chartState.bedDragActive) {
+    const bt = chartState.bedDragVal != null ? chartState.bedDragVal : config.bed_time;
+    shapes.push({ type: 'line', xref: 'x', yref: 'paper',
+      x0: tFor(bt), x1: tFor(bt), y0: 0, y1: 1,
+      line: { color: DESCEND_COLORS.text, width: 1.5 } });
+  }
+  const annotations = [];
 
   // Store base shapes/annotations for cursor updates
   window.baseShapes = shapes.slice();
   window.baseAnnotations = annotations.slice();
 
+  // Tick generation: 8 ticks at xA + i*3 for i in 0..7 (skip trailing dup)
+  const tickvals = [];
+  const ticktext = [];
+  for (let i = 0; i < 8; i++) {
+    const t = xA + i * 3;
+    tickvals.push(t);
+    ticktext.push(fmtHourShort(t));
+  }
+
   const layout = {
     paper_bgcolor: '#0a0a0a',
     plot_bgcolor: '#0a0a0a',
-    margin: { t: 10, r: 40, l: 36, b: 90 },
+    margin: { t: 10, r: 40, l: 50, b: 24 },
     showlegend: false,
     hovermode: 'closest',
     xaxis: {
-      range: [0, 24],
+      range: [xA, xE],
       fixedrange: true,
-      dtick: 3,
-      tickvals: [0, 3, 6, 9, 12, 15, 18, 21, 24],
-      ticktext: ['12a', '3a', '6a', '9a', '12p', '3p', '6p', '9p', '12a'],
+      tickvals, ticktext,
       gridcolor: 'rgba(80,100,130,0.22)',
       tickfont: { color: '#c8c8c8' },
       ticklen: 4,
-      tickcolor: 'rgba(160,190,220,0.2)'
+      tickcolor: 'rgba(160,190,220,0.2)',
     },
     yaxis: {
       range: [0, 105],
@@ -3266,33 +3532,17 @@ function renderChart() {
       tickvals: [0, 50, 100],
       ticktext: ['0%', '50%', '100%'],
       tickfont: { color: '#c8c8c8' },
-      ticklen: 4
+      ticklen: 4,
     },
     shapes,
-    annotations
+    annotations,
   };
 
-  Plotly.react('chart', traces, layout, { displayModeBar: false, doubleClick: false, scrollZoom: false }).then(() => {
+  Plotly.react('chart', traces, layout, { displayModeBar: false, doubleClick: false, scrollZoom: false, responsive: true }).then(() => {
     initChartInteractivity();
     applyCursor();
+    positionOverlays();
   });
-
-  // Update date display — "Today" when on today, tappable date when offset
-  const dateDisplay = document.getElementById('chart-date-display');
-  if (dateDisplay) {
-    const slider = document.getElementById('chart-date-slider');
-    const now = new Date();
-    const todayOffset = Math.floor((now - new Date(now.getFullYear(), 0, 1)) / 86400000);
-    const isToday = slider && parseInt(slider.value) === todayOffset;
-    if (isToday) {
-      dateDisplay.textContent = 'Today';
-      dateDisplay.classList.remove('is-offset');
-    } else {
-      const d = new Date(dateStr + 'T12:00:00');
-      dateDisplay.textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      dateDisplay.classList.add('is-offset');
-    }
-  }
 
   // Update color gradient (including temp ceiling/floor)
   renderColorGradient();
@@ -3306,7 +3556,7 @@ function initChartInteractivity() {
   const chart = document.getElementById('chart');
   if (!chart || chart._interactivityInitialized) return;
 
-  const chartWrapper = document.querySelector('.chart-wrapper');
+  const chartShell = document.getElementById('chart-shell');
   const hoverLabel = document.getElementById('time-hover-label');
 
   // Helper to get plot area (Plotly creates this after rendering)
@@ -3335,10 +3585,10 @@ function initChartInteractivity() {
     const xRange = layout?.xaxis?.range || [0, 24];
     const ratio = (ev.clientX - rect.left) / rect.width;
     const xVal = xRange[0] + ratio * (xRange[1] - xRange[0]);
-    const wrapperRect = chartWrapper.getBoundingClientRect();
+    const shellRect = (chartShell || chart).getBoundingClientRect();
 
     hoverLabel.textContent = fmtTime(xVal);
-    hoverLabel.style.left = `${ev.clientX - wrapperRect.left}px`;
+    hoverLabel.style.left = `${ev.clientX - shellRect.left}px`;
 
     // Color based on phase
     const tAscend = config.ascend_start;
@@ -3378,16 +3628,53 @@ function initChartInteractivity() {
     const xVal = xRange[0] + ratio * (xRange[1] - xRange[0]);
 
     cursorTrackingNow = false;
-    cursorHour = xVal;
+    cursorHour = wrapHour(xVal);  // chart x is frame-coord, cursorHour stays 0-24
     applyCursor();
   }, true);  // Use capture phase
+
+  // Pointer-based cursor scrub (drag) — area-details parity. Pointer events
+  // beat mouse + touch separately and integrate cleanly with setPointerCapture.
+  let cursorDragging = false;
+  const cursorMoveTo = (clientX) => {
+    const layout = chart._fullLayout;
+    if (!layout) return;
+    const xa = layout.xaxis;
+    const localX = clientX - chart.getBoundingClientRect().left - xa._offset;
+    const ratio = Math.max(0, Math.min(1, localX / xa._length));
+    const xVal = xa.range[0] + ratio * (xa.range[1] - xa.range[0]);
+    cursorTrackingNow = false;
+    cursorHour = wrapHour(xVal);
+    applyCursor();
+  };
+  chart.addEventListener('pointerdown', (ev) => {
+    // Don't intercept handle drags
+    if (ev.target.closest('.phase-handle') || ev.target.closest('.handle-actions')
+        || ev.target.closest('.outdoor-chip') || ev.target.closest('.outdoor-popover')
+        || ev.target.closest('.save-popover')) return;
+    const plotArea = getPlotArea();
+    if (!plotArea) return;
+    const r = plotArea.getBoundingClientRect();
+    if (ev.clientX < r.left || ev.clientX > r.right
+        || ev.clientY < r.top || ev.clientY > r.bottom) return;
+    cursorDragging = true;
+    cursorMoveTo(ev.clientX);
+    try { chart.setPointerCapture(ev.pointerId); } catch {}
+  });
+  chart.addEventListener('pointermove', (ev) => {
+    if (cursorDragging) cursorMoveTo(ev.clientX);
+  });
+  const cursorEnd = (ev) => {
+    cursorDragging = false;
+    try { chart.releasePointerCapture(ev.pointerId); } catch {}
+  };
+  chart.addEventListener('pointerup', cursorEnd);
+  chart.addEventListener('pointercancel', cursorEnd);
 
   chart._interactivityInitialized = true;
 }
 
 function applyCursor() {
   const chart = document.getElementById('chart');
-  const cursorCallout = document.getElementById('cursor-callout');
   const traceIdx = typeof window.cursorTraceIndex === 'number' ? window.cursorTraceIndex : null;
 
   if (!chart || !window.baseShapes) return;
@@ -3402,13 +3689,16 @@ function applyCursor() {
       x: cursorHour,
       y: calculateBrightnessAtHour(cursorHour) * 100,  // Convert 0-1 to 0-100
       cct: calculateColorAtHour(cursorHour, true),     // With solar rules
-      phase: getPhaseAtHour(cursorHour)
+      phase: getPhaseAtHour(cursorHour),
     };
   }
 
   // Cursor line style - dotted white
   const cursorLineStyle = { color: '#fdfdfd', width: 2, dash: 'dot' };
-  const cursorLabelY = -0.26;
+
+  // Cursor x in the chart's frame coordinate (lift wall-clock into [xA, xA+24]).
+  const xA = chartState.ascendStart;
+  const cursorFrameX = visHour(cursorHour, xA);
 
   // Add cursor line with gap around the point
   if (cursorPoint) {
@@ -3416,77 +3706,35 @@ function applyCursor() {
     const lowerEnd = Math.max(0, cursorPoint.y - gap);
     const upperStart = Math.min(GRAPH_Y_MAX, cursorPoint.y + gap);
 
-    // Lower segment
-    shapes.push({
-      type: 'line', xref: 'x', yref: 'y',
-      x0: cursorHour, x1: cursorHour, y0: 0, y1: lowerEnd,
-      line: cursorLineStyle, layer: 'above'
-    });
-    // Upper segment
-    shapes.push({
-      type: 'line', xref: 'x', yref: 'y',
-      x0: cursorHour, x1: cursorHour, y0: upperStart, y1: GRAPH_Y_MAX,
-      line: cursorLineStyle, layer: 'above'
-    });
+    shapes.push({ type: 'line', xref: 'x', yref: 'y',
+      x0: cursorFrameX, x1: cursorFrameX, y0: 0, y1: lowerEnd,
+      line: cursorLineStyle, layer: 'above' });
+    shapes.push({ type: 'line', xref: 'x', yref: 'y',
+      x0: cursorFrameX, x1: cursorFrameX, y0: upperStart, y1: GRAPH_Y_MAX,
+      line: cursorLineStyle, layer: 'above' });
   } else {
-    // Full line if no point
-    shapes.push({
-      type: 'line', xref: 'x', yref: 'paper',
-      x0: cursorHour, x1: cursorHour, y0: 0, y1: 1,
-      line: cursorLineStyle, layer: 'above'
-    });
+    shapes.push({ type: 'line', xref: 'x', yref: 'paper',
+      x0: cursorFrameX, x1: cursorFrameX, y0: 0, y1: 1,
+      line: cursorLineStyle, layer: 'above' });
   }
-
-  // Cursor line extending below x-axis down to callout
-  const cursorExtendY = -0.38;
-  shapes.push({
-    type: 'line', xref: 'x', yref: 'paper',
-    x0: cursorHour, x1: cursorHour, y0: cursorExtendY, y1: 0,
-    line: cursorLineStyle, layer: 'above'
-  });
-
 
   Plotly.relayout(chart, { shapes, annotations });
 
-  // Update cursor callout and marker
+  // Update cursor ball marker (CCT-colored with white border)
   if (cursorPoint) {
-    const bri = Math.round(cursorPoint.y);
     const cctVal = Math.round(cursorPoint.cct);
     const color = cctToRGB(cctVal);
-
-    const plotArea = chart.querySelector('.cartesianlayer .plot') || chart.querySelector('.nsewdrag');
-    const chartWrapper = document.querySelector('.chart-wrapper');
-    if (plotArea && chartWrapper) {
-      const rect = plotArea.getBoundingClientRect();
-      const chartRect = chart.getBoundingClientRect();
-      const wrapperRect = chartWrapper.getBoundingClientRect();
-      const layout = chart._fullLayout;
-      const xRange = layout?.xaxis?.range || [0, 24];
-      const ratio = (cursorHour - xRange[0]) / (xRange[1] - xRange[0] || 1);
-      const leftPx = rect.left + ratio * rect.width - wrapperRect.left;
-
-      cursorCallout.textContent = `${fmtTime(cursorHour)} • ${bri}% • ${cctVal}K`;
-      cursorCallout.style.left = `${leftPx}px`;
-      cursorCallout.style.opacity = '1';
-
-      // Color callout based on CCT
-      cursorCallout.style.background = color;
-      cursorCallout.style.color = readableTextColor(color);
-      cursorCallout.style.borderColor = '#fdfdfd';
-    }
-
-    // Update cursor ball marker (CCT-colored with white border)
     if (traceIdx != null) {
       const markerUpdate = {
-        x: [[cursorPoint.x]],
+        x: [[cursorFrameX]],
         y: [[cursorPoint.y]],
         marker: [{
           size: 14,
           color,
           opacity: 1,
           symbol: 'circle',
-          line: { width: 2, color: '#fff' }
-        }]
+          line: { width: 2, color: '#fff' },
+        }],
       };
       Plotly.restyle(chart, markerUpdate, traceIdx);
     }
@@ -3494,6 +3742,9 @@ function applyCursor() {
     // Live Design: update lights when cursor values change
     applyLiveLight();
   }
+
+  // Re-position HTML overlays (NOW pill, sun labels, handles, ghosts, action chips)
+  positionOverlays();
 
   // Update sleep card phase badges
   updateSleepPhaseBadges();
@@ -3505,6 +3756,464 @@ function applyCursor() {
 
 function updateSleepPhaseBadges() {
   // Phase badges removed from sleep card header (kept for chart cursor)
+}
+
+// ============================================================
+// Chart-shell overlay helpers
+// (sliding 24h frame anchored at ascend_start; overlays positioned via
+// _fullLayout.xaxis._offset / _length on top of the Plotly DOM)
+// ============================================================
+
+// Map a wall-clock hour (0-24) into the visible chart frame [xA, xA+24).
+function visHour(h, xA) {
+  return h < xA ? h + 24 : h;
+}
+function wrapHour(t) {
+  return ((t % 24) + 24) % 24;
+}
+function fmtHourShort(t) {
+  const h = wrapHour(t);
+  let hh = Math.floor(h);
+  const ap = (hh < 12 || hh === 24) ? 'a' : 'p';
+  hh = hh % 12; if (hh === 0) hh = 12;
+  return `${hh}${ap}`;
+}
+
+// Anchor 2h before saved wake_time so wake stays inside the frame and bed
+// never wraps past midnight on the right edge. Recompute on save (not mid-drag)
+// so the chart doesn't slide while user drags the wake handle.
+function recomputeAscendStart() {
+  chartState.ascendStart = wrapHour(config.wake_time - 2);
+}
+
+// Build an x→px function in chart-shell coordinates. Input is wall-clock
+// 0-24; output places it inside the visible [ascendStart, ascendStart+24].
+function getXPxFn() {
+  const chartDiv = document.getElementById('chart');
+  const shell = document.getElementById('chart-shell');
+  if (!chartDiv || !shell || !chartDiv._fullLayout?.xaxis) return null;
+  const xa = chartDiv._fullLayout.xaxis;
+  const shellRect = shell.getBoundingClientRect();
+  const chartRect = chartDiv.getBoundingClientRect();
+  const offX = chartRect.left - shellRect.left;
+  const xA = xa.range[0];
+  const span = xa.range[1] - xa.range[0] || 24;
+  return h => offX + xa._offset + ((visHour(h, xA) - xA) / span) * xa._length;
+}
+function pxToHourInFrame(clientX) {
+  const chartDiv = document.getElementById('chart');
+  const fl = chartDiv?._fullLayout;
+  if (!fl) return 0;
+  const xa = fl.xaxis;
+  const localX = clientX - chartDiv.getBoundingClientRect().left - xa._offset;
+  return xa.range[0] + Math.max(0, Math.min(1, localX / xa._length)) * 24;
+}
+function pxToHour(clientX) {
+  return wrapHour(pxToHourInFrame(clientX));
+}
+
+// Today (Python weekday: 0=Mon..6=Sun)
+function getTodayPyWeekday() {
+  return (new Date().getDay() + 6) % 7;
+}
+
+// Resolve A/B groups from existing alt-day config. Group A = primary
+// (days NOT in alt_days), group B = alt (days IN alt_days). Returns null if no alt.
+function getScheduleGroups(kind) {
+  const altDays = (kind === 'wake' ? config.wake_alt_days : config.bed_alt_days) || [];
+  const altTime = kind === 'wake' ? config.wake_alt_time : config.bed_alt_time;
+  const primaryTime = kind === 'wake' ? config.wake_time : config.bed_time;
+  const ALL = [0, 1, 2, 3, 4, 5, 6];
+  const primaryDays = ALL.filter(d => !altDays.includes(d));
+  if (altTime == null || altDays.length === 0) {
+    return { primary: { id: 'primary', days: ALL.slice(), time: primaryTime }, alt: null };
+  }
+  return {
+    primary: { id: 'primary', days: primaryDays, time: primaryTime },
+    alt: { id: 'alt', days: altDays.slice(), time: altTime },
+  };
+}
+
+function dayLabelFor(days) {
+  if (!days || days.length === 0 || days.length === 7) return 'Every day';
+  const sorted = [...days].sort((a, b) => a - b);
+  if (sorted.length === 5 && sorted.join(',') === '0,1,2,3,4') return 'Mo\u2013Fr';
+  if (sorted.length === 2 && sorted.join(',') === '5,6') return 'Sa\u2013Su';
+  return sorted.map(d => DAY_SHORT[d]).join(', ');
+}
+
+function groupForToday(kind) {
+  const grps = getScheduleGroups(kind);
+  const today = getTodayPyWeekday();
+  if (grps.alt && grps.alt.days.includes(today)) return grps.alt;
+  return grps.primary;
+}
+
+function buildSaveOptions(kind) {
+  const grps = getScheduleGroups(kind);
+  const todayPy = getTodayPyWeekday();
+  const todayName = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'][todayPy];
+  const opts = [];
+  const todayGrp = groupForToday(kind);
+  const seen = new Set();
+  [grps.primary, grps.alt].forEach(g => {
+    if (!g || seen.has(g.id)) return;
+    seen.add(g.id);
+    const isToday = g === todayGrp;
+    opts.push({
+      key: g.id,
+      label: dayLabelFor(g.days),
+      sub: isToday ? `Includes today (${todayName})` : `Days: ${dayLabelFor(g.days)}`,
+      isToday,
+    });
+  });
+  opts.push({ key: 'all', label: 'All days', sub: 'Sets every day to this value' });
+  return opts;
+}
+
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+// Position the HTML overlays (NOW pill, sunrise/sunset labels, outdoor chip,
+// wake/bed handles, ghost pills, action chips) on top of the Plotly chart.
+function positionOverlays() {
+  const xToPx = getXPxFn();
+  if (!xToPx) return;
+
+  const xA = chartState.ascendStart;
+
+  // NOW pill — cursor x, CCT-tinted
+  const pill = document.getElementById('now-pill');
+  if (pill && cursorHour != null) {
+    const bri = calculateBrightnessAtHour(cursorHour) * 100;
+    const cct = calculateColorAtHour(cursorHour, true);
+    const rgb = cctToRGB(cct);
+    pill.style.left = xToPx(cursorHour) + 'px';
+    pill.textContent = `${formatHour(cursorHour)} \u00b7 ${Math.round(bri)}% \u00b7 ${Math.round(cct)}K`;
+    pill.style.borderColor = colorWithAlpha(rgb, 0.85);
+    pill.style.background = colorWithAlpha(rgb, 0.92);
+    pill.style.color = readableTextColor(rgb);
+  }
+
+  // Sunrise / sunset HTML labels
+  const sr = sunTimes?.sunrise;
+  const ss = sunTimes?.sunset;
+  const sunriseEl = document.getElementById('sunrise-label');
+  const sunsetEl = document.getElementById('sunset-label');
+  if (sunriseEl && Number.isFinite(sr)) {
+    sunriseEl.style.left = xToPx(sr) + 'px';
+    sunriseEl.dataset.time = formatHour(sr);
+  }
+  if (sunsetEl && Number.isFinite(ss)) {
+    sunsetEl.style.left = xToPx(ss) + 'px';
+    sunsetEl.dataset.time = formatHour(ss);
+  }
+
+  // Outdoor chip + popover at solar noon x
+  const chip = document.getElementById('outdoor-chip');
+  const pop = document.getElementById('outdoor-popover');
+  if (chip && Number.isFinite(sr) && Number.isFinite(ss)) {
+    const noon = (sr + ss) / 2;
+    const px = xToPx(noon);
+    chip.style.left = px + 'px';
+    if (pop) pop.style.left = px + 'px';
+  }
+
+  // Wake/Bed handles — use working drag value when active, else stored time
+  const wakeT = chartState.wakeDragActive && chartState.wakeDragVal != null
+    ? chartState.wakeDragVal : config.wake_time;
+  const bedT = chartState.bedDragActive && chartState.bedDragVal != null
+    ? chartState.bedDragVal : config.bed_time;
+  const wakeHandle = document.getElementById('wake-handle');
+  const bedHandle = document.getElementById('bed-handle');
+  if (wakeHandle) {
+    wakeHandle.style.left = xToPx(wakeT) + 'px';
+    const t = wakeHandle.querySelector('.phase-time');
+    if (t) t.textContent = formatHour(wakeT);
+  }
+  if (bedHandle) {
+    bedHandle.style.left = xToPx(bedT) + 'px';
+    const t = bedHandle.querySelector('.phase-time');
+    if (t) t.textContent = formatHour(bedT);
+  }
+
+  // Ghost pills at saved positions, only visible while dragging
+  const wakeGhost = document.querySelector('.phase-ghost.for-wake');
+  const bedGhost = document.querySelector('.phase-ghost.for-bed');
+  if (wakeGhost) {
+    wakeGhost.style.left = xToPx(config.wake_time) + 'px';
+    const wakeMoved = chartState.wakeDragActive
+      && Math.abs((chartState.wakeDragVal ?? config.wake_time) - config.wake_time) > 0.01;
+    wakeGhost.style.display = wakeMoved ? 'block' : 'none';
+  }
+  if (bedGhost) {
+    bedGhost.style.left = xToPx(config.bed_time) + 'px';
+    const bedMoved = chartState.bedDragActive
+      && Math.abs((chartState.bedDragVal ?? config.bed_time) - config.bed_time) > 0.01;
+    bedGhost.style.display = bedMoved ? 'block' : 'none';
+  }
+
+  // Save / Reset action chips below moved pill — visible when stored time
+  // differs from snapshot OR there's a working drag value mid-flight.
+  const wakeDirty = (chartState.wakeDragVal != null
+        && Math.abs(chartState.wakeDragVal - config.wake_time) > 0.01)
+      || (configSnapshot.wake_time != null && Math.abs(config.wake_time - configSnapshot.wake_time) > 0.01);
+  const bedDirty = (chartState.bedDragVal != null
+        && Math.abs(chartState.bedDragVal - config.bed_time) > 0.01)
+      || (configSnapshot.bed_time != null && Math.abs(config.bed_time - configSnapshot.bed_time) > 0.01);
+  const wA = document.getElementById('wake-actions');
+  const bA = document.getElementById('bed-actions');
+  if (wA) { wA.style.left = xToPx(wakeT) + 'px'; wA.classList.toggle('visible', wakeDirty); }
+  if (bA) { bA.style.left = xToPx(bedT) + 'px'; bA.classList.toggle('visible', bedDirty); }
+}
+
+// ============================================================
+// Wake/Bed handle drag, outdoor popover, save chip wiring
+// ============================================================
+
+/**
+ * Drag a wake/bed phase handle. While the pointer is down we update
+ * chartState.{wake|bed}DragVal each move and re-render. On release we
+ * commit the value into config.{wake|bed}_time so the rest of the chart
+ * (curve, bri/cct) updates against the new schedule. Save / Reset chips
+ * appear automatically because positionOverlays() compares against
+ * configSnapshot.
+ */
+function setupHandleDrag(elId, kind) {
+  const el = document.getElementById(elId);
+  if (!el || el._dragInit) return;
+  el._dragInit = true;
+
+  let dragging = false;
+  const moveTo = (clientX) => {
+    const xA = chartState.ascendStart;
+    const tFrame = pxToHourInFrame(clientX);
+    if (!Number.isFinite(tFrame)) return;
+    let tClamped;
+    if (kind === 'wake') {
+      const bedT = visHour(config.bed_time, xA);
+      tClamped = Math.max(xA + 0.25, Math.min(bedT - 6, tFrame));
+    } else {
+      const wakeT = visHour(config.wake_time, xA);
+      tClamped = Math.max(wakeT + 6, Math.min(xA + 24 - 0.25, tFrame));
+    }
+    const stored = wrapHour(tClamped);
+    if (kind === 'wake') {
+      chartState.wakeDragVal = stored;
+      config.wake_time = stored;
+    } else {
+      chartState.bedDragVal = stored;
+      config.bed_time = stored;
+    }
+    syncUIFromConfig();
+    renderChart();
+  };
+
+  el.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    dragging = true;
+    el.classList.add('dragging');
+    chartState[kind + 'DragActive'] = true;
+    if (kind === 'wake') chartState.wakeDragVal = config.wake_time;
+    else chartState.bedDragVal = config.bed_time;
+    try { el.setPointerCapture(e.pointerId); } catch {}
+  });
+  el.addEventListener('pointermove', (e) => { if (dragging) moveTo(e.clientX); });
+  const end = (e) => {
+    if (!dragging) return;
+    dragging = false;
+    el.classList.remove('dragging');
+    chartState[kind + 'DragActive'] = false;
+    try { el.releasePointerCapture(e.pointerId); } catch {}
+    // Don't clear DragVal — Save/Reset chips still need to know what was last
+    // moved to vs what's saved. Cleared on commitSave / resetWakeOrBed.
+    renderChart();
+    updateSectionDirtyState();
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+}
+
+/**
+ * Outdoor chip → popover with Current / Pick value tabs and 6 weather options.
+ */
+function setupOutdoorPopover() {
+  const chip = document.getElementById('outdoor-chip');
+  const pop = document.getElementById('outdoor-popover');
+  if (!chip || !pop || chip._init) return;
+  chip._init = true;
+
+  chip.addEventListener('click', (e) => {
+    e.stopPropagation();
+    pop.classList.toggle('open');
+  });
+
+  const updateChipIcon = () => {
+    const iconEl = document.getElementById('outdoor-icon');
+    const pctEl = document.getElementById('outdoor-pct');
+    const pct = chartState.outdoorSrc === 'current'
+      ? Math.round((_liveConditionMult ?? 1) * 100)
+      : (chartState.outdoorPctManual ?? 100);
+    const icon = pct >= 85 ? '\u2600' : pct >= 55 ? '\u26c5' : pct >= 30 ? '\u2601'
+              : pct >= 10 ? '\u26c8' : '\ud83c\udf11';
+    if (iconEl) iconEl.textContent = icon;
+    if (pctEl) pctEl.textContent = pct + '%';
+  };
+
+  pop.querySelectorAll('.src-btn').forEach(b => {
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      pop.querySelectorAll('.src-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      const src = b.dataset.src;
+      chartState.outdoorSrc = src;
+      pop.classList.toggle('src-current', src === 'current');
+      updateChipIcon();
+      renderChart();
+      applyCursor();
+    });
+  });
+
+  pop.querySelectorAll('.opt').forEach(o => {
+    o.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (chartState.outdoorSrc === 'current') return;
+      pop.querySelectorAll('.opt').forEach(x => x.classList.remove('selected'));
+      o.classList.add('selected');
+      chartState.outdoorPctManual = parseInt(o.dataset.pct, 10);
+      updateChipIcon();
+      renderChart();
+      applyCursor();
+    });
+  });
+
+  // Default to Current on open per locked design decision
+  const currentBtn = pop.querySelector('.src-btn[data-src="current"]');
+  if (currentBtn && chartState.outdoorSrc === 'current') {
+    pop.querySelectorAll('.src-btn').forEach(x => x.classList.remove('active'));
+    currentBtn.classList.add('active');
+    pop.classList.add('src-current');
+  }
+  updateChipIcon();
+}
+
+/**
+ * Wire the per-handle action chips (Save ▾ / Reset). Uses event delegation on
+ * the action containers to avoid re-binding on every renderChart.
+ */
+function setupHandleActions() {
+  const wA = document.getElementById('wake-actions');
+  const bA = document.getElementById('bed-actions');
+  const bind = (container, kind) => {
+    if (!container || container._init) return;
+    container._init = true;
+    container.addEventListener('click', (e) => {
+      const btn = e.target.closest('.action-chip');
+      if (!btn) return;
+      e.stopPropagation();
+      if (btn.classList.contains('save')) openSavePopover(kind);
+      else if (btn.classList.contains('reset') || btn.classList.contains('revert')) {
+        resetWakeOrBed(kind);
+      }
+    });
+  };
+  bind(wA, 'wake');
+  bind(bA, 'bed');
+}
+
+/**
+ * Show the save popover anchored under the relevant phase handle.
+ * Options come from buildSaveOptions(kind): today's group + (the other group)
+ * + "All days". Today's group is marked with a left blue border via .is-today.
+ */
+function openSavePopover(kind) {
+  const pop = document.getElementById('save-popover');
+  const handle = document.getElementById(kind + '-handle');
+  if (!pop || !handle) return;
+  pop.style.left = handle.style.left;
+  const time = kind === 'wake' ? config.wake_time : config.bed_time;
+  const opts = buildSaveOptions(kind);
+  pop.innerHTML = `
+    <div class="save-popover-title">Save ${kind} <strong>${formatHour(time)}</strong> to:</div>
+    ${opts.map(o => `
+      <button class="save-opt ${o.isToday ? 'is-today' : ''}" data-key="${o.key}">
+        ${o.label}<span class="save-opt-sub">${o.sub}</span>
+      </button>`).join('')}
+  `;
+  pop.dataset.kind = kind;
+  pop.querySelectorAll('.save-opt').forEach(b => {
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      commitSave(kind, b.dataset.key);
+    });
+  });
+  pop.classList.add('open');
+}
+
+function closeSavePopover() {
+  const pop = document.getElementById('save-popover');
+  if (pop) pop.classList.remove('open');
+}
+
+/**
+ * Persist a wake/bed change. `key` is one of:
+ *   'primary' (Mo–Fr by default), 'alt' (Sa–Su), or 'all'.
+ * For today's group we update the corresponding *_time / *_alt_time slot.
+ * For 'all' we set the primary value and clear the alt arrays so every day
+ * resolves to the same time. Then saveZoneSettings() pushes to the backend.
+ */
+function commitSave(kind, key) {
+  const newVal = kind === 'wake' ? config.wake_time : config.bed_time;
+  if (kind === 'wake') {
+    if (key === 'all') {
+      config.wake_time = newVal;
+      config.wake_alt_time = null;
+      config.wake_alt_days = [];
+    } else if (key === 'alt') {
+      config.wake_alt_time = newVal;
+      // Restore primary from snapshot so we don't accidentally overwrite it
+      if (configSnapshot.wake_time != null) config.wake_time = configSnapshot.wake_time;
+    } else {
+      // primary (or any other group key): write to wake_time
+      config.wake_time = newVal;
+    }
+  } else {
+    if (key === 'all') {
+      config.bed_time = newVal;
+      config.bed_alt_time = null;
+      config.bed_alt_days = [];
+    } else if (key === 'alt') {
+      config.bed_alt_time = newVal;
+      if (configSnapshot.bed_time != null) config.bed_time = configSnapshot.bed_time;
+    } else {
+      config.bed_time = newVal;
+    }
+  }
+  chartState.wakeDragVal = null;
+  chartState.bedDragVal = null;
+  closeSavePopover();
+  syncUIFromConfig();
+  takeConfigSnapshot();
+  recomputeAscendStart();
+  renderChart();
+  updateSectionDirtyState();
+  saveZoneSettings();
+}
+
+/**
+ * Revert a wake/bed handle back to its last-saved (snapshot) value.
+ */
+function resetWakeOrBed(kind) {
+  if (kind === 'wake') {
+    if (configSnapshot.wake_time != null) config.wake_time = configSnapshot.wake_time;
+    chartState.wakeDragVal = null;
+  } else {
+    if (configSnapshot.bed_time != null) config.bed_time = configSnapshot.bed_time;
+    chartState.bedDragVal = null;
+  }
+  closeSavePopover();
+  syncUIFromConfig();
+  renderChart();
+  updateSectionDirtyState();
 }
 
 // ============================================================
@@ -3526,20 +4235,10 @@ function updateDesignModeUI() {
 }
 
 /**
- * Show/hide chart schedule toggles based on whether alt times are configured.
+ * Variant viewing was dropped — chart shows today's schedule only.
+ * Stub kept so older callers don't blow up.
  */
-function updateScheduleToggles() {
-  const container = document.getElementById('chart-schedule-toggles');
-  if (!container) return;
-  // Hide toggle if no alt exists OR if alt time equals primary time
-  const showWake = config.wake_alt_time != null && config.wake_alt_time !== config.wake_time;
-  const showBed = config.bed_alt_time != null && config.bed_alt_time !== config.bed_time;
-  const wakeToggle = document.getElementById('chart-wake-secondary-toggle');
-  const bedToggle = document.getElementById('chart-bed-secondary-toggle');
-  if (wakeToggle) wakeToggle.style.display = showWake ? '' : 'none';
-  if (bedToggle) bedToggle.style.display = showBed ? '' : 'none';
-  container.style.display = (showWake || showBed) ? 'flex' : 'none';
-}
+function updateScheduleToggles() {}
 
 /**
  * Snap cursor to current time and re-render.
@@ -3992,48 +4691,9 @@ function syncUIFromConfig() {
   });
 }
 
-// Set chart wake/bed secondary checkboxes based on current/next effective schedule
-function initChartScheduleDefaults() {
-  const ALL = [0, 1, 2, 3, 4, 5, 6];
-  const phase = getSleepPhase();
-  const jsToday = new Date().getDay();
-  const pyToday = jsToday === 0 ? 6 : jsToday - 1;
-  const nowDecimal = new Date().getHours() + new Date().getMinutes() / 60;
-
-  ['wake', 'bed'].forEach(prefix => {
-    const primaryDays = getSelectedDays(`${prefix}-days`);
-    const altDays = primaryDays.length === 0
-      ? []
-      : (primaryDays.length < 7 ? ALL.filter(d => !primaryDays.includes(d)) : []);
-    if (altDays.length === 0) return;
-
-    const altSlider = document.getElementById(`${prefix}-alt-time`);
-    if (!altSlider) return;
-
-    const p = phase[prefix];
-    let useAlt = false;
-    if (p === 'current') {
-      useAlt = altDays.includes(pyToday);
-    } else {
-      let startOffset = 1;
-      if (prefix === 'bed' && nowDecimal < (config.descend_start || 20)) startOffset = 0;
-      if (prefix === 'wake' && nowDecimal < (config.ascend_start || 6)) startOffset = 0;
-      const checkDay = (pyToday + startOffset) % 7;
-      useAlt = altDays.includes(checkDay);
-    }
-
-    const checkboxId = prefix === 'wake' ? 'chart-wake-secondary' : 'chart-bed-secondary';
-    if (useAlt) {
-      if (prefix === 'wake') chartWakeMode = 'alt'; else chartBedMode = 'alt';
-      const cb = document.getElementById(checkboxId);
-      if (cb) cb.checked = true;
-    } else {
-      if (prefix === 'wake') chartWakeMode = 'primary'; else chartBedMode = 'primary';
-      const cb = document.getElementById(checkboxId);
-      if (cb) cb.checked = false;
-    }
-  });
-}
+// Variant viewing was dropped — chart always shows today's actual schedule.
+// Stub kept for callers that still invoke it.
+function initChartScheduleDefaults() {}
 
 // Update card header range displays
 function updateRangeDisplays() {
@@ -4347,50 +5007,19 @@ function setupEventListeners() {
     }
   });
 
-  document.getElementById('chart-date-slider').addEventListener('input', () => {
-    renderChart();
-  });
-
-  // Click date label to reset to today
-  const dateDisplay = document.getElementById('chart-date-display');
-  if (dateDisplay) {
-    dateDisplay.addEventListener('click', () => {
-      const slider = document.getElementById('chart-date-slider');
-      if (!slider) return;
-      const now = new Date();
-      const todayOffset = Math.floor((now - new Date(now.getFullYear(), 0, 1)) / 86400000);
-      slider.value = todayOffset;
+  // Month slider — replaces the old day-of-year slider. 12 stops; renderChart()
+  // reads chartState.monthIdx via getSelectedDateISO() to compute sun times.
+  const monthSlider = document.getElementById('month-slider');
+  const monthLabel = document.getElementById('month-label');
+  if (monthSlider) {
+    monthSlider.addEventListener('input', () => {
+      chartState.monthIdx = parseInt(monthSlider.value, 10);
+      if (monthLabel) monthLabel.textContent = MONTH_NAMES[chartState.monthIdx];
       renderChart();
     });
   }
 
-  const _condSel = document.getElementById('modeled-conditions');
-  _condSel.addEventListener('change', () => {
-    renderChart();
-  });
-  // Swap "Current" label: short when collapsed, full when open
-  _condSel.addEventListener('focus', () => {
-    const opt = _condSel.options[0];
-    if (opt?.value === 'current' && opt.dataset.fullLabel) opt.text = opt.dataset.fullLabel;
-  });
-  _condSel.addEventListener('blur', () => {
-    const opt = _condSel.options[0];
-    if (opt?.value === 'current' && opt.dataset.shortLabel) opt.text = opt.dataset.shortLabel;
-  });
-
-  // Chart schedule toggles (wake/bed primary vs alt)
-  document.getElementById('chart-wake-secondary')?.addEventListener('change', (e) => {
-    chartWakeMode = e.target.checked ? 'alt' : 'primary';
-    renderChart();
-    applyCursor();
-  });
-  document.getElementById('chart-bed-secondary')?.addEventListener('change', (e) => {
-    chartBedMode = e.target.checked ? 'alt' : 'primary';
-    renderChart();
-    applyCursor();
-  });
-
-  // Time navigation buttons — always active
+  // Now button — jumps cursor to current time and resumes live tracking
   document.getElementById('cursor-time-now')?.addEventListener('click', () => {
     cursorTrackingNow = true;
     const now = new Date();
@@ -4398,29 +5027,26 @@ function setupEventListeners() {
     renderChart();
     applyCursor();
   });
-  document.getElementById('cursor-time-plus')?.addEventListener('click', () => {
-    cursorTrackingNow = false;
-    cursorHour = (cursorHour + 5/60) % 24;  // +5 minutes, wrap at 24
-    renderChart();
-    applyCursor();
-  });
-  document.getElementById('cursor-time-minus')?.addEventListener('click', () => {
-    cursorTrackingNow = false;
-    cursorHour = (cursorHour - 5/60 + 24) % 24;
-    renderChart();
-    applyCursor();
-  });
-  document.getElementById('cursor-time-plus-30')?.addEventListener('click', () => {
-    cursorTrackingNow = false;
-    cursorHour = (cursorHour + 30/60) % 24;
-    renderChart();
-    applyCursor();
-  });
-  document.getElementById('cursor-time-minus-30')?.addEventListener('click', () => {
-    cursorTrackingNow = false;
-    cursorHour = (cursorHour - 30/60 + 24) % 24;
-    renderChart();
-    applyCursor();
+
+  // Wake/Bed handle drag setup
+  setupHandleDrag('wake-handle', 'wake');
+  setupHandleDrag('bed-handle', 'bed');
+
+  // Outdoor chip toggle + popover wiring
+  setupOutdoorPopover();
+
+  // Save / Reset chip event delegation (chips live in #wake-actions / #bed-actions)
+  setupHandleActions();
+
+  // Outside-click closes popovers
+  document.addEventListener('pointerdown', (e) => {
+    if (!e.target.closest('.save-popover') && !e.target.closest('.action-chip')) {
+      closeSavePopover();
+    }
+    if (!e.target.closest('.outdoor-popover') && !e.target.closest('.outdoor-chip')) {
+      const op = document.getElementById('outdoor-popover');
+      if (op) op.classList.remove('open');
+    }
   });
 
 }
@@ -5236,6 +5862,9 @@ async function loadZoneFromData() {
       syncConfigFromUI();
       if (storedColorSens != null) config.color_sensitivity = storedColorSens;
       takeConfigSnapshot();
+      // Anchor chart frame at ascend_start - 2 once real config loads, so the
+      // initial render isn't stuck at the placeholder default.
+      recomputeAscendStart();
       renderChart();
 
       // Auto-expand color card when arriving from tune color tab
@@ -5432,14 +6061,12 @@ function setupSectionActions() {
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-  const slider = document.getElementById('chart-date-slider');
-  if (slider) {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), 0, 1);
-    const diff = now - start;
-    const dayOfYear = Math.floor(diff / 86400000);
-    slider.value = dayOfYear;
-  }
+  // Initialize month slider to current month
+  const monthSlider = document.getElementById('month-slider');
+  const monthLabel = document.getElementById('month-label');
+  chartState.monthIdx = new Date().getMonth();
+  if (monthSlider) monthSlider.value = chartState.monthIdx;
+  if (monthLabel) monthLabel.textContent = MONTH_NAMES[chartState.monthIdx];
 
   // Apply server-injected global settings (lat, lon, timezone) before first render
   const injectedCfg = (window.circadianData || {}).config || {};
@@ -5475,31 +6102,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     // Use condition_multiplier directly from backend (no reverse-engineering)
     _liveConditionMult = data.condition_multiplier ?? 1.0;
-    // Format condition name for display
-    function fmtCondition(c) {
-      if (!c) return '';
-      return c.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    }
-    // Update the "Current" option label (short when collapsed, full when dropped down)
-    const sel = document.getElementById('modeled-conditions');
-    if (sel && sel.options[0]?.value === 'current') {
-      let shortLabel = 'Current';
-      let fullLabel = 'Current';
-      if (_liveSource === 'weather' && _liveCondition) {
-        shortLabel = fmtCondition(_liveCondition) + ' (' + Math.round(_liveConditionMult * 100) + '%)';
-        fullLabel = 'Current: ' + shortLabel;
-      } else if (_liveSource === 'lux') {
-        shortLabel = 'lux (' + Math.round(_liveConditionMult * 100) + '%)';
-        fullLabel = 'Current: ' + shortLabel;
-      } else if (_liveSource === 'angle') {
-        shortLabel = 'sun angle';
-        fullLabel = 'Current: ' + shortLabel;
-      }
-      sel.options[0].dataset.shortLabel = shortLabel;
-      sel.options[0].dataset.fullLabel = fullLabel;
-      sel.options[0].text = sel === document.activeElement ? fullLabel : shortLabel;
-    }
-    if (sel?.value === 'current') {
+    // Update outdoor chip's "Current" pct label and re-render if the chart is
+    // showing Current (default). The outdoor select element is gone; the chip
+    // popover replaces it.
+    if (chartState.outdoorSrc === 'current') {
+      const pctEl = document.getElementById('outdoor-pct');
+      if (pctEl) pctEl.textContent = Math.round((_liveConditionMult ?? 1) * 100) + '%';
       renderChart();
       applyCursor();
     }

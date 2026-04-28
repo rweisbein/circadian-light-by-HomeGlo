@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Rhythm Design — Mockup v3</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --card: rgba(255,255,255,0.025);
+    --text: #e8e8e8;
+    --muted: rgba(220,220,220,0.7);
+    --muted2: rgba(180,180,180,0.5);
+    --line: rgba(255,255,255,0.1);
+    --wake: #5cb3ff;
+    --wake-ink: #082544;
+    --bed: #ffe680;
+    --bed-ink: #3a2c00;
+    --live: #ff8a3a;
+    --save: #4ade80;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    overscroll-behavior: none;
+  }
+  .page { max-width: 720px; margin: 0 auto; padding: 12px; }
+
+  /* Header */
+  .header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid var(--line);
+  }
+  .back-btn {
+    background: none; border: 1px solid var(--line); color: var(--text);
+    width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 16px;
+  }
+  .header-title { font-size: 16px; }
+  .header-title strong { font-weight: 600; }
+
+  /* Live Design row */
+  .live-row { display: flex; align-items: center; gap: 10px; padding: 14px 0 8px; }
+  .live-label { font-size: 17px; font-weight: 600; }
+  .antenna {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px; color: var(--muted2); font-size: 13px;
+    transition: color 0.2s;
+  }
+  .antenna.live { color: var(--live); animation: pulse-live 1.4s ease-in-out infinite; }
+  @keyframes pulse-live { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+  .area-select {
+    background: rgba(255,255,255,0.05); border: 1px solid var(--line);
+    color: var(--text); padding: 6px 10px; border-radius: 6px;
+    font-size: 14px; cursor: pointer;
+  }
+  .stop-btn {
+    background: rgba(255,255,255,0.05); border: 1px solid var(--line);
+    color: var(--muted); padding: 6px 14px; border-radius: 6px;
+    font-size: 13px; cursor: pointer; display: none; letter-spacing: 0.04em;
+  }
+  .stop-btn.visible { display: inline-block; }
+
+  /* Chart shell — three vertical zones:
+     above chart  → only the NOW pill (and a small LIVE pip)
+     chart body   → curve + cursor
+     below chart  → 3 bands (Plotly tick labels, then solar HTML, then wake/bed HTML)
+  */
+  #chart-shell {
+    position: relative;
+    background: var(--card); border-radius: 12px;
+    padding: 8px 4px 86px;
+    margin-top: 8px;
+    overflow: visible;
+  }
+  #chart {
+    width: 100%; height: 260px;
+    touch-action: none; cursor: pointer;
+  }
+
+  /* Top zone — only NOW pill (+ tiny LIVE pip) live here */
+  .now-pill {
+    position: absolute; top: 14px;
+    transform: translateX(-50%);
+    padding: 4px 11px; border-radius: 8px; border: 1.5px solid;
+    font-size: 13px; font-weight: 600;
+    white-space: nowrap; pointer-events: none;
+    z-index: 6; letter-spacing: 0.02em;
+  }
+  .live-pip {
+    position: absolute; top: 16px; right: 14px;
+    display: none; align-items: center; gap: 5px;
+    color: var(--live); font-size: 9px; font-weight: 700;
+    letter-spacing: 0.12em; z-index: 7;
+  }
+  .live-pip.visible { display: inline-flex; }
+  .live-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--live);
+    animation: pulse-live 1.4s ease-in-out infinite;
+  }
+
+  /* Solar band — HTML overlays just below x-axis ticks. All at one y. */
+  .solar-label {
+    position: absolute; bottom: 65px;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: rgba(215,215,215,0.75);
+    cursor: help;
+    white-space: nowrap;
+    z-index: 4;
+  }
+  .solar-label:hover { color: rgba(255,255,255,0.95); }
+  .solar-label::after {
+    content: attr(data-time);
+    position: absolute; bottom: 100%; left: 50%;
+    transform: translateX(-50%);
+    padding: 3px 7px;
+    background: #3a3a3a; color: #fff;
+    font-size: 11px; font-weight: 500;
+    border-radius: 4px; white-space: nowrap;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.12s;
+    margin-bottom: 5px;
+    font-variant-numeric: tabular-nums;
+  }
+  .solar-label:hover::after { opacity: 1; }
+
+  /* Outdoor chip — same band as sunrise/sunset, at solar-noon x */
+  .outdoor-chip {
+    position: absolute; bottom: 60px;
+    transform: translateX(-50%);
+    background: rgba(20, 22, 28, 0.85); border: 1px solid rgba(255,255,255,0.12);
+    padding: 3px 9px; border-radius: 12px;
+    font-size: 11px; font-weight: 600;
+    color: rgba(245, 230, 200, 0.92);
+    cursor: pointer; z-index: 5;
+    display: inline-flex; align-items: center; gap: 5px;
+    white-space: nowrap; letter-spacing: 0.02em;
+    user-select: none;
+  }
+  .outdoor-chip:hover { background: rgba(34, 38, 48, 0.95); }
+  .outdoor-chip-icon { font-size: 12px; line-height: 1; }
+  /* Outdoor popover opens ABOVE the chip (chip is now in bottom margin) */
+  .outdoor-popover {
+    position: absolute; bottom: 90px;
+    transform: translateX(-50%);
+    background: rgba(24, 26, 32, 0.98); border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 8px; padding: 6px;
+    min-width: 200px; z-index: 20;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.5);
+    display: none;
+  }
+  .outdoor-popover.open { display: block; }
+  .outdoor-popover .src-row {
+    display: flex; gap: 4px; padding: 4px 4px 8px;
+    border-bottom: 1px solid var(--line); margin-bottom: 4px;
+  }
+  .outdoor-popover .src-btn {
+    flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--line);
+    color: var(--muted); padding: 6px; border-radius: 5px;
+    font-size: 11px; cursor: pointer; text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .outdoor-popover .src-btn.active {
+    background: rgba(255, 215, 100, 0.15); color: rgba(245, 230, 200, 0.95);
+    border-color: rgba(255, 215, 100, 0.5);
+  }
+  .outdoor-popover .opt {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 9px; border-radius: 5px;
+    font-size: 13px; cursor: pointer; color: var(--text);
+  }
+  .outdoor-popover .opt:hover { background: rgba(255,255,255,0.05); }
+  .outdoor-popover .opt.selected { background: rgba(255,255,255,0.07); font-weight: 600; }
+  .outdoor-popover .opt-icon { font-size: 14px; width: 18px; text-align: center; }
+  .outdoor-popover .opt-pct { margin-left: auto; color: var(--muted2); font-variant-numeric: tabular-nums; }
+  .outdoor-popover.src-current .opt { opacity: 0.4; pointer-events: none; }
+
+  /* Wake/Bed band — HTML overlays at the very bottom, full-color pills */
+  .phase-handle {
+    position: absolute; bottom: 32px;
+    transform: translateX(-50%);
+    cursor: grab; user-select: none;
+    z-index: 5; touch-action: none;
+    padding: 6px 4px;
+  }
+  .phase-handle.dragging { cursor: grabbing; }
+  .phase-pill {
+    display: inline-flex; align-items: baseline; gap: 5px;
+    padding: 4px 10px;
+    min-width: 76px; height: 22px;
+    border-radius: 11px 11px 8px 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    font-size: 12.5px; font-weight: 600;
+    letter-spacing: 0.01em; line-height: 1;
+    transition: transform 0.1s, box-shadow 0.15s;
+    white-space: nowrap; justify-content: center;
+  }
+  .phase-wake .phase-pill { background: var(--wake); color: var(--wake-ink); }
+  .phase-bed  .phase-pill { background: var(--bed);  color: var(--bed-ink); }
+  .phase-handle:hover .phase-pill,
+  .phase-handle.dragging .phase-pill {
+    transform: scale(1.06); box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+  }
+  .phase-name {
+    font-size: 9px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    opacity: 0.7;
+  }
+  .phase-time { font-variant-numeric: tabular-nums; }
+
+  /* Ghost pill at saved x while dragging (saved-position reference) */
+  .phase-ghost {
+    position: absolute; bottom: 32px;
+    transform: translateX(-50%);
+    padding: 6px 4px;
+    pointer-events: none; z-index: 4;
+    display: none;
+  }
+  .phase-ghost-pill {
+    width: 76px; height: 22px;
+    border-radius: 11px 11px 8px 8px;
+    border: 1.5px dashed;
+    background: transparent;
+  }
+  .phase-ghost.for-wake .phase-ghost-pill { border-color: rgba(92,179,255,0.55); }
+  .phase-ghost.for-bed  .phase-ghost-pill { border-color: rgba(255,230,128,0.55); }
+
+  /* Save / Revert chips — appear BELOW the moved pill */
+  .handle-actions {
+    position: absolute; bottom: 4px;
+    transform: translateX(-50%);
+    display: none;
+    align-items: center; gap: 4px;
+    z-index: 7;
+  }
+  .handle-actions.visible { display: inline-flex; }
+  .action-chip {
+    background: rgba(20, 22, 28, 0.95);
+    border: 1px solid rgba(255,255,255,0.18);
+    color: var(--text);
+    padding: 4px 9px;
+    border-radius: 12px;
+    font-size: 11px; font-weight: 600;
+    cursor: pointer; letter-spacing: 0.02em;
+    line-height: 1;
+    display: inline-flex; align-items: center; gap: 4px;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .action-chip.save:hover { background: rgba(255,255,255,0.08); }
+  .action-chip.revert:hover { background: rgba(255,255,255,0.08); }
+
+  /* Save popover */
+  .save-popover {
+    position: absolute; bottom: 36px;
+    transform: translateX(-50%);
+    background: rgba(24, 26, 32, 0.98); border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 8px; padding: 8px;
+    min-width: 240px; z-index: 30;
+    box-shadow: 0 -6px 20px rgba(0,0,0,0.6);
+    display: none;
+  }
+  .save-popover.open { display: block; }
+  .save-popover-title {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted2); padding: 4px 6px 8px;
+  }
+  .save-popover-title strong { color: var(--text); font-variant-numeric: tabular-nums; }
+  .save-opt {
+    display: block; width: 100%; text-align: left;
+    background: none; border: none; color: var(--text);
+    padding: 8px 10px; border-radius: 5px;
+    font-size: 13px; cursor: pointer;
+    font-family: inherit;
+  }
+  .save-opt:hover { background: rgba(255,255,255,0.06); }
+  .save-opt.is-today {
+    border-left: 2px solid var(--wake);
+    padding-left: 8px;
+  }
+  .save-opt-sub { font-size: 11px; color: var(--muted2); display: block; margin-top: 2px; }
+
+  /* Below-chart meta */
+  .chart-meta { padding: 14px 4px 4px; }
+  .month-row { display: flex; align-items: center; gap: 12px; }
+  .month-label {
+    min-width: 80px; font-size: 16px; font-weight: 600; color: var(--text);
+  }
+  .month-slider {
+    flex: 1; -webkit-appearance: none; appearance: none;
+    height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px;
+    outline: none; cursor: pointer;
+  }
+  .month-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 22px; height: 22px;
+    border-radius: 50%; background: #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4); cursor: pointer;
+  }
+
+  /* Accordion placeholders */
+  .accordion {
+    margin-top: 8px; background: var(--card); border-radius: 8px;
+    padding: 14px 16px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .accordion-title { font-size: 16px; }
+  .accordion-value { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* Demo controls (mock-only) */
+  .demo-bar {
+    position: fixed; bottom: 16px; right: 16px;
+    display: flex; gap: 6px; flex-direction: column;
+    background: rgba(24, 26, 32, 0.95);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px; padding: 10px;
+    z-index: 100; font-size: 11px;
+  }
+  .demo-bar label { color: var(--muted2); display: flex; align-items: center; gap: 4px; }
+  .demo-bar select, .demo-bar input {
+    background: rgba(255,255,255,0.05); border: 1px solid var(--line);
+    color: var(--text); padding: 3px 5px; border-radius: 4px;
+    font-size: 11px;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <button class="back-btn">‹</button>
+    <div class="header-title">Rhythm zone: <strong>Main</strong></div>
+  </div>
+
+  <div class="live-row">
+    <span class="live-label">Live Design</span>
+    <span class="antenna" id="antenna">((·))</span>
+    <select class="area-select" id="areaSelect">
+      <option value="">Select area</option>
+      <option value="SunOffice">SunOffice</option>
+      <option value="Bedroom">Bedroom</option>
+      <option value="Kitchen">Kitchen</option>
+    </select>
+    <button class="stop-btn" id="stopBtn">Stop</button>
+  </div>
+
+  <div id="chart-shell">
+    <!-- Top zone: cursor info only -->
+    <div class="now-pill" id="nowPill">2:17p · 90% · 5500K</div>
+    <div class="live-pip" id="livePip"><span class="live-dot"></span>LIVE</div>
+
+    <div id="chart"></div>
+
+    <!-- Solar band (below axis): sunrise · outdoor chip · sunset, all at one y -->
+    <div class="solar-label" id="sunriseLabel" data-time="6:24a">sunrise</div>
+    <div class="outdoor-chip" id="outdoorChip" onclick="toggleOutdoor(event)">
+      <span class="outdoor-chip-icon" id="outdoorIcon">☀</span>
+      <span id="outdoorPct">100%</span>
+    </div>
+    <div class="solar-label" id="sunsetLabel" data-time="7:48p">sunset</div>
+
+    <div class="outdoor-popover" id="outdoorPopover">
+      <div class="src-row">
+        <button class="src-btn" data-src="current">Current</button>
+        <button class="src-btn active" data-src="manual">Pick value</button>
+      </div>
+      <div class="opt selected" data-pct="100"><span class="opt-icon">☀</span>Sunny<span class="opt-pct">100%</span></div>
+      <div class="opt" data-pct="70"><span class="opt-icon">⛅</span>Partly cloudy<span class="opt-pct">70%</span></div>
+      <div class="opt" data-pct="40"><span class="opt-icon">☁</span>Overcast<span class="opt-pct">40%</span></div>
+      <div class="opt" data-pct="20"><span class="opt-icon">⛈</span>Stormy<span class="opt-pct">20%</span></div>
+      <div class="opt" data-pct="0"><span class="opt-icon">🌑</span>Dark<span class="opt-pct">0%</span></div>
+    </div>
+
+    <!-- Wake/bed band (very bottom) -->
+    <div class="phase-ghost for-wake"><div class="phase-ghost-pill"></div></div>
+    <div class="phase-handle phase-wake" id="wakeHandle">
+      <div class="phase-pill">
+        <span class="phase-name">wake</span>
+        <span class="phase-time">7:00a</span>
+      </div>
+    </div>
+    <div class="handle-actions" id="wakeActions">
+      <button class="action-chip save" onclick="openSavePopover('wake')">Save ▾</button>
+      <button class="action-chip revert" onclick="revert('wake')">↺</button>
+    </div>
+
+    <div class="phase-ghost for-bed"><div class="phase-ghost-pill"></div></div>
+    <div class="phase-handle phase-bed" id="bedHandle">
+      <div class="phase-pill">
+        <span class="phase-name">bed</span>
+        <span class="phase-time">10:00p</span>
+      </div>
+    </div>
+    <div class="handle-actions" id="bedActions">
+      <button class="action-chip save" onclick="openSavePopover('bed')">Save ▾</button>
+      <button class="action-chip revert" onclick="revert('bed')">↺</button>
+    </div>
+
+    <div class="save-popover" id="savePopover"></div>
+  </div>
+
+  <div class="chart-meta">
+    <div class="month-row">
+      <span class="month-label" id="monthLabel">April</span>
+      <input type="range" class="month-slider" id="monthSlider" min="0" max="11" value="3">
+    </div>
+  </div>
+
+  <div class="accordion"><span class="accordion-title">Sleep pattern</span><span class="accordion-value">Adult · Mo–Fr / Sa–Su</span></div>
+  <div class="accordion"><span class="accordion-title">Color temperature</span><span class="accordion-value">500 – 5500 K</span></div>
+  <div class="accordion"><span class="accordion-title">Brightness</span><span class="accordion-value">1 – 90% · sun resp 60</span></div>
+</div>
+
+<div class="demo-bar">
+  <label>Today: <select id="todayDay">
+    <option value="Mon">Monday</option><option value="Tue">Tuesday</option>
+    <option value="Wed">Wednesday</option><option value="Thu">Thursday</option>
+    <option value="Fri" selected>Friday</option>
+    <option value="Sat">Saturday</option><option value="Sun">Sunday</option>
+  </select></label>
+  <label>Sun response: <input type="range" id="sunResp" min="0" max="100" value="60" style="width: 80px"></label>
+</div>
+
+<script>
+  // ---------- Curve math ----------
+  // Generates curve points across [xAnchor, xAnchor+24] (a sliding 24h window).
+  // wakeH/bedH are wall-clock hours in [0,24); we lift them into the same window.
+  function buildCurve(wakeH, bedH, xAnchor, peakBri = 0.9, ascendK = 4, descendK = 4) {
+    const N = 240, hours = [], bri = [], cct = [];
+    let wakeT = wakeH < xAnchor ? wakeH + 24 : wakeH;
+    let bedT  = bedH  < xAnchor ? bedH  + 24 : bedH;
+    if (bedT <= wakeT) bedT += 24;
+    for (let i = 0; i <= N; i++) {
+      const t = xAnchor + (i / N) * 24;        // chart-frame coordinate
+      hours.push(t);
+      const ascend  = 1 / (1 + Math.exp(-ascendK  * (t - wakeT - 0.7)));
+      const descend = 1 / (1 + Math.exp(-descendK * (t - bedT  - 0.7)));
+      const b = Math.max(0.005, peakBri * (ascend - descend));
+      bri.push(b);
+      cct.push(1800 + (b / peakBri) * 3700);
+    }
+    return { hours, bri, cct };
+  }
+  // Map a wall-clock hour [0,24) into the chart's visible frame [xAnchor, xAnchor+24).
+  function visHour(h, xAnchor) { return h < xAnchor ? h + 24 : h; }
+  function cctToRGB(k) {
+    const t = k / 100; let r, g, b;
+    if (t <= 66) {
+      r = 255; g = 99.4708025861 * Math.log(t) - 161.1195681661;
+      b = t <= 19 ? 0 : 138.5177312231 * Math.log(t - 10) - 305.0447927307;
+    } else {
+      r = 329.698727446 * Math.pow(t - 60, -0.1332047592);
+      g = 288.1221695283 * Math.pow(t - 60, -0.0755148492);
+      b = 255;
+    }
+    const c = v => Math.max(0, Math.min(255, Math.round(v)));
+    return `rgb(${c(r)},${c(g)},${c(b)})`;
+  }
+  const rgba = (rgb, a) => rgb.replace('rgb(', 'rgba(').replace(')', `,${a})`);
+  function readableText(rgb) {
+    const m = rgb.match(/\d+/g).map(Number);
+    const lum = (0.299*m[0] + 0.587*m[1] + 0.114*m[2]) / 255;
+    return lum > 0.55 ? '#0a0a0a' : '#ffffff';
+  }
+
+  // ---------- State ----------
+  const months = [
+    ['January', 7.5, 17.0], ['February', 7.0, 17.7], ['March', 6.7, 18.3],
+    ['April', 6.4, 19.8], ['May', 5.8, 20.3], ['June', 5.5, 20.6],
+    ['July', 5.7, 20.5], ['August', 6.2, 20.0], ['September', 6.7, 19.2],
+    ['October', 7.2, 18.3], ['November', 6.8, 16.7], ['December', 7.3, 16.5]
+  ];
+  // Realistic: wake & bed share Mo-Fr / Sa-Su grouping (no funny splits)
+  const SCHEDULE = {
+    wake: [
+      { id: 'wd', label: 'Mo–Fr', days: ['Mon','Tue','Wed','Thu','Fri'], time: 7.0 },
+      { id: 'we', label: 'Sa–Su', days: ['Sat','Sun'],                   time: 7.5 }
+    ],
+    bed: [
+      { id: 'wd', label: 'Mo–Fr', days: ['Mon','Tue','Wed','Thu','Fri'], time: 22.0 },
+      { id: 'we', label: 'Sa–Su', days: ['Sat','Sun'],                   time: 22.5 }
+    ]
+  };
+  const state = {
+    savedWakeH: 7.0, savedBedH: 22.0,
+    wakeH: 7.0, bedH: 22.0,
+    cursorH: 14.28,
+    monthIdx: 3,
+    sunriseH: 6.4, sunsetH: 19.8,
+    outdoorPct: 100, outdoorSrc: 'manual',
+    sunResponse: 60,
+    live: false,
+    todayDay: 'Fri',
+    wakeDragActive: false, bedDragActive: false,
+    // x=0 of the chart anchors here (≈ start of ascend phase) so phases never wrap
+    ascendStart: 5.0,
+  };
+  function recomputeAscendStart() {
+    // Anchor 2h before saved wake — keeps wake clearly inside the chart and bed
+    // never falls off the right edge even if user pushes it past midnight.
+    state.ascendStart = ((state.savedWakeH - 2) % 24 + 24) % 24;
+  }
+  recomputeAscendStart();
+  function groupForToday(kind) {
+    return SCHEDULE[kind].find(g => g.days.includes(state.todayDay));
+  }
+  function fmtHour(h) {
+    h = ((h % 24) + 24) % 24;
+    let hh = Math.floor(h);
+    const mm = Math.round((h - hh) * 60);
+    const ap = hh < 12 || hh === 24 ? 'a' : 'p';
+    hh = hh % 12; if (hh === 0) hh = 12;
+    return `${hh}:${String(mm).padStart(2,'0')}${ap}`;
+  }
+
+  // ---------- Sun-adjusted bulb output ----------
+  // t may be in chart frame [xAnchor, xAnchor+24); reduce to wall-clock first.
+  function sunArcAt(t) {
+    const h = ((t % 24) + 24) % 24;
+    if (h < state.sunriseH || h > state.sunsetH) return 0;
+    const noon = (state.sunriseH + state.sunsetH) / 2;
+    const halfDay = (state.sunsetH - state.sunriseH) / 2;
+    const arc = Math.cos((h - noon) / halfDay * Math.PI / 2);
+    return Math.max(0, arc * arc);
+  }
+  function bulbAt(c, idx) {
+    const t = c.hours[idx];
+    const sunFill = sunArcAt(t) * (state.outdoorPct/100) * (state.sunResponse/100) * 0.9;
+    return Math.max(0.005, c.bri[idx] - sunFill);
+  }
+
+  // ---------- Render ----------
+  function renderChart() {
+    const xA = state.ascendStart;
+    const xE = xA + 24;
+    const c = buildCurve(state.wakeH, state.bedH, xA);
+    const targetPct = c.bri.map(v => v * 100);
+    const bulbBri = c.hours.map((_, i) => bulbAt(c, i));
+    const bulbPct = bulbBri.map(v => v * 100);
+    const showDottedTarget = state.outdoorPct > 0 && state.sunResponse > 0;
+
+    const traces = [];
+    const step = 3;
+    for (let i = step; i < c.hours.length; i += step) {
+      const cctNow = 1800 + (bulbBri[i] / 0.9) * 3700;
+      const color = cctToRGB(cctNow);
+      traces.push({
+        type: 'scatter', mode: 'lines',
+        x: [c.hours[i-step], c.hours[i], c.hours[i], c.hours[i-step]],
+        y: [bulbPct[i-step], bulbPct[i], 0, 0],
+        fill: 'toself', line: { width: 0 },
+        fillcolor: rgba(color, 0.45),
+        hoverinfo: 'skip', showlegend: false
+      });
+      traces.push({
+        type: 'scatter', mode: 'lines',
+        x: [c.hours[i-step], c.hours[i]],
+        y: [bulbPct[i-step], bulbPct[i]],
+        line: { width: 2.5, color },
+        hoverinfo: 'skip', showlegend: false
+      });
+    }
+
+    if (showDottedTarget) {
+      traces.push({
+        type: 'scatter', mode: 'lines',
+        x: c.hours, y: targetPct,
+        line: { width: 1.4, color: 'rgba(220,220,220,0.45)', dash: 'dot' },
+        hoverinfo: 'skip', showlegend: false
+      });
+    }
+
+    // Helper: chart-frame x for a stored 0-24 hour value.
+    const tFor = h => visHour(h, xA);
+    const idxFor = h => Math.round(((tFor(h) - xA) / 24) * (c.hours.length - 1));
+
+    // Cursor dot — CCT-tinted to match NOW pill
+    const cIdx = idxFor(state.cursorH);
+    const cursorBri = bulbBri[cIdx];
+    const cursorCCT = 1800 + (cursorBri / 0.9) * 3700;
+    const cursorRGB = cctToRGB(cursorCCT);
+    traces.push({
+      type: 'scatter', mode: 'markers',
+      x: [tFor(state.cursorH)], y: [bulbPct[cIdx]],
+      marker: { size: 16, color: cursorRGB,
+                line: { width: 2, color: 'rgba(0,0,0,0.55)' } },
+      cliponaxis: false, hoverinfo: 'skip', showlegend: false
+    });
+
+    // Wake/bed circles ON the curve while that handle is dragging — CCT-tinted
+    if (state.wakeDragActive) {
+      const wIdx = idxFor(state.wakeH);
+      const wCCT = 1800 + (bulbBri[wIdx] / 0.9) * 3700;
+      traces.push({
+        type: 'scatter', mode: 'markers',
+        x: [tFor(state.wakeH)], y: [bulbPct[wIdx]],
+        marker: { size: 14, color: cctToRGB(wCCT),
+                  line: { width: 2, color: 'rgba(0,0,0,0.55)' } },
+        cliponaxis: false, hoverinfo: 'skip', showlegend: false
+      });
+    }
+    if (state.bedDragActive) {
+      const bIdx = idxFor(state.bedH);
+      const bCCT = 1800 + (bulbBri[bIdx] / 0.9) * 3700;
+      traces.push({
+        type: 'scatter', mode: 'markers',
+        x: [tFor(state.bedH)], y: [bulbPct[bIdx]],
+        marker: { size: 14, color: cctToRGB(bCCT),
+                  line: { width: 2, color: 'rgba(0,0,0,0.55)' } },
+        cliponaxis: false, hoverinfo: 'skip', showlegend: false
+      });
+    }
+
+    // Vertical lines: cursor (always, solid white); wake/bed only when active
+    const shapes = [
+      { type: 'line', xref: 'x', yref: 'paper',
+        x0: tFor(state.cursorH), x1: tFor(state.cursorH), y0: 0, y1: 1,
+        line: { color: 'rgba(255,255,255,0.85)', width: 1.2 } }
+    ];
+    if (state.wakeDragActive) {
+      shapes.push({ type: 'line', xref: 'x', yref: 'paper',
+        x0: tFor(state.wakeH), x1: tFor(state.wakeH), y0: 0, y1: 1,
+        line: { color: 'rgb(92,179,255)', width: 1.5 } });
+    }
+    if (state.bedDragActive) {
+      shapes.push({ type: 'line', xref: 'x', yref: 'paper',
+        x0: tFor(state.bedH), x1: tFor(state.bedH), y0: 0, y1: 1,
+        line: { color: 'rgb(255,230,128)', width: 1.5 } });
+    }
+
+    // Tick values every 3h starting at xAnchor (skip trailing dup)
+    const tickvals = [], ticktext = [];
+    for (let i = 0; i < 8; i++) {
+      const t = xA + i * 3;
+      tickvals.push(t);
+      ticktext.push(fmtHourShort(t));
+    }
+
+    const layout = {
+      paper_bgcolor: 'rgba(0,0,0,0)',
+      plot_bgcolor: 'rgba(0,0,0,0)',
+      margin: { t: 50, r: 14, l: 44, b: 24 },
+      showlegend: false, hovermode: 'closest',
+      xaxis: {
+        range: [xA, xE], fixedrange: true,
+        tickvals, ticktext,
+        gridcolor: 'rgba(80,100,130,0.18)',
+        tickfont: { color: '#c8c8c8', size: 11 }, ticklen: 3
+      },
+      yaxis: {
+        range: [0, 105], fixedrange: true,
+        tickvals: [0, 50, 100], ticktext: ['0%', '50%', '100%'],
+        gridcolor: 'rgba(80,100,130,0.18)',
+        tickfont: { color: '#c8c8c8', size: 11 }, ticklen: 3
+      },
+      shapes
+    };
+
+    return Plotly.react('chart', traces, layout, {
+      displayModeBar: false, doubleClick: false, scrollZoom: false, responsive: true
+    }).then(positionOverlays);
+  }
+  function fmtHourShort(t) {
+    const h = ((t % 24) + 24) % 24;
+    let hh = Math.floor(h);
+    const ap = hh < 12 || hh === 24 ? 'a' : 'p';
+    hh = hh % 12; if (hh === 0) hh = 12;
+    return `${hh}${ap}`;
+  }
+
+  // ---------- Overlay positioning ----------
+  // Builds an x→px function in the chart-shell coordinate space. Input is a
+  // wall-clock hour (0–24); output places it in the visible [xAnchor, xAnchor+24] frame.
+  function getXPxFn() {
+    const chartDiv = document.getElementById('chart');
+    const fl = chartDiv && chartDiv._fullLayout;
+    if (!fl || !fl.xaxis) return null;
+    const xa = fl.xaxis;
+    const shellRect = document.getElementById('chart-shell').getBoundingClientRect();
+    const chartRect = chartDiv.getBoundingClientRect();
+    const offX = chartRect.left - shellRect.left;
+    const xA = xa.range[0];
+    const span = xa.range[1] - xa.range[0];
+    return h => offX + xa._offset + ((visHour(h, xA) - xA) / span) * xa._length;
+  }
+  // Pixel x → wall-clock hour [0,24). pxToHour wraps the chart-frame value back.
+  function pxToHour(clientX) {
+    return wrapHour(pxToHourInFrame(clientX));
+  }
+  // Same, but returns the un-wrapped chart-frame coordinate (for clamping).
+  function pxToHourInFrame(clientX) {
+    const chartDiv = document.getElementById('chart');
+    const fl = chartDiv._fullLayout;
+    if (!fl) return 0;
+    const xa = fl.xaxis;
+    const localX = clientX - chartDiv.getBoundingClientRect().left - xa._offset;
+    return xa.range[0] + Math.max(0, Math.min(1, localX / xa._length)) * 24;
+  }
+  function wrapHour(t) { return ((t % 24) + 24) % 24; }
+
+  function positionOverlays() {
+    const xToPx = getXPxFn();
+    if (!xToPx) return;
+
+    // NOW pill (cursor x), CCT-tinted background
+    const c = buildCurve(state.wakeH, state.bedH, state.ascendStart);
+    const idx = Math.round(((visHour(state.cursorH, state.ascendStart) - state.ascendStart) / 24) * (c.bri.length - 1));
+    const briNow = bulbAt(c, idx);
+    const cctNow = 1800 + (briNow / 0.9) * 3700;
+    const rgb = cctToRGB(cctNow);
+    const pill = document.getElementById('nowPill');
+    pill.style.left = xToPx(state.cursorH) + 'px';
+    pill.textContent = `${fmtHour(state.cursorH)} · ${Math.round(briNow * 100)}% · ${Math.round(cctNow)}K`;
+    pill.style.borderColor = rgba(rgb, 0.85);
+    pill.style.background = rgba(rgb, 0.92);
+    pill.style.color = readableText(rgb);
+
+    // Solar band: sunrise / outdoor / sunset
+    document.getElementById('sunriseLabel').style.left = xToPx(state.sunriseH) + 'px';
+    document.getElementById('sunriseLabel').dataset.time = fmtHour(state.sunriseH);
+    document.getElementById('sunsetLabel').style.left = xToPx(state.sunsetH) + 'px';
+    document.getElementById('sunsetLabel').dataset.time = fmtHour(state.sunsetH);
+    const solarNoon = (state.sunriseH + state.sunsetH) / 2;
+    document.getElementById('outdoorChip').style.left = xToPx(solarNoon) + 'px';
+    document.getElementById('outdoorPopover').style.left = xToPx(solarNoon) + 'px';
+
+    // Wake/bed handles
+    document.getElementById('wakeHandle').style.left = xToPx(state.wakeH) + 'px';
+    document.getElementById('bedHandle').style.left  = xToPx(state.bedH) + 'px';
+    document.querySelector('#wakeHandle .phase-time').textContent = fmtHour(state.wakeH);
+    document.querySelector('#bedHandle .phase-time').textContent  = fmtHour(state.bedH);
+
+    // Ghost pills at saved positions — visible ONLY during active drag.
+    // Once user releases, Reset is the path back to saved.
+    const wakeMoved = Math.abs(state.wakeH - state.savedWakeH) > 0.01;
+    const bedMoved  = Math.abs(state.bedH  - state.savedBedH)  > 0.01;
+    const wakeGhost = document.querySelector('.phase-ghost.for-wake');
+    const bedGhost  = document.querySelector('.phase-ghost.for-bed');
+    wakeGhost.style.left = xToPx(state.savedWakeH) + 'px';
+    bedGhost.style.left  = xToPx(state.savedBedH) + 'px';
+    wakeGhost.style.display = state.wakeDragActive && wakeMoved ? 'block' : 'none';
+    bedGhost.style.display  = state.bedDragActive  && bedMoved  ? 'block' : 'none';
+
+    // Save/Revert chips
+    const wA = document.getElementById('wakeActions');
+    const bA = document.getElementById('bedActions');
+    wA.style.left = xToPx(state.wakeH) + 'px';
+    bA.style.left = xToPx(state.bedH) + 'px';
+    wA.classList.toggle('visible', wakeMoved);
+    bA.classList.toggle('visible', bedMoved);
+  }
+
+  // ---------- Save popover ----------
+  function buildSaveOptions(kind) {
+    const todayName = ({Mon:'Monday',Tue:'Tuesday',Wed:'Wednesday',Thu:'Thursday',Fri:'Friday',Sat:'Saturday',Sun:'Sunday'})[state.todayDay];
+    const groups = SCHEDULE[kind];
+    const todayGrp = groupForToday(kind);
+    const opts = [];
+    groups.forEach(g => {
+      const isToday = g === todayGrp;
+      opts.push({
+        key: g.id, label: g.label,
+        sub: isToday ? `Includes today (${todayName})` : `Days: ${g.days.join(', ')}`,
+        isToday
+      });
+    });
+    opts.push({ key: 'all', label: 'All days', sub: 'Sets every day to this value' });
+    return opts;
+  }
+  function openSavePopover(kind) {
+    const pop = document.getElementById('savePopover');
+    const handle = document.getElementById(kind + 'Handle');
+    pop.style.left = handle.style.left;
+    const time = kind === 'wake' ? state.wakeH : state.bedH;
+    pop.innerHTML = `
+      <div class="save-popover-title">Save ${kind} <strong>${fmtHour(time)}</strong> to:</div>
+      ${buildSaveOptions(kind).map(o => `
+        <button class="save-opt ${o.isToday?'is-today':''}" onclick="commitSave('${kind}','${o.key}')">
+          ${o.label}<span class="save-opt-sub">${o.sub}</span>
+        </button>`).join('')}
+    `;
+    pop.classList.add('open');
+    pop.dataset.kind = kind;
+  }
+  function closeSavePopover() {
+    document.getElementById('savePopover').classList.remove('open');
+  }
+  function commitSave(kind, key) {
+    const newVal = kind === 'wake' ? state.wakeH : state.bedH;
+    if (kind === 'wake') {
+      state.savedWakeH = newVal;
+      recomputeAscendStart();   // re-anchor chart so phases never wrap
+    } else {
+      state.savedBedH = newVal;
+    }
+    closeSavePopover();
+    renderChart();
+  }
+  function revert(kind) {
+    if (kind === 'wake') state.wakeH = state.savedWakeH;
+    else                 state.bedH  = state.savedBedH;
+    closeSavePopover();
+    renderChart();
+  }
+  document.addEventListener('pointerdown', (e) => {
+    if (!e.target.closest('.save-popover') && !e.target.closest('.action-chip')) closeSavePopover();
+    if (!e.target.closest('.outdoor-popover') && !e.target.closest('.outdoor-chip')) {
+      document.getElementById('outdoorPopover').classList.remove('open');
+    }
+  });
+
+  // ---------- Interaction ----------
+  function setupCursorDrag() {
+    const chart = document.getElementById('chart');
+    let dragging = false;
+    function moveTo(clientX) { state.cursorH = pxToHour(clientX); renderChart(); }
+    chart.addEventListener('pointerdown', e => {
+      dragging = true; moveTo(e.clientX);
+      try { chart.setPointerCapture(e.pointerId); } catch {}
+    });
+    chart.addEventListener('pointermove', e => { if (dragging) moveTo(e.clientX); });
+    const end = e => { dragging = false; try { chart.releasePointerCapture(e.pointerId); } catch {} };
+    chart.addEventListener('pointerup', end);
+    chart.addEventListener('pointercancel', end);
+  }
+  function setupHandleDrag(elId, kind) {
+    const el = document.getElementById(elId);
+    let dragging = false;
+    function moveTo(clientX) {
+      const xA = state.ascendStart;
+      const tFrame = pxToHourInFrame(clientX);
+      // Phase bounds (in chart frame). Real app enforces these against the
+      // phase config; mock approximates: wake stays in morning side; bed stays
+      // after wake (≥6h sleep) and before next-day ascend (so it never wraps).
+      let tClamped;
+      if (kind === 'wake') {
+        const bedT = visHour(state.bedH, xA);
+        tClamped = Math.max(xA + 0.25, Math.min(bedT - 6, tFrame));
+      } else {
+        const wakeT = visHour(state.wakeH, xA);
+        tClamped = Math.max(wakeT + 6, Math.min(xA + 24 - 0.25, tFrame));
+      }
+      const stored = wrapHour(tClamped);
+      if (kind === 'wake') state.wakeH = stored;
+      else                 state.bedH  = stored;
+      renderChart();
+    }
+    el.addEventListener('pointerdown', e => {
+      e.stopPropagation();
+      dragging = true; el.classList.add('dragging');
+      state[kind + 'DragActive'] = true;
+      renderChart();
+      try { el.setPointerCapture(e.pointerId); } catch {}
+    });
+    el.addEventListener('pointermove', e => { if (dragging) moveTo(e.clientX); });
+    const end = e => {
+      dragging = false; el.classList.remove('dragging');
+      state[kind + 'DragActive'] = false;
+      renderChart();
+      try { el.releasePointerCapture(e.pointerId); } catch {}
+    };
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+  }
+
+  // Outdoor chip popover
+  function toggleOutdoor(e) { e.stopPropagation(); document.getElementById('outdoorPopover').classList.toggle('open'); }
+  document.querySelectorAll('.outdoor-popover .src-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.outdoor-popover .src-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      const src = b.dataset.src;
+      state.outdoorSrc = src;
+      const pop = document.getElementById('outdoorPopover');
+      pop.classList.toggle('src-current', src === 'current');
+      if (src === 'current') {
+        state.outdoorPct = 85;
+        document.getElementById('outdoorPct').textContent = '85%';
+      }
+      updateOutdoorIcon();
+      renderChart();
+    });
+  });
+  document.querySelectorAll('.outdoor-popover .opt').forEach(o => {
+    o.addEventListener('click', () => {
+      if (state.outdoorSrc === 'current') return;
+      document.querySelectorAll('.outdoor-popover .opt').forEach(x => x.classList.remove('selected'));
+      o.classList.add('selected');
+      state.outdoorPct = parseInt(o.dataset.pct, 10);
+      document.getElementById('outdoorPct').textContent = state.outdoorPct + '%';
+      updateOutdoorIcon();
+      renderChart();
+    });
+  });
+  function updateOutdoorIcon() {
+    const pct = state.outdoorPct;
+    const icon = pct >= 85 ? '☀' : pct >= 55 ? '⛅' : pct >= 30 ? '☁' : pct >= 10 ? '⛈' : '🌑';
+    document.getElementById('outdoorIcon').textContent = icon;
+  }
+
+  // Month slider
+  document.getElementById('monthSlider').addEventListener('input', e => {
+    const m = parseInt(e.target.value, 10);
+    state.monthIdx = m;
+    const [name, sr, ss] = months[m];
+    state.sunriseH = sr; state.sunsetH = ss;
+    document.getElementById('monthLabel').textContent = name;
+    renderChart();
+  });
+
+  // Live design
+  const areaSelect = document.getElementById('areaSelect');
+  areaSelect.addEventListener('change', () => {
+    const has = !!areaSelect.value;
+    state.live = has;
+    document.getElementById('antenna').classList.toggle('live', has);
+    document.getElementById('livePip').classList.toggle('visible', has);
+    document.getElementById('stopBtn').classList.toggle('visible', has);
+  });
+  document.getElementById('stopBtn').addEventListener('click', () => {
+    areaSelect.value = '';
+    state.live = false;
+    document.getElementById('antenna').classList.remove('live');
+    document.getElementById('livePip').classList.remove('visible');
+    document.getElementById('stopBtn').classList.remove('visible');
+  });
+
+  // Demo controls
+  document.getElementById('todayDay').addEventListener('change', e => {
+    state.todayDay = e.target.value;
+    state.savedWakeH = groupForToday('wake').time;
+    state.savedBedH  = groupForToday('bed').time;
+    state.wakeH = state.savedWakeH;
+    state.bedH  = state.savedBedH;
+    recomputeAscendStart();
+    renderChart();
+  });
+  document.getElementById('sunResp').addEventListener('input', e => {
+    state.sunResponse = parseInt(e.target.value, 10);
+    renderChart();
+  });
+
+  renderChart().then(() => {
+    setupCursorDrag();
+    setupHandleDrag('wakeHandle', 'wake');
+    setupHandleDrag('bedHandle', 'bed');
+  });
+  window.addEventListener('resize', positionOverlays);
+</script>
+</body>
+</html>
