@@ -5465,9 +5465,18 @@ class HomeAssistantWebSocketClient:
                     except:
                         pass
 
-                # Convert ISO strings to local hours
-                def iso_to_hour(iso_str, default):
+                # Convert ISO strings to local hours. Tracks whether any field
+                # had to use its default — auto_on/off uses this to refuse
+                # firing for sunrise/sunset sources when values aren't real.
+                fallback_flags = {"used": False}
+
+                def iso_to_hour(iso_str, default, field):
                     if not iso_str:
+                        fallback_flags["used"] = True
+                        logger.warning(
+                            f"_get_sun_times: {field} missing from solar calc, "
+                            f"using default {default} (will mark SunTimes as fallback)"
+                        )
                         return default
                     try:
                         dt = datetime.fromisoformat(iso_str)
@@ -5475,12 +5484,17 @@ class HomeAssistantWebSocketClient:
                         if local_tz and dt.tzinfo:
                             dt = dt.astimezone(local_tz)
                         return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
-                    except:
+                    except Exception as e:
+                        fallback_flags["used"] = True
+                        logger.warning(
+                            f"_get_sun_times: failed to parse {field}={iso_str!r} "
+                            f"({e}), using default {default}"
+                        )
                         return default
 
-                sunrise = iso_to_hour(sun_dict.get("sunrise"), 6.0)
-                sunset = iso_to_hour(sun_dict.get("sunset"), 18.0)
-                solar_noon = iso_to_hour(sun_dict.get("noon"), 12.0)
+                sunrise = iso_to_hour(sun_dict.get("sunrise"), 6.0, "sunrise")
+                sunset = iso_to_hour(sun_dict.get("sunset"), 18.0, "sunset")
+                solar_noon = iso_to_hour(sun_dict.get("noon"), 12.0, "noon")
                 solar_mid = (solar_noon + 12.0) % 24.0  # Opposite of noon
 
                 # Resolve outdoor_normalized via lux_tracker fallback chain
@@ -5497,14 +5511,19 @@ class HomeAssistantWebSocketClient:
                     solar_mid=solar_mid,
                     outdoor_normalized=outdoor_norm,
                     outdoor_source=outdoor_source,
+                    is_fallback=fallback_flags["used"],
                 )
         except Exception as e:
-            logger.debug(f"Error calculating sun times: {e}")
+            logger.warning(
+                f"_get_sun_times: calculation failed ({e}), "
+                f"returning fallback SunTimes (auto sunrise/sunset will not fire)"
+            )
 
         # Return defaults if calculation fails
         outdoor_norm = lux_tracker.get_outdoor_normalized()
         return SunTimes(
-            outdoor_normalized=outdoor_norm if outdoor_norm is not None else 0.0
+            outdoor_normalized=outdoor_norm if outdoor_norm is not None else 0.0,
+            is_fallback=True,
         )
 
     # ------------------------------------------------------------------

@@ -312,7 +312,7 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 /* Narrow brightness-card gradient to match .tune-control-row horizontal padding (16px L, 14px R) */
 #rhythm-brightness-body > .ct-gradient-wrap { margin-left: 16px; margin-right: 14px; }
 
-/* Brightness "Sun response" sub-section: divider above for equal weight; label + value inline left-aligned */
+/* Brightness "Sun impact" sub-section: divider above for equal weight; label + value inline left-aligned */
 .bri-sub-section { margin-top: 18px; padding-top: 6px; border-top: 1px solid var(--line); }
 .bri-sub-section .tune-control-row {
   grid-template-columns: max-content 1fr;
@@ -856,6 +856,7 @@ input[type=range]::-moz-range-thumb {
 .ct-axis-label { position: absolute; transform: translateX(-50%); font-size: var(--font-caps); white-space: nowrap; }
 .ct-axis-label .ct-label-sub { display: inline; }
 @media (max-width: 600px) {
+  .ct-axis-ref { height: 30px; }
   .ct-axis-ref .ct-axis-label { white-space: normal; line-height: 1.05; text-align: center; }
   .ct-axis-ref .ct-axis-label .ct-label-colon { display: none; }
   .ct-axis-ref .ct-axis-label .ct-label-sub { display: block; }
@@ -1649,7 +1650,6 @@ input[type=range]::-moz-range-thumb {
           <span class="month-chip-icon">&#128197;</span><span id="month-chip-label">April</span>
         </button>
         <div class="month-popover" id="month-popover">
-          <div class="month-popover-title">Month</div>
           <input type="range" class="month-slider" id="month-slider" min="0" max="11" value="3">
         </div>
 
@@ -1665,16 +1665,7 @@ input[type=range]::-moz-range-thumb {
         <div class="solar-label" id="sunset-label" data-time="">sunset</div>
 
         <div class="outdoor-popover" id="outdoor-popover">
-          <div class="src-row">
-            <button class="src-btn" data-src="current">Current</button>
-            <button class="src-btn active" data-src="manual">Pick value</button>
-          </div>
-          <div class="opt selected" data-pct="100"><span class="opt-icon">&#9728;</span>Sunny<span class="opt-pct">100%</span></div>
-          <div class="opt" data-pct="60"><span class="opt-icon">&#9925;</span>Partly cloudy<span class="opt-pct">60%</span></div>
-          <div class="opt" data-pct="30"><span class="opt-icon">&#9729;</span>Cloudy<span class="opt-pct">30%</span></div>
-          <div class="opt" data-pct="20"><span class="opt-icon">&#9928;</span>Stormy<span class="opt-pct">20%</span></div>
-          <div class="opt" data-pct="15"><span class="opt-icon">&#127787;</span>Fog<span class="opt-pct">15%</span></div>
-          <div class="opt" data-pct="0"><span class="opt-icon">&#127769;</span>Dark<span class="opt-pct">0%</span></div>
+          <!-- Populated by buildOutdoorPopover() from /api/outdoor-status -->
         </div>
 
         <!-- Wake/bed handles -->
@@ -1735,7 +1726,7 @@ input[type=range]::-moz-range-thumb {
       <div class="sub-section" id="pattern-sub-section">
         <div class="sub-section-header">
           <span class="sub-section-title">Sleep pattern</span>
-          <select id="activity-preset" class="rhythm-pattern-inline-select" onclick="event.stopPropagation()" style="margin-left:auto;">
+          <select id="activity-preset" class="rhythm-pattern-inline-select" onclick="event.stopPropagation()" style="margin-left:8px;">
             <option value="young">Young Child</option>
             <option value="adult" selected>Adult</option>
             <option value="nightowl">Night Owl</option>
@@ -2004,7 +1995,7 @@ input[type=range]::-moz-range-thumb {
             <div class="reveal-group">
               <div class="tune-control-row">
                 <span class="tune-control-left">
-                  <span class="tune-control-label">Sun response</span>
+                  <span class="tune-control-label">Sun impact</span>
                   <span class="tune-control-reset" id="reset-color-sensitivity" data-default="5">reset</span>
                 </span>
                 <span class="tune-control-impact" id="color-sensitivity-text">1.00: standard</span>
@@ -2047,7 +2038,7 @@ input[type=range]::-moz-range-thumb {
             <div class="reveal-group brightness-sensitivity-group">
               <div class="tune-control-row">
                 <span class="tune-control-left">
-                  <span class="tune-control-label">Sun response</span>
+                  <span class="tune-control-label">Sun impact</span>
                   <span class="tune-control-reset" id="reset-brightness-sensitivity" data-default="5">reset</span>
                 </span>
                 <span class="tune-control-impact" id="brightness-sensitivity-text">1.00: standard</span>
@@ -2229,6 +2220,7 @@ let _liveConditionMult = null;
 let _liveCondition = null;
 let _liveSource = null;
 let _outdoorParams = {};
+let _outdoorGroups = [];  // weather_groups from /api/outdoor-status (label/key/multiplier)
 
 // Cursor state — always present, initialized to current time
 const _nowInit = new Date();
@@ -3617,13 +3609,13 @@ function renderChart() {
   const shapes = [];
   if (wakeShown) {
     const wt = chartState.wakeDragVal != null ? chartState.wakeDragVal : config.wake_time;
-    shapes.push({ type: 'line', xref: 'x', yref: 'paper',
+    shapes.push({ type: 'line', xref: 'x', yref: 'paper', layer: 'below',
       x0: tFor(wt), x1: tFor(wt), y0: 0, y1: 1,
       line: { color: ASCEND_COLORS.text, width: 1.5 } });
   }
   if (bedShown) {
     const bt = chartState.bedDragVal != null ? chartState.bedDragVal : config.bed_time;
-    shapes.push({ type: 'line', xref: 'x', yref: 'paper',
+    shapes.push({ type: 'line', xref: 'x', yref: 'paper', layer: 'below',
       x0: tFor(bt), x1: tFor(bt), y0: 0, y1: 1,
       line: { color: DESCEND_COLORS.text, width: 1.5 } });
   }
@@ -4118,7 +4110,7 @@ function positionOverlays() {
     pill.style.left = xToPx(cursorHour) + 'px';
     const resetBtn = cursorTrackingNow
       ? ''
-      : ' <button type="button" class="now-pill-reset" title="Jump to current time">Now</button>';
+      : ' <button type="button" class="now-pill-reset" title="Jump to current time">Jump to now</button>';
     pill.innerHTML = `${formatHour(cursorHour)} \u00b7 ${Math.round(bri)}% \u00b7 ${Math.round(cct)}K${resetBtn}`;
     pill.style.borderColor = colorWithAlpha(rgb, 0.85);
     pill.style.background = colorWithAlpha(rgb, 0.92);
@@ -4269,7 +4261,11 @@ function setupHandleDrag(elId, kind) {
 }
 
 /**
- * Outdoor chip → popover with Current / Pick value tabs and 6 weather options.
+ * Outdoor chip → single-list popover. Top row is "Current: <condition> <pct%>"
+ * pulled from live weather; remaining rows come from the backend's
+ * weather_condition_map (weather_groups in /api/outdoor-status), so editing the
+ * map in settings updates this picker. Selecting Current sets outdoorSrc='current';
+ * any other row sets outdoorSrc='manual' with that row's pct.
  */
 function setupOutdoorPopover() {
   const chip = document.getElementById('outdoor-chip');
@@ -4282,52 +4278,67 @@ function setupOutdoorPopover() {
     pop.classList.toggle('open');
   });
 
-  const updateChipIcon = () => {
-    const iconEl = document.getElementById('outdoor-icon');
-    const pctEl = document.getElementById('outdoor-pct');
-    const pct = chartState.outdoorSrc === 'current'
-      ? Math.round((_liveConditionMult ?? 1) * 100)
-      : (chartState.outdoorPctManual ?? 100);
-    // Always sun — pct alone conveys cloudiness, matching sunrise/sunset look
-    if (iconEl) iconEl.textContent = '\u2600';
-    if (pctEl) pctEl.textContent = pct + '%';
-  };
+  buildOutdoorPopover();
+  updateOutdoorChipIcon();
+}
 
-  pop.querySelectorAll('.src-btn').forEach(b => {
-    b.addEventListener('click', (e) => {
-      e.stopPropagation();
-      pop.querySelectorAll('.src-btn').forEach(x => x.classList.remove('active'));
-      b.classList.add('active');
-      const src = b.dataset.src;
-      chartState.outdoorSrc = src;
-      pop.classList.toggle('src-current', src === 'current');
-      updateChipIcon();
-      renderChart();
-      applyCursor();
-    });
+function updateOutdoorChipIcon() {
+  const iconEl = document.getElementById('outdoor-icon');
+  const pctEl = document.getElementById('outdoor-pct');
+  const pct = chartState.outdoorSrc === 'current'
+    ? Math.round((_liveConditionMult ?? 1) * 100)
+    : (chartState.outdoorPctManual ?? 100);
+  if (iconEl) iconEl.textContent = '\u2600';
+  if (pctEl) pctEl.textContent = pct + '%';
+}
+
+function buildOutdoorPopover() {
+  const pop = document.getElementById('outdoor-popover');
+  if (!pop) return;
+  const groups = Array.isArray(_outdoorGroups) ? _outdoorGroups : [];
+  const liveLabel = (() => {
+    if (!_liveCondition) return null;
+    const match = groups.find(g => g.key === _liveCondition || g.key === _liveCondition.replace(/_/g, ''));
+    return match ? match.label : _liveCondition;
+  })();
+  const livePct = Math.round((_liveConditionMult ?? 1) * 100);
+  const manualPct = chartState.outdoorPctManual ?? 100;
+  const isCurrent = chartState.outdoorSrc === 'current';
+
+  let html = '';
+  // Current row — always first; selected when outdoorSrc==='current'
+  html += `<div class="opt opt-current${isCurrent ? ' selected' : ''}" data-src="current">`
+        + `<span class="opt-icon">&#128338;</span>`
+        + `current${liveLabel ? ': ' + liveLabel : ''}`
+        + `<span class="opt-pct">${livePct}%</span>`
+        + `</div>`;
+  // Manual rows — from backend weather_groups
+  groups.forEach(g => {
+    const pct = Math.round((g.multiplier || 0) * 100);
+    const sel = !isCurrent && manualPct === pct;
+    html += `<div class="opt${sel ? ' selected' : ''}" data-src="manual" data-pct="${pct}">`
+          + `${g.label}<span class="opt-pct">${pct}%</span>`
+          + `</div>`;
   });
+  pop.innerHTML = html;
 
   pop.querySelectorAll('.opt').forEach(o => {
     o.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (chartState.outdoorSrc === 'current') return;
+      const src = o.dataset.src;
+      if (src === 'current') {
+        chartState.outdoorSrc = 'current';
+      } else {
+        chartState.outdoorSrc = 'manual';
+        chartState.outdoorPctManual = parseInt(o.dataset.pct, 10);
+      }
       pop.querySelectorAll('.opt').forEach(x => x.classList.remove('selected'));
       o.classList.add('selected');
-      chartState.outdoorPctManual = parseInt(o.dataset.pct, 10);
-      updateChipIcon();
+      updateOutdoorChipIcon();
       renderChart();
       applyCursor();
     });
   });
-
-  // Default to Current on open per locked design decision
-  const currentBtn = pop.querySelector('.src-btn[data-src="current"]');
-  if (currentBtn && chartState.outdoorSrc === 'current') {
-    pop.querySelectorAll('.src-btn').forEach(x => x.classList.remove('active'));
-    currentBtn.classList.add('active');
-    pop.classList.add('src-current');
-  }
-  updateChipIcon();
 }
 
 /**
@@ -4543,6 +4554,21 @@ function setupSpeedSliderReadout(sliderId, displayId) {
   });
 }
 
+// Show a transient inline error tooltip below a time-display span when the
+// user types a time outside the valid wake/bed window. Restores the display
+// to its original value and fades out after ~2.5s.
+function showTimeInputError(display, original, message) {
+  display.textContent = original;
+  if (display.parentElement && getComputedStyle(display.parentElement).position === 'static') {
+    display.parentElement.style.position = 'relative';
+  }
+  const tip = document.createElement('div');
+  tip.textContent = message;
+  tip.style.cssText = 'position:absolute; top:100%; right:0; margin-top:4px; padding:4px 8px; background:rgba(180,40,40,0.95); color:#fff; font-size:11px; border-radius:4px; white-space:nowrap; z-index:50; pointer-events:none; box-shadow:0 2px 8px rgba(0,0,0,0.5);';
+  (display.parentElement || display).appendChild(tip);
+  setTimeout(() => tip.remove(), 2500);
+}
+
 // Make a time-display span click-to-edit. Allows demos to type a non-rounded
 // time like "7:27a" instead of dragging the (0.25-step) slider.
 function setupTimeInputEdit(displayId, sliderId) {
@@ -4553,6 +4579,15 @@ function setupTimeInputEdit(displayId, sliderId) {
   display.title = 'Click to type a precise time (e.g. 7:27a)';
   display.addEventListener('click', (e) => {
     e.stopPropagation();
+    // Ensure the parent reveal-group (slider row) is open — clicking the time
+    // text should reveal the slider too, not just open the typing field.
+    const rg = display.closest('.reveal-group');
+    if (rg && !rg.classList.contains('is-revealing')) {
+      document.querySelectorAll('.reveal-group.is-revealing').forEach(g => {
+        if (g !== rg) g.classList.remove('is-revealing');
+      });
+      rg.classList.add('is-revealing');
+    }
     if (display.querySelector('input')) return;
     const original = display.textContent;
     const input = document.createElement('input');
@@ -4571,6 +4606,27 @@ function setupTimeInputEdit(displayId, sliderId) {
       if (parsed == null) {
         display.textContent = original;
         return;
+      }
+      // Validate against guarded bounds — show inline error if outside the
+      // valid window for this phase. Falls back to slider min/max if guarded
+      // bounds aren't computable (e.g., chart not yet initialized).
+      const isWake = sliderId === 'wake-time' || sliderId === 'wake-alt-time';
+      const kind = isWake ? 'wake' : 'bed';
+      let bounds = null;
+      try {
+        if (typeof getPhaseBoundsInFrame === 'function' && chartState && chartState.ascendStart != null) {
+          bounds = getPhaseBoundsInFrame(kind);
+        }
+      } catch (_) { bounds = null; }
+      if (bounds) {
+        const xA = chartState.ascendStart;
+        const parsedFrame = visHour(parsed, xA);
+        if (parsedFrame < bounds.lo || parsedFrame > bounds.hi) {
+          const loStr = formatHour(((bounds.lo % 24) + 24) % 24);
+          const hiStr = formatHour(((bounds.hi % 24) + 24) % 24);
+          showTimeInputError(display, original, `must be between ${loStr} and ${hiStr}`);
+          return;
+        }
       }
       // Wrap-aware slider value: bed slider goes 0–36; if current slider value
       // is past midnight (>=24) and parsed value is small, push to next day.
@@ -6498,6 +6554,7 @@ document.addEventListener('DOMContentLoaded', () => {
   fetch('./api/outdoor-status').then(r => r.json()).then(data => {
     _liveCondition = data.weather_condition ?? null;
     _liveSource = data.source ?? null;
+    _outdoorGroups = Array.isArray(data.weather_groups) ? data.weather_groups : [];
     // Store backend params so elevationToOutdoorNorm matches backend formula
     _outdoorParams = {
       maxSummerElevation: data.max_summer_elevation || 78,
@@ -6506,12 +6563,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     // Use condition_multiplier directly from backend (no reverse-engineering)
     _liveConditionMult = data.condition_multiplier ?? 1.0;
-    // Update outdoor chip's "Current" pct label and re-render if the chart is
-    // showing Current (default). The outdoor select element is gone; the chip
-    // popover replaces it.
+    // Rebuild popover now that we have weather_groups + live condition data.
+    if (typeof buildOutdoorPopover === 'function') buildOutdoorPopover();
+    if (typeof updateOutdoorChipIcon === 'function') updateOutdoorChipIcon();
     if (chartState.outdoorSrc === 'current') {
-      const pctEl = document.getElementById('outdoor-pct');
-      if (pctEl) pctEl.textContent = Math.round((_liveConditionMult ?? 1) * 100) + '%';
       renderChart();
       applyCursor();
     }

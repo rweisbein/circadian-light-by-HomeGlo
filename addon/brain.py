@@ -190,6 +190,7 @@ class SunTimes:
     solar_mid: float = 0.0  # Hour (0-24), midnight opposite of noon
     outdoor_normalized: float = 0.0  # 0-1 from lux sensor or angle estimate
     outdoor_source: str = "none"  # Diagnostics: "lux", "weather", "angle", "none"
+    is_fallback: bool = False  # True when sunrise/sunset are defaults, not real solar values
 
     @property
     def sun_factor(self) -> float:

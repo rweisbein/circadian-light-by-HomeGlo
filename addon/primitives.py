@@ -2589,7 +2589,26 @@ class CircadianLightPrimitives:
                 else None
             )
             if sun_times is None:
-                sun_times = SunTimes()
+                sun_times = SunTimes(is_fallback=True)
+            # Safety net: refuse to fire sunrise/sunset schedules when the
+            # solar values are defaults (e.g. lat/long missing, network blip).
+            # Otherwise auto_on can trigger hours early — bug observed in
+            # v1.2.183 where outdoor lights came on at 17:55 instead of ~19:55.
+            if getattr(sun_times, "is_fallback", False):
+                from datetime import datetime as _dt
+
+                if not hasattr(self, "_fallback_warned"):
+                    self._fallback_warned: dict = {}
+                hour_key = _dt.now().strftime("%Y-%m-%d_%H")
+                warn_key = (prefix, source, hour_key)
+                if warn_key not in self._fallback_warned:
+                    self._fallback_warned[warn_key] = True
+                    logger.warning(
+                        f"{prefix} skipped: source={source} but SunTimes is "
+                        f"fallback (sunrise/sunset are defaults, not real solar "
+                        f"values). Check latitude/longitude config."
+                    )
+                return None
             base_time = sun_times.sunrise if source == "sunrise" else sun_times.sunset
             offset = settings.get(f"{prefix}_offset", 0)
             return base_time + offset / 60.0
