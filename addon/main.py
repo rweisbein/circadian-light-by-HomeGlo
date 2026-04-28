@@ -108,6 +108,8 @@ class HomeAssistantWebSocketClient:
         # Daily cache for static solar values (sunrise/sunset/noon/mid).
         # Outdoor data refreshed on every call. {date_str: {sunrise, sunset, ...}}
         self._sun_times_cache: dict = {}
+        # Rate-limit fallback warnings: {(reason, "YYYY-MM-DD_HH"): True}
+        self._sun_warn_log: dict = {}
         self.periodic_update_task = None  # Task for periodic light updates
         self.refresh_event = None  # Will be created lazily in the running event loop
         self._log_periodic = False  # Updated by circadian tick from config
@@ -5446,6 +5448,25 @@ class HomeAssistantWebSocketClient:
 
         return lighting_values
 
+    def _warn_sun_fallback_once(self, reason: str, date_str: str, message: str):
+        """Emit a sun-times fallback WARNING at most once per (reason, hour).
+
+        Without this, fast-tick callers (1Hz × N areas) would flood logs.
+        """
+        from datetime import datetime as _dt
+
+        hour_key = _dt.now().strftime("%Y-%m-%d_%H")
+        key = (reason, hour_key)
+        if key in self._sun_warn_log:
+            return
+        self._sun_warn_log[key] = True
+        # Cap dict growth: drop entries older than today
+        today = date_str
+        self._sun_warn_log = {
+            k: v for k, v in self._sun_warn_log.items() if k[1].startswith(today)
+        }
+        logger.warning(message)
+
     def _get_sun_times(self) -> SunTimes:
         """Get current sun times from configured location.
 
@@ -5502,10 +5523,14 @@ class HomeAssistantWebSocketClient:
                 lon = 0.0
 
         if not (lat and lon):
-            logger.warning(
-                "_get_sun_times: lat/lon unavailable "
-                "(self.latitude/longitude not set, HASS_LATITUDE/LONGITUDE env "
-                "not set). Returning fallback — auto sunrise/sunset will not fire."
+            self._warn_sun_fallback_once(
+                "no_latlon",
+                date_str,
+                f"_get_sun_times: lat/lon unavailable. "
+                f"self.latitude={self.latitude!r}, self.longitude={self.longitude!r}, "
+                f"HASS_LATITUDE={os.environ.get('HASS_LATITUDE')!r}, "
+                f"HASS_LONGITUDE={os.environ.get('HASS_LONGITUDE')!r}. "
+                f"Returning fallback — auto sunrise/sunset will not fire.",
             )
             return SunTimes(
                 outdoor_normalized=outdoor_norm,
@@ -5561,9 +5586,12 @@ class HomeAssistantWebSocketClient:
                 is_fallback=False,
             )
         except Exception as e:
-            logger.warning(
+            self._warn_sun_fallback_once(
+                "calc_failed",
+                date_str,
                 f"_get_sun_times: calculation failed for lat={lat}/lon={lon} "
-                f"({e}). Returning fallback — auto sunrise/sunset will not fire."
+                f"({type(e).__name__}: {e}). "
+                f"Returning fallback — auto sunrise/sunset will not fire.",
             )
             return SunTimes(
                 outdoor_normalized=outdoor_norm,

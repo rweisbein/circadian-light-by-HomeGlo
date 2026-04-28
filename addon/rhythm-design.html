@@ -296,9 +296,10 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
   padding-top: 10px;
   padding-bottom: 4px;
 }
-/* Warm night + cool day share one label column across all 7 rows */
+/* Warm night + cool day share one label column across all rows.
+   Width holds Start/End/Fade short labels AND "Sun impact" + reset pill on one line. */
 .color-rule-stack-body .reveal-group > .tune-control-row {
-  grid-template-columns: 110px 1fr;
+  grid-template-columns: 140px 1fr;
   gap: 0 12px;
 }
 .color-rule-stack-body .reveal-group > .tune-control-row .tune-control-impact {
@@ -4337,6 +4338,7 @@ function buildOutdoorPopover() {
       updateOutdoorChipIcon();
       renderChart();
       applyCursor();
+      pop.classList.remove('open');
     });
   });
 }
