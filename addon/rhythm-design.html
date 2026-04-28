@@ -389,43 +389,6 @@ input[type=range]::-moz-range-thumb {
 /* Chart Section */
 .chart-wrapper { position: relative; margin-bottom: 8px; }
 #chart { height: 240px; touch-action: pan-x pan-y; }
-.chart-below-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin-top: 2px;
-}
-.time-nav-btn {
-  --btn-bg: rgba(255,255,255,0.06);
-  --btn-text: #fff;
-  --btn-fill: 0;
-  --btn-fill-opacity: 0;
-  background: var(--btn-bg);
-  border: 1px solid rgba(255,255,255,0.2);
-  color: var(--btn-text);
-  font-size: var(--font-muted);
-  padding: 8px 12px;
-  border-radius: 999px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.15s;
-  position: relative;
-  overflow: hidden;
-}
-.time-nav-btn::after {
-  content: '';
-  position: absolute;
-  inset: 2px;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.18);
-  opacity: var(--btn-fill-opacity);
-  pointer-events: none;
-}
-.time-nav-btn:hover {
-  border-color: rgba(255,255,255,0.4);
-}
-
 /* Time hover label - above x-axis, shows time with phase color */
 .time-hover-label {
   position: absolute;
@@ -480,7 +443,32 @@ input[type=range]::-moz-range-thumb {
   z-index: 6;
   letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
+.now-pill-reset {
+  pointer-events: auto;
+  background: rgba(0,0,0,0.18);
+  border: none;
+  color: inherit;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 2px;
+  padding: 0;
+  line-height: 1;
+  font-family: inherit;
+  opacity: 0.85;
+  transition: opacity 0.15s, background 0.15s;
+}
+.now-pill-reset:hover { opacity: 1; background: rgba(0,0,0,0.32); }
 .live-pip {
   position: absolute;
   top: 16px;
@@ -540,29 +528,27 @@ input[type=range]::-moz-range-thumb {
 }
 .solar-label:hover::after { opacity: 1; }
 
-/* Outdoor chip — sits in the solar band at solar-noon x */
+/* Outdoor conditions — plain text matching sunrise/sunset look */
 .outdoor-chip {
   position: absolute;
-  bottom: 60px;
+  bottom: 65px;
   transform: translateX(-50%);
-  background: rgba(20, 22, 28, 0.85);
-  border: 1px solid rgba(255,255,255,0.12);
-  padding: 3px 9px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 600;
-  color: rgba(245, 230, 200, 0.92);
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 10px;
+  color: rgba(215,215,215,0.75);
   cursor: pointer;
   z-index: 5;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   white-space: nowrap;
-  letter-spacing: 0.02em;
   user-select: none;
+  font-variant-numeric: tabular-nums;
 }
-.outdoor-chip:hover { background: rgba(34, 38, 48, 0.95); }
-.outdoor-chip-icon { font-size: 12px; line-height: 1; }
+.outdoor-chip:hover { color: rgba(255,255,255,0.95); background: transparent; }
+.outdoor-chip-icon { font-size: 11px; line-height: 1; }
 .outdoor-popover {
   position: absolute;
   bottom: 90px;
@@ -787,38 +773,10 @@ input[type=range]::-moz-range-thumb {
   margin-top: 2px;
 }
 
-/* Month slider row (replaces date slider) */
-.month-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 4px 4px;
-}
-.month-label {
-  min-width: 80px;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text);
-}
-.month-slider {
-  flex: 1;
-  -webkit-appearance: none;
-  appearance: none;
-  height: 6px;
-  background: rgba(255,255,255,0.1);
-  border-radius: 3px;
-  outline: none;
-  cursor: pointer;
-}
-.month-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
-  cursor: pointer;
-}
+/* Month row — collapsed shows "Month  April"; click to expand the slider */
+.month-row { padding-top: 6px; }
+.month-row > .tune-slider-row { padding-left: 16px; padding-right: 14px; }
+.month-row > .tune-slider-row input[type=range] { width: 100%; }
 
 /* Interactive color gradient (ported from tune.html + handle additions) */
 /* Color gradient layout: cursor above, gradient, ticks, labels+K below */
@@ -1686,13 +1644,16 @@ input[type=range]::-moz-range-thumb {
       </div>
     </div>
 
-    <div class="chart-below-row">
-      <button class="time-nav-btn" id="cursor-time-now" title="Jump to current time">Now</button>
-    </div>
-
-    <div class="month-row">
-      <span class="month-label" id="month-label">April</span>
-      <input type="range" class="month-slider" id="month-slider" min="0" max="11" value="3">
+    <div class="month-row reveal-group">
+      <div class="tune-control-row">
+        <span class="tune-control-left">
+          <span class="tune-control-label">Month</span>
+        </span>
+        <span class="tune-control-impact" id="month-label">April</span>
+      </div>
+      <div class="tune-slider-row">
+        <input type="range" class="month-slider" id="month-slider" min="0" max="11" value="3">
+      </div>
     </div>
   </div>
 
@@ -2106,6 +2067,8 @@ let chartState = {
   bedDragActive: false,
   wakeDragVal: null,    // working wake time during drag (0-24)
   bedDragVal: null,     // working bed time during drag (0-24)
+  wakeHovering: false,  // pointer over wake pill (no drag) — show preview cursor
+  bedHovering: false,
   outdoorSrc: 'current',  // 'current' or 'manual'
   outdoorPctManual: 100,  // user-picked manual condition %
 };
@@ -3401,12 +3364,16 @@ function renderChart() {
     const dim = angleNormCond * briSens;
     return Math.max(0, Math.min(1, 1 - dim));
   };
+  // Expose for applyCursor / positionOverlays so cursor + NOW pill match the
+  // visible (sun-dimmed) bulb-output curve, not the room-target curve.
+  chartState.sunDimFactor = showDottedTarget ? sunDimFactor : (() => 1.0);
 
   const { hours, brightness, cct, phase, tAscend, tDescend } = data;
-  const brightnessPct = brightness.map(v => v * 100);
+  const roomTargetPct = brightness.map(v => v * 100);
+  const brightnessPct = roomTargetPct.map((v, i) => v * chartState.sunDimFactor(hours[i]));
 
-  // Store graph data for cursor functions (include brightnessPct for 0-100 scale)
-  graphData = { ...data, brightnessPct };
+  // Store graph data for cursor functions (brightnessPct = visible bulb output)
+  graphData = { ...data, brightnessPct, roomTargetPct };
 
   // Build traces
   const traces = [];
@@ -3437,26 +3404,31 @@ function renderChart() {
     });
   }
 
-  // Sun-dim reference line: bulb output after sun_bright_factor is applied.
-  // Sits BELOW the room-target curve during daylight (more dimming = more gap).
-  // Drawn only if dimming meaningfully diverges from the room target.
+  // Dotted reference line = room target (un-dimmed brightness). Sits ABOVE
+  // the visible bulb-output curve during daylight; the gap = how much the sun
+  // is doing the bulb's job. Only drawn in segments where the gap is real.
   if (showDottedTarget) {
-    const targetBri = brightnessPct.map((v, i) => v * sunDimFactor(hours[i]));
-    let maxGap = 0;
-    for (let i = 0; i < brightnessPct.length; i++) {
-      maxGap = Math.max(maxGap, Math.abs(brightnessPct[i] - targetBri[i]));
+    const GAP_THRESHOLD = 0.75;
+    const dx = []; const dy = [];
+    for (let i = 0; i < hours.length; i++) {
+      if (roomTargetPct[i] - brightnessPct[i] > GAP_THRESHOLD) {
+        dx.push(hours[i]); dy.push(roomTargetPct[i]);
+      } else if (dx.length && dx[dx.length - 1] !== null) {
+        dx.push(null); dy.push(null);  // segment break
+      }
     }
-    if (maxGap > 0.5) {
+    if (dx.some(v => v !== null)) {
       traces.push({
         type: 'scatter', mode: 'lines',
-        x: hours, y: targetBri,
-        line: { width: 1.4, color: 'rgba(220,220,220,0.55)', dash: 'dot' },
+        x: dx, y: dy,
+        line: { width: 1.4, color: 'rgba(220,220,220,0.6)', dash: 'dot' },
+        connectgaps: false,
         hoverinfo: 'skip', showlegend: false,
       });
     }
   }
 
-  // Hover trace - CCT colored background
+  // Hover trace - CCT colored background (bulb output, matches visible curve)
   const hoverDetails = brightnessPct.map((v, i) => {
     const pct = Math.round(v);
     const kelvin = Math.round(cct[i]);
@@ -3489,43 +3461,48 @@ function renderChart() {
   });
   window.cursorTraceIndex = traces.length - 1;
 
-  // Wake/bed drag circles ON the curve when that handle is active — CCT-tinted.
+  // Wake/bed preview cursor: a SECOND cursor (separate from the white one)
+  // that appears while the pill is hovered or dragged. Vertical line uses the
+  // pill color (blue/yellow); the circle is CCT-tinted, sitting on the visible
+  // bulb-output curve. Hovering does NOT move the white cursor.
   const tFor = h => visHour(h, xA);
   const idxFor = h => Math.max(0, Math.min(hours.length - 1,
                        Math.round(((tFor(h) - xA) / 24) * (hours.length - 1))));
-  if (chartState.wakeDragActive) {
+  const wakeShown = chartState.wakeDragActive || chartState.wakeHovering;
+  const bedShown = chartState.bedDragActive || chartState.bedHovering;
+  if (wakeShown) {
     const wt = chartState.wakeDragVal != null ? chartState.wakeDragVal : config.wake_time;
     const wIdx = idxFor(wt);
     traces.push({
       type: 'scatter', mode: 'markers',
       x: [tFor(wt)], y: [brightnessPct[wIdx]],
       marker: { size: 14, color: cctToRGB(cct[wIdx]),
-                line: { width: 2, color: 'rgba(0,0,0,0.55)' } },
+                line: { width: 2, color: ASCEND_COLORS.text } },
       cliponaxis: false, hoverinfo: 'skip', showlegend: false,
     });
   }
-  if (chartState.bedDragActive) {
+  if (bedShown) {
     const bt = chartState.bedDragVal != null ? chartState.bedDragVal : config.bed_time;
     const bIdx = idxFor(bt);
     traces.push({
       type: 'scatter', mode: 'markers',
       x: [tFor(bt)], y: [brightnessPct[bIdx]],
       marker: { size: 14, color: cctToRGB(cct[bIdx]),
-                line: { width: 2, color: 'rgba(0,0,0,0.55)' } },
+                line: { width: 2, color: DESCEND_COLORS.text } },
       cliponaxis: false, hoverinfo: 'skip', showlegend: false,
     });
   }
 
-  // Vertical lines — wake/bed only when actively dragging. Cursor line is
-  // managed by applyCursor() (with the gap around the marker).
+  // Vertical preview lines — wake/bed when hovering or dragging. The white
+  // cursor line is independent and managed by applyCursor().
   const shapes = [];
-  if (chartState.wakeDragActive) {
+  if (wakeShown) {
     const wt = chartState.wakeDragVal != null ? chartState.wakeDragVal : config.wake_time;
     shapes.push({ type: 'line', xref: 'x', yref: 'paper',
       x0: tFor(wt), x1: tFor(wt), y0: 0, y1: 1,
       line: { color: ASCEND_COLORS.text, width: 1.5 } });
   }
-  if (chartState.bedDragActive) {
+  if (bedShown) {
     const bt = chartState.bedDragVal != null ? chartState.bedDragVal : config.bed_time;
     shapes.push({ type: 'line', xref: 'x', yref: 'paper',
       x0: tFor(bt), x1: tFor(bt), y0: 0, y1: 1,
@@ -3721,16 +3698,17 @@ function applyCursor() {
   // Get cursor point data using core calculation functions (exact values, no interpolation)
   let cursorPoint = null;
   if (config) {
+    const dim = chartState.sunDimFactor ? chartState.sunDimFactor(cursorHour) : 1.0;
     cursorPoint = {
       x: cursorHour,
-      y: calculateBrightnessAtHour(cursorHour) * 100,  // Convert 0-1 to 0-100
+      y: calculateBrightnessAtHour(cursorHour) * dim * 100,  // Sun-dimmed bulb output
       cct: calculateColorAtHour(cursorHour, true),     // With solar rules
       phase: getPhaseAtHour(cursorHour),
     };
   }
 
-  // Cursor line style - dotted white
-  const cursorLineStyle = { color: '#fdfdfd', width: 2, dash: 'dot' };
+  // Cursor line style - solid white
+  const cursorLineStyle = { color: '#fdfdfd', width: 2 };
 
   // Cursor x in the chart's frame coordinate (lift wall-clock into [xA, xA+24]).
   const xA = chartState.ascendStart;
@@ -3973,14 +3951,18 @@ function positionOverlays() {
 
   const xA = chartState.ascendStart;
 
-  // NOW pill — cursor x, CCT-tinted
+  // NOW pill — cursor x, CCT-tinted, with inline reset (↺) when cursor isn't tracking now
   const pill = document.getElementById('now-pill');
   if (pill && cursorHour != null) {
-    const bri = calculateBrightnessAtHour(cursorHour) * 100;
+    const dim = chartState.sunDimFactor ? chartState.sunDimFactor(cursorHour) : 1.0;
+    const bri = calculateBrightnessAtHour(cursorHour) * dim * 100;
     const cct = calculateColorAtHour(cursorHour, true);
     const rgb = cctToRGB(cct);
     pill.style.left = xToPx(cursorHour) + 'px';
-    pill.textContent = `${formatHour(cursorHour)} \u00b7 ${Math.round(bri)}% \u00b7 ${Math.round(cct)}K`;
+    const resetBtn = cursorTrackingNow
+      ? ''
+      : ' <button type="button" class="now-pill-reset" title="Jump to current time">\u21BA</button>';
+    pill.innerHTML = `${formatHour(cursorHour)} \u00b7 ${Math.round(bri)}% \u00b7 ${Math.round(cct)}K${resetBtn}`;
     pill.style.borderColor = colorWithAlpha(rgb, 0.85);
     pill.style.background = colorWithAlpha(rgb, 0.92);
     pill.style.color = readableTextColor(rgb);
@@ -4113,26 +4095,17 @@ function setupHandleDrag(elId, kind) {
   el.addEventListener('pointerup', end);
   el.addEventListener('pointercancel', end);
 
-  // Hover preview: while pointer is over the pill (not dragging), move the
-  // chart cursor to the handle's x so the dotted line + circle + NOW pill
-  // preview the values at wake/bed time.
-  const handleTime = () => kind === 'wake'
-    ? (chartState.wakeDragVal != null ? chartState.wakeDragVal : config.wake_time)
-    : (chartState.bedDragVal != null ? chartState.bedDragVal : config.bed_time);
-  let _savedCursor = null;
+  // Hover preview: spawn a SECOND (colored) cursor — vertical line + circle —
+  // at the pill's x. White (time) cursor stays put. Vanishes on leave/release.
   el.addEventListener('pointerenter', (e) => {
     if (dragging || e.pointerType === 'touch') return;
-    _savedCursor = cursorHour;
-    cursorHour = handleTime();
-    applyCursor();
+    chartState[kind + 'Hovering'] = true;
+    renderChart();
   });
   el.addEventListener('pointerleave', () => {
     if (dragging) return;
-    if (_savedCursor != null) {
-      cursorHour = _savedCursor;
-      _savedCursor = null;
-      applyCursor();
-    }
+    chartState[kind + 'Hovering'] = false;
+    renderChart();
   });
 }
 
@@ -4156,9 +4129,8 @@ function setupOutdoorPopover() {
     const pct = chartState.outdoorSrc === 'current'
       ? Math.round((_liveConditionMult ?? 1) * 100)
       : (chartState.outdoorPctManual ?? 100);
-    const icon = pct >= 85 ? '\u2600' : pct >= 55 ? '\u26c5' : pct >= 30 ? '\u2601'
-              : pct >= 10 ? '\u26c8' : '\ud83c\udf11';
-    if (iconEl) iconEl.textContent = icon;
+    // Always sun — pct alone conveys cloudiness, matching sunrise/sunset look
+    if (iconEl) iconEl.textContent = '\u2600';
     if (pctEl) pctEl.textContent = pct + '%';
   };
 
@@ -5121,8 +5093,11 @@ function setupEventListeners() {
     });
   }
 
-  // Now button — jumps cursor to current time and resumes live tracking
-  document.getElementById('cursor-time-now')?.addEventListener('click', () => {
+  // Reset (↺) inside NOW pill — jumps cursor back to current time and resumes
+  // live tracking. Delegated on the pill so we re-bind for free on each render.
+  document.getElementById('now-pill')?.addEventListener('click', (e) => {
+    if (!e.target.closest('.now-pill-reset')) return;
+    e.stopPropagation();
     cursorTrackingNow = true;
     const now = new Date();
     cursorHour = now.getHours() + now.getMinutes() / 60;
