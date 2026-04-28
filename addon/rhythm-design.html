@@ -515,6 +515,8 @@ input[type=range]::-moz-range-thumb {
   cursor: help;
   white-space: nowrap;
   z-index: 4;
+  user-select: none;
+  -webkit-user-select: none;
 }
 .solar-label:hover { color: rgba(255,255,255,0.95); }
 .solar-label::after {
@@ -634,6 +636,23 @@ input[type=range]::-moz-range-thumb {
   padding: 6px 4px;
 }
 .phase-handle.dragging { cursor: grabbing; }
+/* Thin connector line from pill up through solar band to the chart x-axis */
+.phase-handle::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% - 6px);
+  left: 50%;
+  width: 1px;
+  height: 56px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  opacity: 0.25;
+  transition: opacity 0.15s;
+}
+.phase-handle.phase-wake::before { background: #5cb3ff; }
+.phase-handle.phase-bed::before { background: #ffe680; }
+.phase-handle:hover::before,
+.phase-handle.dragging::before { opacity: 0.55; }
 .phase-pill {
   display: inline-flex;
   align-items: baseline;
@@ -2357,9 +2376,10 @@ function resolveEffectiveTiming(hour, weekday, wakeWeekdayOverride) {
   let wake = config.wake_time;
   let bed = config.bed_time;
 
-  // While dragging, override stored timing with the working drag value so the
-  // curve animates with the handle (no commit until Save).
-  if (chartState.wakeDragActive && chartState.wakeDragVal != null) {
+  // Drag working-copy overrides stored timing until commit/reset, so the
+  // curve previews the new schedule on the chart while the Sleep accordion
+  // continues to show the saved value.
+  if (chartState.wakeDragVal != null) {
     wake = chartState.wakeDragVal;
   } else {
     const wakeWd = wakeWeekdayOverride != null ? wakeWeekdayOverride : weekday;
@@ -2368,7 +2388,7 @@ function resolveEffectiveTiming(hour, weekday, wakeWeekdayOverride) {
     }
   }
 
-  if (chartState.bedDragActive && chartState.bedDragVal != null) {
+  if (chartState.bedDragVal != null) {
     bed = chartState.bedDragVal;
   } else {
     let bedWeekday = weekday;
@@ -3363,13 +3383,24 @@ function renderChart() {
   // Apply solar color rules to CCT (frame-coord hours wrapped inside)
   adjustCCTForSolarRules(data.cct, data.hours, sunrise, sunset);
 
-  // Sun-contribution dotted reference: same brightness curve but with solar
-  // rules disabled (color_sensitivity / outdoor effect lifted). Used to show
-  // "what bulbs would do without sun pulling them up/down."
-  const showDottedTarget = ((chartState.outdoorSrc === 'current' ? (_liveConditionMult ?? 1.0) : (chartState.outdoorPctManual / 100)) > 0)
-                            && (config.color_sensitivity ?? 1.0) > 0
+  // Sun-dim reference dotted line: bulb output = room target × sun_bright_factor.
+  // sun_bright_factor = max(0, 1 - sun_angle_norm × outdoor_mult × brightness_sensitivity).
+  // Driven by month (sun angle), outdoor chip (conditionMult), and brightness_sensitivity.
+  const conditionMult = chartState.outdoorSrc === 'current'
+    ? (_liveConditionMult ?? 1.0)
+    : ((chartState.outdoorPctManual ?? 100) / 100);
+  const briSens = config.brightness_sensitivity ?? 1.0;
+  const showDottedTarget = conditionMult > 0
+                            && briSens > 0
                             && config.daylight_enabled !== false;
   const targetCct = data.hours.map(h => calculateColorAtHour(wrapHour(h), false));
+  const _dotDateStr = getSelectedDateISO();
+  const sunDimFactor = (h) => {
+    const elev = getSunElevationAtHour(wrapHour(h), config.latitude, config.longitude, _dotDateStr);
+    const angleNormCond = elevationToOutdoorNorm(elev, conditionMult);
+    const dim = angleNormCond * briSens;
+    return Math.max(0, Math.min(1, 1 - dim));
+  };
 
   const { hours, brightness, cct, phase, tAscend, tDescend } = data;
   const brightnessPct = brightness.map(v => v * 100);
@@ -3406,18 +3437,23 @@ function renderChart() {
     });
   }
 
-  // Sun-contribution dotted reference line (target = ignoring sun pulling colors).
-  // Drawn over the curve. Only shown when sun would actually have an effect.
+  // Sun-dim reference line: bulb output after sun_bright_factor is applied.
+  // Sits BELOW the room-target curve during daylight (more dimming = more gap).
+  // Drawn only if dimming meaningfully diverges from the room target.
   if (showDottedTarget) {
-    // Compare base CCT (no solar) vs solar-adjusted; if they meaningfully differ,
-    // draw the base as a dotted reference of "where you'd be without the sun."
-    const targetBri = brightnessPct;  // brightness already independent of solar CCT rules
-    traces.push({
-      type: 'scatter', mode: 'lines',
-      x: hours, y: targetBri,
-      line: { width: 1.4, color: 'rgba(220,220,220,0.45)', dash: 'dot' },
-      hoverinfo: 'skip', showlegend: false,
-    });
+    const targetBri = brightnessPct.map((v, i) => v * sunDimFactor(hours[i]));
+    let maxGap = 0;
+    for (let i = 0; i < brightnessPct.length; i++) {
+      maxGap = Math.max(maxGap, Math.abs(brightnessPct[i] - targetBri[i]));
+    }
+    if (maxGap > 0.5) {
+      traces.push({
+        type: 'scatter', mode: 'lines',
+        x: hours, y: targetBri,
+        line: { width: 1.4, color: 'rgba(220,220,220,0.55)', dash: 'dot' },
+        hoverinfo: 'skip', showlegend: false,
+      });
+    }
   }
 
   // Hover trace - CCT colored background
@@ -3779,11 +3815,67 @@ function fmtHourShort(t) {
   return `${hh}${ap}`;
 }
 
-// Anchor 2h before saved wake_time so wake stays inside the frame and bed
-// never wraps past midnight on the right edge. Recompute on save (not mid-drag)
-// so the chart doesn't slide while user drags the wake handle.
+// Anchor x=0 at config.ascend_start so morning-ramp begins at the left edge
+// and bed never wraps past the right. Recompute on save (not mid-drag) so the
+// chart doesn't slide while the user drags wake/bed.
 function recomputeAscendStart() {
-  chartState.ascendStart = wrapHour(config.wake_time - 2);
+  const a = Number.isFinite(config.ascend_start) ? config.ascend_start : 3.0;
+  chartState.ascendStart = wrapHour(a);
+}
+
+// Mirror of area.html computePhaseSafeOffset (~area.html:3083). Returns the
+// hours of buffer to keep at each end of the phase so the brightness-shifted
+// midpoint stays inside [phaseMin, phaseMax]. `kind` is 'wake' (ascend phase)
+// or 'bed' (descend phase).
+function computePhaseSafeOffset(kind) {
+  const inAscend = kind === 'wake';
+  const brightnessPct = inAscend
+    ? (config.wake_brightness || 50)
+    : (config.bed_brightness || 50);
+  const margin = 0.25;
+  if (brightnessPct === 50) return { minOffset: margin, maxOffset: margin };
+  const speed = inAscend ? config.wake_speed : config.bed_speed;
+  const slopeMag = SPEED_TO_SLOPE[Math.max(1, Math.min(10, speed))];
+  if (!(slopeMag > 0)) return { minOffset: margin, maxOffset: margin };
+  const bMin = (config.min_brightness || 2) / 100;
+  const bMax = (config.max_brightness || 100) / 100;
+  const targetNorm = bMin + (bMax - bMin) * (brightnessPct / 100);
+  const eps = 0.001;
+  const clamped = Math.max(bMin + eps, Math.min(bMax - eps, targetNorm));
+  const ratio = (clamped - bMin) / (bMax - bMin);
+  const logTerm = Math.log((1 - ratio) / ratio);
+  const slopeSigned = inAscend ? slopeMag : -slopeMag;
+  const offset = logTerm / slopeSigned;
+  return {
+    minOffset: Math.max(0, -offset) + margin,
+    maxOffset: Math.max(0, offset) + margin,
+  };
+}
+
+// Bounds for wake/bed in the chart frame [xA, xA+24]. Mirrors area-details
+// phaseMin/phaseMax. Plus a minimum-sleep-window guard between bed and wake.
+const MIN_SLEEP_HOURS = 4.0;
+function getPhaseBoundsInFrame(kind) {
+  const xA = chartState.ascendStart;
+  const tDescAnchor = visHour(config.descend_start, xA);
+  const wakeFrameSaved = visHour(config.wake_time, xA);
+  const bedFrameSaved = visHour(config.bed_time, xA);
+  const wakeFrame = chartState.wakeDragVal != null ? visHour(chartState.wakeDragVal, xA) : wakeFrameSaved;
+  const bedFrame = chartState.bedDragVal != null ? visHour(chartState.bedDragVal, xA) : bedFrameSaved;
+  const off = computePhaseSafeOffset(kind);
+  let lo, hi;
+  if (kind === 'wake') {
+    lo = xA + off.minOffset;
+    hi = Math.min(tDescAnchor - off.maxOffset, bedFrame - MIN_SLEEP_HOURS);
+  } else {
+    lo = Math.max(tDescAnchor + off.minOffset, wakeFrame + MIN_SLEEP_HOURS);
+    hi = (xA + 24) - off.maxOffset;
+  }
+  if (hi - lo < 0.5) {
+    if (kind === 'wake') { lo = xA + 0.05; hi = bedFrame - 0.05; }
+    else { lo = wakeFrame + 0.05; hi = (xA + 24) - 0.05; }
+  }
+  return { lo, hi };
 }
 
 // Build an x→px function in chart-shell coordinates. Input is wall-clock
@@ -3918,11 +4010,10 @@ function positionOverlays() {
     if (pop) pop.style.left = px + 'px';
   }
 
-  // Wake/Bed handles — use working drag value when active, else stored time
-  const wakeT = chartState.wakeDragActive && chartState.wakeDragVal != null
-    ? chartState.wakeDragVal : config.wake_time;
-  const bedT = chartState.bedDragActive && chartState.bedDragVal != null
-    ? chartState.bedDragVal : config.bed_time;
+  // Wake/Bed handles — working drag value (until commit/reset) takes priority
+  // over saved time, so the pill stays where the user dragged it.
+  const wakeT = chartState.wakeDragVal != null ? chartState.wakeDragVal : config.wake_time;
+  const bedT = chartState.bedDragVal != null ? chartState.bedDragVal : config.bed_time;
   const wakeHandle = document.getElementById('wake-handle');
   const bedHandle = document.getElementById('bed-handle');
   if (wakeHandle) {
@@ -3985,26 +4076,16 @@ function setupHandleDrag(elId, kind) {
 
   let dragging = false;
   const moveTo = (clientX) => {
-    const xA = chartState.ascendStart;
     const tFrame = pxToHourInFrame(clientX);
     if (!Number.isFinite(tFrame)) return;
-    let tClamped;
-    if (kind === 'wake') {
-      const bedT = visHour(config.bed_time, xA);
-      tClamped = Math.max(xA + 0.25, Math.min(bedT - 6, tFrame));
-    } else {
-      const wakeT = visHour(config.wake_time, xA);
-      tClamped = Math.max(wakeT + 6, Math.min(xA + 24 - 0.25, tFrame));
-    }
+    const { lo, hi } = getPhaseBoundsInFrame(kind);
+    const tClamped = Math.max(lo, Math.min(hi, tFrame));
     const stored = wrapHour(tClamped);
-    if (kind === 'wake') {
-      chartState.wakeDragVal = stored;
-      config.wake_time = stored;
-    } else {
-      chartState.bedDragVal = stored;
-      config.bed_time = stored;
-    }
-    syncUIFromConfig();
+    // Drag updates the working-copy only; config.wake_time / bed_time stay
+    // pinned to the saved value until the user clicks Save. Keeps the Sleep
+    // accordion stable while previewing on the chart.
+    if (kind === 'wake') chartState.wakeDragVal = stored;
+    else chartState.bedDragVal = stored;
     renderChart();
   };
 
@@ -4031,6 +4112,28 @@ function setupHandleDrag(elId, kind) {
   };
   el.addEventListener('pointerup', end);
   el.addEventListener('pointercancel', end);
+
+  // Hover preview: while pointer is over the pill (not dragging), move the
+  // chart cursor to the handle's x so the dotted line + circle + NOW pill
+  // preview the values at wake/bed time.
+  const handleTime = () => kind === 'wake'
+    ? (chartState.wakeDragVal != null ? chartState.wakeDragVal : config.wake_time)
+    : (chartState.bedDragVal != null ? chartState.bedDragVal : config.bed_time);
+  let _savedCursor = null;
+  el.addEventListener('pointerenter', (e) => {
+    if (dragging || e.pointerType === 'touch') return;
+    _savedCursor = cursorHour;
+    cursorHour = handleTime();
+    applyCursor();
+  });
+  el.addEventListener('pointerleave', () => {
+    if (dragging) return;
+    if (_savedCursor != null) {
+      cursorHour = _savedCursor;
+      _savedCursor = null;
+      applyCursor();
+    }
+  });
 }
 
 /**
@@ -4162,7 +4265,11 @@ function closeSavePopover() {
  * resolves to the same time. Then saveZoneSettings() pushes to the backend.
  */
 function commitSave(kind, key) {
-  const newVal = kind === 'wake' ? config.wake_time : config.bed_time;
+  // Source of truth during edit is the drag working-copy; falls back to the
+  // saved config value if the user opened Save without dragging.
+  const newVal = kind === 'wake'
+    ? (chartState.wakeDragVal != null ? chartState.wakeDragVal : config.wake_time)
+    : (chartState.bedDragVal != null ? chartState.bedDragVal : config.bed_time);
   if (kind === 'wake') {
     if (key === 'all') {
       config.wake_time = newVal;
@@ -4203,15 +4310,10 @@ function commitSave(kind, key) {
  * Revert a wake/bed handle back to its last-saved (snapshot) value.
  */
 function resetWakeOrBed(kind) {
-  if (kind === 'wake') {
-    if (configSnapshot.wake_time != null) config.wake_time = configSnapshot.wake_time;
-    chartState.wakeDragVal = null;
-  } else {
-    if (configSnapshot.bed_time != null) config.bed_time = configSnapshot.bed_time;
-    chartState.bedDragVal = null;
-  }
+  // Drag is now decoupled from config — Reset just clears the working copy.
+  if (kind === 'wake') chartState.wakeDragVal = null;
+  else chartState.bedDragVal = null;
   closeSavePopover();
-  syncUIFromConfig();
   renderChart();
   updateSectionDirtyState();
 }
@@ -5226,6 +5328,37 @@ async function setCircadianMode(areaId, enabled) {
   }
 }
 
+// Heartbeat — server's watchdog ends Live Design if these stop arriving for
+// 60s. Keeps an abandoned browser (closed tab, slept laptop) from holding the
+// area out of periodic updates indefinitely.
+let _liveDesignHeartbeatTimer = null;
+async function sendLiveDesignHeartbeat(areaId) {
+  if (!areaId) return;
+  try {
+    await fetch('./api/live-design/heartbeat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ area_id: areaId }),
+    });
+  } catch (err) {
+    console.warn('[Live Design] Heartbeat failed:', err);
+  }
+}
+function startLiveDesignHeartbeat(areaId) {
+  stopLiveDesignHeartbeat();
+  if (!areaId) return;
+  sendLiveDesignHeartbeat(areaId);
+  _liveDesignHeartbeatTimer = setInterval(
+    () => sendLiveDesignHeartbeat(areaId), 30000
+  );
+}
+function stopLiveDesignHeartbeat() {
+  if (_liveDesignHeartbeatTimer) {
+    clearInterval(_liveDesignHeartbeatTimer);
+    _liveDesignHeartbeatTimer = null;
+  }
+}
+
 /**
  * Set up Live Design event listeners.
  * - Selecting an area auto-enables Live Design
@@ -5249,6 +5382,7 @@ function setupLiveDesign() {
       if (!liveDesignAreaId) return;
 
       // Stop: re-enable Circadian, reset UI to initial state
+      stopLiveDesignHeartbeat();
       liveDesignEnabled = false;
       toggleBtn.style.display = 'none';
       areaSelect.value = '';
@@ -5274,6 +5408,7 @@ function setupLiveDesign() {
         if (statusEl) {
           statusEl.textContent = 'Exiting...';
         }
+        stopLiveDesignHeartbeat();
         await setCircadianMode(oldAreaId, true);
       }
 
@@ -5292,6 +5427,7 @@ function setupLiveDesign() {
           statusEl.classList.add('active');
         }
         await setCircadianMode(newAreaId, false);
+        startLiveDesignHeartbeat(newAreaId);
         // Wait for fade-to-off to complete before applying live values
         await new Promise(r => setTimeout(r, 2200));
         // Apply current cursor position if set with 3s transition
@@ -5308,6 +5444,7 @@ function setupLiveDesign() {
         }, 2500);
       } else {
         // No area selected - hide button and reset state
+        stopLiveDesignHeartbeat();
         liveDesignEnabled = false;
         toggleBtn.style.display = 'none';
         if (statusEl) {
@@ -6019,6 +6156,7 @@ const _backUrl = _backParam && _backParam !== 'home'
 function stopLiveDesign() {
   if (liveDesignEnabled && liveDesignAreaId) {
     // Fire-and-forget re-enable circadian for the area
+    stopLiveDesignHeartbeat();
     setCircadianMode(liveDesignAreaId, true);
     liveDesignEnabled = false;
     liveDesignAreaId = null;

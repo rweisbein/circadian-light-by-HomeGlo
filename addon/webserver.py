@@ -7,6 +7,7 @@ import logging
 import math
 import os
 import tempfile
+import time
 from typing import Any, Dict, List, Optional
 from aiohttp import web, ClientSession
 from aiohttp.web import Request, Response
@@ -395,6 +396,10 @@ def generate_curve_data(config: dict) -> dict:
         }
 
 
+LIVE_DESIGN_TIMEOUT_SEC = 60
+LIVE_DESIGN_WATCHER_INTERVAL_SEC = 15
+
+
 class LightDesignerServer:
     """Web server for the Light Designer ingress interface."""
 
@@ -436,6 +441,12 @@ class LightDesignerServer:
         self.live_design_saved_states: dict = (
             {}
         )  # Saved light states to restore when ending
+        # Heartbeat watchdog — abandoned browser safety net.
+        # Browser pings /api/live-design/heartbeat every ~30s; the watcher
+        # ends Live Design if no ping arrives for LIVE_DESIGN_TIMEOUT_SEC.
+        self.live_design_started_at: float = 0.0
+        self.live_design_last_heartbeat: float = 0.0
+        self._live_design_watcher_task = None
 
         # Areas cache - populated once on first request, refreshed by sync-devices
         self.cached_areas_list: list = (
@@ -527,6 +538,16 @@ class LightDesignerServer:
         )
         self.app.router.add_post("/api/apply-light", self.apply_light)
         self.app.router.add_post("/api/circadian-mode", self.set_circadian_mode)
+        # Live Design heartbeat — browser pings ~30s while page is open;
+        # watcher in start_serving ends Live Design if pings stop.
+        self.app.router.add_route(
+            "POST",
+            "/{path:.*}/api/live-design/heartbeat",
+            self.live_design_heartbeat,
+        )
+        self.app.router.add_post(
+            "/api/live-design/heartbeat", self.live_design_heartbeat
+        )
 
         # GloZone API routes - Zones CRUD
         # Reorder routes MUST be registered before {name} wildcard routes
@@ -3816,6 +3837,8 @@ class LightDesignerServer:
                     self.live_design_area = area_id
                     self.live_design_color_lights = color_lights
                     self.live_design_ct_lights = ct_lights
+                    self.live_design_started_at = time.time()
+                    self.live_design_last_heartbeat = time.time()
 
                     # Save current light states from cache for restoration later
                     all_lights = color_lights + ct_lights
@@ -3846,6 +3869,8 @@ class LightDesignerServer:
                     self.live_design_color_lights = []
                     self.live_design_ct_lights = []
                     self.live_design_saved_states = {}
+                    self.live_design_started_at = time.time()
+                    self.live_design_last_heartbeat = time.time()
             else:
                 # Live Design is ending - restore saved states and clear cache
                 if self.live_design_area == area_id:
@@ -3893,6 +3918,8 @@ class LightDesignerServer:
                     self.live_design_color_lights = []
                     self.live_design_ct_lights = []
                     self.live_design_saved_states = {}
+                    self.live_design_started_at = 0.0
+                    self.live_design_last_heartbeat = 0.0
 
             logger.info(
                 f"[Live Design] Circadian mode {'enabled' if is_circadian else 'disabled'} for area {area_id}"
@@ -3904,6 +3931,65 @@ class LightDesignerServer:
         except Exception as e:
             logger.error(f"Error setting circadian mode: {e}")
             return web.json_response({"error": str(e)}, status=500)
+
+    async def live_design_heartbeat(self, request: Request) -> Response:
+        """Browser pings this while the rhythm-design page is open.
+
+        Updates `live_design_last_heartbeat` only if the area_id matches
+        the currently-active Live Design area, so a stale ping from a
+        different area can't keep the wrong session alive.
+        """
+        try:
+            data = await request.json()
+            area_id = data.get("area_id")
+            if not area_id:
+                return web.json_response(
+                    {"error": "area_id is required"}, status=400
+                )
+            if self.live_design_area == area_id:
+                self.live_design_last_heartbeat = time.time()
+                return web.json_response({"status": "ok", "active": True})
+            return web.json_response({"status": "ok", "active": False})
+        except json.JSONDecodeError:
+            return web.json_response({"error": "Invalid JSON"}, status=400)
+        except Exception as e:
+            logger.error(f"Error processing live design heartbeat: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def _live_design_watcher(self):
+        """Background loop that ends Live Design if heartbeats go stale.
+
+        Handles the abandoned-browser case (closed tab, slept laptop, network
+        drop). Lights resume circadian on the next periodic update; we don't
+        attempt the saved-state restoration the manual-end path does, since
+        the user's intent is to resume normal operation, not freeze them.
+        """
+        while True:
+            try:
+                await asyncio.sleep(LIVE_DESIGN_WATCHER_INTERVAL_SEC)
+                if not self.live_design_area:
+                    continue
+                age = time.time() - (self.live_design_last_heartbeat or 0)
+                if age <= LIVE_DESIGN_TIMEOUT_SEC:
+                    continue
+                area_id = self.live_design_area
+                logger.info(
+                    f"[Live Design] Watchdog: ending area {area_id} "
+                    f"(no heartbeat for {age:.0f}s, threshold {LIVE_DESIGN_TIMEOUT_SEC}s)"
+                )
+                state.set_is_circadian(area_id, True)
+                if self.client:
+                    self.client.handle_live_design(area_id, False)
+                self.live_design_area = None
+                self.live_design_color_lights = []
+                self.live_design_ct_lights = []
+                self.live_design_saved_states = {}
+                self.live_design_started_at = 0.0
+                self.live_design_last_heartbeat = 0.0
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                logger.error(f"Live Design watcher error: {e}")
 
     # -------------------------------------------------------------------------
     # GloZone API - Zones CRUD
@@ -7273,6 +7359,10 @@ class LightDesignerServer:
         site = web.TCPSite(self._runner, "0.0.0.0", self.port)
         await site.start()
         logger.info(f"Light Designer server started on port {self.port}")
+        if self._live_design_watcher_task is None:
+            self._live_design_watcher_task = asyncio.create_task(
+                self._live_design_watcher()
+            )
         return self._runner
 
     async def start(self):
