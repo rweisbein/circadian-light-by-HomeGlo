@@ -2083,6 +2083,22 @@ const GRAPH_Y_MAX = 125;
 const SPEED_LABELS = ['', 'Calm', 'Gentle', 'Soft', 'Smooth', 'Balanced', 'Crisp', 'Fast', 'Snappy', 'Quick', 'Sharp', 'Flash', 'Instant'];
 const SPEED_TO_SLOPE = [0, 0.4, 0.6, 0.8, 1.0, 1.3, 1.7, 2.3, 3.0, 4.0, 5.5, 30.0, 60.0];
 
+// 5%→95% logistic transition width = 2*ln(19)/k hours. Renders compact: e.g.
+// "~12 min" or "~3.5 hr". Used in the wake/bed Speed slider readout so users
+// know how long the transition actually takes at each speed level.
+function speedTransitionLabel(speedIdx) {
+  const k = SPEED_TO_SLOPE[Math.max(1, Math.min(12, speedIdx))];
+  if (!k || k <= 0) return '';
+  const hours = 5.889 / k;  // 2 * ln(19) / k
+  const minutes = hours * 60;
+  if (minutes < 60) return `~${Math.round(minutes)} min`;
+  if (hours < 10) return `~${hours.toFixed(1)} hr`;
+  return `~${Math.round(hours)} hr`;
+}
+function formatSpeedReadout(speedIdx) {
+  return `${speedIdx}: ${SPEED_LABELS[speedIdx].toLowerCase()} · ${speedTransitionLabel(speedIdx)}`;
+}
+
 // Colors matching llm_access.html
 const ASCEND_COLORS = {
   shade: 'rgba(120,190,255,0.35)',
@@ -4368,7 +4384,20 @@ function openSavePopover(kind) {
       commitSave(kind, b.dataset.key);
     });
   });
+  // Reset any prior viewport-clamp shift before measuring.
+  pop.style.transform = '';
   pop.classList.add('open');
+  // Clamp to viewport: if the centered popover would clip past the screen edge
+  // (common on mobile when wake/bed handle is near the chart edge), nudge it
+  // back inside via an additional translateX.
+  const margin = 8;
+  const popRect = pop.getBoundingClientRect();
+  const overshootLeft = margin - popRect.left;
+  const overshootRight = popRect.right - (window.innerWidth - margin);
+  let shift = 0;
+  if (overshootLeft > 0) shift = overshootLeft;
+  else if (overshootRight > 0) shift = -overshootRight;
+  pop.style.transform = `translateX(calc(-50% + ${shift}px))`;
 }
 
 function closeSavePopover() {
@@ -4948,8 +4977,8 @@ function syncUIFromConfig() {
   updateDisplay('wake-brightness-display', wb + '%');
   const bb = config.bed_brightness || 50;
   updateDisplay('bed-brightness-display', bb + '%');
-  updateDisplay('wake-speed-display', `${config.wake_speed}: ${SPEED_LABELS[config.wake_speed].toLowerCase()}`);
-  updateDisplay('bed-speed-display', `${config.bed_speed}: ${SPEED_LABELS[config.bed_speed].toLowerCase()}`);
+  updateDisplay('wake-speed-display', formatSpeedReadout(config.wake_speed));
+  updateDisplay('bed-speed-display', formatSpeedReadout(config.bed_speed));
   updateRangeDisplays();
 
 
@@ -5159,8 +5188,8 @@ function setupEventListeners() {
   updateSliderValue('descend-start', 'descend-start-display', formatHour);
   updateSliderValue('wake-time', 'wake-time-display', formatHour);
   updateSliderValue('bed-time', 'bed-time-display', formatHour);
-  updateSliderValue('wake-speed', 'wake-speed-display', v => `${v}: ${SPEED_LABELS[v].toLowerCase()}`);
-  updateSliderValue('bed-speed', 'bed-speed-display', v => `${v}: ${SPEED_LABELS[v].toLowerCase()}`);
+  updateSliderValue('wake-speed', 'wake-speed-display', formatSpeedReadout);
+  updateSliderValue('bed-speed', 'bed-speed-display', formatSpeedReadout);
 
   // Alt time sliders
   updateSliderValue('wake-alt-time', 'wake-alt-time-display', formatHour);
