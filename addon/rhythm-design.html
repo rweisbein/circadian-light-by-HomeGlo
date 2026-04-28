@@ -52,13 +52,7 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 .rhythm-card-val { margin-left: auto; font-size: var(--font-value); color: var(--muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
 .rhythm-card-val b { font-weight: 700; font-size: var(--font-card-title); color: var(--text); }
 
-/* Sleep card header: collapsed shows window time; expanded shows the pattern dropdown */
-.rhythm-sleep-title-expanded { display: none; }
-.rhythm-card.is-open .rhythm-sleep-title-collapsed { display: none; }
-.rhythm-card.is-open .rhythm-sleep-title-expanded { display: inline; }
-.rhythm-sleep-pattern-val { display: none; }
-.rhythm-card.is-open #rhythm-sleep-val { display: none; }
-.rhythm-card.is-open .rhythm-sleep-pattern-val { display: inline-flex; align-items: center; }
+/* Sleep card header: title stays "Sleep" always; pattern picker lives in body */
 .rhythm-pattern-inline-select {
   background: transparent;
   border: none;
@@ -1722,21 +1716,8 @@ input[type=range]::-moz-range-thumb {
   <div class="rhythm-card" id="rhythm-sleep-card">
     <div class="rhythm-card-header" onclick="toggleRhythmCard('rhythm-sleep-card', 'rhythm_sleep_expanded')">
       <span class="rhythm-card-chevron" id="rhythm-sleep-chevron">&#x203A;</span>
-      <span class="rhythm-card-title">
-        <span class="rhythm-sleep-title-collapsed">Sleep</span>
-        <span class="rhythm-sleep-title-expanded">Sleep pattern:</span>
-      </span>
+      <span class="rhythm-card-title">Sleep</span>
       <span class="rhythm-card-val" id="rhythm-sleep-val">9:00p &ndash; 7:00a</span>
-      <span class="rhythm-sleep-pattern-val" id="rhythm-sleep-pattern-val">
-        <select id="activity-preset" class="rhythm-pattern-inline-select" onclick="event.stopPropagation()">
-          <option value="young">Young Child</option>
-          <option value="adult" selected>Adult</option>
-          <option value="nightowl">Night Owl</option>
-          <option value="duskbat">Dusk Bat</option>
-          <option value="shiftearly">Shift Early</option>
-          <option value="shiftlate">Shift Late</option>
-        </select>
-      </span>
       <div class="rhythm-sleep-summary" id="rhythm-sleep-summary" style="display:none">
         <div class="rhythm-sleep-summary-row">
           <span class="rhythm-sleep-summary-label">wake</span>
@@ -1751,6 +1732,19 @@ input[type=range]::-moz-range-thumb {
       </div>
     </div>
     <div class="rhythm-card-body" id="rhythm-sleep-body">
+      <div class="sub-section" id="pattern-sub-section">
+        <div class="sub-section-header">
+          <span class="sub-section-title">Sleep pattern</span>
+          <select id="activity-preset" class="rhythm-pattern-inline-select" onclick="event.stopPropagation()" style="margin-left:auto;">
+            <option value="young">Young Child</option>
+            <option value="adult" selected>Adult</option>
+            <option value="nightowl">Night Owl</option>
+            <option value="duskbat">Dusk Bat</option>
+            <option value="shiftearly">Shift Early</option>
+            <option value="shiftlate">Shift Late</option>
+          </select>
+        </div>
+      </div>
       <div class="sub-section" id="wake-sub-section">
         <div class="sub-section-header">
           <span class="sub-section-title">Wake</span>
@@ -1808,7 +1802,7 @@ input[type=range]::-moz-range-thumb {
                 <span class="tune-control-label">Speed</span>
                 <span class="tune-control-reset" id="reset-wake-speed" data-default="6">reset</span>
               </span>
-              <span class="tune-control-impact" id="wake-speed-display">Crisp (6)</span>
+              <span class="tune-control-impact" id="wake-speed-display">Crisp · ~3.5 hr</span>
             </div>
             <div class="tune-slider-row">
               <input type="range" id="wake-speed" min="1" max="12" step="1" value="6">
@@ -1874,7 +1868,7 @@ input[type=range]::-moz-range-thumb {
                 <span class="tune-control-label">Speed</span>
                 <span class="tune-control-reset" id="reset-bed-speed" data-default="6">reset</span>
               </span>
-              <span class="tune-control-impact" id="bed-speed-display">Smooth (4)</span>
+              <span class="tune-control-impact" id="bed-speed-display">Smooth · ~5.9 hr</span>
             </div>
             <div class="tune-slider-row">
               <input type="range" id="bed-speed" min="1" max="12" step="1" value="4">
@@ -2095,8 +2089,13 @@ function speedTransitionLabel(speedIdx) {
   if (hours < 10) return `~${hours.toFixed(1)} hr`;
   return `~${Math.round(hours)} hr`;
 }
-function formatSpeedReadout(speedIdx) {
-  return `${speedIdx}: ${SPEED_LABELS[speedIdx].toLowerCase()} · ${speedTransitionLabel(speedIdx)}`;
+// Idle (no active drag): "Snappy · ~2 hr" — word + time, no level number.
+function formatSpeedReadoutIdle(speedIdx) {
+  return `${SPEED_LABELS[speedIdx]} · ${speedTransitionLabel(speedIdx)}`;
+}
+// Active drag: "8 · Snappy · ~2 hr" — level shown so user can navigate the slider.
+function formatSpeedReadoutActive(speedIdx) {
+  return `${speedIdx} · ${SPEED_LABELS[speedIdx]} · ${speedTransitionLabel(speedIdx)}`;
 }
 
 // Colors matching llm_access.html
@@ -4525,6 +4524,25 @@ function updateSliderValue(sliderId, displayId, formatter) {
   });
 }
 
+// Speed sliders: show "N · Word · ~time" while user is interacting (so the
+// level number helps them navigate the 12 stops), then 1.2s after they stop
+// fall back to "Word · ~time" (clean idle readout).
+function setupSpeedSliderReadout(sliderId, displayId) {
+  const slider = document.getElementById(sliderId);
+  if (!slider) return;
+  let idleTimer = null;
+  slider.addEventListener('input', () => {
+    const val = parseInt(slider.value, 10);
+    updateDisplay(displayId, formatSpeedReadoutActive(val));
+    syncConfigFromUI();
+    renderChart();
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      updateDisplay(displayId, formatSpeedReadoutIdle(val));
+    }, 1200);
+  });
+}
+
 // Make a time-display span click-to-edit. Allows demos to type a non-rounded
 // time like "7:27a" instead of dragging the (0.25-step) slider.
 function setupTimeInputEdit(displayId, sliderId) {
@@ -4977,8 +4995,8 @@ function syncUIFromConfig() {
   updateDisplay('wake-brightness-display', wb + '%');
   const bb = config.bed_brightness || 50;
   updateDisplay('bed-brightness-display', bb + '%');
-  updateDisplay('wake-speed-display', formatSpeedReadout(config.wake_speed));
-  updateDisplay('bed-speed-display', formatSpeedReadout(config.bed_speed));
+  updateDisplay('wake-speed-display', formatSpeedReadoutIdle(config.wake_speed));
+  updateDisplay('bed-speed-display', formatSpeedReadoutIdle(config.bed_speed));
   updateRangeDisplays();
 
 
@@ -5188,8 +5206,8 @@ function setupEventListeners() {
   updateSliderValue('descend-start', 'descend-start-display', formatHour);
   updateSliderValue('wake-time', 'wake-time-display', formatHour);
   updateSliderValue('bed-time', 'bed-time-display', formatHour);
-  updateSliderValue('wake-speed', 'wake-speed-display', formatSpeedReadout);
-  updateSliderValue('bed-speed', 'bed-speed-display', formatSpeedReadout);
+  setupSpeedSliderReadout('wake-speed', 'wake-speed-display');
+  setupSpeedSliderReadout('bed-speed', 'bed-speed-display');
 
   // Alt time sliders
   updateSliderValue('wake-alt-time', 'wake-alt-time-display', formatHour);
