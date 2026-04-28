@@ -252,14 +252,15 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 .sleep-time-group .day-indicator.today::after {
   content: '';
   position: absolute;
-  bottom: -5px;
+  bottom: 3px;
   left: 50%;
   transform: translateX(-50%);
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
+  width: 12px;
+  height: 1.5px;
+  border-radius: 1px;
   background: var(--accent);
 }
+.sleep-time-group .day-indicator.today.active::after { background: #000; }
 .sleep-time-group.no-alt .alt-block {
   display: none;
 }
@@ -420,6 +421,9 @@ input[type=range]::-moz-range-thumb {
   padding: 8px 4px 86px;
   margin-top: 8px;
   overflow: visible;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
 }
 #chart-shell #chart {
   width: 100%;
@@ -452,17 +456,17 @@ input[type=range]::-moz-range-thumb {
   background: rgba(0,0,0,0.18);
   border: none;
   color: inherit;
-  width: 18px;
   height: 18px;
-  border-radius: 50%;
-  font-size: 12px;
+  padding: 0 7px;
+  border-radius: 9px;
+  font-size: 11px;
   font-weight: 700;
+  letter-spacing: 0.02em;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   margin-left: 2px;
-  padding: 0;
   line-height: 1;
   font-family: inherit;
   opacity: 0.85;
@@ -622,23 +626,24 @@ input[type=range]::-moz-range-thumb {
   padding: 6px 4px;
 }
 .phase-handle.dragging { cursor: grabbing; }
-/* Thin connector line from pill up through solar band to the chart x-axis */
+/* Thin connector line from pill up through solar band to the chart x-axis.
+   Height tuned so the top stops at the x-axis (no pierce into the chart). */
 .phase-handle::before {
   content: '';
   position: absolute;
   bottom: calc(100% - 6px);
   left: 50%;
-  width: 1px;
-  height: 56px;
+  width: 1.5px;
+  height: 50px;
   transform: translateX(-50%);
   pointer-events: none;
-  opacity: 0.25;
+  opacity: 0.45;
   transition: opacity 0.15s;
 }
 .phase-handle.phase-wake::before { background: #5cb3ff; }
 .phase-handle.phase-bed::before { background: #ffe680; }
 .phase-handle:hover::before,
-.phase-handle.dragging::before { opacity: 0.55; }
+.phase-handle.dragging::before { opacity: 0.75; }
 .phase-pill {
   display: inline-flex;
   align-items: baseline;
@@ -692,23 +697,28 @@ input[type=range]::-moz-range-thumb {
 .phase-ghost.for-wake .phase-ghost-pill { border-color: rgba(92,179,255,0.55); }
 .phase-ghost.for-bed .phase-ghost-pill { border-color: rgba(255,230,128,0.55); }
 
-/* Save / Reset action chips below moved pill */
+/* Save / Reset action chips — single container under the moved pill.
+   Positioned close to the pill so the relationship reads as "the pill's
+   actions" rather than free-floating chips. Reset on left, Save on right. */
 .handle-actions {
   position: absolute;
-  bottom: 4px;
+  bottom: 14px;
   transform: translateX(-50%);
   display: none;
-  align-items: center;
-  gap: 4px;
+  align-items: stretch;
   z-index: 7;
+  background: rgba(20, 22, 28, 0.95);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
 }
 .handle-actions.visible { display: inline-flex; }
 .action-chip {
-  background: rgba(20, 22, 28, 0.95);
-  border: 1px solid rgba(255,255,255,0.18);
+  background: transparent;
+  border: none;
   color: var(--text);
   padding: 4px 9px;
-  border-radius: 12px;
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
@@ -717,10 +727,12 @@ input[type=range]::-moz-range-thumb {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background 0.15s;
   font-family: inherit;
 }
+.action-chip + .action-chip { border-left: 1px solid rgba(255,255,255,0.14); }
 .action-chip:hover { background: rgba(255,255,255,0.08); }
+.action-chip.revert { font-size: 13px; padding: 4px 8px; }
 
 /* Save popover */
 .save-popover {
@@ -774,9 +786,55 @@ input[type=range]::-moz-range-thumb {
 }
 
 /* Month row — collapsed shows "Month  April"; click to expand the slider */
-.month-row { padding-top: 6px; }
-.month-row > .tune-slider-row { padding-left: 16px; padding-right: 14px; }
-.month-row > .tune-slider-row input[type=range] { width: 100%; }
+/* Month chip — top-left corner of chart-shell, taps open a slider popover.
+   Mirrors the outdoor-chip pattern; replaces the old below-chart Month row. */
+.month-chip {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.18);
+  padding: 3px 9px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: rgba(215,215,215,0.85);
+  cursor: pointer;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-user-select: none;
+  font-variant-numeric: tabular-nums;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.month-chip:hover { color: #fff; border-color: rgba(255,255,255,0.32); }
+.month-chip-icon { font-size: 11px; line-height: 1; opacity: 0.85; }
+.month-popover {
+  position: absolute;
+  top: 38px;
+  left: 10px;
+  background: rgba(24, 26, 32, 0.98);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 8px;
+  padding: 10px 12px 8px;
+  min-width: 220px;
+  z-index: 30;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+  display: none;
+}
+.month-popover.open { display: block; }
+.month-popover-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted2);
+  margin-bottom: 6px;
+}
+.month-popover input[type=range] { width: 100%; }
 
 /* Interactive color gradient (ported from tune.html + handle additions) */
 /* Color gradient layout: cursor above, gradient, ticks, labels+K below */
@@ -1586,6 +1644,15 @@ input[type=range]::-moz-range-thumb {
         <div class="now-pill" id="now-pill"></div>
         <div class="live-pip" id="live-pip"><span class="live-dot"></span>LIVE</div>
 
+        <!-- Month chip — tap to open the season slider -->
+        <button type="button" class="month-chip" id="month-chip">
+          <span class="month-chip-icon">&#128197;</span><span id="month-chip-label">April</span>
+        </button>
+        <div class="month-popover" id="month-popover">
+          <div class="month-popover-title">Season</div>
+          <input type="range" class="month-slider" id="month-slider" min="0" max="11" value="3">
+        </div>
+
         <div id="chart"></div>
         <div class="time-hover-label" id="time-hover-label"></div>
 
@@ -1619,8 +1686,8 @@ input[type=range]::-moz-range-thumb {
           </div>
         </div>
         <div class="handle-actions" id="wake-actions">
+          <button class="action-chip revert" data-kind="wake" title="Reset">&#x21BA;</button>
           <button class="action-chip save" data-kind="wake">Save &#9662;</button>
-          <button class="action-chip revert" data-kind="wake">&#x21BA;</button>
         </div>
 
         <div class="phase-ghost for-bed"><div class="phase-ghost-pill"></div></div>
@@ -1631,8 +1698,8 @@ input[type=range]::-moz-range-thumb {
           </div>
         </div>
         <div class="handle-actions" id="bed-actions">
+          <button class="action-chip revert" data-kind="bed" title="Reset">&#x21BA;</button>
           <button class="action-chip save" data-kind="bed">Save &#9662;</button>
-          <button class="action-chip revert" data-kind="bed">&#x21BA;</button>
         </div>
 
         <div class="save-popover" id="save-popover"></div>
@@ -1644,17 +1711,6 @@ input[type=range]::-moz-range-thumb {
       </div>
     </div>
 
-    <div class="month-row reveal-group">
-      <div class="tune-control-row">
-        <span class="tune-control-left">
-          <span class="tune-control-label">Month</span>
-        </span>
-        <span class="tune-control-impact" id="month-label">April</span>
-      </div>
-      <div class="tune-slider-row">
-        <input type="range" class="month-slider" id="month-slider" min="0" max="11" value="3">
-      </div>
-    </div>
   </div>
 
   <div class="rhythm-card" id="rhythm-sleep-card">
@@ -1749,7 +1805,7 @@ input[type=range]::-moz-range-thumb {
               <span class="tune-control-impact" id="wake-speed-display">Crisp (6)</span>
             </div>
             <div class="tune-slider-row">
-              <input type="range" id="wake-speed" min="1" max="10" step="1" value="6">
+              <input type="range" id="wake-speed" min="1" max="12" step="1" value="6">
             </div>
           </div>
         </div>
@@ -1815,7 +1871,7 @@ input[type=range]::-moz-range-thumb {
               <span class="tune-control-impact" id="bed-speed-display">Smooth (4)</span>
             </div>
             <div class="tune-slider-row">
-              <input type="range" id="bed-speed" min="1" max="10" step="1" value="4">
+              <input type="range" id="bed-speed" min="1" max="12" step="1" value="4">
             </div>
           </div>
         </div>
@@ -2007,8 +2063,8 @@ input[type=range]::-moz-range-thumb {
 // ============================================================
 
 const GRAPH_Y_MAX = 125;
-const SPEED_LABELS = ['', 'Calm', 'Gentle', 'Soft', 'Smooth', 'Balanced', 'Crisp', 'Fast', 'Snappy', 'Quick', 'Sharp'];
-const SPEED_TO_SLOPE = [0, 0.4, 0.6, 0.8, 1.0, 1.3, 1.7, 2.3, 3.0, 4.0, 5.5];
+const SPEED_LABELS = ['', 'Calm', 'Gentle', 'Soft', 'Smooth', 'Balanced', 'Crisp', 'Fast', 'Snappy', 'Quick', 'Sharp', 'Flash', 'Instant'];
+const SPEED_TO_SLOPE = [0, 0.4, 0.6, 0.8, 1.0, 1.3, 1.7, 2.3, 3.0, 4.0, 5.5, 30.0, 60.0];
 
 // Colors matching llm_access.html
 const ASCEND_COLORS = {
@@ -2404,8 +2460,8 @@ function getValuesAtTime(hour) {
   const phase = inAscend ? 'Ascend' : 'Descend';
 
   // Slopes - clamp speed to valid range 1-10 (matches brain.py)
-  const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.wake_speed))];
-  const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.bed_speed))];
+  const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, config.wake_speed))];
+  const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, config.bed_speed))];
 
   // Config bounds (only use these, no runtime overrides)
   const bMin = config.min_brightness / 100;
@@ -3117,8 +3173,8 @@ function calculateBrightnessAtHour(hour) {
   let bedMid = timing.bed;
 
   // Clamp speed to valid range 1-10 (matches brain.py)
-  const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.wake_speed))];
-  const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.bed_speed))];
+  const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, config.wake_speed))];
+  const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, config.bed_speed))];
 
   // Config bounds
   const bMin = config.min_brightness / 100;
@@ -3201,8 +3257,8 @@ function calculateColorAtHour(hour, applySolar = true) {
   let colorBedMid = timing.bed;
 
   // Clamp speed to valid range 1-10 (matches brain.py)
-  const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.wake_speed))];
-  const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.bed_speed))];
+  const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, config.wake_speed))];
+  const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, config.bed_speed))];
 
   // Config bounds
   const cLow = config.min_color_temp;
@@ -3407,12 +3463,17 @@ function renderChart() {
   // Dotted reference line = room target (un-dimmed brightness). Sits ABOVE
   // the visible bulb-output curve during daylight; the gap = how much the sun
   // is doing the bulb's job. Only drawn in segments where the gap is real.
+  let sunContribAnchor = null;  // {x, y} for the "sun contribution" label
   if (showDottedTarget) {
     const GAP_THRESHOLD = 0.75;
     const dx = []; const dy = [];
+    let maxGap = 0;
+    let maxGapIdx = -1;
     for (let i = 0; i < hours.length; i++) {
-      if (roomTargetPct[i] - brightnessPct[i] > GAP_THRESHOLD) {
+      const gap = roomTargetPct[i] - brightnessPct[i];
+      if (gap > GAP_THRESHOLD) {
         dx.push(hours[i]); dy.push(roomTargetPct[i]);
+        if (gap > maxGap) { maxGap = gap; maxGapIdx = i; }
       } else if (dx.length && dx[dx.length - 1] !== null) {
         dx.push(null); dy.push(null);  // segment break
       }
@@ -3425,6 +3486,9 @@ function renderChart() {
         connectgaps: false,
         hoverinfo: 'skip', showlegend: false,
       });
+      if (maxGapIdx >= 0) {
+        sunContribAnchor = { x: hours[maxGapIdx], y: roomTargetPct[maxGapIdx] };
+      }
     }
   }
 
@@ -3509,6 +3573,13 @@ function renderChart() {
       line: { color: DESCEND_COLORS.text, width: 1.5 } });
   }
   const annotations = [];
+  if (sunContribAnchor) {
+    annotations.push({
+      x: sunContribAnchor.x, y: sunContribAnchor.y, xref: 'x', yref: 'y',
+      text: 'sun contribution', showarrow: false, yshift: 10,
+      font: { size: 9, color: 'rgba(220, 220, 220, 0.7)' },
+    });
+  }
 
   // Store base shapes/annotations for cursor updates
   window.baseShapes = shapes.slice();
@@ -3813,7 +3884,7 @@ function computePhaseSafeOffset(kind) {
   const margin = 0.25;
   if (brightnessPct === 50) return { minOffset: margin, maxOffset: margin };
   const speed = inAscend ? config.wake_speed : config.bed_speed;
-  const slopeMag = SPEED_TO_SLOPE[Math.max(1, Math.min(10, speed))];
+  const slopeMag = SPEED_TO_SLOPE[Math.max(1, Math.min(12, speed))];
   if (!(slopeMag > 0)) return { minOffset: margin, maxOffset: margin };
   const bMin = (config.min_brightness || 2) / 100;
   const bMax = (config.max_brightness || 100) / 100;
@@ -3828,6 +3899,31 @@ function computePhaseSafeOffset(kind) {
     minOffset: Math.max(0, -offset) + margin,
     maxOffset: Math.max(0, offset) + margin,
   };
+}
+
+// Signed midpoint shift: how many hours computeShiftedMidpoint will move the
+// midpoint for a given phase. Positive = later, negative = earlier. Used by
+// the bed-wrap UI bound below; the bed midpoint must stay below 24h-lifted
+// or the silent `% 24` in calculateBrightnessAtHour wraps it onto the wrong
+// side of tDescend and the descent curve collapses (v1.2.128 workaround).
+function computePhaseSignedOffset(kind) {
+  const inAscend = kind === 'wake';
+  const brightnessPct = inAscend
+    ? (config.wake_brightness || 50)
+    : (config.bed_brightness || 50);
+  if (brightnessPct === 50) return 0;
+  const speed = inAscend ? config.wake_speed : config.bed_speed;
+  const slopeMag = SPEED_TO_SLOPE[Math.max(1, Math.min(SPEED_TO_SLOPE.length - 1, speed))];
+  if (!(slopeMag > 0)) return 0;
+  const bMin = (config.min_brightness || 2) / 100;
+  const bMax = (config.max_brightness || 100) / 100;
+  const targetNorm = bMin + (bMax - bMin) * (brightnessPct / 100);
+  const eps = 0.001;
+  const clamped = Math.max(bMin + eps, Math.min(bMax - eps, targetNorm));
+  const ratio = (clamped - bMin) / (bMax - bMin);
+  const logTerm = Math.log((1 - ratio) / ratio);
+  const slopeSigned = inAscend ? slopeMag : -slopeMag;
+  return logTerm / slopeSigned;
 }
 
 // Bounds for wake/bed in the chart frame [xA, xA+24]. Mirrors area-details
@@ -3848,6 +3944,12 @@ function getPhaseBoundsInFrame(kind) {
   } else {
     lo = Math.max(tDescAnchor + off.minOffset, wakeFrame + MIN_SLEEP_HOURS);
     hi = (xA + 24) - off.maxOffset;
+    // Bed-wrap UI bound: keep shifted bed midpoint < 24h-lifted so the silent
+    // `% 24` in calculateBrightnessAtHour doesn't drop it onto the wrong side
+    // of tDescend. Shifted = bedFrame + signedOffset; we want shifted < 24.
+    const signedOff = computePhaseSignedOffset('bed');
+    const wrapHi = 24 - signedOff - 0.05;
+    if (wrapHi < hi) hi = Math.max(lo + 0.1, wrapHi);
   }
   if (hi - lo < 0.5) {
     if (kind === 'wake') { lo = xA + 0.05; hi = bedFrame - 0.05; }
@@ -3961,7 +4063,7 @@ function positionOverlays() {
     pill.style.left = xToPx(cursorHour) + 'px';
     const resetBtn = cursorTrackingNow
       ? ''
-      : ' <button type="button" class="now-pill-reset" title="Jump to current time">\u21BA</button>';
+      : ' <button type="button" class="now-pill-reset" title="Jump to current time">Now</button>';
     pill.innerHTML = `${formatHour(cursorHour)} \u00b7 ${Math.round(bri)}% \u00b7 ${Math.round(cct)}K${resetBtn}`;
     pill.style.borderColor = colorWithAlpha(rgb, 0.85);
     pill.style.background = colorWithAlpha(rgb, 0.92);
@@ -4061,7 +4163,9 @@ function setupHandleDrag(elId, kind) {
     const tFrame = pxToHourInFrame(clientX);
     if (!Number.isFinite(tFrame)) return;
     const { lo, hi } = getPhaseBoundsInFrame(kind);
-    const tClamped = Math.max(lo, Math.min(hi, tFrame));
+    // Snap to 15-minute ticks to match the wake/bed sliders in the Sleep card
+    const tSnapped = Math.round(tFrame * 4) / 4;
+    const tClamped = Math.max(lo, Math.min(hi, tSnapped));
     const stored = wrapHour(tClamped);
     // Drag updates the working-copy only; config.wake_time / bed_time stay
     // pinned to the saved value until the user clicks Save. Keeps the Sleep
@@ -5081,15 +5185,29 @@ function setupEventListeners() {
     }
   });
 
-  // Month slider — replaces the old day-of-year slider. 12 stops; renderChart()
-  // reads chartState.monthIdx via getSelectedDateISO() to compute sun times.
+  // Month slider — lives inside the month-chip popover (top-left of chart).
+  // 12 stops; renderChart() reads chartState.monthIdx via getSelectedDateISO()
+  // to compute sun times.
   const monthSlider = document.getElementById('month-slider');
-  const monthLabel = document.getElementById('month-label');
+  const monthChipLabel = document.getElementById('month-chip-label');
   if (monthSlider) {
     monthSlider.addEventListener('input', () => {
       chartState.monthIdx = parseInt(monthSlider.value, 10);
-      if (monthLabel) monthLabel.textContent = MONTH_NAMES[chartState.monthIdx];
+      if (monthChipLabel) monthChipLabel.textContent = MONTH_NAMES[chartState.monthIdx];
       renderChart();
+    });
+  }
+  const monthChip = document.getElementById('month-chip');
+  const monthPop = document.getElementById('month-popover');
+  if (monthChip && monthPop) {
+    monthChip.addEventListener('click', (e) => {
+      e.stopPropagation();
+      monthPop.classList.toggle('open');
+    });
+    document.addEventListener('click', (e) => {
+      if (!monthPop.contains(e.target) && e.target !== monthChip) {
+        monthPop.classList.remove('open');
+      }
     });
   }
 
@@ -6176,10 +6294,10 @@ function setupSectionActions() {
 document.addEventListener('DOMContentLoaded', () => {
   // Initialize month slider to current month
   const monthSlider = document.getElementById('month-slider');
-  const monthLabel = document.getElementById('month-label');
+  const monthChipLabel = document.getElementById('month-chip-label');
   chartState.monthIdx = new Date().getMonth();
   if (monthSlider) monthSlider.value = chartState.monthIdx;
-  if (monthLabel) monthLabel.textContent = MONTH_NAMES[chartState.monthIdx];
+  if (monthChipLabel) monthChipLabel.textContent = MONTH_NAMES[chartState.monthIdx];
 
   // Apply server-injected global settings (lat, lon, timezone) before first render
   const injectedCfg = (window.circadianData || {}).config || {};

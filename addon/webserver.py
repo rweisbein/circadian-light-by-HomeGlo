@@ -3471,7 +3471,7 @@ class LightDesignerServer:
 
                         if in_ascend:
                             slope = SPEED_TO_SLOPE[
-                                max(1, min(10, area_config.wake_speed))
+                                max(1, min(12, area_config.wake_speed))
                             ]
                             bri_pct = area_config.wake_brightness
                             if area_state.brightness_mid is not None:
@@ -3493,7 +3493,7 @@ class LightDesignerServer:
                             )
                         else:
                             slope = -SPEED_TO_SLOPE[
-                                max(1, min(10, area_config.bed_speed))
+                                max(1, min(12, area_config.bed_speed))
                             ]
                             bri_pct = area_config.bed_brightness
                             if area_state.brightness_mid is not None:

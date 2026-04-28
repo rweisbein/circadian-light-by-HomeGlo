@@ -1232,7 +1232,7 @@
     // Circadian Calculation Functions (for row shading)
     // ============================================================
 
-    const SPEED_TO_SLOPE = [0, 0.4, 0.6, 0.8, 1.0, 1.3, 1.7, 2.3, 3.0, 4.0, 5.5];
+    const SPEED_TO_SLOPE = [0, 0.4, 0.6, 0.8, 1.0, 1.3, 1.7, 2.3, 3.0, 4.0, 5.5, 30.0, 60.0];
 
     function logistic(x, midpoint, slope, y0, y1) {
       try {
@@ -1397,8 +1397,8 @@
       let tDescend = cfg.descend_start;
       if (tDescend <= tAscend) tDescend += 24;
 
-      const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.wake_speed))];
-      const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.bed_speed))];
+      const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.wake_speed))];
+      const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.bed_speed))];
       const bMin = cfg.min_brightness / 100;
       const bMax = cfg.max_brightness / 100;
 
@@ -1436,8 +1436,8 @@
       let tDescend = cfg.descend_start;
       if (tDescend <= tAscend) tDescend += 24;
 
-      const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.wake_speed))];
-      const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.bed_speed))];
+      const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.wake_speed))];
+      const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.bed_speed))];
       const cLow = cfg.min_color_temp;
       const cHigh = cfg.max_color_temp;
 

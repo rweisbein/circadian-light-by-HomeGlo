@@ -1534,7 +1534,7 @@
     // Circadian Curve Calculation (from areas.html modal)
     // ============================================================
 
-    const SPEED_TO_SLOPE = [0, 0.4, 0.6, 0.8, 1.0, 1.3, 1.7, 2.3, 3.0, 4.0, 5.5];
+    const SPEED_TO_SLOPE = [0, 0.4, 0.6, 0.8, 1.0, 1.3, 1.7, 2.3, 3.0, 4.0, 5.5, 30.0, 60.0];
 
     function logistic(x, midpoint, slope, y0, y1) {
       try {
@@ -1833,8 +1833,8 @@
       let tDescend = cfg.descend_start;
       if (tDescend <= tAscend) tDescend += 24;
 
-      const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.wake_speed))];
-      const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.bed_speed))];
+      const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.wake_speed))];
+      const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.bed_speed))];
       const bMin = cfg.min_brightness / 100;
       const bMax = cfg.max_brightness / 100;
 
@@ -1907,8 +1907,8 @@
       let tDescend = cfg.descend_start;
       if (tDescend <= tAscend) tDescend += 24;
 
-      const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.wake_speed))];
-      const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.bed_speed))];
+      const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.wake_speed))];
+      const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.bed_speed))];
       const bMin = cfg.min_brightness / 100;
       const bMax = cfg.max_brightness / 100;
       const cLow = cfg.min_color_temp;
@@ -2474,8 +2474,8 @@
       const tAscendGeom = cfg.ascend_start;
       let tDescendGeom = cfg.descend_start;
       if (tDescendGeom <= tAscendGeom) tDescendGeom += 24;
-      const kAscendGeom = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.wake_speed))];
-      const kDescendGeom = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.bed_speed))];
+      const kAscendGeom = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.wake_speed))];
+      const kDescendGeom = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.bed_speed))];
       const cursorH48Geom = currentHour < tAscendGeom ? currentHour + 24 : currentHour;
       const cursorInAscendGeom = cursorH48Geom >= tAscendGeom && cursorH48Geom < tDescendGeom;
 
@@ -3088,7 +3088,7 @@
         : (cfg.bed_brightness || 50);
       if (brightnessPct === 50) return { minOffset: 0, maxOffset: 0 };
       const speed = cursorInAscend ? cfg.wake_speed : cfg.bed_speed;
-      const slopeMag = SPEED_TO_SLOPE[Math.max(1, Math.min(10, speed))];
+      const slopeMag = SPEED_TO_SLOPE[Math.max(1, Math.min(12, speed))];
       if (!(slopeMag > 0)) return { minOffset: 0, maxOffset: 0 };
       const bMin = (cfg.min_brightness || 2) / 100;
       const bMax = (cfg.max_brightness || 100) / 100;
@@ -3362,8 +3362,8 @@
         // (skip calcMiniBrightness — its liftMidpointToPhase wraps misbehave at edges).
         const n = 10;
         const { currentHour, phaseMin, phaseMax, cursorInAscend } = phaseCtx;
-        const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.wake_speed))];
-        const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.bed_speed))];
+        const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.wake_speed))];
+        const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.bed_speed))];
         const slopeSigned = cursorInAscend ? kAscend : -kDescend;
         const bMinNorm = bMin / 100, bMaxNorm = bMax / 100;
         const now48 = currentHour < cfg.ascend_start ? currentHour + 24 : currentHour;
@@ -3398,8 +3398,8 @@
     }
 
     function computeCandidateShiftedMid(targetH48, cfg, inAscend) {
-      const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.wake_speed))];
-      const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.bed_speed))];
+      const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.wake_speed))];
+      const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.bed_speed))];
       const bMinNorm = cfg.min_brightness / 100;
       const bMaxNorm = cfg.max_brightness / 100;
       const briPct = inAscend ? cfg.wake_brightness : cfg.bed_brightness;
@@ -3542,8 +3542,8 @@
         if (!phaseCtx) return;
         const targetH48 = phaseCtx.phaseMin + (phaseCtx.phaseMax - phaseCtx.phaseMin) * position / 100;
         const shiftedMid = computeCandidateShiftedMid(targetH48, cfg, phaseCtx.cursorInAscend);
-        const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.wake_speed))];
-        const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.bed_speed))];
+        const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.wake_speed))];
+        const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.bed_speed))];
         const slopeSigned = phaseCtx.cursorInAscend ? kAscend : -kDescend;
         const bMinNorm = bMin / 100, bMaxNorm = bMax / 100;
         const now48 = currentHour < cfg.ascend_start ? currentHour + 24 : currentHour;

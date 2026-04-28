@@ -3369,14 +3369,14 @@ class CircadianLightPrimitives:
                     b_max_norm = config.max_brightness / 100.0
                     if use_wake:
                         target_slope = SPEED_TO_SLOPE[
-                            max(1, min(10, config.wake_speed))
+                            max(1, min(12, config.wake_speed))
                         ]
                         mid48_raw = CircadianLight.lift_midpoint_to_phase(
                             default_mid, t_ascend, t_descend
                         )
                     else:
                         target_slope = -SPEED_TO_SLOPE[
-                            max(1, min(10, config.bed_speed))
+                            max(1, min(12, config.bed_speed))
                         ]
                         descend_end = t_ascend + 24
                         mid48_raw = CircadianLight.lift_midpoint_to_phase(

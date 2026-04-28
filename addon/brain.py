@@ -62,8 +62,10 @@ DEFAULT_BED_TIME = 22.0
 DEFAULT_WAKE_SPEED = 8
 DEFAULT_BED_SPEED = 6
 
-# Speed-to-slope mapping (index 0-10, where 0 is unused)
-SPEED_TO_SLOPE = [0.0, 0.4, 0.6, 0.8, 1.0, 1.3, 1.7, 2.3, 3.0, 4.0, 5.5]
+# Speed-to-slope mapping (index 0-12, where 0 is unused). Levels 11/12 are
+# "Flash" / "Instant" — full top-to-bottom transitions in ~8 / ~4 minutes,
+# intended for live demos.
+SPEED_TO_SLOPE = [0.0, 0.4, 0.6, 0.8, 1.0, 1.3, 1.7, 2.3, 3.0, 4.0, 5.5, 30.0, 60.0]
 
 # Natural light / outdoor intensity constants
 FULL_SUN_INTENSITY = 8.4  # log2(100000 / 300) — used for lux normalization
@@ -780,8 +782,8 @@ class CircadianLight:
 
         in_ascend = t_ascend <= h48 < t_descend
 
-        k_ascend = SPEED_TO_SLOPE[max(1, min(10, config.wake_speed))]
-        k_descend = SPEED_TO_SLOPE[max(1, min(10, config.bed_speed))]
+        k_ascend = SPEED_TO_SLOPE[max(1, min(12, config.wake_speed))]
+        k_descend = SPEED_TO_SLOPE[max(1, min(12, config.bed_speed))]
         slope = k_ascend if in_ascend else -k_descend
 
         return in_ascend, h48, t_ascend, t_descend, slope
