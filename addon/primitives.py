@@ -682,12 +682,13 @@ class CircadianLightPrimitives:
         natural_exposure = glozone.get_area_natural_light_exposure(area_id)
         if natural_exposure <= 0:
             return 1.0
+        zone_cfg = glozone.get_zone_config_for_area(area_id)
+        if zone_cfg.get("brightness_sensitivity_enabled", True) is False:
+            return 1.0
         outdoor_norm = lux_tracker.get_outdoor_normalized()
         if outdoor_norm is None:
             outdoor_norm = 0.0
-        sensitivity = glozone.get_zone_config_for_area(area_id).get(
-            "brightness_sensitivity", 1.0
-        )
+        sensitivity = zone_cfg.get("brightness_sensitivity", 1.0)
         return calculate_natural_light_factor(
             natural_exposure, outdoor_norm, sensitivity
         )

@@ -786,12 +786,12 @@ input[type=range]::-moz-range-thumb {
 }
 
 /* Month row — collapsed shows "Month  April"; click to expand the slider */
-/* Month chip — top-left corner of chart-shell, taps open a slider popover.
+/* Month chip — top-right corner of chart-shell, taps open a slider popover.
    Mirrors the outdoor-chip pattern; replaces the old below-chart Month row. */
 .month-chip {
   position: absolute;
   top: 10px;
-  left: 10px;
+  right: 10px;
   background: transparent;
   border: 1px solid rgba(255,255,255,0.18);
   padding: 3px 9px;
@@ -816,7 +816,7 @@ input[type=range]::-moz-range-thumb {
 .month-popover {
   position: absolute;
   top: 38px;
-  left: 10px;
+  right: 10px;
   background: rgba(24, 26, 32, 0.98);
   border: 1px solid rgba(255,255,255,0.18);
   border-radius: 8px;
@@ -860,6 +860,12 @@ input[type=range]::-moz-range-thumb {
 .ct-layers { margin-top: 2px; }
 .ct-axis { position: relative; height: 15px; }
 .ct-axis-label { position: absolute; transform: translateX(-50%); font-size: var(--font-caps); white-space: nowrap; }
+.ct-axis-label .ct-label-sub { display: inline; }
+@media (max-width: 600px) {
+  .ct-axis-ref .ct-axis-label { white-space: normal; line-height: 1.05; text-align: center; }
+  .ct-axis-ref .ct-axis-label .ct-label-colon { display: none; }
+  .ct-axis-ref .ct-axis-label .ct-label-sub { display: block; }
+}
 .ct-axis-tick .ct-axis-label { color: var(--muted2); }
 /* Ref labels: prominent, interactive look */
 .ct-axis-ref .ct-axis-label { color: var(--text); font-weight: 600; font-size: var(--font-body); }
@@ -1649,7 +1655,7 @@ input[type=range]::-moz-range-thumb {
           <span class="month-chip-icon">&#128197;</span><span id="month-chip-label">April</span>
         </button>
         <div class="month-popover" id="month-popover">
-          <div class="month-popover-title">Season</div>
+          <div class="month-popover-title">Month</div>
           <input type="range" class="month-slider" id="month-slider" min="0" max="11" value="3">
         </div>
 
@@ -2035,16 +2041,27 @@ input[type=range]::-moz-range-thumb {
       <input type="hidden" id="brightness-min" value="1">
       <input type="hidden" id="brightness-max" value="100">
       <div class="bri-sub-section">
-        <div class="reveal-group brightness-sensitivity-group">
-          <div class="tune-control-row">
-            <span class="tune-control-left">
-              <label class="color-rule-label">Sun response<span class="info-icon" data-tooltip="brightness-sensitivity-info">i<span class="info-tooltip" id="brightness-sensitivity-info">How aggressively brightness pulls back when sun is high. Higher = more dimming on bright sunny days.</span></span></label>
-              <span class="tune-control-reset" id="reset-brightness-sensitivity" data-default="5">reset</span>
-            </span>
-            <span class="tune-control-impact" id="brightness-sensitivity-text">1.00: standard</span>
+        <div class="color-rule-stack" data-color-row="brightness-sensitivity">
+          <div class="color-rule-stack-label">
+            <label class="color-rule-label">Sun dimming</label>
+            <div class="color-rule-controls">
+              <div class="color-rule-toggle"><input type="checkbox" id="brightness-sensitivity-enabled" checked></div>
+              <span class="info-icon" data-tooltip="brightness-sensitivity-info">i<span class="info-tooltip" id="brightness-sensitivity-info">How aggressively brightness pulls back when sun is high. Higher = more dimming on bright sunny days.</span></span>
+            </div>
           </div>
-          <div class="tune-slider-row">
-            <input type="range" id="brightness-sensitivity" min="0" max="8" step="1" value="5">
+          <div class="color-rule-stack-body" id="brightness-sensitivity-body">
+            <div class="reveal-group brightness-sensitivity-group">
+              <div class="tune-control-row">
+                <span class="tune-control-left">
+                  <span class="tune-control-label">Sun response</span>
+                  <span class="tune-control-reset" id="reset-brightness-sensitivity" data-default="5">reset</span>
+                </span>
+                <span class="tune-control-impact" id="brightness-sensitivity-text">1.00: standard</span>
+              </div>
+              <div class="tune-slider-row">
+                <input type="range" id="brightness-sensitivity" min="0" max="8" step="1" value="5">
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -2141,6 +2158,8 @@ let config = {
   max_color_temp: 3600,
   min_brightness: 1,
   max_brightness: 100,
+  brightness_sensitivity: 1.0,
+  brightness_sensitivity_enabled: true,
   max_dim_steps: 10,  // home-wide setting, read from config
   warm_night_enabled: true,
   warm_night_mode: 'all',
@@ -2166,7 +2185,7 @@ let configSnapshot = {};
 
 const SLEEP_FIELDS = ['wake_time', 'bed_time', 'wake_speed', 'bed_speed', 'wake_brightness', 'bed_brightness', 'ascend_start', 'descend_start', 'activity_preset', 'wake_alt_time', 'wake_alt_days', 'bed_alt_time', 'bed_alt_days', '_wake_alt_time_last', '_bed_alt_time_last'];
 const COLOR_FIELDS = ['min_color_temp', 'max_color_temp', 'warm_night_enabled', 'warm_night_mode', 'warm_night_target', 'warm_night_start', 'warm_night_end', 'warm_night_fade', 'daylight_enabled', 'daylight_cct', 'daylight_start', 'daylight_end', 'daylight_fade', 'color_sensitivity'];
-const BRIGHTNESS_FIELDS = ['min_brightness', 'max_brightness', 'brightness_sensitivity'];
+const BRIGHTNESS_FIELDS = ['min_brightness', 'max_brightness', 'brightness_sensitivity', 'brightness_sensitivity_enabled'];
 
 function takeConfigSnapshot() {
   configSnapshot = JSON.parse(JSON.stringify(config));
@@ -2802,11 +2821,11 @@ function renderColorGradient() {
   let refHtml = '';
   refHtml += '<span class="ct-axis-label ct-draggable" data-handle="warmest" style="' + refStyle(ctPct(minK)) + '">warmest</span>';
   if (warmEnabled) {
-    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="night-max" style="' + refStyle(ctPct(warmTarget)) + '">coolest: night</span>';
+    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="night-max" style="' + refStyle(ctPct(warmTarget)) + '">coolest<span class="ct-label-colon">: </span><span class="ct-label-sub">night</span></span>';
   }
   if (dayEnabled) {
-    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-base" style="' + refStyle(ctPct(maxK)) + '">coolest: no-sun</span>';
-    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-day" style="' + refStyle(ctPct(dayCct)) + '">coolest: sunny</span>';
+    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-base" style="' + refStyle(ctPct(maxK)) + '">coolest<span class="ct-label-colon">: </span><span class="ct-label-sub">no-sun</span></span>';
+    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-day" style="' + refStyle(ctPct(dayCct)) + '">coolest<span class="ct-label-colon">: </span><span class="ct-label-sub">sunny</span></span>';
   } else {
     refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-base" style="' + refStyle(ctPct(maxK)) + '">coolest</span>';
   }
@@ -3132,6 +3151,27 @@ function fmtTime(h) {
   return formatHour(h);
 }
 
+// Parse a typed time string. Accepts "7:27a", "7:27am", "7:27 AM", "19:27",
+// "7" (assumes :00). Returns hours as float [0,24) or null on bad input.
+function parseTimeString(str) {
+  if (!str) return null;
+  const s = String(str).trim().toLowerCase().replace(/\s+/g, '');
+  const m = s.match(/^(\d{1,2})(?::(\d{1,2}))?\s*(a|p|am|pm)?$/);
+  if (!m) return null;
+  let hr = parseInt(m[1], 10);
+  const min = m[2] != null ? parseInt(m[2], 10) : 0;
+  const period = m[3];
+  if (isNaN(hr) || isNaN(min) || min < 0 || min > 59) return null;
+  if (period) {
+    if (hr < 1 || hr > 12) return null;
+    if (period.startsWith('p') && hr !== 12) hr += 12;
+    else if (period.startsWith('a') && hr === 12) hr = 0;
+  } else {
+    if (hr < 0 || hr > 23) return null;
+  }
+  return hr + min / 60;
+}
+
 function logistic(x, midpoint, slope, y0, y1) {
   try {
     const expVal = Math.exp(-slope * (x - midpoint));
@@ -3411,7 +3451,7 @@ function renderChart() {
   const briSens = config.brightness_sensitivity ?? 1.0;
   const showDottedTarget = conditionMult > 0
                             && briSens > 0
-                            && config.daylight_enabled !== false;
+                            && config.brightness_sensitivity_enabled !== false;
   const targetCct = data.hours.map(h => calculateColorAtHour(wrapHour(h), false));
   const _dotDateStr = getSelectedDateISO();
   const sunDimFactor = (h) => {
@@ -3576,7 +3616,7 @@ function renderChart() {
   if (sunContribAnchor) {
     annotations.push({
       x: sunContribAnchor.x, y: sunContribAnchor.y, xref: 'x', yref: 'y',
-      text: 'sun contribution', showarrow: false, yshift: 10,
+      text: 'sun contribution', showarrow: false, yshift: -10,
       font: { size: 9, color: 'rgba(220, 220, 220, 0.7)' },
     });
   }
@@ -4309,7 +4349,10 @@ function openSavePopover(kind) {
   const handle = document.getElementById(kind + '-handle');
   if (!pop || !handle) return;
   pop.style.left = handle.style.left;
-  const time = kind === 'wake' ? config.wake_time : config.bed_time;
+  // Show the drag working-copy (what will be saved), not the saved config value.
+  const time = kind === 'wake'
+    ? (chartState.wakeDragVal != null ? chartState.wakeDragVal : config.wake_time)
+    : (chartState.bedDragVal != null ? chartState.bedDragVal : config.bed_time);
   const opts = buildSaveOptions(kind);
   pop.innerHTML = `
     <div class="save-popover-title">Save ${kind} <strong>${formatHour(time)}</strong> to:</div>
@@ -4450,6 +4493,64 @@ function updateSliderValue(sliderId, displayId, formatter) {
     updateDisplay(displayId, formatter(val));
     syncConfigFromUI();
     renderChart();
+  });
+}
+
+// Make a time-display span click-to-edit. Allows demos to type a non-rounded
+// time like "7:27a" instead of dragging the (0.25-step) slider.
+function setupTimeInputEdit(displayId, sliderId) {
+  const display = document.getElementById(displayId);
+  const slider = document.getElementById(sliderId);
+  if (!display || !slider) return;
+  display.style.cursor = 'text';
+  display.title = 'Click to type a precise time (e.g. 7:27a)';
+  display.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (display.querySelector('input')) return;
+    const original = display.textContent;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = original;
+    input.style.cssText = 'width: 5.5em; font: inherit; color: inherit; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 1px 4px; text-align: right;';
+    display.textContent = '';
+    display.appendChild(input);
+    input.focus();
+    input.select();
+    let committed = false;
+    const commit = () => {
+      if (committed) return;
+      committed = true;
+      const parsed = parseTimeString(input.value);
+      if (parsed == null) {
+        display.textContent = original;
+        return;
+      }
+      // Wrap-aware slider value: bed slider goes 0–36; if current slider value
+      // is past midnight (>=24) and parsed value is small, push to next day.
+      const sMin = parseFloat(slider.min);
+      const sMax = parseFloat(slider.max);
+      let sliderVal = parsed;
+      if (sMax > 24 && parseFloat(slider.value) >= 24 && parsed < 12) {
+        sliderVal = parsed + 24;
+      }
+      sliderVal = Math.max(sMin, Math.min(sMax, sliderVal));
+      slider.value = sliderVal;
+      // Fire input so existing handler updates display, syncs config, renders.
+      slider.dispatchEvent(new Event('input', { bubbles: true }));
+      // Override config with the precise (sub-step) value for this kind.
+      if (sliderId === 'wake-time') config.wake_time = parsed;
+      else if (sliderId === 'bed-time') config.bed_time = parsed;
+      else if (sliderId === 'wake-alt-time') config.wake_alt_time = parsed;
+      else if (sliderId === 'bed-alt-time') config.bed_alt_time = parsed;
+      updateDisplay(displayId, formatHour(parsed));
+      updateSliderFill(slider);
+      renderChart();
+    };
+    input.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') { ev.preventDefault(); commit(); input.blur(); }
+      else if (ev.key === 'Escape') { committed = true; display.textContent = original; input.blur(); }
+    });
+    input.addEventListener('blur', commit);
   });
 }
 
@@ -4710,6 +4811,7 @@ function syncConfigFromUI() {
   config.min_brightness = parseInt(document.getElementById('brightness-min').value);
   config.max_brightness = parseInt(document.getElementById('brightness-max').value);
   config.brightness_sensitivity = SENSITIVITY_STEPS[parseInt(document.getElementById('brightness-sensitivity').value)].multiplier;
+  config.brightness_sensitivity_enabled = document.getElementById('brightness-sensitivity-enabled').checked;
   // Constrain solar target sliders to color range (clamps values if needed)
   updateSolarTargetSliderConstraints();
 
@@ -4805,6 +4907,8 @@ function syncUIFromConfig() {
   document.getElementById('brightness-min').value = config.min_brightness;
   document.getElementById('brightness-max').value = config.max_brightness;
   document.getElementById('brightness-sensitivity').value = findClosestSensitivityStep(config.brightness_sensitivity ?? 1.0);
+  const briSensEnabledEl = document.getElementById('brightness-sensitivity-enabled');
+  if (briSensEnabledEl) briSensEnabledEl.checked = config.brightness_sensitivity_enabled !== false;
   // Set warm night slider values FROM CONFIG BEFORE calling updateSolarTargetSliderConstraints
   document.getElementById('warm-night-enabled').checked = config.warm_night_enabled;
   document.getElementById('warm-night-mode').value = config.warm_night_mode;
@@ -4958,6 +5062,13 @@ function syncColorRuleRows() {
     weatherEl.style.opacity = daylightEnabled ? '' : '0.4';
   }
 
+  // Brightness sun-dimming body — grey out when unchecked
+  const briSensEnabled = config.brightness_sensitivity_enabled !== false;
+  const briSensBody = document.getElementById('brightness-sensitivity-body');
+  if (briSensBody) {
+    briSensBody.classList.toggle('is-disabled', !briSensEnabled);
+  }
+
   // Update card header with warm/cool labels
   updateRangeDisplays();
 }
@@ -5055,6 +5166,12 @@ function setupEventListeners() {
   updateSliderValue('wake-alt-time', 'wake-alt-time-display', formatHour);
   updateSliderValue('bed-alt-time', 'bed-alt-time-display', formatHour);
 
+  // Click-to-type on time displays (lets demos enter precise minutes).
+  setupTimeInputEdit('wake-time-display', 'wake-time');
+  setupTimeInputEdit('bed-time-display', 'bed-time');
+  setupTimeInputEdit('wake-alt-time-display', 'wake-alt-time');
+  setupTimeInputEdit('bed-alt-time-display', 'bed-alt-time');
+
   // Brightness target sliders
   updateSliderValue('wake-brightness', 'wake-brightness-display', v => v + '%');
   updateSliderValue('bed-brightness', 'bed-brightness-display', v => v + '%');
@@ -5132,6 +5249,12 @@ function setupEventListeners() {
     renderChart();
   });
 
+  document.getElementById('brightness-sensitivity-enabled')?.addEventListener('change', () => {
+    config.brightness_sensitivity_enabled = document.getElementById('brightness-sensitivity-enabled').checked;
+    syncColorRuleRows();
+    renderChart();
+  });
+
   // Close info tooltips when clicking outside
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.info-icon') && !e.target.closest('.info-tooltip')) {
@@ -5194,8 +5317,10 @@ function setupEventListeners() {
     monthSlider.addEventListener('input', () => {
       chartState.monthIdx = parseInt(monthSlider.value, 10);
       if (monthChipLabel) monthChipLabel.textContent = MONTH_NAMES[chartState.monthIdx];
+      updateSliderFill(monthSlider);
       renderChart();
     });
+    updateSliderFill(monthSlider);
   }
   const monthChip = document.getElementById('month-chip');
   const monthPop = document.getElementById('month-popover');
@@ -6195,6 +6320,7 @@ async function saveZoneSettings() {
     daylight_fade: config.daylight_fade,
     color_sensitivity: config.color_sensitivity,
     brightness_sensitivity: config.brightness_sensitivity,
+    brightness_sensitivity_enabled: config.brightness_sensitivity_enabled,
     activity_preset: config.activity_preset,
   };
 
