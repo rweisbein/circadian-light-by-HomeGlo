@@ -105,6 +105,9 @@ class HomeAssistantWebSocketClient:
         self.latitude = None  # Home Assistant latitude
         self.longitude = None  # Home Assistant longitude
         self.timezone = None  # Home Assistant timezone
+        # Daily cache for static solar values (sunrise/sunset/noon/mid).
+        # Outdoor data refreshed on every call. {date_str: {sunrise, sunset, ...}}
+        self._sun_times_cache: dict = {}
         self.periodic_update_task = None  # Task for periodic light updates
         self.refresh_event = None  # Will be created lazily in the running event loop
         self._log_periodic = False  # Updated by circadian tick from config
@@ -5446,85 +5449,127 @@ class HomeAssistantWebSocketClient:
     def _get_sun_times(self) -> SunTimes:
         """Get current sun times from configured location.
 
+        Static solar values (sunrise/sunset/noon/mid) are cached per-day on the
+        first successful resolve — subsequent calls reuse the cache instead of
+        re-running the astronomy. Outdoor lux/weather is always read fresh.
+
+        lat/lon source priority: instance attrs (set from HA WebSocket auth) →
+        env vars (HASS_LATITUDE/HASS_LONGITUDE, set by HA add-on runtime). If
+        neither is available we fall back to default sunrise=6/sunset=18 and
+        tag the result is_fallback=True so primitives.py refuses to fire
+        sunrise/sunset auto schedules with bogus times (the v1.2.184 bug).
+
         Returns:
-            SunTimes object with sunrise, sunset, solar_noon, solar_mid (as hours 0-24)
+            SunTimes with sunrise/sunset/noon/mid + fresh outdoor values.
         """
-        try:
-            from datetime import datetime
-            from zoneinfo import ZoneInfo
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
 
-            if self.latitude and self.longitude:
-                date_str = datetime.now().strftime("%Y-%m-%d")
-                sun_dict = calculate_sun_times(self.latitude, self.longitude, date_str)
+        date_str = datetime.now().strftime("%Y-%m-%d")
 
-                # Get local timezone for conversion
-                local_tz = None
-                if self.timezone:
-                    try:
-                        local_tz = ZoneInfo(self.timezone)
-                    except:
-                        pass
+        # Outdoor data (lux/weather) — always fresh, never cached
+        outdoor_norm = lux_tracker.get_outdoor_normalized()
+        outdoor_source = lux_tracker.get_outdoor_source()
+        if outdoor_norm is None:
+            outdoor_norm = 0.0
+            outdoor_source = "none"
 
-                # Convert ISO strings to local hours. Tracks whether any field
-                # had to use its default — auto_on/off uses this to refuse
-                # firing for sunrise/sunset sources when values aren't real.
-                fallback_flags = {"used": False}
-
-                def iso_to_hour(iso_str, default, field):
-                    if not iso_str:
-                        fallback_flags["used"] = True
-                        logger.warning(
-                            f"_get_sun_times: {field} missing from solar calc, "
-                            f"using default {default} (will mark SunTimes as fallback)"
-                        )
-                        return default
-                    try:
-                        dt = datetime.fromisoformat(iso_str)
-                        # Convert to local timezone if available
-                        if local_tz and dt.tzinfo:
-                            dt = dt.astimezone(local_tz)
-                        return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
-                    except Exception as e:
-                        fallback_flags["used"] = True
-                        logger.warning(
-                            f"_get_sun_times: failed to parse {field}={iso_str!r} "
-                            f"({e}), using default {default}"
-                        )
-                        return default
-
-                sunrise = iso_to_hour(sun_dict.get("sunrise"), 6.0, "sunrise")
-                sunset = iso_to_hour(sun_dict.get("sunset"), 18.0, "sunset")
-                solar_noon = iso_to_hour(sun_dict.get("noon"), 12.0, "noon")
-                solar_mid = (solar_noon + 12.0) % 24.0  # Opposite of noon
-
-                # Resolve outdoor_normalized via lux_tracker fallback chain
-                outdoor_norm = lux_tracker.get_outdoor_normalized()
-                outdoor_source = lux_tracker.get_outdoor_source()
-                if outdoor_norm is None:
-                    outdoor_norm = 0.0
-                    outdoor_source = "none"
-
-                return SunTimes(
-                    sunrise=sunrise,
-                    sunset=sunset,
-                    solar_noon=solar_noon,
-                    solar_mid=solar_mid,
-                    outdoor_normalized=outdoor_norm,
-                    outdoor_source=outdoor_source,
-                    is_fallback=fallback_flags["used"],
-                )
-        except Exception as e:
-            logger.warning(
-                f"_get_sun_times: calculation failed ({e}), "
-                f"returning fallback SunTimes (auto sunrise/sunset will not fire)"
+        # Cache hit: today's static solar values already resolved
+        cached = self._sun_times_cache.get(date_str)
+        if cached is not None:
+            return SunTimes(
+                sunrise=cached["sunrise"],
+                sunset=cached["sunset"],
+                solar_noon=cached["solar_noon"],
+                solar_mid=cached["solar_mid"],
+                outdoor_normalized=outdoor_norm,
+                outdoor_source=outdoor_source,
+                is_fallback=False,
             )
 
-        # Return defaults if calculation fails
-        outdoor_norm = lux_tracker.get_outdoor_normalized()
-        return SunTimes(
-            outdoor_normalized=outdoor_norm if outdoor_norm is not None else 0.0,
-            is_fallback=True,
-        )
+        # Resolve lat/lon — instance attrs first, env-var fallback
+        lat = self.latitude
+        lon = self.longitude
+        if not lat:
+            try:
+                lat = float(os.environ.get("HASS_LATITUDE", "") or 0)
+            except (ValueError, TypeError):
+                lat = 0.0
+        if not lon:
+            try:
+                lon = float(os.environ.get("HASS_LONGITUDE", "") or 0)
+            except (ValueError, TypeError):
+                lon = 0.0
+
+        if not (lat and lon):
+            logger.warning(
+                "_get_sun_times: lat/lon unavailable "
+                "(self.latitude/longitude not set, HASS_LATITUDE/LONGITUDE env "
+                "not set). Returning fallback — auto sunrise/sunset will not fire."
+            )
+            return SunTimes(
+                outdoor_normalized=outdoor_norm,
+                outdoor_source=outdoor_source,
+                is_fallback=True,
+            )
+
+        try:
+            sun_dict = calculate_sun_times(lat, lon, date_str)
+
+            local_tz = None
+            if self.timezone:
+                try:
+                    local_tz = ZoneInfo(self.timezone)
+                except Exception:
+                    pass
+
+            def iso_to_hour(iso_str, field):
+                """Parse ISO timestamp to decimal hour. Raises if invalid/missing."""
+                if not iso_str:
+                    raise ValueError(f"{field} missing from sun_dict")
+                dt = datetime.fromisoformat(iso_str)
+                if local_tz and dt.tzinfo:
+                    dt = dt.astimezone(local_tz)
+                return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
+
+            sunrise = iso_to_hour(sun_dict.get("sunrise"), "sunrise")
+            sunset = iso_to_hour(sun_dict.get("sunset"), "sunset")
+            solar_noon = iso_to_hour(sun_dict.get("noon"), "noon")
+            solar_mid = (solar_noon + 12.0) % 24.0
+
+            # Cache successful resolve for the day; evict any prior date entries
+            self._sun_times_cache = {
+                date_str: {
+                    "sunrise": sunrise,
+                    "sunset": sunset,
+                    "solar_noon": solar_noon,
+                    "solar_mid": solar_mid,
+                }
+            }
+            logger.info(
+                f"_get_sun_times: cached for {date_str} — "
+                f"sunrise={sunrise:.2f}, sunset={sunset:.2f} (lat={lat}, lon={lon})"
+            )
+
+            return SunTimes(
+                sunrise=sunrise,
+                sunset=sunset,
+                solar_noon=solar_noon,
+                solar_mid=solar_mid,
+                outdoor_normalized=outdoor_norm,
+                outdoor_source=outdoor_source,
+                is_fallback=False,
+            )
+        except Exception as e:
+            logger.warning(
+                f"_get_sun_times: calculation failed for lat={lat}/lon={lon} "
+                f"({e}). Returning fallback — auto sunrise/sunset will not fire."
+            )
+            return SunTimes(
+                outdoor_normalized=outdoor_norm,
+                outdoor_source=outdoor_source,
+                is_fallback=True,
+            )
 
     # ------------------------------------------------------------------
     # Direct methods for webserver (replaces HA event round-trips)
