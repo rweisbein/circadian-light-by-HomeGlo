@@ -25,8 +25,8 @@
   --descend-border: rgba(255, 230, 128, 0.45);
   --wake: #5cb3ff;
   --wake-ink: #082544;
-  --bed: #ffe680;
-  --bed-ink: #3a2c00;
+  --bed: #6fa9ff;
+  --bed-ink: #08234a;
   --live: #ff8a3a;
   --font-hero: 1.4rem;
   --font-display: 1.1rem;
@@ -86,6 +86,48 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 .rhythm-sleep-summary-label { font-size: var(--font-muted); color: var(--muted2); text-transform: uppercase; letter-spacing: 0.05em; }
 .rhythm-sleep-summary-time { font-size: var(--font-card-title); font-weight: 700; color: var(--text); }
 .rhythm-sleep-summary-bri { font-size: var(--font-body); color: var(--muted); }
+
+/* Drag-preview dirty bar — surfaces in the Sleep card header when the user
+   drags a wake/bed pill on the chart. Drag = preview only; this bar is the
+   explicit save affordance ("you've moved it but your home schedule is
+   unchanged"). Save commits to today's group; revert clears the drag. */
+.sleep-dirty-bar {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 12px 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(254,172,96,0.10);
+  border: 1px solid rgba(254,172,96,0.45);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.sleep-dirty-bar.is-dirty { display: flex; }
+.sleep-dirty-bar-label { color: var(--muted); text-transform: uppercase; font-size: 10px; letter-spacing: 0.06em; }
+.sleep-dirty-bar-from { color: var(--muted2); text-decoration: line-through; }
+.sleep-dirty-bar-arrow { color: var(--muted2); font-size: 11px; }
+.sleep-dirty-bar-to { color: var(--accent); font-weight: 700; }
+.sleep-dirty-bar-spacer { flex: 1; }
+.sleep-dirty-bar button {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.sleep-dirty-bar button:hover { background: rgba(255,255,255,0.06); color: var(--text); border-color: var(--muted); }
+.sleep-dirty-bar .sleep-dirty-save {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+}
+.sleep-dirty-bar .sleep-dirty-save:hover { opacity: 0.9; background: var(--accent); color: #000; }
 
 /* Color temp header rule labels */
 .rhythm-ct-rules { font-size: var(--font-muted); color: var(--muted2); margin-left: 8px; }
@@ -356,6 +398,9 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
   top: 49px;
   z-index: 50;
 }
+/* Chart section: zero padding so the CCT banner spans the card edge-to-edge. */
+#chart-section { padding: 0; overflow: hidden; }
+#chart-section .chart-wrapper { margin-bottom: 0; }
 
 /* Sliders — custom minimal styling for regular sliders */
 input[type=range] {
@@ -426,15 +471,16 @@ input[type=range]::-moz-range-thumb {
   z-index: 100;
 }
 
-/* Chart shell — three vertical zones:
-   chrome zone  → month chip (left) + cursor chip (center, fixed) + Try-it (right)
+/* Chart shell — vertical zones:
+   cct-banner   → edge-to-edge CCT-tinted controller (the banner IS the cursor)
+   sun-strip    → outdoor sun-intensity chip floats above chart at solar-noon x
    chart body   → curve + cursor
-   below chart  → solar HTML labels + outdoor chip + wake/bed pill handles */
+   below chart  → sunrise/sunset HTML labels + wake/bed pill handles */
 #chart-shell {
   position: relative;
   background: var(--card);
   border-radius: 10px;
-  padding: 0 4px 86px;
+  padding: 0 0 70px;
   margin-top: 8px;
   overflow: visible;
   -webkit-user-select: none;
@@ -444,65 +490,52 @@ input[type=range]::-moz-range-thumb {
 #chart-shell #chart {
   width: 100%;
   height: 240px;
+  margin-top: 22px;
   touch-action: none;
   cursor: pointer;
 }
 
-/* Chart chrome row — fixed-height bar ABOVE the curve canvas. Holds the
-   month chip (left), cursor chip (center, fixed-position controller), and
-   Try-it CTA (right). Replaces the floating NOW pill — cursor chip stays
-   put as the cursor scrubs so arrow buttons live in muscle memory. */
-.chart-chrome {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  padding: 8px 10px 6px;
-  gap: 8px;
+/* CCT-tinted edge-to-edge banner — replaces the old chart-chrome + cursor chip.
+   The whole banner IS the cursor controller; its background tint follows the
+   cursor's CCT. Two rows:
+     Row 1: big % · K readout (left/center, focal) + ↺ master reset (right corner)
+     Row 2: month chip (L) + ← time → cluster (center) + Try-it (R)
+   Master reset = page-scope (cursor→now, outdoor→current, drag→null, month→
+   current). Does NOT roll back saved config. */
+.cct-banner {
   position: relative;
-  min-height: 58px;
-}
-.chart-chrome-left  { justify-self: start; display: inline-flex; }
-.chart-chrome-right { justify-self: end;   display: inline-flex; }
-
-/* Cursor chip — 2 rows, fixed dimensions. Row 1 = % · K readout
-   (CCT-tinted background/border). Row 2 = ↺ reset / ← / time / → controls.
-   Master reset reverts cursor → now, outdoor → current, wake/bed drag → null,
-   month → current — does NOT roll back saved config. */
-.cursor-chip {
+  border-radius: 10px 10px 0 0;
+  padding: 8px 12px 8px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  padding: 5px 10px 6px;
-  border-radius: 10px;
-  border: 1.5px solid;
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
-  min-width: 150px;
+  gap: 4px;
   user-select: none;
   -webkit-user-select: none;
-  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  transition: background 0.12s, color 0.12s;
 }
-.cursor-chip-readout { line-height: 1.15; }
-.cursor-chip-controls {
-  display: inline-flex;
+.cct-banner-row1 {
+  display: grid;
+  grid-template-columns: 1fr auto;
   align-items: center;
-  gap: 4px;
-  line-height: 1;
+  gap: 8px;
 }
-.cursor-chip-controls button {
-  background: rgba(0,0,0,0.18);
+.cct-banner-readout {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+.cct-banner-reset {
+  background: rgba(0,0,0,0.22);
   border: none;
   color: inherit;
-  height: 19px;
-  padding: 0 8px;
-  border-radius: 9px;
-  font-size: 11px;
+  width: 26px;
+  height: 26px;
+  border-radius: 13px;
+  font-size: 14px;
   font-weight: 700;
-  letter-spacing: 0.02em;
   cursor: pointer;
   font-family: inherit;
   display: inline-flex;
@@ -512,20 +545,52 @@ input[type=range]::-moz-range-thumb {
   opacity: 0.9;
   transition: opacity 0.15s, background 0.15s;
 }
-.cursor-chip-controls button:hover:not(:disabled) { opacity: 1; background: rgba(0,0,0,0.32); }
-.cursor-chip-controls button:disabled { opacity: 0.4; cursor: default; }
-.cursor-chip-arrow { width: 24px; padding: 0 !important; font-size: 13px !important; }
-.cursor-chip-reset { width: 22px; padding: 0 !important; font-size: 13px !important; }
-.cursor-chip-time {
-  font-size: 11px;
+.cct-banner-reset:hover { opacity: 1; background: rgba(0,0,0,0.36); }
+.cct-banner-row2 {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+}
+.cct-banner-row2-left  { justify-self: start; display: inline-flex; align-items: center; }
+.cct-banner-row2-right { justify-self: end;   display: inline-flex; align-items: center; }
+.cct-banner-arrows {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1;
+}
+.cct-banner-arrows button {
+  background: rgba(0,0,0,0.22);
+  border: none;
+  color: inherit;
+  height: 22px;
+  width: 26px;
+  padding: 0;
+  border-radius: 11px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  opacity: 0.9;
+  transition: opacity 0.15s, background 0.15s;
+}
+.cct-banner-arrows button:hover:not(:disabled) { opacity: 1; background: rgba(0,0,0,0.36); }
+.cct-banner-arrows button:disabled { opacity: 0.4; cursor: default; }
+.cct-banner-time {
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
-  min-width: 44px;
+  min-width: 56px;
   text-align: center;
   opacity: 0.95;
 }
-/* Try-it button + popover (Live Design entry point, lives in chart-chrome top-right slot) */
+/* Try-it button + popover (Live Design entry point, lives in cct-banner row 2 right slot) */
 .try-it-btn {
   display: inline-flex;
   align-items: center;
@@ -640,20 +705,21 @@ input[type=range]::-moz-range-thumb {
 .try-it-stop-btn { color: var(--accent) !important; border-color: rgba(254,172,96,0.5) !important; }
 .try-it-done-btn { background: rgba(254,172,96,0.18) !important; border-color: rgba(254,172,96,0.5) !important; }
 
-/* Solar band — HTML overlays just below x-axis ticks */
+/* Solar band — HTML overlays just below x-axis ticks. Sun-cluster yellow
+   (sunrise/sunset/sun-intensity) ties them visually to the sun-arc above. */
 .solar-label {
   position: absolute;
-  bottom: 65px;
+  bottom: 50px;
   transform: translateX(-50%);
   font-size: 10px;
-  color: rgba(215,215,215,0.75);
+  color: rgba(255,225,140,0.78);
   cursor: default;
   white-space: nowrap;
   z-index: 4;
   user-select: none;
   -webkit-user-select: none;
 }
-.solar-label:hover { color: rgba(255,255,255,0.95); }
+.solar-label:hover { color: rgba(255,235,170,0.98); }
 .solar-label::after {
   content: attr(data-time);
   position: absolute;
@@ -675,18 +741,21 @@ input[type=range]::-moz-range-thumb {
 }
 .solar-label:hover::after { opacity: 1; }
 
-/* Outdoor conditions — plain text matching sunrise/sunset look */
+/* Sun intensity chip — floats ABOVE the chart at solar-noon x. Yellow icon +
+   percent only ("sun shining over the graph"). Tap → opens popover with
+   prominent "Sun intensity" header (no inline label needed). */
 .outdoor-chip {
   position: absolute;
-  bottom: 65px;
+  top: 6px;
   transform: translateX(-50%);
   background: transparent;
   border: none;
   padding: 0;
-  font-size: 10px;
-  color: rgba(215,215,215,0.75);
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,225,140,0.92);
   cursor: pointer;
-  z-index: 5;
+  z-index: 6;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -694,31 +763,31 @@ input[type=range]::-moz-range-thumb {
   user-select: none;
   font-variant-numeric: tabular-nums;
 }
-.outdoor-chip:hover { color: rgba(255,255,255,0.95); background: transparent; }
-.outdoor-chip-icon { font-size: 11px; line-height: 1; }
-.outdoor-chip-label { opacity: 0.85; }
+.outdoor-chip:hover { color: rgba(255,235,170,1); background: transparent; }
+.outdoor-chip-icon { font-size: 13px; line-height: 1; color: rgba(255,225,140,0.95); }
 .outdoor-popover {
   position: absolute;
-  bottom: 90px;
+  top: 28px;
   transform: translateX(-50%);
   background: rgba(24, 26, 32, 0.98);
   border: 1px solid rgba(255,255,255,0.18);
   border-radius: 8px;
   padding: 6px;
-  min-width: 200px;
+  min-width: 220px;
   z-index: 20;
-  box-shadow: 0 -4px 16px rgba(0,0,0,0.5);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.5);
   display: none;
 }
 .outdoor-popover.open { display: block; }
 .outdoor-popover-title {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted2);
-  padding: 4px 6px 8px;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  color: var(--text);
+  padding: 6px 8px 10px;
   border-bottom: 1px solid var(--line);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 .outdoor-popover .src-row {
   display: flex;
@@ -794,7 +863,7 @@ input[type=range]::-moz-range-thumb {
   transition: opacity 0.15s;
 }
 .phase-handle.phase-wake::before { background: #5cb3ff; }
-.phase-handle.phase-bed::before { background: #ffe680; }
+.phase-handle.phase-bed::before { background: #6fa9ff; }
 .phase-handle:hover::before,
 .phase-handle.dragging::before { opacity: 0.75; }
 .phase-pill {
@@ -848,39 +917,7 @@ input[type=range]::-moz-range-thumb {
   background: transparent;
 }
 .phase-ghost.for-wake .phase-ghost-pill { border-color: rgba(92,179,255,0.55); }
-.phase-ghost.for-bed .phase-ghost-pill { border-color: rgba(255,230,128,0.55); }
-
-/* Auto-save undo chip — single chip under the moved pill, visible for 5s
-   after a wake/bed drag-end auto-saves to today's cluster. Tapping undo
-   reverts the just-committed save. Replaces the older Save+Reset row. */
-.handle-undo {
-  position: absolute;
-  bottom: 14px;
-  transform: translateX(-50%);
-  display: none;
-  z-index: 7;
-}
-.handle-undo.visible { display: inline-flex; }
-.undo-chip {
-  background: rgba(20, 22, 28, 0.95);
-  border: 1px solid rgba(255,255,255,0.18);
-  color: var(--text);
-  padding: 4px 9px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  line-height: 1;
-  cursor: pointer;
-  font-family: inherit;
-  border-radius: 12px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-  transition: background 0.15s;
-}
-.undo-chip:hover { background: rgba(40, 44, 52, 0.98); }
-.undo-icon { font-size: 13px; line-height: 1; }
+.phase-ghost.for-bed .phase-ghost-pill { border-color: rgba(111,169,255,0.55); }
 
 /* Save popover */
 .save-popover {
@@ -933,7 +970,7 @@ input[type=range]::-moz-range-thumb {
   margin-top: 2px;
 }
 
-/* Month chip — lives in chart-chrome top-left slot, taps open a slider popover. */
+/* Month chip — lives in cct-banner row 2 left slot, taps open a slider popover. */
 .month-chip {
   background: transparent;
   border: 1px solid rgba(255,255,255,0.18);
@@ -1674,29 +1711,31 @@ input[type=range]::-moz-range-thumb {
   <div class="section-block" id="chart-section">
     <div class="chart-wrapper">
       <div id="chart-shell">
-        <!-- Chrome zone: month chip (left) + cursor chip (center, fixed) + Try-it (right) -->
-        <div class="chart-chrome">
-          <div class="chart-chrome-left">
-            <button type="button" class="month-chip" id="month-chip">
-              <span id="month-chip-label">April</span>
-            </button>
+        <!-- CCT-tinted edge-to-edge banner — IS the cursor chip. Tint follows
+             cursor CCT. Row 1 = % · K (focal) + ↺ master reset. Row 2 = month
+             chip + ← time → cluster + Try-it. -->
+        <div class="cct-banner" id="cct-banner">
+          <div class="cct-banner-row1">
+            <div class="cct-banner-readout" id="cct-banner-readout">--% &middot; ----K</div>
+            <button type="button" class="cct-banner-reset" id="cct-banner-reset" title="Reset chart view">&#x21BA;</button>
           </div>
-
-          <div class="cursor-chip" id="cursor-chip">
-            <div class="cursor-chip-readout" id="cursor-chip-readout">--% &middot; ----K</div>
-            <div class="cursor-chip-controls">
-              <button type="button" class="cursor-chip-reset" id="cursor-chip-reset" title="Reset chart view">&#x21BA;</button>
-              <button type="button" class="cursor-chip-arrow" id="cursor-chip-prev" title="Step back">&#x2190;</button>
-              <span class="cursor-chip-time" id="cursor-chip-time">--:--</span>
-              <button type="button" class="cursor-chip-arrow" id="cursor-chip-next" title="Step forward">&#x2192;</button>
+          <div class="cct-banner-row2">
+            <div class="cct-banner-row2-left">
+              <button type="button" class="month-chip" id="month-chip">
+                <span id="month-chip-label">April</span>
+              </button>
             </div>
-          </div>
-
-          <div class="chart-chrome-right">
-            <button type="button" class="try-it-btn" id="try-it-btn" aria-haspopup="true" aria-expanded="false">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/></svg>
-              <span class="try-it-label" id="try-it-label">Try it</span>
-            </button>
+            <div class="cct-banner-arrows">
+              <button type="button" id="cct-banner-prev" title="Step back">&#x2190;</button>
+              <span class="cct-banner-time" id="cct-banner-time">--:--</span>
+              <button type="button" id="cct-banner-next" title="Step forward">&#x2192;</button>
+            </div>
+            <div class="cct-banner-row2-right">
+              <button type="button" class="try-it-btn" id="try-it-btn" aria-haspopup="true" aria-expanded="false">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/></svg>
+                <span class="try-it-label" id="try-it-label">Try it</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1715,35 +1754,30 @@ input[type=range]::-moz-range-thumb {
           </div>
         </div>
 
-        <div id="chart"></div>
-        <div class="time-hover-label" id="time-hover-label"></div>
-
-        <!-- Solar band: sunrise / outdoor chip / sunset -->
-        <div class="solar-label" id="sunrise-label" data-time="">sunrise</div>
+        <!-- Sun intensity chip — floats above chart at solar-noon x ("sun
+             shining over the graph"). Tap → opens popover. -->
         <div class="outdoor-chip" id="outdoor-chip">
           <span class="outdoor-chip-icon" id="outdoor-icon">&#9728;</span>
-          <span class="outdoor-chip-label">Sun intensity</span>
           <span id="outdoor-pct">100%</span>
         </div>
-        <div class="solar-label" id="sunset-label" data-time="">sunset</div>
-
         <div class="outdoor-popover" id="outdoor-popover">
           <!-- Populated by buildOutdoorPopover() from /api/outdoor-status -->
         </div>
 
-        <!-- Wake/bed handles -->
+        <div id="chart"></div>
+        <div class="time-hover-label" id="time-hover-label"></div>
+
+        <!-- Solar band: sunrise / sunset (sun-cluster yellow) -->
+        <div class="solar-label" id="sunrise-label" data-time="">sunrise</div>
+        <div class="solar-label" id="sunset-label" data-time="">sunset</div>
+
+        <!-- Wake/bed handles. Drag = preview only; Sleep card surfaces dirty. -->
         <div class="phase-ghost for-wake"><div class="phase-ghost-pill"></div></div>
         <div class="phase-handle phase-wake" id="wake-handle">
           <div class="phase-pill">
             <span class="phase-name">wake</span>
             <span class="phase-time">7:00a</span>
           </div>
-        </div>
-        <div class="handle-undo" id="wake-undo">
-          <button class="undo-chip" data-kind="wake" title="Undo save">
-            <span class="undo-icon">&#x21BA;</span>
-            <span class="undo-label">undo</span>
-          </button>
         </div>
 
         <div class="phase-ghost for-bed"><div class="phase-ghost-pill"></div></div>
@@ -1752,12 +1786,6 @@ input[type=range]::-moz-range-thumb {
             <span class="phase-name">bed</span>
             <span class="phase-time">10:00p</span>
           </div>
-        </div>
-        <div class="handle-undo" id="bed-undo">
-          <button class="undo-chip" data-kind="bed" title="Undo save">
-            <span class="undo-icon">&#x21BA;</span>
-            <span class="undo-label">undo</span>
-          </button>
         </div>
 
         <div class="save-popover" id="save-popover"></div>
@@ -1786,6 +1814,17 @@ input[type=range]::-moz-range-thumb {
       </div>
     </div>
     <div class="rhythm-card-body" id="rhythm-sleep-body">
+      <!-- Drag-preview dirty bar — surfaces when wake/bed pill is dragged on
+           the chart. Drag = preview only; Save commits to today's group. -->
+      <div class="sleep-dirty-bar" id="sleep-dirty-bar">
+        <span class="sleep-dirty-bar-label" id="sleep-dirty-bar-kind">Wake</span>
+        <span class="sleep-dirty-bar-from" id="sleep-dirty-bar-from">7:00a</span>
+        <span class="sleep-dirty-bar-arrow">&#x2192;</span>
+        <span class="sleep-dirty-bar-to" id="sleep-dirty-bar-to">7:30a</span>
+        <span class="sleep-dirty-bar-spacer"></span>
+        <button type="button" id="sleep-dirty-revert">Revert</button>
+        <button type="button" class="sleep-dirty-save" id="sleep-dirty-save">Save</button>
+      </div>
       <div class="sub-section" id="pattern-sub-section">
         <div class="sub-section-header">
           <span class="sub-section-title">Sleep pattern</span>
@@ -3880,7 +3919,7 @@ function initChartInteractivity() {
   };
   chart.addEventListener('pointerdown', (ev) => {
     // Don't intercept handle drags
-    if (ev.target.closest('.phase-handle') || ev.target.closest('.handle-undo')
+    if (ev.target.closest('.phase-handle')
         || ev.target.closest('.outdoor-chip') || ev.target.closest('.outdoor-popover')
         || ev.target.closest('.save-popover')) return;
     const plotArea = getPlotArea();
@@ -4201,22 +4240,20 @@ function positionOverlays() {
 
   const xA = chartState.ascendStart;
 
-  // Cursor chip — fixed-position controller in chart-chrome center slot. Updates
-  // readout + CCT tint as cursor moves; position is controlled by the grid layout,
-  // NOT by cursor x. Row 1 = % · K, Row 2 = ↺ / ← / time / →.
-  const cursorChip = document.getElementById('cursor-chip');
-  const cursorReadout = document.getElementById('cursor-chip-readout');
-  const cursorTimeEl = document.getElementById('cursor-chip-time');
-  if (cursorChip && cursorReadout && cursorHour != null) {
+  // CCT-tinted banner — IS the cursor controller. Tint follows cursor CCT.
+  // Row 1 = % · K (focal), Row 2 = month / ← time → / Try-it.
+  const banner = document.getElementById('cct-banner');
+  const bannerReadout = document.getElementById('cct-banner-readout');
+  const bannerTimeEl = document.getElementById('cct-banner-time');
+  if (banner && bannerReadout && cursorHour != null) {
     const dim = chartState.sunDimFactor ? chartState.sunDimFactor(cursorHour) : 1.0;
     const bri = calculateBrightnessAtHour(cursorHour) * dim * 100;
     const cct = calculateColorAtHour(cursorHour, true);
     const rgb = cctToRGB(cct);
-    cursorReadout.textContent = `${Math.round(bri)}% \u00b7 ${Math.round(cct)}K`;
-    if (cursorTimeEl) cursorTimeEl.textContent = formatHour(cursorHour);
-    cursorChip.style.borderColor = colorWithAlpha(rgb, 0.85);
-    cursorChip.style.background = colorWithAlpha(rgb, 0.92);
-    cursorChip.style.color = readableTextColor(rgb);
+    bannerReadout.textContent = `${Math.round(bri)}% \u00b7 ${Math.round(cct)}K`;
+    if (bannerTimeEl) bannerTimeEl.textContent = formatHour(cursorHour);
+    banner.style.background = colorWithAlpha(rgb, 0.92);
+    banner.style.color = readableTextColor(rgb);
   }
 
   // Sunrise / sunset HTML labels
@@ -4233,14 +4270,24 @@ function positionOverlays() {
     sunsetEl.dataset.time = formatHour(ss);
   }
 
-  // Outdoor chip + popover at solar noon x
+  // Sun intensity chip + popover — float ABOVE the chart at solar-noon x.
+  // Top = chart.offsetTop − chip-half-height so the chip nestles in the
+  // 22px gap between banner bottom and chart top.
   const chip = document.getElementById('outdoor-chip');
   const pop = document.getElementById('outdoor-popover');
+  const chartEl = document.getElementById('chart');
   if (chip && Number.isFinite(sr) && Number.isFinite(ss)) {
     const noon = (sr + ss) / 2;
     const px = xToPx(noon);
     chip.style.left = px + 'px';
-    if (pop) pop.style.left = px + 'px';
+    if (chartEl) {
+      const top = Math.max(0, chartEl.offsetTop - 18);
+      chip.style.top = top + 'px';
+      if (pop) {
+        pop.style.left = px + 'px';
+        pop.style.top = (chartEl.offsetTop + 4) + 'px';
+      }
+    }
   }
 
   // Wake/Bed handles — working drag value (until commit/reset) takes priority
@@ -4276,12 +4323,9 @@ function positionOverlays() {
     bedGhost.style.display = bedMoved ? 'block' : 'none';
   }
 
-  // Undo chips — positioned under each pill; visibility toggled by
-  // showUndoChip() / hideUndoChip() with a 5s auto-hide timer.
-  const wU = document.getElementById('wake-undo');
-  const bU = document.getElementById('bed-undo');
-  if (wU) wU.style.left = xToPx(wakeT) + 'px';
-  if (bU) bU.style.left = xToPx(bedT) + 'px';
+  // Surface drag state in the Sleep card dirty bar. Drag = preview only;
+  // Save/Revert in the bar is the only path to mutate the saved schedule.
+  updateSleepDirtyBar();
 }
 
 // ============================================================
@@ -4334,29 +4378,19 @@ function setupHandleDrag(elId, kind) {
     el.classList.remove('dragging');
     chartState[kind + 'DragActive'] = false;
     try { el.releasePointerCapture(e.pointerId); } catch {}
-    // Auto-save to today's cluster on drag-end IF the drag actually moved the
-    // value. Captures prev value first so the undo chip can roll back. The Sleep
-    // card body still owns multi-cluster saves (weekend / all days).
+    // Drag = preview only. The drag value persists in chartState until the
+    // user explicitly Saves or Reverts from the Sleep card dirty bar (or
+    // master-resets the chart). This decouples chart play from real schedule
+    // mutation: levers move freely without touching the home's schedule.
     const dragVal = kind === 'wake' ? chartState.wakeDragVal : chartState.bedDragVal;
     const savedVal = kind === 'wake' ? config.wake_time : config.bed_time;
-    if (dragVal != null && Math.abs(dragVal - savedVal) > 0.01) {
-      const prevSnapshot = {
-        wake_time: config.wake_time,
-        wake_alt_time: config.wake_alt_time,
-        wake_alt_days: Array.isArray(config.wake_alt_days) ? config.wake_alt_days.slice() : [],
-        bed_time: config.bed_time,
-        bed_alt_time: config.bed_alt_time,
-        bed_alt_days: Array.isArray(config.bed_alt_days) ? config.bed_alt_days.slice() : [],
-      };
-      const todayKey = groupForToday(kind).id;
-      commitSave(kind, todayKey);
-      showUndoChip(kind, prevSnapshot);
-    } else {
-      chartState.wakeDragVal = null;
-      chartState.bedDragVal = null;
-      renderChart();
-      updateSectionDirtyState();
+    if (dragVal == null || Math.abs(dragVal - savedVal) <= 0.01) {
+      chartState.wakeDragVal = chartState.wakeDragVal != null
+        && Math.abs(chartState.wakeDragVal - config.wake_time) > 0.01 ? chartState.wakeDragVal : null;
+      chartState.bedDragVal = chartState.bedDragVal != null
+        && Math.abs(chartState.bedDragVal - config.bed_time) > 0.01 ? chartState.bedDragVal : null;
     }
+    renderChart();
   };
   el.addEventListener('pointerup', end);
   el.addEventListener('pointercancel', end);
@@ -4459,66 +4493,66 @@ function buildOutdoorPopover() {
 }
 
 /**
- * Wire the per-handle undo chips. After a wake/bed drag-end auto-saves to
- * today's cluster, showUndoChip() displays this chip for 5s; tapping it
- * reverts the just-committed save using the prevSnapshot captured pre-commit.
+ * Sleep card "dirty bar": surfaces when the user drags wake/bed on the chart.
+ * Drag mutates chartState.{wake|bed}DragVal only — config (saved schedule) is
+ * untouched. The bar is the explicit Save/Revert affordance: Save commits to
+ * today's group via commitSave(); Revert clears the drag value.
+ *
+ * If both wake and bed are dragged at once, the bar shows whichever was most
+ * recently moved; Save commits both in one shot.
  */
-const _undoState = { wake: { prev: null, timer: null }, bed: { prev: null, timer: null } };
+let _lastDirtyKind = null;
 
-function setupHandleActions() {
-  const wU = document.getElementById('wake-undo');
-  const bU = document.getElementById('bed-undo');
-  const bind = (container, kind) => {
-    if (!container || container._init) return;
-    container._init = true;
-    container.addEventListener('click', (e) => {
-      const btn = e.target.closest('.undo-chip');
-      if (!btn) return;
-      e.stopPropagation();
-      undoLastSave(kind);
-    });
-  };
-  bind(wU, 'wake');
-  bind(bU, 'bed');
+function isWakeDirty() {
+  return chartState.wakeDragVal != null
+    && Math.abs(chartState.wakeDragVal - config.wake_time) > 0.01;
+}
+function isBedDirty() {
+  return chartState.bedDragVal != null
+    && Math.abs(chartState.bedDragVal - config.bed_time) > 0.01;
 }
 
-function showUndoChip(kind, prevSnapshot) {
-  const el = document.getElementById(kind + '-undo');
-  if (!el) return;
-  const state = _undoState[kind];
-  if (state.timer) { clearTimeout(state.timer); state.timer = null; }
-  state.prev = prevSnapshot;
-  el.classList.add('visible');
-  state.timer = setTimeout(() => hideUndoChip(kind), 5000);
+function updateSleepDirtyBar() {
+  const bar = document.getElementById('sleep-dirty-bar');
+  if (!bar) return;
+  const wDirty = isWakeDirty();
+  const bDirty = isBedDirty();
+  if (!wDirty && !bDirty) {
+    bar.classList.remove('is-dirty');
+    return;
+  }
+  // Show whichever kind is currently dragging, or last-dirty as tiebreaker.
+  const showKind = chartState.wakeDragActive ? 'wake'
+    : chartState.bedDragActive ? 'bed'
+    : (wDirty && bDirty) ? (_lastDirtyKind || 'wake')
+    : (wDirty ? 'wake' : 'bed');
+  _lastDirtyKind = showKind;
+  const fromVal = showKind === 'wake' ? config.wake_time : config.bed_time;
+  const toVal = showKind === 'wake' ? chartState.wakeDragVal : chartState.bedDragVal;
+  document.getElementById('sleep-dirty-bar-kind').textContent = showKind === 'wake' ? 'Wake' : 'Bed';
+  document.getElementById('sleep-dirty-bar-from').textContent = formatHour(fromVal);
+  document.getElementById('sleep-dirty-bar-to').textContent = formatHour(toVal);
+  bar.classList.add('is-dirty');
 }
 
-function hideUndoChip(kind) {
-  const el = document.getElementById(kind + '-undo');
-  const state = _undoState[kind];
-  if (state.timer) { clearTimeout(state.timer); state.timer = null; }
-  state.prev = null;
-  if (el) el.classList.remove('visible');
-}
-
-function undoLastSave(kind) {
-  const state = _undoState[kind];
-  const prev = state.prev;
-  if (!prev) return hideUndoChip(kind);
-  // Restore the pre-save snapshot for both wake and bed slots so multi-key
-  // saves (e.g. 'all') are fully reverted, not just the dragged kind.
-  config.wake_time = prev.wake_time;
-  config.wake_alt_time = prev.wake_alt_time;
-  config.wake_alt_days = Array.isArray(prev.wake_alt_days) ? prev.wake_alt_days.slice() : [];
-  config.bed_time = prev.bed_time;
-  config.bed_alt_time = prev.bed_alt_time;
-  config.bed_alt_days = Array.isArray(prev.bed_alt_days) ? prev.bed_alt_days.slice() : [];
-  hideUndoChip(kind);
-  syncUIFromConfig();
-  takeConfigSnapshot();
-  recomputeAscendStart();
-  renderChart();
-  updateSectionDirtyState();
-  saveZoneSettings();
+function setupSleepDirtyBar() {
+  const bar = document.getElementById('sleep-dirty-bar');
+  if (!bar || bar._init) return;
+  bar._init = true;
+  document.getElementById('sleep-dirty-revert')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    chartState.wakeDragVal = null;
+    chartState.bedDragVal = null;
+    _lastDirtyKind = null;
+    renderChart();
+  });
+  document.getElementById('sleep-dirty-save')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    // Commit each dirty kind to today's group (preserves alt-day clusters).
+    if (isWakeDirty()) commitSave('wake', groupForToday('wake').id);
+    if (isBedDirty()) commitSave('bed', groupForToday('bed').id);
+    _lastDirtyKind = null;
+  });
 }
 
 function closeSavePopover() {
@@ -4633,9 +4667,7 @@ function resetChartView() {
   chartState.bedDragVal = null;
   chartState.wakeDragActive = false;
   chartState.bedDragActive = false;
-  // Hide any auto-save undo chips that may be visible
-  hideUndoChip('wake');
-  hideUndoChip('bed');
+  _lastDirtyKind = null;
   // Month → current
   chartState.monthIdx = new Date().getMonth();
   const monthSlider = document.getElementById('month-slider');
@@ -5581,11 +5613,12 @@ function setupEventListeners() {
     });
   }
 
-  // Cursor chip controls — ↺ master reset reverts page view to defaults
-  // (cursor → now, outdoor → current, wake/bed drag → null, month → current).
-  // Does NOT roll back saved config. ←/→ step the cursor by `cursorStepMin`
-  // (configurable via Settings → App → Rhythm chart).
-  document.getElementById('cursor-chip-reset')?.addEventListener('click', (e) => {
+  // CCT banner controls — ↺ master reset (top-right of row 1) reverts page
+  // view to defaults (cursor → now, outdoor → current, wake/bed drag → null,
+  // month → current). Page-scope, NOT time-scope; does not roll back saved
+  // config. ←/→ in row 2 step the cursor by `cursorStepMin` (configurable via
+  // Settings → App → Rhythm chart).
+  document.getElementById('cct-banner-reset')?.addEventListener('click', (e) => {
     e.stopPropagation();
     resetChartView();
   });
@@ -5603,11 +5636,11 @@ function setupEventListeners() {
     cursorHour = wrapHour(next);
     applyCursor();
   };
-  document.getElementById('cursor-chip-prev')?.addEventListener('click', (e) => {
+  document.getElementById('cct-banner-prev')?.addEventListener('click', (e) => {
     e.stopPropagation();
     _stepCursor(-1);
   });
-  document.getElementById('cursor-chip-next')?.addEventListener('click', (e) => {
+  document.getElementById('cct-banner-next')?.addEventListener('click', (e) => {
     e.stopPropagation();
     _stepCursor(+1);
   });
@@ -5619,12 +5652,12 @@ function setupEventListeners() {
   // Outdoor chip toggle + popover wiring
   setupOutdoorPopover();
 
-  // Undo chip event delegation (chips live in #wake-undo / #bed-undo)
-  setupHandleActions();
+  // Sleep card dirty bar wiring — surfaces when wake/bed pill dragged on chart.
+  setupSleepDirtyBar();
 
   // Outside-click closes popovers
   document.addEventListener('pointerdown', (e) => {
-    if (!e.target.closest('.save-popover') && !e.target.closest('.undo-chip')) {
+    if (!e.target.closest('.save-popover')) {
       closeSavePopover();
     }
     if (!e.target.closest('.outdoor-popover') && !e.target.closest('.outdoor-chip')) {
