@@ -406,14 +406,14 @@ input[type=range]::-moz-range-thumb {
 }
 
 /* Chart shell — three vertical zones:
-   above chart  → NOW pill (and small LIVE pip)
+   chrome zone  → month chip (left) + cursor chip (center, fixed) + Try-it (right)
    chart body   → curve + cursor
    below chart  → solar HTML labels + outdoor chip + wake/bed pill handles */
 #chart-shell {
   position: relative;
   background: var(--card);
   border-radius: 10px;
-  padding: 8px 4px 86px;
+  padding: 0 4px 86px;
   margin-top: 8px;
   overflow: visible;
   -webkit-user-select: none;
@@ -427,52 +427,73 @@ input[type=range]::-moz-range-thumb {
   cursor: pointer;
 }
 
-/* NOW pill — above curve at cursor x */
-.now-pill {
-  position: absolute;
-  top: 14px;
-  transform: translateX(-50%);
-  padding: 4px 11px;
-  border-radius: 8px;
+/* Chart chrome row — fixed-height bar ABOVE the curve canvas. Holds the
+   month chip (left), cursor chip (center, fixed-position controller), and
+   Try-it CTA (right). Replaces the floating NOW pill — cursor chip stays
+   put as the cursor scrubs so arrow buttons live in muscle memory. */
+.chart-chrome {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 8px 10px 6px;
+  gap: 8px;
+  position: relative;
+  min-height: 58px;
+}
+.chart-chrome-left  { justify-self: start; display: inline-flex; }
+.chart-chrome-right { justify-self: end;   display: inline-flex; }
+
+/* Cursor chip — 2 rows, fixed dimensions. Row 1 = time·%·K readout
+   (CCT-tinted background/border). Row 2 = ← / Jump-to-now / → controls. */
+.cursor-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 10px 6px;
+  border-radius: 10px;
   border: 1.5px solid;
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
-  pointer-events: none;
-  z-index: 6;
-  letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  min-width: 180px;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.cursor-chip-readout { line-height: 1.15; }
+.cursor-chip-controls {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  line-height: 1;
 }
-.now-pill-reset {
-  pointer-events: auto;
+.cursor-chip-controls button {
   background: rgba(0,0,0,0.18);
   border: none;
   color: inherit;
-  height: 18px;
-  padding: 0 7px;
+  height: 19px;
+  padding: 0 8px;
   border-radius: 9px;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
+  font-family: inherit;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-left: 2px;
   line-height: 1;
-  font-family: inherit;
-  opacity: 0.85;
+  opacity: 0.9;
   transition: opacity 0.15s, background 0.15s;
 }
-.now-pill-reset:hover { opacity: 1; background: rgba(0,0,0,0.32); }
-/* Try-it button + popover (Live Design entry point, anchored to chart-shell top-right) */
+.cursor-chip-controls button:hover:not(:disabled) { opacity: 1; background: rgba(0,0,0,0.32); }
+.cursor-chip-controls button:disabled { opacity: 0.4; cursor: default; }
+.cursor-chip-arrow { width: 24px; padding: 0 !important; font-size: 13px !important; }
+/* Try-it button + popover (Live Design entry point, lives in chart-chrome top-right slot) */
 .try-it-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -515,8 +536,8 @@ input[type=range]::-moz-range-thumb {
 }
 .try-it-popover {
   position: absolute;
-  top: 44px;
-  right: 8px;
+  top: 60px;
+  right: 10px;
   min-width: 220px;
   max-width: 280px;
   background: #2a2a2a;
@@ -874,13 +895,8 @@ input[type=range]::-moz-range-thumb {
   margin-top: 2px;
 }
 
-/* Month row — collapsed shows "Month  April"; click to expand the slider */
-/* Month chip — top-right corner of chart-shell, taps open a slider popover.
-   Mirrors the outdoor-chip pattern; replaces the old below-chart Month row. */
+/* Month chip — lives in chart-chrome top-left slot, taps open a slider popover. */
 .month-chip {
-  position: absolute;
-  top: 10px;
-  right: 10px;
   background: transparent;
   border: 1px solid rgba(255,255,255,0.18);
   padding: 3px 9px;
@@ -904,8 +920,8 @@ input[type=range]::-moz-range-thumb {
 .month-chip-icon { font-size: 11px; line-height: 1; opacity: 0.85; }
 .month-popover {
   position: absolute;
-  top: 38px;
-  right: 10px;
+  top: 60px;
+  left: 10px;
   background: rgba(24, 26, 32, 0.98);
   border: 1px solid rgba(255,255,255,0.18);
   border-radius: 8px;
@@ -1618,12 +1634,34 @@ input[type=range]::-moz-range-thumb {
   <div class="section-block" id="chart-section">
     <div class="chart-wrapper">
       <div id="chart-shell">
-        <!-- Top zone: NOW pill (cursor-tinted) + Try-it CTA -->
-        <div class="now-pill" id="now-pill"></div>
-        <button type="button" class="try-it-btn" id="try-it-btn" aria-haspopup="true" aria-expanded="false">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/></svg>
-          <span class="try-it-label" id="try-it-label">Try it</span>
-        </button>
+        <!-- Chrome zone: month chip (left) + cursor chip (center, fixed) + Try-it (right) -->
+        <div class="chart-chrome">
+          <div class="chart-chrome-left">
+            <button type="button" class="month-chip" id="month-chip">
+              <span class="month-chip-icon">&#128197;</span><span id="month-chip-label">April</span>
+            </button>
+          </div>
+
+          <div class="cursor-chip" id="cursor-chip">
+            <div class="cursor-chip-readout" id="cursor-chip-readout">--:-- &middot; --% &middot; ----K</div>
+            <div class="cursor-chip-controls">
+              <button type="button" class="cursor-chip-arrow" id="cursor-chip-prev" title="Step back">&#x2190;</button>
+              <button type="button" class="cursor-chip-jump" id="cursor-chip-jump" title="Jump to current time">Jump to now</button>
+              <button type="button" class="cursor-chip-arrow" id="cursor-chip-next" title="Step forward">&#x2192;</button>
+            </div>
+          </div>
+
+          <div class="chart-chrome-right">
+            <button type="button" class="try-it-btn" id="try-it-btn" aria-haspopup="true" aria-expanded="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/></svg>
+              <span class="try-it-label" id="try-it-label">Try it</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="month-popover" id="month-popover">
+          <input type="range" class="month-slider" id="month-slider" min="0" max="11" value="3">
+        </div>
         <div class="try-it-popover" id="try-it-popover" role="dialog" aria-hidden="true">
           <div class="try-it-popover-header">
             <span class="try-it-popover-title">Try in (max 3)</span>
@@ -1634,14 +1672,6 @@ input[type=range]::-moz-range-thumb {
             <button type="button" class="try-it-stop-btn" id="try-it-stop-btn" style="display:none;">Stop</button>
             <button type="button" class="try-it-done-btn" id="try-it-done-btn">Done</button>
           </div>
-        </div>
-
-        <!-- Month chip — tap to open the season slider -->
-        <button type="button" class="month-chip" id="month-chip">
-          <span class="month-chip-icon">&#128197;</span><span id="month-chip-label">April</span>
-        </button>
-        <div class="month-popover" id="month-popover">
-          <input type="range" class="month-slider" id="month-slider" min="0" max="11" value="3">
         </div>
 
         <div id="chart"></div>
@@ -2234,6 +2264,7 @@ let _liveCondition = null;
 let _liveSource = null;
 let _outdoorParams = {};
 let _outdoorGroups = [];  // weather_groups from /api/outdoor-status (label/key/multiplier)
+let cursorStepMin = 15;   // ←/→ step amount for the cursor chip arrows (Settings → App → Rhythm chart)
 
 // Cursor state — always present, initialized to current time
 const _nowInit = new Date();
@@ -4124,56 +4155,22 @@ function positionOverlays() {
 
   const xA = chartState.ascendStart;
 
-  // NOW pill — cursor x, CCT-tinted, with inline reset (↺) when cursor isn't tracking now
-  const pill = document.getElementById('now-pill');
-  if (pill && cursorHour != null) {
+  // Cursor chip — fixed-position controller in chart-chrome center slot. Updates
+  // readout + CCT tint as cursor moves; position is controlled by the grid layout,
+  // NOT by cursor x. Jump-to-now is disabled when cursor is already tracking now.
+  const chip = document.getElementById('cursor-chip');
+  const readout = document.getElementById('cursor-chip-readout');
+  const jumpBtn = document.getElementById('cursor-chip-jump');
+  if (chip && readout && cursorHour != null) {
     const dim = chartState.sunDimFactor ? chartState.sunDimFactor(cursorHour) : 1.0;
     const bri = calculateBrightnessAtHour(cursorHour) * dim * 100;
     const cct = calculateColorAtHour(cursorHour, true);
     const rgb = cctToRGB(cct);
-    const px = xToPx(cursorHour);
-    pill.style.left = px + 'px';
-    const resetBtn = cursorTrackingNow
-      ? ''
-      : ' <button type="button" class="now-pill-reset" title="Jump to current time">Jump to now</button>';
-    pill.innerHTML = `${formatHour(cursorHour)} \u00b7 ${Math.round(bri)}% \u00b7 ${Math.round(cct)}K${resetBtn}`;
-    pill.style.borderColor = colorWithAlpha(rgb, 0.85);
-    pill.style.background = colorWithAlpha(rgb, 0.92);
-    pill.style.color = readableTextColor(rgb);
-
-    // (B) Anchor-pivot: pin pill's left edge at cursor in the left zone, right
-    // edge in the right zone, else center. Keeps the pill from clipping the
-    // chart's left/right edges when the cursor sits at the extremes.
-    // (C) Drop-down on conflict: when the centered pill would overlap the
-    // month-chip (top-right of chart-shell), push the pill below it.
-    const shell = document.getElementById('chart-shell');
-    const shellW = shell ? shell.getBoundingClientRect().width : 0;
-    const leftZone = shellW * 0.18;
-    const rightZone = shellW * 0.82;
-    let translateX = '-50%';
-    if (shellW > 0) {
-      if (px < leftZone) translateX = '0%';
-      else if (px > rightZone) translateX = '-100%';
-    }
-    pill.style.transform = `translateX(${translateX})`;
-
-    // Month-chip overlap check (only meaningful when pill is centered/right).
-    const monthChip = document.getElementById('month-chip');
-    let dropDown = false;
-    if (monthChip && shell && pill.offsetWidth) {
-      const shellRect = shell.getBoundingClientRect();
-      const chipRect = monthChip.getBoundingClientRect();
-      // pill's projected left edge (in shell coords) given current translateX
-      const pillW = pill.offsetWidth;
-      const tx = translateX === '-50%' ? -0.5 : translateX === '-100%' ? -1.0 : 0;
-      const pillLeft = px + tx * pillW;
-      const pillRight = pillLeft + pillW;
-      const chipLeft = chipRect.left - shellRect.left;
-      const chipRight = chipRect.right - shellRect.left;
-      // overlap on x-axis with month-chip's row (chip is at top:10px, ~22px tall)
-      if (pillRight > chipLeft - 6 && pillLeft < chipRight + 6) dropDown = true;
-    }
-    pill.style.top = dropDown ? '40px' : '14px';
+    readout.textContent = `${formatHour(cursorHour)} \u00b7 ${Math.round(bri)}% \u00b7 ${Math.round(cct)}K`;
+    chip.style.borderColor = colorWithAlpha(rgb, 0.85);
+    chip.style.background = colorWithAlpha(rgb, 0.92);
+    chip.style.color = readableTextColor(rgb);
+    if (jumpBtn) jumpBtn.disabled = !!cursorTrackingNow;
   }
 
   // Sunrise / sunset HTML labels
@@ -5499,16 +5496,37 @@ function setupEventListeners() {
     });
   }
 
-  // Reset (↺) inside NOW pill — jumps cursor back to current time and resumes
-  // live tracking. Delegated on the pill so we re-bind for free on each render.
-  document.getElementById('now-pill')?.addEventListener('click', (e) => {
-    if (!e.target.closest('.now-pill-reset')) return;
+  // Cursor chip controls — Jump-to-now resumes live tracking; ←/→ step the
+  // cursor by `cursorStepMin` (configurable via Settings → App → Rhythm chart).
+  document.getElementById('cursor-chip-jump')?.addEventListener('click', (e) => {
     e.stopPropagation();
     cursorTrackingNow = true;
     const now = new Date();
     cursorHour = now.getHours() + now.getMinutes() / 60;
     renderChart();
     applyCursor();
+  });
+
+  const _stepCursor = (dirSign) => {
+    const stepMin = (typeof cursorStepMin === 'number' && cursorStepMin > 0) ? cursorStepMin : 15;
+    const stepHr = (stepMin / 60) * dirSign;
+    const xA = chartState.ascendStart;
+    // Step in chart-frame coordinates (xA → xA+24) and clamp at the edges so
+    // the cursor doesn't wrap from the right edge to the left (which would
+    // visually look like a teleport across the whole chart).
+    const frame = visHour(cursorHour, xA);
+    const next = Math.max(xA, Math.min(xA + 24 - 0.001, frame + stepHr));
+    cursorTrackingNow = false;
+    cursorHour = wrapHour(next);
+    applyCursor();
+  };
+  document.getElementById('cursor-chip-prev')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    _stepCursor(-1);
+  });
+  document.getElementById('cursor-chip-next')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    _stepCursor(+1);
   });
 
   // Wake/Bed handle drag setup
@@ -5545,6 +5563,8 @@ async function loadConfig() {
     if (resp.ok) {
       const data = await resp.json();
       Object.assign(config, data);
+      const stepRaw = parseInt(data.rhythm_cursor_step_min, 10);
+      if (Number.isFinite(stepRaw) && stepRaw > 0) cursorStepMin = stepRaw;
       syncUIFromConfig();
       renderChart();
     }

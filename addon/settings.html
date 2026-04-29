@@ -1167,6 +1167,26 @@
             </div>
           </div>
         </div>
+
+        <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:12px;">
+          <div style="font-size:0.8rem;color:var(--muted);margin-bottom:8px;font-weight:600;">Rhythm chart</div>
+
+          <div class="form-row">
+            <label class="form-label">
+              Cursor step
+              <span class="info-icon">i<span class="info-tooltip">How much the &larr; / &rarr; buttons on the rhythm-zone chart cursor advance the cursor each tap. Smaller values let you fine-tune what lights look like at a specific moment; larger values let you skim through the day faster.</span></span>
+            </label>
+            <div class="form-control">
+              <select class="form-input" id="rhythm-cursor-step-min" style="width: 100px;">
+                <option value="5">5 min</option>
+                <option value="10">10 min</option>
+                <option value="15" selected>15 min</option>
+                <option value="30">30 min</option>
+                <option value="60">60 min</option>
+              </select>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1221,6 +1241,7 @@
           document.getElementById('confirm-zone-pushes').checked = config.confirm_zone_pushes ?? true;
           document.getElementById('home-slider-mode').value = config.home_slider_mode ?? 'brightness';
           document.getElementById('home-buttons-mode').value = config.home_buttons_mode ?? 'step';
+          document.getElementById('rhythm-cursor-step-min').value = String(config.rhythm_cursor_step_min ?? 15);
           document.getElementById('circadian-refresh').value = config.circadian_refresh ?? 20;
           const refreshDefault = config.circadian_refresh ?? 20;
           document.getElementById('periodic-transition-day').value = config.periodic_transition_day ?? 1;
@@ -1335,6 +1356,7 @@
         confirm_zone_pushes: document.getElementById('confirm-zone-pushes').checked,
         home_slider_mode: document.getElementById('home-slider-mode').value,
         home_buttons_mode: document.getElementById('home-buttons-mode').value,
+        rhythm_cursor_step_min: parseInt(document.getElementById('rhythm-cursor-step-min').value, 10),
         circadian_refresh: parseInt(document.getElementById('circadian-refresh').value) || 20,
         periodic_transition_day: parseInt(document.getElementById('periodic-transition-day').value) || 1,
         periodic_transition_night: parseInt(document.getElementById('periodic-transition-night').value) || 1,
@@ -1646,6 +1668,7 @@
     document.getElementById('confirm-zone-pushes').addEventListener('change', saveSettings);
     document.getElementById('home-slider-mode').addEventListener('change', saveSettings);
     document.getElementById('home-buttons-mode').addEventListener('change', saveSettings);
+    document.getElementById('rhythm-cursor-step-min').addEventListener('change', saveSettings);
     document.getElementById('circadian-refresh').addEventListener('blur', saveSettings);
     document.getElementById('periodic-transition-day').addEventListener('blur', saveSettings);
     document.getElementById('periodic-transition-night').addEventListener('blur', saveSettings);
