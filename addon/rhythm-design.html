@@ -1879,6 +1879,49 @@ input[type=range]::-moz-range-thumb {
     </div>
   </div>
 
+  <!-- Brightness -->
+  <div class="rhythm-card" id="rhythm-brightness-card">
+    <div class="rhythm-card-header" onclick="toggleRhythmCard('rhythm-brightness-card', 'rhythm_brightness_expanded')">
+      <span class="rhythm-card-chevron">&#x203A;</span>
+      <span class="rhythm-card-title">Brightness</span>
+      <span class="rhythm-card-val" id="rhythm-brightness-val">1 – 100%</span>
+    </div>
+    <div class="rhythm-card-body" id="rhythm-brightness-body">
+      <div id="rhythm-bri-gradient-container" class="ct-gradient-wrap"></div>
+      <input type="hidden" id="brightness-min" value="1">
+      <input type="hidden" id="brightness-max" value="100">
+      <div class="bri-sub-section">
+        <div class="color-rule-stack" data-color-row="brightness-sensitivity">
+          <div class="color-rule-stack-label">
+            <label class="color-rule-label">Sun dimming</label>
+            <div class="color-rule-controls">
+              <div class="color-rule-toggle"><input type="checkbox" id="brightness-sensitivity-enabled" checked></div>
+              <span class="info-icon" data-tooltip="brightness-sensitivity-info">i<span class="info-tooltip" id="brightness-sensitivity-info">How aggressively brightness pulls back when sun is high. Higher = more dimming on bright sunny days.</span></span>
+            </div>
+          </div>
+          <div class="color-rule-stack-body" id="brightness-sensitivity-body">
+            <div class="reveal-group brightness-sensitivity-group">
+              <div class="tune-control-row">
+                <span class="tune-control-left">
+                  <span class="tune-control-label">Sun impact</span>
+                  <span class="tune-control-reset" id="reset-brightness-sensitivity" data-default="5">reset</span>
+                </span>
+                <span class="tune-control-impact" id="brightness-sensitivity-text">1.00: standard</span>
+              </div>
+              <div class="tune-slider-row">
+                <input type="range" id="brightness-sensitivity" min="0" max="8" step="1" value="5">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="section-actions" id="brightness-section-actions">
+        <button class="section-cancel-btn" onclick="cancelBrightnessChanges()">Cancel</button>
+        <button class="section-save-btn" onclick="saveZoneSettings()">Save</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Color temperature -->
   <div class="rhythm-card" id="rhythm-color-card">
     <div class="rhythm-card-header" onclick="toggleRhythmCard('rhythm-color-card', 'rhythm_color_expanded')">
@@ -2015,48 +2058,6 @@ input[type=range]::-moz-range-thumb {
     </div>
   </div>
 
-  <!-- Brightness -->
-  <div class="rhythm-card" id="rhythm-brightness-card">
-    <div class="rhythm-card-header" onclick="toggleRhythmCard('rhythm-brightness-card', 'rhythm_brightness_expanded')">
-      <span class="rhythm-card-chevron">&#x203A;</span>
-      <span class="rhythm-card-title">Brightness</span>
-      <span class="rhythm-card-val" id="rhythm-brightness-val">1 – 100%</span>
-    </div>
-    <div class="rhythm-card-body" id="rhythm-brightness-body">
-      <div id="rhythm-bri-gradient-container" class="ct-gradient-wrap"></div>
-      <input type="hidden" id="brightness-min" value="1">
-      <input type="hidden" id="brightness-max" value="100">
-      <div class="bri-sub-section">
-        <div class="color-rule-stack" data-color-row="brightness-sensitivity">
-          <div class="color-rule-stack-label">
-            <label class="color-rule-label">Sun dimming</label>
-            <div class="color-rule-controls">
-              <div class="color-rule-toggle"><input type="checkbox" id="brightness-sensitivity-enabled" checked></div>
-              <span class="info-icon" data-tooltip="brightness-sensitivity-info">i<span class="info-tooltip" id="brightness-sensitivity-info">How aggressively brightness pulls back when sun is high. Higher = more dimming on bright sunny days.</span></span>
-            </div>
-          </div>
-          <div class="color-rule-stack-body" id="brightness-sensitivity-body">
-            <div class="reveal-group brightness-sensitivity-group">
-              <div class="tune-control-row">
-                <span class="tune-control-left">
-                  <span class="tune-control-label">Sun impact</span>
-                  <span class="tune-control-reset" id="reset-brightness-sensitivity" data-default="5">reset</span>
-                </span>
-                <span class="tune-control-impact" id="brightness-sensitivity-text">1.00: standard</span>
-              </div>
-              <div class="tune-slider-row">
-                <input type="range" id="brightness-sensitivity" min="0" max="8" step="1" value="5">
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="section-actions" id="brightness-section-actions">
-        <button class="section-cancel-btn" onclick="cancelBrightnessChanges()">Cancel</button>
-        <button class="section-save-btn" onclick="saveZoneSettings()">Save</button>
-      </div>
-    </div>
-  </div>
 </div>
 
 <script src="./shared.js"></script>
@@ -3483,15 +3484,17 @@ function renderChart() {
   const traces = [];
 
   // Color-gradient brightness curve (filled + line segments). Fill alpha
-  // matches line color so the area under the curve is color-honest.
+  // matches line color so the area under the curve is color-honest. Solid =
+  // roomTargetPct (the calculated graph, un-dimmed). The dotted overlay below
+  // shows the sun-dimmed bulb output where it dips beneath the calculated.
   const step = 2;
   for (let i = step; i < hours.length; i += step) {
     const color = cctToRGB(cct[i]);
     const fillColor = colorWithAlpha(color, 0.5);
     const x0 = hours[i - step];
     const x1 = hours[i];
-    const y0 = brightnessPct[i - step];
-    const y1 = brightnessPct[i];
+    const y0 = roomTargetPct[i - step];
+    const y1 = roomTargetPct[i];
 
     traces.push({
       type: 'scatter', mode: 'lines',
@@ -3508,10 +3511,10 @@ function renderChart() {
     });
   }
 
-  // Dotted reference line = room target (un-dimmed brightness). Sits ABOVE
-  // the visible bulb-output curve during daylight; the gap = how much the sun
-  // is doing the bulb's job. Only drawn in segments where the gap is real.
-  let sunContribAnchor = null;  // {x, y} for the "sun contribution" label
+  // Dotted line = sun-dimmed bulb output. Sits BELOW the solid calculated
+  // curve during daylight; the gap = how much the sun is doing the bulb's job.
+  // Only drawn in segments where the gap is real.
+  let sunDimmedAnchor = null;  // {x, y} for the "sun dimmed" label
   if (showDottedTarget) {
     const GAP_THRESHOLD = 0.75;
     const dx = []; const dy = [];
@@ -3520,7 +3523,7 @@ function renderChart() {
     for (let i = 0; i < hours.length; i++) {
       const gap = roomTargetPct[i] - brightnessPct[i];
       if (gap > GAP_THRESHOLD) {
-        dx.push(hours[i]); dy.push(roomTargetPct[i]);
+        dx.push(hours[i]); dy.push(brightnessPct[i]);
         if (gap > maxGap) { maxGap = gap; maxGapIdx = i; }
       } else if (dx.length && dx[dx.length - 1] !== null) {
         dx.push(null); dy.push(null);  // segment break
@@ -3535,13 +3538,13 @@ function renderChart() {
         hoverinfo: 'skip', showlegend: false,
       });
       if (maxGapIdx >= 0) {
-        sunContribAnchor = { x: hours[maxGapIdx], y: roomTargetPct[maxGapIdx] };
+        sunDimmedAnchor = { x: hours[maxGapIdx], y: brightnessPct[maxGapIdx] };
       }
     }
   }
 
-  // Hover trace - CCT colored background (bulb output, matches visible curve)
-  const hoverDetails = brightnessPct.map((v, i) => {
+  // Hover trace - CCT colored background (calculated curve = solid line)
+  const hoverDetails = roomTargetPct.map((v, i) => {
     const pct = Math.round(v);
     const kelvin = Math.round(cct[i]);
     return `${pct}% \u2022 ${kelvin}K`;
@@ -3551,7 +3554,7 @@ function renderChart() {
   const hoverBorderColors = cct.map(k => colorWithAlpha(cctToRGB(k), 0.65));
   traces.push({
     type: 'scatter', mode: 'lines',
-    x: hours, y: brightnessPct,
+    x: hours, y: roomTargetPct,
     line: { width: 0 },
     showlegend: false,
     text: hoverDetails,
@@ -3587,7 +3590,7 @@ function renderChart() {
     const wIdx = idxFor(wt);
     traces.push({
       type: 'scatter', mode: 'markers',
-      x: [tFor(wt)], y: [brightnessPct[wIdx]],
+      x: [tFor(wt)], y: [roomTargetPct[wIdx]],
       marker: { size: 14, color: cctToRGB(cct[wIdx]),
                 line: { width: 2, color: ASCEND_COLORS.text } },
       cliponaxis: false, hoverinfo: 'skip', showlegend: false,
@@ -3598,7 +3601,7 @@ function renderChart() {
     const bIdx = idxFor(bt);
     traces.push({
       type: 'scatter', mode: 'markers',
-      x: [tFor(bt)], y: [brightnessPct[bIdx]],
+      x: [tFor(bt)], y: [roomTargetPct[bIdx]],
       marker: { size: 14, color: cctToRGB(cct[bIdx]),
                 line: { width: 2, color: DESCEND_COLORS.text } },
       cliponaxis: false, hoverinfo: 'skip', showlegend: false,
@@ -3621,10 +3624,10 @@ function renderChart() {
       line: { color: DESCEND_COLORS.text, width: 1.5 } });
   }
   const annotations = [];
-  if (sunContribAnchor) {
+  if (sunDimmedAnchor) {
     annotations.push({
-      x: sunContribAnchor.x, y: sunContribAnchor.y, xref: 'x', yref: 'y',
-      text: 'sun contribution', showarrow: false, yshift: -10,
+      x: sunDimmedAnchor.x, y: sunDimmedAnchor.y, xref: 'x', yref: 'y',
+      text: 'sun dimmed', showarrow: false, yshift: -10,
       font: { size: 9, color: 'rgba(220, 220, 220, 0.7)' },
     });
   }
@@ -3756,8 +3759,11 @@ function initChartInteractivity() {
 
     const layout = chart._fullLayout;
     const xRange = layout?.xaxis?.range || [0, 24];
-    const ratio = (ev.clientX - rect.left) / rect.width;
-    const xVal = xRange[0] + ratio * (xRange[1] - xRange[0]);
+    const ratio = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+    // Clamp strictly inside [xRange[0], xRange[1]) so the right edge doesn't
+    // wrap onto the left edge (wrapHour(xA+24) == xA visually = far left).
+    const xVal = Math.min(xRange[1] - 0.001,
+                          xRange[0] + ratio * (xRange[1] - xRange[0]));
 
     cursorTrackingNow = false;
     cursorHour = wrapHour(xVal);  // chart x is frame-coord, cursorHour stays 0-24
@@ -3773,7 +3779,10 @@ function initChartInteractivity() {
     const xa = layout.xaxis;
     const localX = clientX - chart.getBoundingClientRect().left - xa._offset;
     const ratio = Math.max(0, Math.min(1, localX / xa._length));
-    const xVal = xa.range[0] + ratio * (xa.range[1] - xa.range[0]);
+    // Clamp strictly inside [xa.range[0], xa.range[1]) so the right edge
+    // doesn't wrap onto the left edge.
+    const xVal = Math.min(xa.range[1] - 0.001,
+                          xa.range[0] + ratio * (xa.range[1] - xa.range[0]));
     cursorTrackingNow = false;
     cursorHour = wrapHour(xVal);
     applyCursor();
@@ -3817,10 +3826,9 @@ function applyCursor() {
   // Get cursor point data using core calculation functions (exact values, no interpolation)
   let cursorPoint = null;
   if (config) {
-    const dim = chartState.sunDimFactor ? chartState.sunDimFactor(cursorHour) : 1.0;
     cursorPoint = {
       x: cursorHour,
-      y: calculateBrightnessAtHour(cursorHour) * dim * 100,  // Sun-dimmed bulb output
+      y: calculateBrightnessAtHour(cursorHour) * 100,  // Calculated (un-dimmed) curve
       cct: calculateColorAtHour(cursorHour, true),     // With solar rules
       phase: getPhaseAtHour(cursorHour),
     };
