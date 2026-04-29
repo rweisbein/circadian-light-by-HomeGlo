@@ -510,7 +510,10 @@ input[type=range]::-moz-range-thumb {
   position: relative;
   background: var(--card);
   border-radius: 10px;
-  padding: 0 0 70px;
+  /* padding-top reserves a strip ABOVE the cct-banner for the sun-intensity
+     chip so the chip reads as its own header element rather than being
+     visually attached to the chart's "sun dimming" annotation. */
+  padding: 22px 0 70px;
   margin-top: 8px;
   overflow: visible;
   -webkit-user-select: none;
@@ -570,10 +573,15 @@ input[type=range]::-moz-range-thumb {
   line-height: 1.05;
   white-space: nowrap;
 }
+/* Master reset (↺) — orange-on-dark so it stands out against the CCT-tinted
+   banner regardless of tint. Mirrors the home page power button's
+   dark-bg + accent-color treatment. Only visible when the chart view is
+   "dirty" (see updateBannerResetVisibility), so when present it's
+   actionable and the orange flags it as such. */
 .cct-banner-reset {
-  background: rgba(0,0,0,0.22);
-  border: none;
-  color: inherit;
+  background: rgba(0,0,0,0.45);
+  border: 1px solid rgba(254,172,96,0.45);
+  color: var(--accent);
   width: 26px;
   height: 26px;
   border-radius: 13px;
@@ -585,10 +593,14 @@ input[type=range]::-moz-range-thumb {
   align-items: center;
   justify-content: center;
   line-height: 1;
-  opacity: 0.9;
-  transition: opacity 0.15s, background 0.15s;
+  opacity: 1;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
-.cct-banner-reset:hover { opacity: 1; background: rgba(0,0,0,0.36); }
+.cct-banner-reset:hover {
+  background: rgba(254,172,96,0.18);
+  border-color: var(--accent);
+  color: var(--accent-hover);
+}
 .cct-banner-row2 {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
@@ -803,12 +815,14 @@ input[type=range]::-moz-range-thumb {
 }
 .solar-label:hover::after { opacity: 1; }
 
-/* Sun intensity chip — floats ABOVE the chart at solar-noon x. Yellow icon +
-   percent only ("sun shining over the graph"). Tap → opens popover with
+/* Sun intensity chip — floats in the chart-shell's top padding strip ABOVE
+   the cct-banner, anchored at solar-noon x. Yellow icon + percent only.
+   Lives in its own row so it reads as a header element (independent of the
+   chart's "sun dimming" annotation below). Tap → opens popover with
    prominent "Sun intensity" header (no inline label needed). */
 .outdoor-chip {
   position: absolute;
-  top: 6px;
+  top: 4px;
   transform: translateX(-50%);
   background: transparent;
   border: none;
@@ -829,7 +843,7 @@ input[type=range]::-moz-range-thumb {
 .outdoor-chip-icon { font-size: 13px; line-height: 1; color: rgba(255,225,140,0.95); }
 .outdoor-popover {
   position: absolute;
-  top: 28px;
+  top: 24px;
   transform: translateX(-50%);
   background: rgba(24, 26, 32, 0.98);
   border: 1px solid rgba(255,255,255,0.18);
@@ -2428,7 +2442,7 @@ let _liveCondition = null;
 let _liveSource = null;
 let _outdoorParams = {};
 let _outdoorGroups = [];  // weather_groups from /api/outdoor-status (label/key/multiplier)
-let cursorStepMin = 15;   // ←/→ step amount for the cursor chip arrows (Settings → App → Rhythm chart)
+let cursorStepMin = 5;    // ←/→ step amount for the cursor chip arrows (Settings → App → Rhythm chart)
 
 // Cursor state — always present, initialized to current time
 const _nowInit = new Date();
@@ -4430,24 +4444,17 @@ function positionOverlays() {
   setSolar(sunriseEl, sr);
   setSolar(sunsetEl, ss);
 
-  // Sun intensity chip + popover — sit ON the chart canvas at solar-noon x
-  // (the dark Plotly bg, not the lighter card). Top = chart.offsetTop + small
-  // inset so the chip overlays the very top of the plot area like a sun
-  // shining over the curve.
+  // Sun intensity chip + popover — live in the chart-shell top padding strip
+  // ABOVE the cct-banner (so the chip reads as a sibling header element, not
+  // as part of the chart's "sun dimming" annotation). Top is the CSS default
+  // (4px from chart-shell top); only horizontal anchoring needs JS.
   const chip = document.getElementById('outdoor-chip');
   const pop = document.getElementById('outdoor-popover');
-  const chartEl = document.getElementById('chart');
   if (chip && Number.isFinite(sr) && Number.isFinite(ss)) {
     const noon = (sr + ss) / 2;
     const px = xToPx(noon);
     chip.style.left = px + 'px';
-    if (chartEl) {
-      chip.style.top = (chartEl.offsetTop + 6) + 'px';
-      if (pop) {
-        pop.style.left = px + 'px';
-        pop.style.top = (chartEl.offsetTop + 28) + 'px';
-      }
-    }
+    if (pop) pop.style.left = px + 'px';
   }
 
   // Wake/Bed handles — working drag value (until commit/reset) takes priority
@@ -5786,9 +5793,9 @@ function setupEventListeners() {
   const _stepCursor = (dirSign) => {
     // Read the live config value first so freshly-saved settings take effect
     // even on a back-button (bfcache) restore that skipped loadConfig. Fall
-    // back to the cached `cursorStepMin`, then to the 15-min default.
+    // back to the cached `cursorStepMin`, then to the 5-min default.
     const cfgStep = parseInt(config?.rhythm_cursor_step_min, 10);
-    let stepMin = (typeof cursorStepMin === 'number' && cursorStepMin > 0) ? cursorStepMin : 15;
+    let stepMin = (typeof cursorStepMin === 'number' && cursorStepMin > 0) ? cursorStepMin : 5;
     if (Number.isFinite(cfgStep) && cfgStep > 0) stepMin = cfgStep;
     const stepHr = (stepMin / 60) * dirSign;
     const xA = chartState.ascendStart;

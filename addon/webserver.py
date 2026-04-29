@@ -1959,7 +1959,7 @@ class LightDesignerServer:
         "confirm_zone_pushes",  # Show confirmation dialogs for zone push actions (default true)
         "home_slider_mode",  # Homepage slider: "brightness", "step", or "color" (default "brightness")
         "home_buttons_mode",  # Homepage up/down buttons: "step", "bright", or "color" (default "step")
-        "rhythm_cursor_step_min",  # Cursor chip ←/→ step amount in minutes (default 15)
+        "rhythm_cursor_step_min",  # Cursor chip ←/→ step amount in minutes (default 5)
     }
 
     def _migrate_to_glozone_format(self, config: dict) -> dict:

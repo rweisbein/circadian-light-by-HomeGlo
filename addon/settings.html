@@ -1182,10 +1182,10 @@
                 <option value="2">2 min</option>
                 <option value="3">3 min</option>
                 <option value="4">4 min</option>
-                <option value="5">5 min</option>
+                <option value="5" selected>5 min</option>
                 <option value="10">10 min</option>
                 <option value="12">12 min</option>
-                <option value="15" selected>15 min</option>
+                <option value="15">15 min</option>
                 <option value="30">30 min</option>
                 <option value="60">60 min</option>
               </select>
@@ -1246,7 +1246,7 @@
           document.getElementById('confirm-zone-pushes').checked = config.confirm_zone_pushes ?? true;
           document.getElementById('home-slider-mode').value = config.home_slider_mode ?? 'brightness';
           document.getElementById('home-buttons-mode').value = config.home_buttons_mode ?? 'step';
-          document.getElementById('rhythm-cursor-step-min').value = String(config.rhythm_cursor_step_min ?? 15);
+          document.getElementById('rhythm-cursor-step-min').value = String(config.rhythm_cursor_step_min ?? 5);
           document.getElementById('circadian-refresh').value = config.circadian_refresh ?? 20;
           const refreshDefault = config.circadian_refresh ?? 20;
           document.getElementById('periodic-transition-day').value = config.periodic_transition_day ?? 1;
