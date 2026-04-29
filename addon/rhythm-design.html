@@ -383,25 +383,24 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
    under Sun dimming). Indented + lighter divider so the parent-child hierarchy
    reads cleanly without using a third card-style box. */
 .sub-subsection {
-  margin: 10px 0 0 14px;
-  padding: 8px 0 4px 10px;
+  margin: 14px 0 0 14px;
+  padding: 10px 0 4px 12px;
   border-left: 2px solid var(--line);
 }
 .sub-subsection-title {
-  font-size: 0.78rem;
-  color: var(--muted);
-  font-weight: 600;
-  margin-bottom: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-size: 0.92rem;
+  color: var(--text);
+  font-weight: 700;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+  letter-spacing: 0.01em;
 }
 .sub-subsection-meta {
   font-weight: 400;
-  color: var(--muted2);
+  color: var(--muted);
   margin-left: 6px;
-  text-transform: none;
-  letter-spacing: 0;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
 }
 .sub-subsection .tune-control-row { padding-left: 0; }
 .bri-sub-section .tune-control-row {
@@ -744,21 +743,23 @@ input[type=range]::-moz-range-thumb {
 
 /* Solar band — HTML overlays just below x-axis ticks. Sun-cluster yellow
    (sunrise/sunset/sun-intensity) ties them visually to the sun-arc above.
-   Slightly muted vs. the brighter sun-intensity chip (smaller + lower alpha)
-   so the chip is the focal sun-cluster element. */
+   Sized + tinted to match the sun-intensity chip so all three sun-cluster
+   elements read at equal prominence. */
 .solar-label {
   position: absolute;
   bottom: 65px;
   transform: translateX(-50%);
-  font-size: 9px;
-  color: rgba(255,225,140,0.65);
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,225,140,0.92);
   cursor: default;
   white-space: nowrap;
   z-index: 4;
   user-select: none;
   -webkit-user-select: none;
+  font-variant-numeric: tabular-nums;
 }
-.solar-label:hover { color: rgba(255,235,170,0.95); }
+.solar-label:hover { color: rgba(255,235,170,1); }
 .solar-label::after {
   content: attr(data-time);
   position: absolute;
@@ -888,14 +889,18 @@ input[type=range]::-moz-range-thumb {
 }
 .phase-handle.dragging { cursor: grabbing; }
 /* Thin connector line from pill up through solar band to the chart x-axis.
-   Height tuned so the top stops at the x-axis (no pierce into the chart). */
+   Height capped so the top stops at the x-axis (no pierce into the chart).
+   Math: chart-shell padding-bottom = 70px, handle bottom = 14px, handle
+   total height = 34px, connector starts 6px into the pill (bottom: calc(100% - 6px)),
+   so connector base sits at 14 + 34 - 6 = 42px from chart-shell bottom.
+   Height = 70 - 42 = 28px lands the top exactly at the x-axis. */
 .phase-handle::before {
   content: '';
   position: absolute;
   bottom: calc(100% - 6px);
   left: 50%;
   width: 1.5px;
-  height: 60px;
+  height: 28px;
   transform: translateX(-50%);
   pointer-events: none;
   opacity: 0.45;
@@ -4284,9 +4289,29 @@ function buildSaveOptions(kind) {
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
+// Returns true if the chart "page view" has drifted from defaults — cursor
+// off-now, outdoor source overridden, wake/bed dragged but unsaved, or month
+// chip set to anything other than the current month. Drives whether the ↺
+// master reset chip in the banner is visible.
+function isChartViewDirty() {
+  if (!cursorTrackingNow) return true;
+  if (chartState.outdoorSrc && chartState.outdoorSrc !== 'current') return true;
+  if (chartState.wakeDragVal != null) return true;
+  if (chartState.bedDragVal != null) return true;
+  if (chartState.monthIdx != null && chartState.monthIdx !== new Date().getMonth()) return true;
+  return false;
+}
+
+function updateBannerResetVisibility() {
+  const btn = document.getElementById('cct-banner-reset');
+  if (!btn) return;
+  btn.style.display = isChartViewDirty() ? '' : 'none';
+}
+
 // Position the HTML overlays (NOW pill, sunrise/sunset labels, outdoor chip,
 // wake/bed handles, ghost pills, action chips) on top of the Plotly chart.
 function positionOverlays() {
+  updateBannerResetVisibility();
   const xToPx = getXPxFn();
   if (!xToPx) return;
 
@@ -4310,8 +4335,13 @@ function positionOverlays() {
     banner.style.color = readableTextColor(rgb);
   }
 
-  // Cursor-line extender — bridges banner bottom → chart top so the CCT-tinted
-  // cursor line reads continuous from the banner readout down to the curve.
+  // Cursor-line extender — bridges banner bottom → top of Plotly's plot area
+  // so the CCT-tinted cursor line reads continuous from the banner readout down
+  // through the chart to the curve. We:
+  //  - overlap the banner by 3px on top to eliminate any visible seam, and
+  //  - extend down past chart.offsetTop by yaxis._offset so the extender meets
+  //    Plotly's cursor line exactly at the top of the plot area (Plotly's own
+  //    top margin would otherwise leave a gap between extender and cursor).
   const extender = document.getElementById('cursor-extender');
   const chartElForLine = document.getElementById('chart');
   if (extender && chartElForLine && cursorHour != null && _cursorRgb) {
@@ -4320,9 +4350,13 @@ function positionOverlays() {
     const bannerEl = document.getElementById('cct-banner');
     const bannerBottom = bannerEl ? (bannerEl.offsetTop + bannerEl.offsetHeight) : 0;
     const chartTop = chartElForLine.offsetTop;
+    const plotTopOffset = chartElForLine._fullLayout?.yaxis?._offset || 0;
+    const TOP_OVERLAP = 3;
+    const extenderTop = Math.max(0, bannerBottom - TOP_OVERLAP);
+    const extenderBottom = chartTop + plotTopOffset;
     extender.style.left = cursorPx + 'px';
-    extender.style.top = bannerBottom + 'px';
-    extender.style.height = Math.max(0, chartTop - bannerBottom) + 'px';
+    extender.style.top = extenderTop + 'px';
+    extender.style.height = Math.max(0, extenderBottom - extenderTop) + 'px';
     extender.style.background = _cursorRgb;
     extender.style.display = 'block';
   } else if (extender) {
