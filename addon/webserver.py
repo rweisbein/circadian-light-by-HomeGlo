@@ -46,6 +46,24 @@ logger = logging.getLogger(__name__)
 HOMEGLO_REPORT_WEBHOOK_URL = "https://homeglo-device-reports.rweisbein.workers.dev"
 
 
+def _iso_to_hour(iso_str, default, tzinfo=None):
+    """Parse ISO timestamp → decimal hour (with optional tz conversion).
+
+    Used by the arbitrary-date sun-times paths (`/api/sun-times?date=…` and
+    `_get_sun_hours_for_date`). The today-path uses `client._get_sun_times()`
+    which returns decimal hours directly (no parsing needed).
+    """
+    if not iso_str:
+        return default
+    try:
+        dt = datetime.fromisoformat(iso_str)
+        if tzinfo and dt.tzinfo:
+            dt = dt.astimezone(tzinfo)
+        return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
+    except Exception:
+        return default
+
+
 def _get_addon_version() -> str:
     """Return addon version. Prefers ADDON_VERSION env var (set by
     Dockerfile from the build arg); falls back to reading config.yaml
@@ -1519,22 +1537,9 @@ class LightDesignerServer:
             # Calculate sun times using brain.py function
             sun_times = calculate_sun_times(lat, lon, date_str, tz=timezone)
 
-            # Helper to convert ISO string to hour (with timezone conversion)
-            def iso_to_hour(iso_str, default):
-                if not iso_str:
-                    return default
-                try:
-                    dt = datetime.fromisoformat(iso_str)
-                    # Convert to local timezone if available
-                    if tzinfo and dt.tzinfo:
-                        dt = dt.astimezone(tzinfo)
-                    return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
-                except Exception:
-                    return default
-
-            sunrise_hour = iso_to_hour(sun_times.get("sunrise"), 6.0)
-            sunset_hour = iso_to_hour(sun_times.get("sunset"), 18.0)
-            noon_hour = iso_to_hour(sun_times.get("noon"), 12.0)
+            sunrise_hour = _iso_to_hour(sun_times.get("sunrise"), 6.0, tzinfo)
+            sunset_hour = _iso_to_hour(sun_times.get("sunset"), 18.0, tzinfo)
+            noon_hour = _iso_to_hour(sun_times.get("noon"), 12.0, tzinfo)
             midnight_hour = (noon_hour + 12.0) % 24.0
 
             return web.json_response(
@@ -1640,16 +1645,11 @@ class LightDesignerServer:
                 Config,
                 AreaState,
                 SunTimes,
-                calculate_sun_times,
                 compute_daylight_fade_weight,
                 DEFAULT_DAYLIGHT_FADE,
             )
 
-            # Get location from environment
-            latitude = float(os.getenv("HASS_LATITUDE", "35.0"))
-            longitude = float(os.getenv("HASS_LONGITUDE", "-78.6"))
             timezone = os.getenv("HASS_TIME_ZONE", "US/Eastern")
-
             try:
                 tzinfo = ZoneInfo(timezone)
             except:
@@ -1658,43 +1658,12 @@ class LightDesignerServer:
             now = datetime.now(tzinfo)
             hour = now.hour + now.minute / 60 + now.second / 3600
 
-            # Calculate sun times for solar rules
-            sun_times = SunTimes()  # defaults
-            try:
-                date_str = now.strftime("%Y-%m-%d")
-                sun_dict = calculate_sun_times(
-                    latitude, longitude, date_str, tz=os.getenv("HASS_TIME_ZONE")
-                )
-
-                def iso_to_hour(iso_str, default):
-                    if not iso_str:
-                        return default
-                    try:
-                        dt = datetime.fromisoformat(iso_str)
-                        # Convert to local timezone if available
-                        if tzinfo and dt.tzinfo:
-                            dt = dt.astimezone(tzinfo)
-                        return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
-                    except:
-                        return default
-
-                sun_times = SunTimes(
-                    sunrise=iso_to_hour(sun_dict.get("sunrise"), 6.0),
-                    sunset=iso_to_hour(sun_dict.get("sunset"), 18.0),
-                    solar_noon=iso_to_hour(sun_dict.get("noon"), 12.0),
-                    solar_mid=(iso_to_hour(sun_dict.get("noon"), 12.0) + 12.0) % 24.0,
-                )
-
-                # Outdoor data is shared in-memory (main.py seeds lux_tracker from live events)
-                outdoor_norm = lux_tracker.get_outdoor_normalized()
-                outdoor_source = lux_tracker.get_outdoor_source()
-                if outdoor_norm is None:
-                    outdoor_norm = 0.0
-                    outdoor_source = "none"
-                sun_times.outdoor_normalized = outdoor_norm
-                sun_times.outdoor_source = outdoor_source
-            except Exception as e:
-                logger.debug(f"[ZoneStates] Error calculating sun times: {e}")
+            # Sun times — delegate to client's cached resolver (single source of
+            # truth: instance-attr lat/lon → env fallback → is_fallback safety net,
+            # outdoor data attached fresh).
+            sun_times = (
+                self.client._get_sun_times() if self.client else SunTimes()
+            )
 
             # Get zones and rhythms from glozone module (consistent with area-status)
             zones = glozone.get_glozones()
@@ -2572,20 +2541,9 @@ class LightDesignerServer:
 
             sun_dict = calculate_sun_times(latitude, longitude, date_str, tz=timezone)
 
-            def iso_to_hour(iso_str, default):
-                if not iso_str:
-                    return default
-                try:
-                    dt = datetime.fromisoformat(iso_str)
-                    if tzinfo and dt.tzinfo:
-                        dt = dt.astimezone(tzinfo)
-                    return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
-                except Exception:
-                    return default
-
             result = (
-                iso_to_hour(sun_dict.get("sunrise"), 6.0),
-                iso_to_hour(sun_dict.get("sunset"), 18.0),
+                _iso_to_hour(sun_dict.get("sunrise"), 6.0, tzinfo),
+                _iso_to_hour(sun_dict.get("sunset"), 18.0, tzinfo),
             )
 
             # Prune stale entries (dates before today)
@@ -2913,7 +2871,6 @@ class LightDesignerServer:
             from brain import (
                 SunTimes,
                 SPEED_TO_SLOPE,
-                calculate_sun_times,
                 calculate_natural_light_factor,
                 compute_daylight_fade_weight,
                 compute_override_decay,
@@ -2932,52 +2889,10 @@ class LightDesignerServer:
             # Get current hour for calculations
             current_hour = get_current_hour()
 
-            # Calculate sun times for solar rules
-            latitude = float(os.getenv("HASS_LATITUDE", "35.0"))
-            longitude = float(os.getenv("HASS_LONGITUDE", "-78.6"))
-            sun_times = SunTimes()  # defaults
-            try:
-                from zoneinfo import ZoneInfo
-
-                timezone = os.getenv("HASS_TIME_ZONE", "US/Eastern")
-                try:
-                    tzinfo = ZoneInfo(timezone)
-                except:
-                    tzinfo = None
-                now = datetime.now(tzinfo)
-                date_str = now.strftime("%Y-%m-%d")
-                sun_dict = calculate_sun_times(latitude, longitude, date_str, tz=timezone)
-
-                def iso_to_hour(iso_str, default):
-                    if not iso_str:
-                        return default
-                    try:
-                        dt = datetime.fromisoformat(iso_str)
-                        # Convert to local timezone if available
-                        if tzinfo and dt.tzinfo:
-                            dt = dt.astimezone(tzinfo)
-                        return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
-                    except:
-                        return default
-
-                sun_times = SunTimes(
-                    sunrise=iso_to_hour(sun_dict.get("sunrise"), 6.0),
-                    sunset=iso_to_hour(sun_dict.get("sunset"), 18.0),
-                    solar_noon=iso_to_hour(sun_dict.get("noon"), 12.0),
-                    solar_mid=(iso_to_hour(sun_dict.get("noon"), 12.0) + 12.0) % 24.0,
-                )
-            except Exception as e:
-                logger.debug(f"[AreaStatus] Error calculating sun times: {e}")
-
-            # Outdoor data is shared in-memory (main.py seeds lux_tracker from live events)
-            outdoor_norm = lux_tracker.get_outdoor_normalized()
-            outdoor_source = lux_tracker.get_outdoor_source()
-            if outdoor_norm is None:
-                outdoor_norm = 0.0
-                outdoor_source = "none"
-
-            sun_times.outdoor_normalized = outdoor_norm
-            sun_times.outdoor_source = outdoor_source
+            # Sun times — delegate to client's cached resolver
+            sun_times = (
+                self.client._get_sun_times() if self.client else SunTimes()
+            )
 
             # Optional single-area filter
             filter_area_id = request.query.get("area_id")
@@ -5071,7 +4986,6 @@ class LightDesignerServer:
                 Config,
                 AreaState,
                 SunTimes,
-                calculate_sun_times,
                 calculate_natural_light_factor,
             )
 
@@ -5086,49 +5000,10 @@ class LightDesignerServer:
                 else get_current_hour()
             )
 
-            # Sun times
-            sun_times = SunTimes()
-            try:
-                from zoneinfo import ZoneInfo
-
-                latitude = float(os.getenv("HASS_LATITUDE", "35.0"))
-                longitude = float(os.getenv("HASS_LONGITUDE", "-78.6"))
-                timezone = os.getenv("HASS_TIME_ZONE", "US/Eastern")
-                try:
-                    tzinfo = ZoneInfo(timezone)
-                except Exception:
-                    tzinfo = None
-                now = datetime.now(tzinfo)
-                date_str = now.strftime("%Y-%m-%d")
-                sun_dict = calculate_sun_times(latitude, longitude, date_str, tz=timezone)
-
-                def iso_to_hour(iso_str, default):
-                    if not iso_str:
-                        return default
-                    try:
-                        dt = datetime.fromisoformat(iso_str)
-                        if tzinfo and dt.tzinfo:
-                            dt = dt.astimezone(tzinfo)
-                        return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
-                    except Exception:
-                        return default
-
-                sun_times = SunTimes(
-                    sunrise=iso_to_hour(sun_dict.get("sunrise"), 6.0),
-                    sunset=iso_to_hour(sun_dict.get("sunset"), 18.0),
-                    solar_noon=iso_to_hour(sun_dict.get("noon"), 12.0),
-                    solar_mid=(iso_to_hour(sun_dict.get("noon"), 12.0) + 12.0) % 24.0,
-                )
-
-                outdoor_norm = lux_tracker.get_outdoor_normalized()
-                outdoor_source = lux_tracker.get_outdoor_source()
-                if outdoor_norm is None:
-                    outdoor_norm = 0.0
-                    outdoor_source = "none"
-                sun_times.outdoor_normalized = outdoor_norm
-                sun_times.outdoor_source = outdoor_source
-            except Exception as e:
-                logger.debug(f"[SliderPreview] Error calculating sun times: {e}")
+            # Sun times — delegate to client's cached resolver
+            sun_times = (
+                self.client._get_sun_times() if self.client else SunTimes()
+            )
 
             b_min = area_config.min_brightness
             b_max = area_config.max_brightness
