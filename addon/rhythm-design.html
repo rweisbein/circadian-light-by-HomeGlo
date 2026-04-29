@@ -378,6 +378,32 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 
 /* Brightness "Sun impact" sub-section: divider above for equal weight; label + value inline left-aligned */
 .bri-sub-section { margin-top: 18px; padding-top: 6px; border-top: 1px solid var(--line); }
+
+/* Sub-subsection: nested grouping inside a sub-section (e.g. Sun angle response
+   under Sun dimming). Indented + lighter divider so the parent-child hierarchy
+   reads cleanly without using a third card-style box. */
+.sub-subsection {
+  margin: 10px 0 0 14px;
+  padding: 8px 0 4px 10px;
+  border-left: 2px solid var(--line);
+}
+.sub-subsection-title {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-weight: 600;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.sub-subsection-meta {
+  font-weight: 400;
+  color: var(--muted2);
+  margin-left: 6px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.72rem;
+}
+.sub-subsection .tune-control-row { padding-left: 0; }
 .bri-sub-section .tune-control-row {
   grid-template-columns: max-content 1fr;
   gap: 0 12px;
@@ -490,9 +516,22 @@ input[type=range]::-moz-range-thumb {
 #chart-shell #chart {
   width: 100%;
   height: 240px;
-  margin-top: 22px;
+  margin-top: 14px;
   touch-action: none;
   cursor: pointer;
+}
+
+/* Cursor line extender — continues the chart's CCT-tinted cursor line up
+   through the gap and into the bottom edge of the banner so the whole column
+   (banner readout → line → ball on curve → wake/bed handle below) reads as
+   one continuous "current moment" thread. Positioned by positionOverlays(). */
+.cursor-extender {
+  position: absolute;
+  width: 2px;
+  pointer-events: none;
+  z-index: 3;
+  transform: translateX(-50%);
+  opacity: 0.85;
 }
 
 /* CCT-tinted edge-to-edge banner — replaces the old chart-chrome + cursor chip.
@@ -590,28 +629,26 @@ input[type=range]::-moz-range-thumb {
   text-align: center;
   opacity: 0.95;
 }
-/* Try-it button + popover (Live Design entry point, lives in cct-banner row 2 right slot) */
+/* Try-it button + popover (Live Design entry point, lives in cct-banner row 2 right slot).
+   Inherits banner ink color so it stays readable against the CCT tint. */
 .try-it-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 5px 12px 5px 9px;
   border-radius: 20px;
-  border: 1px solid rgba(255,255,255,0.22);
-  background: rgba(255,255,255,0.06);
-  color: var(--text);
+  border: 1px solid currentColor;
+  background: rgba(0,0,0,0.18);
+  color: inherit;
   font-family: inherit;
   font-size: var(--font-body);
   font-weight: 600;
   cursor: pointer;
   z-index: 10;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 .try-it-btn:hover {
-  background: rgba(255,255,255,0.12);
-  border-color: rgba(255,255,255,0.35);
+  background: rgba(0,0,0,0.30);
 }
 .try-it-btn svg {
   width: 14px;
@@ -706,20 +743,22 @@ input[type=range]::-moz-range-thumb {
 .try-it-done-btn { background: rgba(254,172,96,0.18) !important; border-color: rgba(254,172,96,0.5) !important; }
 
 /* Solar band — HTML overlays just below x-axis ticks. Sun-cluster yellow
-   (sunrise/sunset/sun-intensity) ties them visually to the sun-arc above. */
+   (sunrise/sunset/sun-intensity) ties them visually to the sun-arc above.
+   Slightly muted vs. the brighter sun-intensity chip (smaller + lower alpha)
+   so the chip is the focal sun-cluster element. */
 .solar-label {
   position: absolute;
-  bottom: 50px;
+  bottom: 65px;
   transform: translateX(-50%);
-  font-size: 10px;
-  color: rgba(255,225,140,0.78);
+  font-size: 9px;
+  color: rgba(255,225,140,0.65);
   cursor: default;
   white-space: nowrap;
   z-index: 4;
   user-select: none;
   -webkit-user-select: none;
 }
-.solar-label:hover { color: rgba(255,235,170,0.98); }
+.solar-label:hover { color: rgba(255,235,170,0.95); }
 .solar-label::after {
   content: attr(data-time);
   position: absolute;
@@ -839,7 +878,7 @@ input[type=range]::-moz-range-thumb {
 /* Wake/Bed pill drag handles in bottom margin */
 .phase-handle {
   position: absolute;
-  bottom: 32px;
+  bottom: 14px;
   transform: translateX(-50%);
   cursor: grab;
   user-select: none;
@@ -856,7 +895,7 @@ input[type=range]::-moz-range-thumb {
   bottom: calc(100% - 6px);
   left: 50%;
   width: 1.5px;
-  height: 50px;
+  height: 60px;
   transform: translateX(-50%);
   pointer-events: none;
   opacity: 0.45;
@@ -902,7 +941,7 @@ input[type=range]::-moz-range-thumb {
 /* Ghost pill at saved x while dragging */
 .phase-ghost {
   position: absolute;
-  bottom: 32px;
+  bottom: 14px;
   transform: translateX(-50%);
   padding: 6px 4px;
   pointer-events: none;
@@ -970,16 +1009,17 @@ input[type=range]::-moz-range-thumb {
   margin-top: 2px;
 }
 
-/* Month chip — lives in cct-banner row 2 left slot, taps open a slider popover. */
+/* Month chip — lives in cct-banner row 2 left slot, taps open a slider popover.
+   Inherits banner ink color so it stays readable against the CCT tint. */
 .month-chip {
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(0,0,0,0.18);
+  border: 1px solid currentColor;
   padding: 3px 9px;
   border-radius: 12px;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: rgba(215,215,215,0.85);
+  color: inherit;
   cursor: pointer;
   z-index: 6;
   display: inline-flex;
@@ -991,7 +1031,7 @@ input[type=range]::-moz-range-thumb {
   font-variant-numeric: tabular-nums;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
-.month-chip:hover { color: #fff; border-color: rgba(255,255,255,0.32); }
+.month-chip:hover { background: rgba(0,0,0,0.30); }
 .month-chip-icon { font-size: 11px; line-height: 1; opacity: 0.85; }
 .month-popover {
   position: absolute;
@@ -1754,6 +1794,10 @@ input[type=range]::-moz-range-thumb {
           </div>
         </div>
 
+        <!-- CCT-tinted cursor extender — fills the visual gap between banner
+             bottom and chart top so the cursor line reads continuous. -->
+        <div class="cursor-extender" id="cursor-extender"></div>
+
         <!-- Sun intensity chip — floats above chart at solar-noon x ("sun
              shining over the graph"). Tap → opens popover. -->
         <div class="outdoor-chip" id="outdoor-chip">
@@ -2013,31 +2057,34 @@ input[type=range]::-moz-range-thumb {
                 <input type="range" id="brightness-sensitivity" min="0" max="8" step="1" value="5">
               </div>
             </div>
-          </div>
-        </div>
-        <div id="sun-angle-response-block" style="display:none; border-top:1px solid var(--line); margin-top:12px; padding-top:12px;">
-          <div style="font-size:0.8rem; color:var(--muted); margin-bottom:8px; font-weight:600;">
-            Sun angle response
-            <span style="font-weight:400; color:var(--muted); margin-left:6px;">(applies to all zones, also affects sun cooling)</span>
-          </div>
-          <div class="tune-control-row">
-            <span class="tune-control-left">
-              <span class="tune-control-label">Saturates at</span>
-            </span>
-            <span class="tune-control-impact">
-              <input type="number" id="zone-sun-saturation" min="1" max="100" step="5" style="width:60px;"> % of peak elevation
-            </span>
-          </div>
-          <div class="tune-control-row">
-            <span class="tune-control-left">
-              <span class="tune-control-label">Ramp</span>
-            </span>
-            <span class="tune-control-impact">
-              <select id="zone-sun-saturation-ramp" style="width:100px;">
-                <option value="linear">Linear</option>
-                <option value="squared">Squared</option>
-              </select>
-            </span>
+            <!-- Sun angle response — sub-subsection of Sun dimming. Visible only
+                 when home setting opts in (show_sun_angle_in_zone). Applies to
+                 all zones, so styled muted to communicate its global scope. -->
+            <div id="sun-angle-response-block" class="sub-subsection" style="display:none;">
+              <div class="sub-subsection-title">
+                Sun angle response
+                <span class="sub-subsection-meta">(applies to all zones, also affects sun cooling)</span>
+              </div>
+              <div class="tune-control-row">
+                <span class="tune-control-left">
+                  <span class="tune-control-label">Saturates at</span>
+                </span>
+                <span class="tune-control-impact">
+                  <input type="number" id="zone-sun-saturation" min="1" max="100" step="5" style="width:60px;"> % of peak elevation
+                </span>
+              </div>
+              <div class="tune-control-row">
+                <span class="tune-control-left">
+                  <span class="tune-control-label">Ramp</span>
+                </span>
+                <span class="tune-control-impact">
+                  <select id="zone-sun-saturation-ramp" style="width:100px;">
+                    <option value="linear">Linear</option>
+                    <option value="squared">Squared</option>
+                  </select>
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -2217,7 +2264,9 @@ function formatSpeedReadoutActive(speedIdx) {
   return `${speedIdx} · ${SPEED_LABELS[speedIdx]} · ${speedTransitionLabel(speedIdx)}`;
 }
 
-// Colors matching llm_access.html
+// Phase tinting on chart. Sleep cluster (wake = ascend, bed = descend) reads
+// as one cool family; deeper blue on the descend side to differentiate from
+// ascend's sky blue while keeping both in the cool/sleep palette.
 const ASCEND_COLORS = {
   shade: 'rgba(120,190,255,0.35)',
   text: '#5cb3ff',
@@ -2226,11 +2275,11 @@ const ASCEND_COLORS = {
   hoverBg: '#7fc7ff'
 };
 const DESCEND_COLORS = {
-  shade: 'rgba(255,220,100,0.12)',
-  text: '#ffe680',
-  boundary: 'rgba(255,230,128,0.85)',
-  axis: 'rgba(255,230,128,0.7)',
-  hoverBg: '#ffe680'
+  shade: 'rgba(111,169,255,0.18)',
+  text: '#6fa9ff',
+  boundary: 'rgba(111,169,255,0.85)',
+  axis: 'rgba(111,169,255,0.75)',
+  hoverBg: '#6fa9ff'
 };
 
 // Activity Presets
@@ -3965,8 +4014,11 @@ function applyCursor() {
     };
   }
 
-  // Cursor line style - solid white
-  const cursorLineStyle = { color: '#fdfdfd', width: 2 };
+  // Cursor line CCT-tinted to match the cursor ball + banner readout, so the
+  // line, ball, and banner read as one continuous "current moment" element.
+  const _cctForLine = cursorPoint ? Math.round(cursorPoint.cct) : 4500;
+  const _rgbForLine = cctToRGB(_cctForLine);
+  const cursorLineStyle = { color: _rgbForLine, width: 2 };
 
   // Cursor x in the chart's frame coordinate (lift wall-clock into [xA, xA+24]).
   const xA = chartState.ascendStart;
@@ -4242,6 +4294,7 @@ function positionOverlays() {
 
   // CCT-tinted banner — IS the cursor controller. Tint follows cursor CCT.
   // Row 1 = % · K (focal), Row 2 = month / ← time → / Try-it.
+  let _cursorRgb = null;
   const banner = document.getElementById('cct-banner');
   const bannerReadout = document.getElementById('cct-banner-readout');
   const bannerTimeEl = document.getElementById('cct-banner-time');
@@ -4250,10 +4303,30 @@ function positionOverlays() {
     const bri = calculateBrightnessAtHour(cursorHour) * dim * 100;
     const cct = calculateColorAtHour(cursorHour, true);
     const rgb = cctToRGB(cct);
+    _cursorRgb = rgb;
     bannerReadout.textContent = `${Math.round(bri)}% \u00b7 ${Math.round(cct)}K`;
     if (bannerTimeEl) bannerTimeEl.textContent = formatHour(cursorHour);
     banner.style.background = colorWithAlpha(rgb, 0.92);
     banner.style.color = readableTextColor(rgb);
+  }
+
+  // Cursor-line extender — bridges banner bottom → chart top so the CCT-tinted
+  // cursor line reads continuous from the banner readout down to the curve.
+  const extender = document.getElementById('cursor-extender');
+  const chartElForLine = document.getElementById('chart');
+  if (extender && chartElForLine && cursorHour != null && _cursorRgb) {
+    const xA = chartState.ascendStart;
+    const cursorPx = xToPx(visHour(cursorHour, xA));
+    const bannerEl = document.getElementById('cct-banner');
+    const bannerBottom = bannerEl ? (bannerEl.offsetTop + bannerEl.offsetHeight) : 0;
+    const chartTop = chartElForLine.offsetTop;
+    extender.style.left = cursorPx + 'px';
+    extender.style.top = bannerBottom + 'px';
+    extender.style.height = Math.max(0, chartTop - bannerBottom) + 'px';
+    extender.style.background = _cursorRgb;
+    extender.style.display = 'block';
+  } else if (extender) {
+    extender.style.display = 'none';
   }
 
   // Sunrise / sunset HTML labels
@@ -4270,9 +4343,10 @@ function positionOverlays() {
     sunsetEl.dataset.time = formatHour(ss);
   }
 
-  // Sun intensity chip + popover — float ABOVE the chart at solar-noon x.
-  // Top = chart.offsetTop − chip-half-height so the chip nestles in the
-  // 22px gap between banner bottom and chart top.
+  // Sun intensity chip + popover — sit ON the chart canvas at solar-noon x
+  // (the dark Plotly bg, not the lighter card). Top = chart.offsetTop + small
+  // inset so the chip overlays the very top of the plot area like a sun
+  // shining over the curve.
   const chip = document.getElementById('outdoor-chip');
   const pop = document.getElementById('outdoor-popover');
   const chartEl = document.getElementById('chart');
@@ -4281,11 +4355,10 @@ function positionOverlays() {
     const px = xToPx(noon);
     chip.style.left = px + 'px';
     if (chartEl) {
-      const top = Math.max(0, chartEl.offsetTop - 18);
-      chip.style.top = top + 'px';
+      chip.style.top = (chartEl.offsetTop + 6) + 'px';
       if (pop) {
         pop.style.left = px + 'px';
-        pop.style.top = (chartEl.offsetTop + 4) + 'px';
+        pop.style.top = (chartEl.offsetTop + 28) + 'px';
       }
     }
   }
