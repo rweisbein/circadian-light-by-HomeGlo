@@ -155,7 +155,7 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 .page-header {
   background: var(--panel);
   border-bottom: 1px solid var(--line);
-  padding: 8px 12px;
+  padding: 10px 12px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -163,40 +163,45 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
   top: 0;
   z-index: 100;
 }
+/* Rhythm-name + RHYTHM ZONE chip stack. Center the group vertically against
+   the back button so the name reads as the page's primary title; chip is a
+   tighter sub-label sitting just below. */
 .rhythm-name-group {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  justify-content: center;
   line-height: 1;
-  gap: 2px;
+  gap: 3px;
   flex: 1;
   min-width: 0;
 }
 .rhythm-name-input {
-  font-size: var(--font-display);
-  font-weight: 600;
+  font-size: 1.25rem;
+  font-weight: 700;
   background: transparent;
   border: none;
   color: var(--text);
-  padding: 2px 0;
+  padding: 1px 0;
   width: auto;
   min-width: 80px;
   max-width: 300px;
+  line-height: 1.1;
 }
 .rhythm-name-input:focus {
   outline: none;
 }
 .rhythm-zone-type-chip {
-  font-size: 0.54rem;
+  font-size: 0.48rem;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  padding: 1px 6px;
+  padding: 0 5px;
   border: 1px solid currentColor;
-  border-radius: 10px;
-  opacity: 0.55;
+  border-radius: 8px;
+  opacity: 0.5;
   white-space: nowrap;
-  line-height: 1.4;
+  line-height: 1.5;
   color: var(--muted);
 }
 .header-actions {
@@ -595,7 +600,7 @@ input[type=range]::-moz-range-thumb {
 .cct-banner-arrows {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 3px;
   line-height: 1;
 }
 .cct-banner-arrows button {
@@ -628,13 +633,13 @@ input[type=range]::-moz-range-thumb {
   text-align: center;
   opacity: 0.95;
 }
-/* Try-it button + popover (Live Design entry point, lives in cct-banner row 2 right slot).
+/* Experience button + popover (Live Design entry point, lives in cct-banner row 2 right slot).
    Inherits banner ink color so it stays readable against the CCT tint. */
 .try-it-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 12px 5px 9px;
+  gap: 4px;
+  padding: 5px 11px 5px 8px;
   border-radius: 20px;
   border: 1px solid currentColor;
   background: rgba(0,0,0,0.18);
@@ -741,13 +746,15 @@ input[type=range]::-moz-range-thumb {
 .try-it-stop-btn { color: var(--accent) !important; border-color: rgba(254,172,96,0.5) !important; }
 .try-it-done-btn { background: rgba(254,172,96,0.18) !important; border-color: rgba(254,172,96,0.5) !important; }
 
-/* Solar band — HTML overlays just below x-axis ticks. Sun-cluster yellow
-   (sunrise/sunset/sun-intensity) ties them visually to the sun-arc above.
-   Sized + tinted to match the sun-intensity chip so all three sun-cluster
-   elements read at equal prominence. */
+/* Solar band — HTML overlays in the chart-shell bottom margin, BELOW the
+   Plotly x-tick labels (3a/6a/...) which hang at the bottom of the chart div.
+   Sun-cluster yellow (sunrise/sunset/sun-intensity) ties them visually to the
+   sun-arc above. Sized + tinted to match the sun-intensity chip so all three
+   sun-cluster elements read at equal prominence. A short connector line above
+   each label bridges up to the x-axis (added in positionOverlays). */
 .solar-label {
   position: absolute;
-  bottom: 65px;
+  bottom: 50px;
   transform: translateX(-50%);
   font-size: 11px;
   font-weight: 600;
@@ -760,6 +767,21 @@ input[type=range]::-moz-range-thumb {
   font-variant-numeric: tabular-nums;
 }
 .solar-label:hover { color: rgba(255,235,170,1); }
+/* Sun-tinted connector from the label up through the x-tick label area to
+   the chart x-axis. Height set per-frame in positionOverlays() against
+   _fullLayout.yaxis._offset/_length so it lands exactly on the axis line. */
+.solar-label::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  width: 1px;
+  height: var(--solar-connector-h, 0px);
+  margin-bottom: 1px;
+  transform: translateX(-50%);
+  background: rgba(255,225,140,0.55);
+  pointer-events: none;
+}
 .solar-label::after {
   content: attr(data-time);
   position: absolute;
@@ -888,19 +910,17 @@ input[type=range]::-moz-range-thumb {
   padding: 6px 4px;
 }
 .phase-handle.dragging { cursor: grabbing; }
-/* Thin connector line from pill up through solar band to the chart x-axis.
-   Height capped so the top stops at the x-axis (no pierce into the chart).
-   Math: chart-shell padding-bottom = 70px, handle bottom = 14px, handle
-   total height = 34px, connector starts 6px into the pill (bottom: calc(100% - 6px)),
-   so connector base sits at 14 + 34 - 6 = 42px from chart-shell bottom.
-   Height = 70 - 42 = 28px lands the top exactly at the x-axis. */
+/* Thin connector line from pill up through the x-tick label area to the
+   chart x-axis. Height set per-frame in positionOverlays() against Plotly's
+   _fullLayout.yaxis._offset/_length so it lands exactly ON the axis line
+   (not below the tick labels, which is where a static height would stop). */
 .phase-handle::before {
   content: '';
   position: absolute;
   bottom: calc(100% - 6px);
   left: 50%;
   width: 1.5px;
-  height: 28px;
+  height: var(--phase-connector-h, 28px);
   transform: translateX(-50%);
   pointer-events: none;
   opacity: 0.45;
@@ -1778,7 +1798,7 @@ input[type=range]::-moz-range-thumb {
             <div class="cct-banner-row2-right">
               <button type="button" class="try-it-btn" id="try-it-btn" aria-haspopup="true" aria-expanded="false">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/></svg>
-                <span class="try-it-label" id="try-it-label">Try it</span>
+                <span class="try-it-label" id="try-it-label">Experience</span>
               </button>
             </div>
           </div>
@@ -2246,19 +2266,24 @@ input[type=range]::-moz-range-thumb {
 
 const GRAPH_Y_MAX = 125;
 const SPEED_LABELS = ['', 'Calm', 'Gentle', 'Soft', 'Smooth', 'Balanced', 'Crisp', 'Fast', 'Snappy', 'Quick', 'Sharp', 'Flash', 'Instant'];
-const SPEED_TO_SLOPE = [0, 0.4, 0.6, 0.8, 1.0, 1.3, 1.7, 2.3, 3.0, 4.0, 5.5, 30.0, 60.0];
+// Slopes (k) chosen so the 5%→95% logistic transition width = 2*ln(19)/k hours
+// lands on user-friendly target durations:
+//   1=10h, 2=7.5h, 3=5.5h, 4=4h, 5=3h, 6=2.25h, 7=1.5h, 8=1h,
+//   9=30min, 10=15min, 11=5min, 12=2min
+const SPEED_TO_SLOPE = [0, 0.5889, 0.7852, 1.0708, 1.4722, 1.9630, 2.6173, 3.9260, 5.8890, 11.778, 23.556, 70.668, 176.67];
 
-// 5%→95% logistic transition width = 2*ln(19)/k hours. Renders compact: e.g.
-// "~12 min" or "~3.5 hr". Used in the wake/bed Speed slider readout so users
-// know how long the transition actually takes at each speed level.
+// Render compact, "user-friendly" duration text: "~10 hr", "~7.5 hr", "~2.25 hr",
+// "~4 hr" (no ".0"), "~30 min". Used in the wake/bed Speed slider readout so
+// users know how long the transition actually takes at each speed level.
 function speedTransitionLabel(speedIdx) {
   const k = SPEED_TO_SLOPE[Math.max(1, Math.min(12, speedIdx))];
   if (!k || k <= 0) return '';
   const hours = 5.889 / k;  // 2 * ln(19) / k
   const minutes = hours * 60;
   if (minutes < 60) return `~${Math.round(minutes)} min`;
-  if (hours < 10) return `~${hours.toFixed(1)} hr`;
-  return `~${Math.round(hours)} hr`;
+  // toFixed(2) then strip trailing zeros: 4.00→"4", 7.50→"7.5", 2.25→"2.25"
+  const formatted = hours.toFixed(2).replace(/\.?0+$/, '');
+  return `~${formatted} hr`;
 }
 // Idle (no active drag): "Snappy · ~2 hr" — word + time, no level number.
 function formatSpeedReadoutIdle(speedIdx) {
@@ -3717,7 +3742,7 @@ function renderChart() {
       traces.push({
         type: 'scatter', mode: 'lines',
         x: dx, y: dy,
-        line: { width: 1.4, color: 'rgba(220,220,220,0.6)', dash: 'dot' },
+        line: { width: 1.2, color: 'rgba(220,220,220,0.42)', dash: 'dot' },
         connectgaps: false,
         hoverinfo: 'skip', showlegend: false,
       });
@@ -3812,7 +3837,7 @@ function renderChart() {
     annotations.push({
       x: sunContribAnchor.x, y: sunContribAnchor.y, xref: 'x', yref: 'y',
       text: 'sun dimming', showarrow: false, yshift: -10,
-      font: { size: 9, color: 'rgba(220, 220, 220, 0.7)' },
+      font: { size: 8, color: 'rgba(220, 220, 220, 0.5)' },
     });
   }
 
@@ -4363,19 +4388,47 @@ function positionOverlays() {
     extender.style.display = 'none';
   }
 
-  // Sunrise / sunset HTML labels
+  // Sunrise / sunset HTML labels + connector heights to the x-axis line.
+  // Compute the dynamic height once (depends on Plotly layout, same for both
+  // labels and the wake/bed pill connectors).
   const sr = sunTimes?.sunrise;
   const ss = sunTimes?.sunset;
   const sunriseEl = document.getElementById('sunrise-label');
   const sunsetEl = document.getElementById('sunset-label');
-  if (sunriseEl && Number.isFinite(sr)) {
-    sunriseEl.style.left = xToPx(sr) + 'px';
-    sunriseEl.dataset.time = formatHour(sr);
+  const shellEl = document.getElementById('chart-shell');
+  const chartElForConn = document.getElementById('chart');
+  const fl = chartElForConn?._fullLayout;
+  let axisFromShellBottom = null;
+  if (shellEl && chartElForConn && fl?.yaxis) {
+    // Axis line position from chart-shell bottom = chart-shell-height
+    //   minus chart.offsetTop minus yaxis._offset minus yaxis._length.
+    axisFromShellBottom = shellEl.offsetHeight
+      - chartElForConn.offsetTop - fl.yaxis._offset - fl.yaxis._length;
   }
-  if (sunsetEl && Number.isFinite(ss)) {
-    sunsetEl.style.left = xToPx(ss) + 'px';
-    sunsetEl.dataset.time = formatHour(ss);
+  // Wake/bed connector base sits 42px from chart-shell bottom (handle bottom 14
+  //   + handle height 34 - 6px overlap into pill). Solar-label top = bottom+lineHeight,
+  //   connector starts at solar-label top + 1px margin.
+  if (axisFromShellBottom != null) {
+    const phaseConnectorH = Math.max(0, axisFromShellBottom - 42);
+    const wh = document.getElementById('wake-handle');
+    const bh = document.getElementById('bed-handle');
+    if (wh) wh.style.setProperty('--phase-connector-h', phaseConnectorH + 'px');
+    if (bh) bh.style.setProperty('--phase-connector-h', phaseConnectorH + 'px');
   }
+  const setSolar = (el, h) => {
+    if (!el || !Number.isFinite(h)) return;
+    el.style.left = xToPx(h) + 'px';
+    el.dataset.time = formatHour(h);
+    if (axisFromShellBottom != null) {
+      // solar-label bottom: 50; label height ~14px → label top at 64 from
+      // chart-shell bottom. Connector starts at label top + 1px margin = 65,
+      // ends at axis line. Clamp to 0.
+      const solarConnectorH = Math.max(0, axisFromShellBottom - 65);
+      el.style.setProperty('--solar-connector-h', solarConnectorH + 'px');
+    }
+  };
+  setSolar(sunriseEl, sr);
+  setSolar(sunsetEl, ss);
 
   // Sun intensity chip + popover — sit ON the chart canvas at solar-noon x
   // (the dark Plotly bg, not the lighter card). Top = chart.offsetTop + small
@@ -5731,7 +5784,12 @@ function setupEventListeners() {
   });
 
   const _stepCursor = (dirSign) => {
-    const stepMin = (typeof cursorStepMin === 'number' && cursorStepMin > 0) ? cursorStepMin : 15;
+    // Read the live config value first so freshly-saved settings take effect
+    // even on a back-button (bfcache) restore that skipped loadConfig. Fall
+    // back to the cached `cursorStepMin`, then to the 15-min default.
+    const cfgStep = parseInt(config?.rhythm_cursor_step_min, 10);
+    let stepMin = (typeof cursorStepMin === 'number' && cursorStepMin > 0) ? cursorStepMin : 15;
+    if (Number.isFinite(cfgStep) && cfgStep > 0) stepMin = cfgStep;
     const stepHr = (stepMin / 60) * dirSign;
     const xA = chartState.ascendStart;
     // Step in chart-frame coordinates (xA → xA+24) and clamp at the edges so
@@ -6834,11 +6892,17 @@ document.addEventListener('DOMContentLoaded', () => {
   if (monthSlider) monthSlider.value = chartState.monthIdx;
   if (monthChipLabel) monthChipLabel.textContent = MONTH_NAMES[chartState.monthIdx];
 
-  // Apply server-injected global settings (lat, lon, timezone) before first render
+  // Apply server-injected global settings (lat, lon, timezone, cursor step)
+  // before first render. `rhythm_cursor_step_min` drives the banner ←/→
+  // step amount and was previously never read on this page (loadConfig is
+  // defined but not called in init), leaving cursorStepMin pinned to its
+  // 15-min default regardless of what the user picked in Settings.
   const injectedCfg = (window.circadianData || {}).config || {};
-  ['latitude', 'longitude', 'timezone', 'use_ha_location'].forEach(key => {
+  ['latitude', 'longitude', 'timezone', 'use_ha_location', 'rhythm_cursor_step_min'].forEach(key => {
     if (injectedCfg[key] != null) config[key] = injectedCfg[key];
   });
+  const _cursorStepRaw = parseInt(injectedCfg.rhythm_cursor_step_min, 10);
+  if (Number.isFinite(_cursorStepRaw) && _cursorStepRaw > 0) cursorStepMin = _cursorStepRaw;
 
   setupEventListeners();
   setupLiveDesign();
@@ -6920,6 +6984,16 @@ document.addEventListener('DOMContentLoaded', () => {
       snapCursorToNow();
     }
   }, 30000);
+
+  // bfcache restore: when the user navigates back from Settings (which may
+  // have changed `rhythm_cursor_step_min` or other globals), refetch the
+  // server config so cursorStepMin reflects the latest saved value rather
+  // than the stale value baked into window.circadianData at first paint.
+  window.addEventListener('pageshow', (ev) => {
+    if (ev.persisted) {
+      loadConfig();
+    }
+  });
 });
 </script>
 </body>

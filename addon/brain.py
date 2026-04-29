@@ -62,10 +62,11 @@ DEFAULT_BED_TIME = 22.0
 DEFAULT_WAKE_SPEED = 8
 DEFAULT_BED_SPEED = 6
 
-# Speed-to-slope mapping (index 0-12, where 0 is unused). Levels 11/12 are
-# "Flash" / "Instant" — full top-to-bottom transitions in ~8 / ~4 minutes,
-# intended for live demos.
-SPEED_TO_SLOPE = [0.0, 0.4, 0.6, 0.8, 1.0, 1.3, 1.7, 2.3, 3.0, 4.0, 5.5, 30.0, 60.0]
+# Speed-to-slope mapping (index 0-12, where 0 is unused). Slopes chosen so the
+# 5%→95% logistic transition width = 2*ln(19)/k hours lands on user-friendly
+# durations: 1=10h, 2=7.5h, 3=5.5h, 4=4h, 5=3h, 6=2.25h, 7=1.5h, 8=1h,
+# 9=30min, 10=15min, 11=5min, 12=2min. Last two are still "demo speeds".
+SPEED_TO_SLOPE = [0.0, 0.5889, 0.7852, 1.0708, 1.4722, 1.9630, 2.6173, 3.9260, 5.8890, 11.778, 23.556, 70.668, 176.67]
 
 # Natural light / outdoor intensity constants
 FULL_SUN_INTENSITY = 8.4  # log2(100000 / 300) — used for lux normalization

@@ -2558,8 +2558,8 @@
               ${zonePowerBtn}
               <div class="zone-name-group" style="color: ${zoneTextColor};">
                 <span style="display: inline-flex; align-items: center; gap: 3px;"><a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" style="color: ${zoneTextColor};">${zoneName}</a>${zoneMismatchDot}<span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)" title="${isCollapsed ? 'Expand' : 'Collapse'}">${chevronIcon}</span></span>
-                <span class="zone-phase-label" style="color: ${zoneTextColor};">${getZonePhaseMidpoint(zoneName, sorted) || ''}</span>
                 <span class="zone-type-chip" style="color: ${zoneTextColor};">Rhythm Zone</span>
+                <span class="zone-phase-label" style="color: ${zoneTextColor};">${getZonePhaseMidpoint(zoneName, sorted) || ''}</span>
               </div>
               ${zoneFrozenIndicator}
               <div class="row-controls">
