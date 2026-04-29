@@ -1911,6 +1911,7 @@ class LightDesignerServer:
         "month",
         "sun_saturation",  # Sun intensity saturation cap (1-100, default 40)
         "sun_saturation_ramp",  # Ramp curve: 'linear' or 'squared' (default squared)
+        "show_sun_angle_in_zone",  # Expose Sun angle response controls in rhythm zone Brightness card (default false)
         "turn_on_transition",  # Transition time in tenths of seconds for turn-on operations
         "turn_off_transition",  # Transition time in tenths of seconds for turn-off operations
         "two_step_bri_threshold",  # Min brightness change (%) to trigger 2-step (default 15)
@@ -5788,6 +5789,7 @@ class LightDesignerServer:
                 "angle_factor": round(lux_tracker.get_angle_factor(), 3),
                 "sun_saturation": lux_tracker._sun_saturation,
                 "sun_saturation_ramp": lux_tracker._sun_saturation_ramp,
+                "show_sun_angle_in_zone": bool(config.get("show_sun_angle_in_zone", False)),
                 "max_summer_elevation": round(lux_tracker._max_summer_elevation, 1),
             }
         )

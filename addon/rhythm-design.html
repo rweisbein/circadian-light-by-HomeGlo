@@ -468,29 +468,123 @@ input[type=range]::-moz-range-thumb {
   transition: opacity 0.15s, background 0.15s;
 }
 .now-pill-reset:hover { opacity: 1; background: rgba(0,0,0,0.32); }
-.live-pip {
+/* Try-it button + popover (Live Design entry point, anchored to chart-shell top-right) */
+.try-it-btn {
   position: absolute;
-  top: 16px;
-  right: 14px;
-  display: none;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
   align-items: center;
-  gap: 5px;
-  color: var(--live);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  z-index: 7;
+  gap: 6px;
+  padding: 5px 12px 5px 9px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.22);
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--font-body);
+  font-weight: 600;
+  cursor: pointer;
+  z-index: 10;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
-.live-pip.visible { display: inline-flex; }
-.live-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--live);
-  animation: live-pip-pulse 1.4s ease-in-out infinite;
+.try-it-btn:hover {
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.35);
 }
-@keyframes live-pip-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
+.try-it-btn svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0.75;
 }
+.try-it-btn.is-live {
+  color: var(--accent);
+  border-color: rgba(254,172,96,0.5);
+  background: rgba(254,172,96,0.12);
+  animation: try-it-glow 2s ease-in-out infinite;
+}
+.try-it-btn.is-live svg {
+  opacity: 1;
+  color: var(--accent);
+}
+@keyframes try-it-glow {
+  0%, 100% { box-shadow: 0 0 6px rgba(254,172,96,0.25); }
+  50% { box-shadow: 0 0 14px rgba(254,172,96,0.45); }
+}
+.try-it-popover {
+  position: absolute;
+  top: 44px;
+  right: 8px;
+  min-width: 220px;
+  max-width: 280px;
+  background: #2a2a2a;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  padding: 10px 12px;
+  display: none;
+  z-index: 20;
+}
+.try-it-popover.open { display: block; }
+.try-it-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--font-body);
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.try-it-popover-title { font-weight: 600; color: var(--text); }
+.try-it-counter { font-size: 0.8rem; }
+.try-it-area-list {
+  max-height: 260px;
+  overflow-y: auto;
+  margin: 6px 0 8px;
+  padding-right: 2px;
+}
+.try-it-area-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  font-size: var(--font-body);
+  color: var(--text);
+  cursor: pointer;
+  border-radius: 6px;
+}
+.try-it-area-row:hover { background: rgba(255,255,255,0.05); }
+.try-it-area-row input[type=checkbox] {
+  margin: 0;
+  cursor: pointer;
+}
+.try-it-area-row.is-disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+.try-it-area-row.is-disabled:hover { background: transparent; }
+.try-it-popover-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.try-it-popover-footer button {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.try-it-popover-footer button:hover { background: rgba(255,255,255,0.12); }
+.try-it-stop-btn { color: var(--accent) !important; border-color: rgba(254,172,96,0.5) !important; }
+.try-it-done-btn { background: rgba(254,172,96,0.18) !important; border-color: rgba(254,172,96,0.5) !important; }
 
 /* Solar band — HTML overlays just below x-axis ticks */
 .solar-label {
@@ -499,7 +593,7 @@ input[type=range]::-moz-range-thumb {
   transform: translateX(-50%);
   font-size: 10px;
   color: rgba(215,215,215,0.75);
-  cursor: help;
+  cursor: default;
   white-space: nowrap;
   z-index: 4;
   user-select: none;
@@ -1135,111 +1229,6 @@ input[type=range]::-moz-range-thumb {
   font-weight: 600;
 }
 
-/* Live Design Controls */
-/* Live Design CTA row */
-.live-design-controls {
-  display: flex;
-  align-items: center;
-  padding: 4px 0;
-  margin-bottom: 10px;
-  gap: 10px;
-}
-.live-design-cta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--font-card-title);
-  font-weight: 600;
-  color: var(--text);
-  white-space: nowrap;
-}
-.live-design-cta svg {
-  width: 18px;
-  height: 18px;
-  opacity: 0.7;
-}
-.live-design-controls.is-live .live-design-cta svg {
-  opacity: 1;
-  color: var(--accent);
-}
-.live-design-controls select {
-  padding: 6px 10px;
-  border-radius: 20px;
-  border: 1px solid rgba(255,255,255,0.25);
-  background: rgba(255,255,255,0.06);
-  color: #fff;
-  min-width: 140px;
-  font-size: var(--font-body);
-}
-.live-design-controls select:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-.live-design-controls.is-live select {
-  border-color: rgba(254,172,96,0.5);
-  background: rgba(254,172,96,0.08);
-}
-.live-design-link {
-  font-size: var(--font-body);
-  color: var(--muted);
-  cursor: pointer;
-  text-decoration: none;
-  background: none;
-  border: none;
-  padding: 0;
-  font-family: inherit;
-}
-.live-design-link:hover { color: var(--text); text-decoration: underline; }
-.live-design-status {
-  font-size: var(--font-body);
-  color: var(--muted);
-  margin-left: 2px;
-}
-.live-design-status.active {
-  color: var(--accent);
-}
-@keyframes live-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
-}
-.live-design-status.live-blink {
-  animation: live-pulse 1.8s ease-in-out infinite;
-}
-
-/* Floating LIVE badge on chart */
-.live-fab {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  display: none;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 10px 4px 8px;
-  border-radius: 20px;
-  background: rgba(254,172,96,0.15);
-  border: 1px solid rgba(254,172,96,0.4);
-  color: var(--accent);
-  font-size: var(--font-caps);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  z-index: 10;
-  pointer-events: none;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-}
-.live-fab svg {
-  width: 10px;
-  height: 10px;
-}
-@keyframes fab-glow {
-  0%, 100% { box-shadow: 0 0 6px rgba(254,172,96,0.3); }
-  50% { box-shadow: 0 0 14px rgba(254,172,96,0.5); }
-}
-.live-fab.is-active {
-  display: flex;
-  animation: fab-glow 2s ease-in-out infinite;
-}
 
 /* Rhythm Zone Management Styles */
 .glozone-section {
@@ -1625,26 +1614,27 @@ input[type=range]::-moz-range-thumb {
 <div class="container">
   <div id="save-status"></div>
 
-  <!-- Live Design Controls -->
-  <div class="live-design-controls" id="live-design-controls">
-    <span class="live-design-cta">
-      Live Design
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/></svg>
-    </span>
-    <select id="live-area-select">
-      <option value="">Select area</option>
-    </select>
-    <a href="#" class="live-design-link" id="live-design-toggle" style="display: none;">Stop</a>
-    <span class="live-design-status" id="live-design-status"></span>
-  </div>
-
   <!-- Chart -->
   <div class="section-block" id="chart-section">
     <div class="chart-wrapper">
       <div id="chart-shell">
-        <!-- Top zone: NOW pill (cursor-tinted) + small LIVE pip -->
+        <!-- Top zone: NOW pill (cursor-tinted) + Try-it CTA -->
         <div class="now-pill" id="now-pill"></div>
-        <div class="live-pip" id="live-pip"><span class="live-dot"></span>LIVE</div>
+        <button type="button" class="try-it-btn" id="try-it-btn" aria-haspopup="true" aria-expanded="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/></svg>
+          <span class="try-it-label" id="try-it-label">Try it</span>
+        </button>
+        <div class="try-it-popover" id="try-it-popover" role="dialog" aria-hidden="true">
+          <div class="try-it-popover-header">
+            <span class="try-it-popover-title">Try in (max 3)</span>
+            <span class="try-it-counter" id="try-it-counter">0 / 3</span>
+          </div>
+          <div class="try-it-area-list" id="try-it-area-list"></div>
+          <div class="try-it-popover-footer">
+            <button type="button" class="try-it-stop-btn" id="try-it-stop-btn" style="display:none;">Stop</button>
+            <button type="button" class="try-it-done-btn" id="try-it-done-btn">Done</button>
+          </div>
+        </div>
 
         <!-- Month chip — tap to open the season slider -->
         <button type="button" class="month-chip" id="month-chip">
@@ -1696,10 +1686,6 @@ input[type=range]::-moz-range-thumb {
 
         <div class="save-popover" id="save-popover"></div>
 
-        <div class="live-fab" id="live-fab">
-          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>
-          Live
-        </div>
       </div>
     </div>
 
@@ -1912,6 +1898,31 @@ input[type=range]::-moz-range-thumb {
                 <input type="range" id="brightness-sensitivity" min="0" max="8" step="1" value="5">
               </div>
             </div>
+          </div>
+        </div>
+        <div id="sun-angle-response-block" style="display:none; border-top:1px solid var(--line); margin-top:12px; padding-top:12px;">
+          <div style="font-size:0.8rem; color:var(--muted); margin-bottom:8px; font-weight:600;">
+            Sun angle response
+            <span style="font-weight:400; color:var(--muted); margin-left:6px;">(applies to all zones, also affects sun cooling)</span>
+          </div>
+          <div class="tune-control-row">
+            <span class="tune-control-left">
+              <span class="tune-control-label">Saturates at</span>
+            </span>
+            <span class="tune-control-impact">
+              <input type="number" id="zone-sun-saturation" min="1" max="100" step="5" style="width:60px;"> % of peak elevation
+            </span>
+          </div>
+          <div class="tune-control-row">
+            <span class="tune-control-left">
+              <span class="tune-control-label">Ramp</span>
+            </span>
+            <span class="tune-control-impact">
+              <select id="zone-sun-saturation-ramp" style="width:100px;">
+                <option value="linear">Linear</option>
+                <option value="squared">Squared</option>
+              </select>
+            </span>
           </div>
         </div>
       </div>
@@ -2232,8 +2243,10 @@ let graphData = null;
 
 // Live Design state
 let liveDesignEnabled = false;
-let liveDesignAreaId = null;
-let liveDesignFirstApply = false;  // Use longer transition on first apply after entering
+let liveDesignAreaIds = [];               // Array of area_ids currently being broadcast to (max 3)
+let liveDesignAreas = [];                 // Cached list of {area_id, name} from /api/areas
+let liveDesignFirstApply = false;         // Use longer transition on first apply after entering
+const TRY_IT_MAX = 3;                     // Zigbee-friendly cap on simultaneous broadcast targets
 
 // ============================================================
 // Solar Calculation Helpers
@@ -3628,7 +3641,7 @@ function renderChart() {
   if (sunContribAnchor) {
     annotations.push({
       x: sunContribAnchor.x, y: sunContribAnchor.y, xref: 'x', yref: 'y',
-      text: 'sun contribution', showarrow: false, yshift: -10,
+      text: 'sun dimming', showarrow: false, yshift: -10,
       font: { size: 9, color: 'rgba(220, 220, 220, 0.7)' },
     });
   }
@@ -5550,47 +5563,77 @@ async function saveConfig() {
 // ============================================================
 
 /**
- * Load areas from Home Assistant and populate the dropdown.
+ * Load areas from Home Assistant and cache for the Try-it popover.
  */
 async function loadLiveDesignAreas() {
-  const select = document.getElementById('live-area-select');
-  if (!select) return;
-
-  console.log('[Live Design] Loading areas...');
-
   try {
     const response = await fetch('./api/areas');
-    console.log('[Live Design] API response status:', response.status);
-
-    if (!response.ok) {
-      const text = await response.text();
-      console.warn('[Live Design] Failed to load areas:', response.status, text);
-      return;
-    }
+    if (!response.ok) return;
     const areas = await response.json();
-    console.log('[Live Design] Received areas:', areas);
-
-    if (!Array.isArray(areas) || areas.length === 0) {
-      console.warn('[Live Design] No areas returned or invalid response');
-      return;
-    }
-
-    // Clear existing options except the placeholder
-    while (select.options.length > 1) {
-      select.remove(1);
-    }
-
-    // Add area options
-    areas.forEach(area => {
-      const option = document.createElement('option');
-      option.value = area.area_id;
-      option.textContent = area.name;
-      select.appendChild(option);
-    });
-    console.log('[Live Design] Added', areas.length, 'areas to dropdown');
+    if (!Array.isArray(areas)) return;
+    liveDesignAreas = areas.map(a => ({ area_id: a.area_id, name: a.name }));
   } catch (err) {
-    console.error('[Live Design] Error loading areas:', err);
+    console.error('[Try-it] Error loading areas:', err);
   }
+}
+
+/**
+ * Render the area list inside the popover with checkbox state + max-3 cap.
+ */
+function renderTryItAreaList() {
+  const list = document.getElementById('try-it-area-list');
+  const counter = document.getElementById('try-it-counter');
+  if (!list || !counter) return;
+  list.innerHTML = '';
+  liveDesignAreas.forEach(area => {
+    const row = document.createElement('label');
+    row.className = 'try-it-area-row';
+    const checked = liveDesignAreaIds.includes(area.area_id);
+    const atCap = !checked && liveDesignAreaIds.length >= TRY_IT_MAX;
+    if (atCap) row.classList.add('is-disabled');
+    row.innerHTML = `<input type="checkbox" data-area-id="${area.area_id}" ${checked ? 'checked' : ''} ${atCap ? 'disabled' : ''}> <span>${area.name}</span>`;
+    const cb = row.querySelector('input');
+    cb.addEventListener('change', (e) => {
+      const id = e.target.dataset.areaId;
+      if (e.target.checked) {
+        if (!liveDesignAreaIds.includes(id)) liveDesignAreaIds.push(id);
+      } else {
+        liveDesignAreaIds = liveDesignAreaIds.filter(x => x !== id);
+      }
+      renderTryItAreaList();
+    });
+    list.appendChild(row);
+  });
+  counter.textContent = `${liveDesignAreaIds.length} / ${TRY_IT_MAX}`;
+}
+
+function openTryItPopover() {
+  const pop = document.getElementById('try-it-popover');
+  const btn = document.getElementById('try-it-btn');
+  const stop = document.getElementById('try-it-stop-btn');
+  if (!pop || !btn) return;
+  renderTryItAreaList();
+  if (stop) stop.style.display = liveDesignEnabled ? '' : 'none';
+  pop.classList.add('open');
+  pop.setAttribute('aria-hidden', 'false');
+  btn.setAttribute('aria-expanded', 'true');
+}
+
+function closeTryItPopover() {
+  const pop = document.getElementById('try-it-popover');
+  const btn = document.getElementById('try-it-btn');
+  if (!pop || !btn) return;
+  pop.classList.remove('open');
+  pop.setAttribute('aria-hidden', 'true');
+  btn.setAttribute('aria-expanded', 'false');
+}
+
+function _formatAreaLabel(ids) {
+  if (ids.length === 0) return 'Try it';
+  const nameOf = id => (liveDesignAreas.find(a => a.area_id === id) || {}).name || id;
+  if (ids.length === 1) return `Trying in ${nameOf(ids[0])}`;
+  if (ids.length === 2) return `Trying in ${nameOf(ids[0])} + ${nameOf(ids[1])}`;
+  return `Trying in ${nameOf(ids[0])} +${ids.length - 1}`;
 }
 
 /**
@@ -5610,69 +5653,31 @@ function getCursorLightValues() {
 }
 
 /**
- * Apply the current cursor lighting values to the selected area.
+ * Apply the current cursor lighting values to all selected areas in parallel.
  */
 async function applyLiveLight() {
-  console.log('[Live Design] applyLiveLight called, enabled=', liveDesignEnabled, 'areaId=', liveDesignAreaId);
-  if (!liveDesignEnabled || !liveDesignAreaId) {
-    console.log('[Live Design] Skipping - not enabled or no area selected');
-    return;
-  }
-
+  if (!liveDesignEnabled || liveDesignAreaIds.length === 0) return;
   const values = getCursorLightValues();
-  console.log('[Live Design] Cursor values:', values);
-  if (!values) {
-    console.log('[Live Design] No cursor values available');
-    return;
-  }
-
-  const statusEl = document.getElementById('live-design-status');
+  if (!values) return;
 
   // Use 2-second transition on first apply after entering, then default 0.3s
   const transition = liveDesignFirstApply ? 2 : 0.3;
-  if (liveDesignFirstApply) {
-    liveDesignFirstApply = false;
-    console.log('[Live Design] First apply - using 2s transition');
-  }
+  if (liveDesignFirstApply) liveDesignFirstApply = false;
 
-  console.log('[Live Design] Sending to API:', {
-    area_id: liveDesignAreaId,
-    brightness: Math.round(values.brightness),
-    color_temp: Math.round(values.colorTemp),
-    transition
-  });
+  const bri = Math.round(values.brightness);
+  const ct = Math.round(values.colorTemp);
 
-  try {
-    const response = await fetch('./api/apply-light', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        area_id: liveDesignAreaId,
-        brightness: Math.round(values.brightness),
-        color_temp: Math.round(values.colorTemp),
-        transition
-      })
-    });
-
-    if (response.ok) {
-      if (statusEl) {
-        statusEl.textContent = 'Live';
-        statusEl.classList.add('active', 'live-blink');
-      }
-    } else {
-      console.warn('Failed to apply light:', response.status);
-      if (statusEl) {
-        statusEl.textContent = 'Error';
-        statusEl.classList.remove('active', 'live-blink');
-      }
+  await Promise.all(liveDesignAreaIds.map(async (areaId) => {
+    try {
+      await fetch('./api/apply-light', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ area_id: areaId, brightness: bri, color_temp: ct, transition }),
+      });
+    } catch (err) {
+      console.error('[Try-it] Error applying light to', areaId, err);
     }
-  } catch (err) {
-    console.error('Error applying live light:', err);
-    if (statusEl) {
-      statusEl.textContent = 'Error';
-      statusEl.classList.remove('active', 'live-blink');
-    }
-  }
+  }));
 }
 
 /**
@@ -5699,28 +5704,30 @@ async function setCircadianMode(areaId, enabled) {
 }
 
 // Heartbeat — server's watchdog ends Live Design if these stop arriving for
-// 60s. Keeps an abandoned browser (closed tab, slept laptop) from holding the
-// area out of periodic updates indefinitely.
+// 60s. Keeps an abandoned browser (closed tab, slept laptop) from holding any
+// area out of periodic updates indefinitely. Sent per-area for all active targets.
 let _liveDesignHeartbeatTimer = null;
-async function sendLiveDesignHeartbeat(areaId) {
-  if (!areaId) return;
-  try {
-    await fetch('./api/live-design/heartbeat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ area_id: areaId }),
-    });
-  } catch (err) {
-    console.warn('[Live Design] Heartbeat failed:', err);
-  }
+async function sendLiveDesignHeartbeat(areaIds) {
+  if (!areaIds || areaIds.length === 0) return;
+  await Promise.all(areaIds.map(async (areaId) => {
+    try {
+      await fetch('./api/live-design/heartbeat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ area_id: areaId }),
+      });
+    } catch (err) {
+      console.warn('[Try-it] Heartbeat failed for', areaId, err);
+    }
+  }));
 }
-function startLiveDesignHeartbeat(areaId) {
+function startLiveDesignHeartbeat(areaIds) {
   stopLiveDesignHeartbeat();
-  if (!areaId) return;
-  sendLiveDesignHeartbeat(areaId);
-  _liveDesignHeartbeatTimer = setInterval(
-    () => sendLiveDesignHeartbeat(areaId), 30000
-  );
+  if (!areaIds || areaIds.length === 0) return;
+  sendLiveDesignHeartbeat(areaIds);
+  // Snapshot the array so timer doesn't observe mutations
+  const ids = [...areaIds];
+  _liveDesignHeartbeatTimer = setInterval(() => sendLiveDesignHeartbeat(ids), 30000);
 }
 function stopLiveDesignHeartbeat() {
   if (_liveDesignHeartbeatTimer) {
@@ -5730,106 +5737,112 @@ function stopLiveDesignHeartbeat() {
 }
 
 /**
- * Set up Live Design event listeners.
- * - Selecting an area auto-enables Live Design
- * - Pause button pauses/resumes (restoring lights on pause)
+ * Update the Try-it button label + active visual to match current state.
  */
 function updateLiveVisuals() {
-  const controls = document.getElementById('live-design-controls');
-  const fab = document.getElementById('live-fab');
-  if (controls) controls.classList.toggle('is-live', liveDesignEnabled);
-  if (fab) fab.classList.toggle('is-active', liveDesignEnabled);
+  const btn = document.getElementById('try-it-btn');
+  const label = document.getElementById('try-it-label');
+  if (!btn || !label) return;
+  btn.classList.toggle('is-live', liveDesignEnabled);
+  label.textContent = liveDesignEnabled ? _formatAreaLabel(liveDesignAreaIds) : 'Try it';
+}
+
+/**
+ * Commit the popover's current selection: start (or update) Live Design.
+ * If selection is empty and we were live, treat as Stop.
+ */
+async function commitTryItSelection() {
+  const newIds = [...liveDesignAreaIds];
+  // Determine deltas vs prior state
+  const wasLive = liveDesignEnabled;
+  const oldIds = wasLive ? [...liveDesignAreaIds] : [];
+
+  if (newIds.length === 0) {
+    if (wasLive) await stopTryIt();
+    closeTryItPopover();
+    return;
+  }
+
+  // Areas being removed (only matters if we were live)
+  const removed = oldIds.filter(id => !newIds.includes(id));
+  // Areas being added (always need to suppress circadian + start broadcasting)
+  const added = wasLive ? newIds.filter(id => !oldIds.includes(id)) : newIds;
+
+  // Restore circadian on removed areas
+  if (removed.length > 0) {
+    await Promise.all(removed.map(id => setCircadianMode(id, true)));
+  }
+
+  // Suppress circadian on newly added areas
+  if (added.length > 0) {
+    await Promise.all(added.map(id => setCircadianMode(id, false)));
+  }
+
+  liveDesignEnabled = true;
+  liveDesignFirstApply = !wasLive;
+  startLiveDesignHeartbeat(liveDesignAreaIds);
+  updateDesignModeUI();
+  updateLiveVisuals();
+  closeTryItPopover();
+
+  // For freshly-started broadcast, give bulbs ~2.2s to fade-to-off before pushing values
+  if (!wasLive) {
+    await new Promise(r => setTimeout(r, 2200));
+  }
+  if (cursorHour !== null) applyLiveLight();
+}
+
+/**
+ * Stop Live Design across all selected areas. Re-enables circadian for each.
+ */
+async function stopTryIt() {
+  if (!liveDesignEnabled) return;
+  const ids = [...liveDesignAreaIds];
+  stopLiveDesignHeartbeat();
+  liveDesignEnabled = false;
+  liveDesignAreaIds = [];
+  await Promise.all(ids.map(id => setCircadianMode(id, true)));
+  updateDesignModeUI();
+  updateLiveVisuals();
+  snapCursorToNow();
 }
 
 function setupLiveDesign() {
-  const toggleBtn = document.getElementById('live-design-toggle');
-  const areaSelect = document.getElementById('live-area-select');
-  const statusEl = document.getElementById('live-design-status');
+  const btn = document.getElementById('try-it-btn');
+  const popover = document.getElementById('try-it-popover');
+  const doneBtn = document.getElementById('try-it-done-btn');
+  const stopBtn = document.getElementById('try-it-stop-btn');
 
-  if (toggleBtn) {
-    toggleBtn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      if (!liveDesignAreaId) return;
-
-      // Stop: re-enable Circadian, reset UI to initial state
-      stopLiveDesignHeartbeat();
-      liveDesignEnabled = false;
-      toggleBtn.style.display = 'none';
-      areaSelect.value = '';
-      if (statusEl) {
-        statusEl.textContent = '';
-        statusEl.classList.remove('active', 'live-blink');
-      }
-      updateDesignModeUI();
-      updateLiveVisuals();
-      await setCircadianMode(liveDesignAreaId, true);
-      liveDesignAreaId = null;
-      snapCursorToNow();
-    });
-  }
-
-  if (areaSelect) {
-    areaSelect.addEventListener('change', async (e) => {
-      const oldAreaId = liveDesignAreaId;
-      const newAreaId = e.target.value || null;
-
-      // If we had an active Live Design, end it for the old area
-      if (liveDesignEnabled && oldAreaId) {
-        if (statusEl) {
-          statusEl.textContent = 'Exiting...';
-        }
-        stopLiveDesignHeartbeat();
-        await setCircadianMode(oldAreaId, true);
-      }
-
-      liveDesignAreaId = newAreaId;
-
-      if (newAreaId) {
-        // Auto-enable Live Design when area is selected
-        liveDesignEnabled = true;
-        toggleBtn.style.display = '';
-        toggleBtn.textContent = 'Stop';
-        updateDesignModeUI();
-        updateLiveVisuals();
-        if (statusEl) {
-          statusEl.textContent = 'Live starting...';
-          statusEl.classList.remove('live-blink');
-          statusEl.classList.add('active');
-        }
-        await setCircadianMode(newAreaId, false);
-        startLiveDesignHeartbeat(newAreaId);
-        // Wait for fade-to-off to complete before applying live values
-        await new Promise(r => setTimeout(r, 2200));
-        // Apply current cursor position if set with 3s transition
-        liveDesignFirstApply = true;
-        if (cursorHour !== null) {
-          applyLiveLight();
-        }
-        // Update status after transition
-        setTimeout(() => {
-          if (liveDesignEnabled && statusEl) {
-            statusEl.textContent = 'Live';
-            statusEl.classList.add('live-blink');
-          }
-        }, 2500);
+  if (btn) {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (popover && popover.classList.contains('open')) {
+        closeTryItPopover();
       } else {
-        // No area selected - hide button and reset state
-        stopLiveDesignHeartbeat();
-        liveDesignEnabled = false;
-        toggleBtn.style.display = 'none';
-        if (statusEl) {
-          statusEl.textContent = '';
-          statusEl.classList.remove('active', 'live-blink');
-        }
-        updateDesignModeUI();
-        updateLiveVisuals();
-        // Snap cursor back to now — exiting design mode
-        snapCursorToNow();
+        openTryItPopover();
       }
     });
   }
+  if (doneBtn) {
+    doneBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      commitTryItSelection();
+    });
+  }
+  if (stopBtn) {
+    stopBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await stopTryIt();
+      closeTryItPopover();
+    });
+  }
+  // Click-outside closes the popover (without committing)
+  document.addEventListener('click', (e) => {
+    if (!popover || !popover.classList.contains('open')) return;
+    if (popover.contains(e.target) || (btn && btn.contains(e.target))) return;
+    closeTryItPopover();
+  });
 
-  // Load areas from HA
   loadLiveDesignAreas();
 }
 
@@ -6525,12 +6538,13 @@ const _backUrl = _backParam && _backParam !== 'home'
   : (_basePath || '.') + '/';
 
 function stopLiveDesign() {
-  if (liveDesignEnabled && liveDesignAreaId) {
-    // Fire-and-forget re-enable circadian for the area
+  if (liveDesignEnabled && liveDesignAreaIds.length > 0) {
+    const ids = [...liveDesignAreaIds];
     stopLiveDesignHeartbeat();
-    setCircadianMode(liveDesignAreaId, true);
     liveDesignEnabled = false;
-    liveDesignAreaId = null;
+    liveDesignAreaIds = [];
+    Promise.all(ids.map(id => setCircadianMode(id, true)));
+    updateLiveVisuals();
   }
 }
 
@@ -6610,6 +6624,17 @@ document.addEventListener('DOMContentLoaded', () => {
       sunSaturation: data.sun_saturation || 40,
       sunSaturationRamp: data.sun_saturation_ramp || 'squared',
     };
+    // Sun angle response controls: visible only when home setting opts in
+    if (data.show_sun_angle_in_zone) {
+      const block = document.getElementById('sun-angle-response-block');
+      const satInput = document.getElementById('zone-sun-saturation');
+      const rampSelect = document.getElementById('zone-sun-saturation-ramp');
+      if (block && satInput && rampSelect) {
+        satInput.value = _outdoorParams.sunSaturation;
+        rampSelect.value = _outdoorParams.sunSaturationRamp;
+        block.style.display = '';
+      }
+    }
     // Use condition_multiplier directly from backend (no reverse-engineering)
     _liveConditionMult = data.condition_multiplier ?? 1.0;
     // Rebuild popover now that we have weather_groups + live condition data.
@@ -6620,6 +6645,31 @@ document.addEventListener('DOMContentLoaded', () => {
       applyCursor();
     }
   }).catch(() => {});
+
+  // Sun angle response — home-wide controls surfaced in zone view (when settings toggle on).
+  // Save on commit, mirror into _outdoorParams so the chart redraws against the new shape.
+  const _saveSunAngleResponse = async () => {
+    const sat = parseInt(document.getElementById('zone-sun-saturation').value);
+    const ramp = document.getElementById('zone-sun-saturation-ramp').value || 'squared';
+    const safeSat = Number.isFinite(sat) ? Math.max(1, Math.min(100, sat)) : 40;
+    _outdoorParams.sunSaturation = safeSat;
+    _outdoorParams.sunSaturationRamp = ramp;
+    if (typeof renderChart === 'function') {
+      renderChart();
+      if (typeof applyCursor === 'function') applyCursor();
+    }
+    try {
+      await fetch('./api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sun_saturation: safeSat, sun_saturation_ramp: ramp }),
+      });
+    } catch (e) { /* network noise — chart already updated locally */ }
+  };
+  const _zsat = document.getElementById('zone-sun-saturation');
+  const _zramp = document.getElementById('zone-sun-saturation-ramp');
+  if (_zsat) _zsat.addEventListener('change', _saveSunAngleResponse);
+  if (_zramp) _zramp.addEventListener('change', _saveSunAngleResponse);
 
   // Keep cursor at "now" when tracking now and not in Live Design mode (tick every 30s)
   setInterval(() => {
