@@ -4158,19 +4158,19 @@ function positionOverlays() {
   // Cursor chip — fixed-position controller in chart-chrome center slot. Updates
   // readout + CCT tint as cursor moves; position is controlled by the grid layout,
   // NOT by cursor x. Jump-to-now is disabled when cursor is already tracking now.
-  const chip = document.getElementById('cursor-chip');
-  const readout = document.getElementById('cursor-chip-readout');
-  const jumpBtn = document.getElementById('cursor-chip-jump');
-  if (chip && readout && cursorHour != null) {
+  const cursorChip = document.getElementById('cursor-chip');
+  const cursorReadout = document.getElementById('cursor-chip-readout');
+  const cursorJumpBtn = document.getElementById('cursor-chip-jump');
+  if (cursorChip && cursorReadout && cursorHour != null) {
     const dim = chartState.sunDimFactor ? chartState.sunDimFactor(cursorHour) : 1.0;
     const bri = calculateBrightnessAtHour(cursorHour) * dim * 100;
     const cct = calculateColorAtHour(cursorHour, true);
     const rgb = cctToRGB(cct);
-    readout.textContent = `${formatHour(cursorHour)} \u00b7 ${Math.round(bri)}% \u00b7 ${Math.round(cct)}K`;
-    chip.style.borderColor = colorWithAlpha(rgb, 0.85);
-    chip.style.background = colorWithAlpha(rgb, 0.92);
-    chip.style.color = readableTextColor(rgb);
-    if (jumpBtn) jumpBtn.disabled = !!cursorTrackingNow;
+    cursorReadout.textContent = `${formatHour(cursorHour)} \u00b7 ${Math.round(bri)}% \u00b7 ${Math.round(cct)}K`;
+    cursorChip.style.borderColor = colorWithAlpha(rgb, 0.85);
+    cursorChip.style.background = colorWithAlpha(rgb, 0.92);
+    cursorChip.style.color = readableTextColor(rgb);
+    if (cursorJumpBtn) cursorJumpBtn.disabled = !!cursorTrackingNow;
   }
 
   // Sunrise / sunset HTML labels
