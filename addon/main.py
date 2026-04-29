@@ -3822,7 +3822,7 @@ class HomeAssistantWebSocketClient:
         two_step_dimming = set()  # filters where 2-step is dimming (swap phase order)
         is_all_hue = self.is_all_hue_area(area_id)
         raw_cfg = glozone.load_config_from_files()
-        ct_threshold = raw_cfg.get("two_step_ct_threshold", 500)
+        ct_threshold = raw_cfg.get("two_step_ct_threshold", 200)
         _two_step_gate = (
             not skip_two_step
             and not is_all_hue
@@ -3830,6 +3830,7 @@ class HomeAssistantWebSocketClient:
             and ct_threshold > 0
         )
         if _two_step_gate:
+            p1_transition = self.primitives._get_two_step_delay()
             for filter_name, lights_by_cap in filter_groups.items():
                 filt_norm = filter_name.replace(" ", "_").lower()
                 if skip_filters and filt_norm in skip_filters:
@@ -3899,7 +3900,7 @@ class HomeAssistantWebSocketClient:
                     )
 
                     def _add_p1_brighten(entity_id, cap_type):
-                        p1 = {"transition": transition, "brightness_pct": phase1_bri}
+                        p1 = {"transition": p1_transition, "brightness_pct": phase1_bri}
                         if cap_type == "color" and xy is not None:
                             p1["xy_color"] = list(xy)
                         elif cap_type == "ct":
@@ -3921,7 +3922,7 @@ class HomeAssistantWebSocketClient:
                 else:
                     # Dimming: phase 1 = dim to target brightness (keep OLD color)
                     def _add_p1_dim(entity_id, cap_type):
-                        p1 = {"transition": transition, "brightness_pct": filtered_bri}
+                        p1 = {"transition": p1_transition, "brightness_pct": filtered_bri}
                         # No color data — keep current color during dim
                         phase1_tasks.append(
                             self.call_service(
@@ -4241,8 +4242,7 @@ class HomeAssistantWebSocketClient:
         # NOTE: phase2_tasks contains already-started create_task coroutines.
         # We need to rebuild them as fresh coroutines so they execute AFTER the delay.
         if two_step_filters:
-            two_step_delay = self.primitives._get_two_step_delay()
-            await asyncio.sleep(two_step_delay)
+            await asyncio.sleep(p1_transition * 2)
             # Phase 2: complete the 2-step for each purpose
             # Brightening: send target brightness + color
             # Dimming: send new color at target brightness (already dimmed in phase 1)

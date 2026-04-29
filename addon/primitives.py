@@ -4285,7 +4285,7 @@ class CircadianLightPrimitives:
 
         # 2-step config
         raw_cfg = glozone.load_config_from_files()
-        ct_threshold = raw_cfg.get("two_step_ct_threshold", 500)
+        ct_threshold = raw_cfg.get("two_step_ct_threshold", 200)
         bri_delta_threshold = raw_cfg.get("two_step_bri_threshold", 15)
 
         handled_set: Set[Tuple[str, str]] = set()  # (area_id, purpose_norm)
@@ -4404,12 +4404,16 @@ class CircadianLightPrimitives:
         two_step_cmds = [c for c in batch_commands if c["needs_2step"]]
         direct_cmds = [c for c in batch_commands if not c["needs_2step"]]
 
+        # 2-step: Phase 1 transitions over `delay`, then bulb holds for `delay`,
+        # then Phase 2 fires — total wait from P1 fire to P2 fire = delay * 2.
+        delay = self._get_two_step_delay() if two_step_cmds else None
+
         # Wave 1: phase 1 for 2-step + direct commands (parallel)
         wave1 = []
         for cmd in two_step_cmds:
             p1_bri, p1_color = cmd["phase1_data"]
             xy = CircadianLight.color_temperature_to_xy(cmd["ct"])
-            sdata = {"transition": transition}
+            sdata = {"transition": delay}
             if p1_bri is not None:
                 sdata["brightness_pct"] = p1_bri
             if p1_color:
@@ -4445,8 +4449,7 @@ class CircadianLightPrimitives:
 
         # Wave 2: phase 2 for 2-step (after delay)
         if two_step_cmds:
-            delay = self._get_two_step_delay()
-            await asyncio.sleep(delay)
+            await asyncio.sleep(delay * 2)
 
             wave2 = []
             for cmd in two_step_cmds:
