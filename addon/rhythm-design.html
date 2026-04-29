@@ -4108,7 +4108,8 @@ function positionOverlays() {
     const bri = calculateBrightnessAtHour(cursorHour) * dim * 100;
     const cct = calculateColorAtHour(cursorHour, true);
     const rgb = cctToRGB(cct);
-    pill.style.left = xToPx(cursorHour) + 'px';
+    const px = xToPx(cursorHour);
+    pill.style.left = px + 'px';
     const resetBtn = cursorTrackingNow
       ? ''
       : ' <button type="button" class="now-pill-reset" title="Jump to current time">Jump to now</button>';
@@ -4116,6 +4117,40 @@ function positionOverlays() {
     pill.style.borderColor = colorWithAlpha(rgb, 0.85);
     pill.style.background = colorWithAlpha(rgb, 0.92);
     pill.style.color = readableTextColor(rgb);
+
+    // (B) Anchor-pivot: pin pill's left edge at cursor in the left zone, right
+    // edge in the right zone, else center. Keeps the pill from clipping the
+    // chart's left/right edges when the cursor sits at the extremes.
+    // (C) Drop-down on conflict: when the centered pill would overlap the
+    // month-chip (top-right of chart-shell), push the pill below it.
+    const shell = document.getElementById('chart-shell');
+    const shellW = shell ? shell.getBoundingClientRect().width : 0;
+    const leftZone = shellW * 0.18;
+    const rightZone = shellW * 0.82;
+    let translateX = '-50%';
+    if (shellW > 0) {
+      if (px < leftZone) translateX = '0%';
+      else if (px > rightZone) translateX = '-100%';
+    }
+    pill.style.transform = `translateX(${translateX})`;
+
+    // Month-chip overlap check (only meaningful when pill is centered/right).
+    const monthChip = document.getElementById('month-chip');
+    let dropDown = false;
+    if (monthChip && shell && pill.offsetWidth) {
+      const shellRect = shell.getBoundingClientRect();
+      const chipRect = monthChip.getBoundingClientRect();
+      // pill's projected left edge (in shell coords) given current translateX
+      const pillW = pill.offsetWidth;
+      const tx = translateX === '-50%' ? -0.5 : translateX === '-100%' ? -1.0 : 0;
+      const pillLeft = px + tx * pillW;
+      const pillRight = pillLeft + pillW;
+      const chipLeft = chipRect.left - shellRect.left;
+      const chipRight = chipRect.right - shellRect.left;
+      // overlap on x-axis with month-chip's row (chip is at top:10px, ~22px tall)
+      if (pillRight > chipLeft - 6 && pillLeft < chipRight + 6) dropDown = true;
+    }
+    pill.style.top = dropDown ? '40px' : '14px';
   }
 
   // Sunrise / sunset HTML labels

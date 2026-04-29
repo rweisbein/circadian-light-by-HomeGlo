@@ -5539,7 +5539,7 @@ class HomeAssistantWebSocketClient:
             )
 
         try:
-            sun_dict = calculate_sun_times(lat, lon, date_str)
+            sun_dict = calculate_sun_times(lat, lon, date_str, tz=self.timezone)
 
             local_tz = None
             if self.timezone:

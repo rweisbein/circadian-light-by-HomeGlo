@@ -2055,8 +2055,17 @@ def calculate_dimming_step(
     }
 
 
-def calculate_sun_times(lat: float, lon: float, date_str: str = None) -> Dict[str, Any]:
-    """Calculate sun times for a location."""
+def calculate_sun_times(
+    lat: float, lon: float, date_str: str = None, tz: str = None
+) -> Dict[str, Any]:
+    """Calculate sun times for a location.
+
+    tz: IANA timezone (e.g. "America/New_York"). Without it astral defaults to
+    UTC, which triggers a date-wrap bug for certain lat/lon/date combos where
+    the local sunset crosses midnight UTC — astral raises "Unable to find a
+    sunset time on the date specified". Passing local tz makes astral compute
+    the date in the right frame and dodges the bug.
+    """
     from datetime import datetime
     from zoneinfo import ZoneInfo
     from astral import LocationInfo
@@ -2067,8 +2076,18 @@ def calculate_sun_times(lat: float, lon: float, date_str: str = None) -> Dict[st
     else:
         date = datetime.now().date()
 
+    tzinfo = None
+    if tz:
+        try:
+            tzinfo = ZoneInfo(tz)
+        except Exception:
+            tzinfo = None
+
     loc = LocationInfo(latitude=lat, longitude=lon)
-    solar = sun(loc.observer, date=date)
+    if tzinfo is not None:
+        solar = sun(loc.observer, date=date, tzinfo=tzinfo)
+    else:
+        solar = sun(loc.observer, date=date)
 
     return {
         "sunrise": solar["sunrise"].isoformat() if solar.get("sunrise") else None,

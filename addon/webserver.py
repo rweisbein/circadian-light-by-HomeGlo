@@ -1517,7 +1517,7 @@ class LightDesignerServer:
                 date_str = now.strftime("%Y-%m-%d")
 
             # Calculate sun times using brain.py function
-            sun_times = calculate_sun_times(lat, lon, date_str)
+            sun_times = calculate_sun_times(lat, lon, date_str, tz=timezone)
 
             # Helper to convert ISO string to hour (with timezone conversion)
             def iso_to_hour(iso_str, default):
@@ -1662,7 +1662,9 @@ class LightDesignerServer:
             sun_times = SunTimes()  # defaults
             try:
                 date_str = now.strftime("%Y-%m-%d")
-                sun_dict = calculate_sun_times(latitude, longitude, date_str)
+                sun_dict = calculate_sun_times(
+                    latitude, longitude, date_str, tz=os.getenv("HASS_TIME_ZONE")
+                )
 
                 def iso_to_hour(iso_str, default):
                     if not iso_str:
@@ -2568,7 +2570,7 @@ class LightDesignerServer:
             except Exception:
                 tzinfo = None
 
-            sun_dict = calculate_sun_times(latitude, longitude, date_str)
+            sun_dict = calculate_sun_times(latitude, longitude, date_str, tz=timezone)
 
             def iso_to_hour(iso_str, default):
                 if not iso_str:
@@ -2944,7 +2946,7 @@ class LightDesignerServer:
                     tzinfo = None
                 now = datetime.now(tzinfo)
                 date_str = now.strftime("%Y-%m-%d")
-                sun_dict = calculate_sun_times(latitude, longitude, date_str)
+                sun_dict = calculate_sun_times(latitude, longitude, date_str, tz=timezone)
 
                 def iso_to_hour(iso_str, default):
                     if not iso_str:
@@ -5098,7 +5100,7 @@ class LightDesignerServer:
                     tzinfo = None
                 now = datetime.now(tzinfo)
                 date_str = now.strftime("%Y-%m-%d")
-                sun_dict = calculate_sun_times(latitude, longitude, date_str)
+                sun_dict = calculate_sun_times(latitude, longitude, date_str, tz=timezone)
 
                 def iso_to_hour(iso_str, default):
                     if not iso_str:
