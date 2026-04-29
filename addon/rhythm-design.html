@@ -121,6 +121,15 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
   top: 0;
   z-index: 100;
 }
+.rhythm-name-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
 .rhythm-name-input {
   font-size: var(--font-display);
   font-weight: 600;
@@ -131,10 +140,22 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
   width: auto;
   min-width: 80px;
   max-width: 300px;
-  flex: 1;
 }
 .rhythm-name-input:focus {
   outline: none;
+}
+.rhythm-zone-type-chip {
+  font-size: 0.54rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border: 1px solid currentColor;
+  border-radius: 10px;
+  opacity: 0.55;
+  white-space: nowrap;
+  line-height: 1.4;
+  color: var(--muted);
 }
 .header-actions {
   display: flex;
@@ -329,7 +350,7 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 10px 16px 8px;
+  padding: 10px 6px 8px;
   margin-bottom: 16px;
   position: sticky;
   top: 49px;
@@ -443,8 +464,10 @@ input[type=range]::-moz-range-thumb {
 .chart-chrome-left  { justify-self: start; display: inline-flex; }
 .chart-chrome-right { justify-self: end;   display: inline-flex; }
 
-/* Cursor chip — 2 rows, fixed dimensions. Row 1 = time·%·K readout
-   (CCT-tinted background/border). Row 2 = ← / Jump-to-now / → controls. */
+/* Cursor chip — 2 rows, fixed dimensions. Row 1 = % · K readout
+   (CCT-tinted background/border). Row 2 = ↺ reset / ← / time / → controls.
+   Master reset reverts cursor → now, outdoor → current, wake/bed drag → null,
+   month → current — does NOT roll back saved config. */
 .cursor-chip {
   display: flex;
   flex-direction: column;
@@ -458,7 +481,7 @@ input[type=range]::-moz-range-thumb {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
-  min-width: 180px;
+  min-width: 150px;
   user-select: none;
   -webkit-user-select: none;
   transition: background 0.12s, border-color 0.12s, color 0.12s;
@@ -492,6 +515,16 @@ input[type=range]::-moz-range-thumb {
 .cursor-chip-controls button:hover:not(:disabled) { opacity: 1; background: rgba(0,0,0,0.32); }
 .cursor-chip-controls button:disabled { opacity: 0.4; cursor: default; }
 .cursor-chip-arrow { width: 24px; padding: 0 !important; font-size: 13px !important; }
+.cursor-chip-reset { width: 22px; padding: 0 !important; font-size: 13px !important; }
+.cursor-chip-time {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  min-width: 44px;
+  text-align: center;
+  opacity: 0.95;
+}
 /* Try-it button + popover (Live Design entry point, lives in chart-chrome top-right slot) */
 .try-it-btn {
   display: inline-flex;
@@ -663,6 +696,7 @@ input[type=range]::-moz-range-thumb {
 }
 .outdoor-chip:hover { color: rgba(255,255,255,0.95); background: transparent; }
 .outdoor-chip-icon { font-size: 11px; line-height: 1; }
+.outdoor-chip-label { opacity: 0.85; }
 .outdoor-popover {
   position: absolute;
   bottom: 90px;
@@ -677,6 +711,15 @@ input[type=range]::-moz-range-thumb {
   display: none;
 }
 .outdoor-popover.open { display: block; }
+.outdoor-popover-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted2);
+  padding: 4px 6px 8px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+}
 .outdoor-popover .src-row {
   display: flex;
   gap: 4px;
@@ -807,42 +850,37 @@ input[type=range]::-moz-range-thumb {
 .phase-ghost.for-wake .phase-ghost-pill { border-color: rgba(92,179,255,0.55); }
 .phase-ghost.for-bed .phase-ghost-pill { border-color: rgba(255,230,128,0.55); }
 
-/* Save / Reset action chips — single container under the moved pill.
-   Positioned close to the pill so the relationship reads as "the pill's
-   actions" rather than free-floating chips. Reset on left, Save on right. */
-.handle-actions {
+/* Auto-save undo chip — single chip under the moved pill, visible for 5s
+   after a wake/bed drag-end auto-saves to today's cluster. Tapping undo
+   reverts the just-committed save. Replaces the older Save+Reset row. */
+.handle-undo {
   position: absolute;
   bottom: 14px;
   transform: translateX(-50%);
   display: none;
-  align-items: stretch;
   z-index: 7;
+}
+.handle-undo.visible { display: inline-flex; }
+.undo-chip {
   background: rgba(20, 22, 28, 0.95);
   border: 1px solid rgba(255,255,255,0.18);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-}
-.handle-actions.visible { display: inline-flex; }
-.action-chip {
-  background: transparent;
-  border: none;
   color: var(--text);
   padding: 4px 9px;
   font-size: 11px;
   font-weight: 600;
-  cursor: pointer;
   letter-spacing: 0.02em;
   line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+  border-radius: 12px;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
   transition: background 0.15s;
-  font-family: inherit;
 }
-.action-chip + .action-chip { border-left: 1px solid rgba(255,255,255,0.14); }
-.action-chip:hover { background: rgba(255,255,255,0.08); }
-.action-chip.revert { font-size: 13px; padding: 4px 8px; }
+.undo-chip:hover { background: rgba(40, 44, 52, 0.98); }
+.undo-icon { font-size: 13px; line-height: 1; }
 
 /* Save popover */
 .save-popover {
@@ -1623,8 +1661,10 @@ input[type=range]::-moz-range-thumb {
       <polyline points="15 18 9 12 15 6"/>
     </svg>
   </button>
-  <span style="color: var(--muted); font-size: var(--font-value); font-weight: 500;">Rhythm zone:</span>
-  <input type="text" class="rhythm-name-input" id="rhythm-name" value="Daily Rhythm 1" placeholder="Zone name">
+  <div class="rhythm-name-group">
+    <input type="text" class="rhythm-name-input" id="rhythm-name" value="Daily Rhythm 1" placeholder="Zone name">
+    <span class="rhythm-zone-type-chip">Rhythm Zone</span>
+  </div>
 </header>
 
 <div class="container">
@@ -1638,15 +1678,16 @@ input[type=range]::-moz-range-thumb {
         <div class="chart-chrome">
           <div class="chart-chrome-left">
             <button type="button" class="month-chip" id="month-chip">
-              <span class="month-chip-icon">&#128197;</span><span id="month-chip-label">April</span>
+              <span id="month-chip-label">April</span>
             </button>
           </div>
 
           <div class="cursor-chip" id="cursor-chip">
-            <div class="cursor-chip-readout" id="cursor-chip-readout">--:-- &middot; --% &middot; ----K</div>
+            <div class="cursor-chip-readout" id="cursor-chip-readout">--% &middot; ----K</div>
             <div class="cursor-chip-controls">
+              <button type="button" class="cursor-chip-reset" id="cursor-chip-reset" title="Reset chart view">&#x21BA;</button>
               <button type="button" class="cursor-chip-arrow" id="cursor-chip-prev" title="Step back">&#x2190;</button>
-              <button type="button" class="cursor-chip-jump" id="cursor-chip-jump" title="Jump to current time">Jump to now</button>
+              <span class="cursor-chip-time" id="cursor-chip-time">--:--</span>
               <button type="button" class="cursor-chip-arrow" id="cursor-chip-next" title="Step forward">&#x2192;</button>
             </div>
           </div>
@@ -1681,6 +1722,7 @@ input[type=range]::-moz-range-thumb {
         <div class="solar-label" id="sunrise-label" data-time="">sunrise</div>
         <div class="outdoor-chip" id="outdoor-chip">
           <span class="outdoor-chip-icon" id="outdoor-icon">&#9728;</span>
+          <span class="outdoor-chip-label">Sun intensity</span>
           <span id="outdoor-pct">100%</span>
         </div>
         <div class="solar-label" id="sunset-label" data-time="">sunset</div>
@@ -1697,9 +1739,11 @@ input[type=range]::-moz-range-thumb {
             <span class="phase-time">7:00a</span>
           </div>
         </div>
-        <div class="handle-actions" id="wake-actions">
-          <button class="action-chip revert" data-kind="wake" title="Reset">&#x21BA;</button>
-          <button class="action-chip save" data-kind="wake">Save &#9662;</button>
+        <div class="handle-undo" id="wake-undo">
+          <button class="undo-chip" data-kind="wake" title="Undo save">
+            <span class="undo-icon">&#x21BA;</span>
+            <span class="undo-label">undo</span>
+          </button>
         </div>
 
         <div class="phase-ghost for-bed"><div class="phase-ghost-pill"></div></div>
@@ -1709,9 +1753,11 @@ input[type=range]::-moz-range-thumb {
             <span class="phase-time">10:00p</span>
           </div>
         </div>
-        <div class="handle-actions" id="bed-actions">
-          <button class="action-chip revert" data-kind="bed" title="Reset">&#x21BA;</button>
-          <button class="action-chip save" data-kind="bed">Save &#9662;</button>
+        <div class="handle-undo" id="bed-undo">
+          <button class="undo-chip" data-kind="bed" title="Undo save">
+            <span class="undo-icon">&#x21BA;</span>
+            <span class="undo-label">undo</span>
+          </button>
         </div>
 
         <div class="save-popover" id="save-popover"></div>
@@ -3834,7 +3880,7 @@ function initChartInteractivity() {
   };
   chart.addEventListener('pointerdown', (ev) => {
     // Don't intercept handle drags
-    if (ev.target.closest('.phase-handle') || ev.target.closest('.handle-actions')
+    if (ev.target.closest('.phase-handle') || ev.target.closest('.handle-undo')
         || ev.target.closest('.outdoor-chip') || ev.target.closest('.outdoor-popover')
         || ev.target.closest('.save-popover')) return;
     const plotArea = getPlotArea();
@@ -4157,20 +4203,20 @@ function positionOverlays() {
 
   // Cursor chip — fixed-position controller in chart-chrome center slot. Updates
   // readout + CCT tint as cursor moves; position is controlled by the grid layout,
-  // NOT by cursor x. Jump-to-now is disabled when cursor is already tracking now.
+  // NOT by cursor x. Row 1 = % · K, Row 2 = ↺ / ← / time / →.
   const cursorChip = document.getElementById('cursor-chip');
   const cursorReadout = document.getElementById('cursor-chip-readout');
-  const cursorJumpBtn = document.getElementById('cursor-chip-jump');
+  const cursorTimeEl = document.getElementById('cursor-chip-time');
   if (cursorChip && cursorReadout && cursorHour != null) {
     const dim = chartState.sunDimFactor ? chartState.sunDimFactor(cursorHour) : 1.0;
     const bri = calculateBrightnessAtHour(cursorHour) * dim * 100;
     const cct = calculateColorAtHour(cursorHour, true);
     const rgb = cctToRGB(cct);
-    cursorReadout.textContent = `${formatHour(cursorHour)} \u00b7 ${Math.round(bri)}% \u00b7 ${Math.round(cct)}K`;
+    cursorReadout.textContent = `${Math.round(bri)}% \u00b7 ${Math.round(cct)}K`;
+    if (cursorTimeEl) cursorTimeEl.textContent = formatHour(cursorHour);
     cursorChip.style.borderColor = colorWithAlpha(rgb, 0.85);
     cursorChip.style.background = colorWithAlpha(rgb, 0.92);
     cursorChip.style.color = readableTextColor(rgb);
-    if (cursorJumpBtn) cursorJumpBtn.disabled = !!cursorTrackingNow;
   }
 
   // Sunrise / sunset HTML labels
@@ -4230,18 +4276,12 @@ function positionOverlays() {
     bedGhost.style.display = bedMoved ? 'block' : 'none';
   }
 
-  // Save / Reset action chips below moved pill — visible when stored time
-  // differs from snapshot OR there's a working drag value mid-flight.
-  const wakeDirty = (chartState.wakeDragVal != null
-        && Math.abs(chartState.wakeDragVal - config.wake_time) > 0.01)
-      || (configSnapshot.wake_time != null && Math.abs(config.wake_time - configSnapshot.wake_time) > 0.01);
-  const bedDirty = (chartState.bedDragVal != null
-        && Math.abs(chartState.bedDragVal - config.bed_time) > 0.01)
-      || (configSnapshot.bed_time != null && Math.abs(config.bed_time - configSnapshot.bed_time) > 0.01);
-  const wA = document.getElementById('wake-actions');
-  const bA = document.getElementById('bed-actions');
-  if (wA) { wA.style.left = xToPx(wakeT) + 'px'; wA.classList.toggle('visible', wakeDirty); }
-  if (bA) { bA.style.left = xToPx(bedT) + 'px'; bA.classList.toggle('visible', bedDirty); }
+  // Undo chips — positioned under each pill; visibility toggled by
+  // showUndoChip() / hideUndoChip() with a 5s auto-hide timer.
+  const wU = document.getElementById('wake-undo');
+  const bU = document.getElementById('bed-undo');
+  if (wU) wU.style.left = xToPx(wakeT) + 'px';
+  if (bU) bU.style.left = xToPx(bedT) + 'px';
 }
 
 // ============================================================
@@ -4294,10 +4334,29 @@ function setupHandleDrag(elId, kind) {
     el.classList.remove('dragging');
     chartState[kind + 'DragActive'] = false;
     try { el.releasePointerCapture(e.pointerId); } catch {}
-    // Don't clear DragVal — Save/Reset chips still need to know what was last
-    // moved to vs what's saved. Cleared on commitSave / resetWakeOrBed.
-    renderChart();
-    updateSectionDirtyState();
+    // Auto-save to today's cluster on drag-end IF the drag actually moved the
+    // value. Captures prev value first so the undo chip can roll back. The Sleep
+    // card body still owns multi-cluster saves (weekend / all days).
+    const dragVal = kind === 'wake' ? chartState.wakeDragVal : chartState.bedDragVal;
+    const savedVal = kind === 'wake' ? config.wake_time : config.bed_time;
+    if (dragVal != null && Math.abs(dragVal - savedVal) > 0.01) {
+      const prevSnapshot = {
+        wake_time: config.wake_time,
+        wake_alt_time: config.wake_alt_time,
+        wake_alt_days: Array.isArray(config.wake_alt_days) ? config.wake_alt_days.slice() : [],
+        bed_time: config.bed_time,
+        bed_alt_time: config.bed_alt_time,
+        bed_alt_days: Array.isArray(config.bed_alt_days) ? config.bed_alt_days.slice() : [],
+      };
+      const todayKey = groupForToday(kind).id;
+      commitSave(kind, todayKey);
+      showUndoChip(kind, prevSnapshot);
+    } else {
+      chartState.wakeDragVal = null;
+      chartState.bedDragVal = null;
+      renderChart();
+      updateSectionDirtyState();
+    }
   };
   el.addEventListener('pointerup', end);
   el.addEventListener('pointercancel', end);
@@ -4362,6 +4421,7 @@ function buildOutdoorPopover() {
   const isCurrent = chartState.outdoorSrc === 'current';
 
   let html = '';
+  html += `<div class="outdoor-popover-title">Sun intensity</div>`;
   // Current row — always first; selected when outdoorSrc==='current'
   html += `<div class="opt opt-current${isCurrent ? ' selected' : ''}" data-src="current">`
         + `<span class="opt-icon">&#128338;</span>`
@@ -4399,72 +4459,66 @@ function buildOutdoorPopover() {
 }
 
 /**
- * Wire the per-handle action chips (Save ▾ / Reset). Uses event delegation on
- * the action containers to avoid re-binding on every renderChart.
+ * Wire the per-handle undo chips. After a wake/bed drag-end auto-saves to
+ * today's cluster, showUndoChip() displays this chip for 5s; tapping it
+ * reverts the just-committed save using the prevSnapshot captured pre-commit.
  */
+const _undoState = { wake: { prev: null, timer: null }, bed: { prev: null, timer: null } };
+
 function setupHandleActions() {
-  const wA = document.getElementById('wake-actions');
-  const bA = document.getElementById('bed-actions');
+  const wU = document.getElementById('wake-undo');
+  const bU = document.getElementById('bed-undo');
   const bind = (container, kind) => {
     if (!container || container._init) return;
     container._init = true;
     container.addEventListener('click', (e) => {
-      const btn = e.target.closest('.action-chip');
+      const btn = e.target.closest('.undo-chip');
       if (!btn) return;
       e.stopPropagation();
-      if (btn.classList.contains('save')) openSavePopover(kind);
-      else if (btn.classList.contains('reset') || btn.classList.contains('revert')) {
-        resetWakeOrBed(kind);
-      }
+      undoLastSave(kind);
     });
   };
-  bind(wA, 'wake');
-  bind(bA, 'bed');
+  bind(wU, 'wake');
+  bind(bU, 'bed');
 }
 
-/**
- * Show the save popover anchored under the relevant phase handle.
- * Options come from buildSaveOptions(kind): today's group + (the other group)
- * + "All days". Today's group is marked with a left blue border via .is-today.
- */
-function openSavePopover(kind) {
-  const pop = document.getElementById('save-popover');
-  const handle = document.getElementById(kind + '-handle');
-  if (!pop || !handle) return;
-  pop.style.left = handle.style.left;
-  // Show the drag working-copy (what will be saved), not the saved config value.
-  const time = kind === 'wake'
-    ? (chartState.wakeDragVal != null ? chartState.wakeDragVal : config.wake_time)
-    : (chartState.bedDragVal != null ? chartState.bedDragVal : config.bed_time);
-  const opts = buildSaveOptions(kind);
-  pop.innerHTML = `
-    <div class="save-popover-title">Save ${kind} <strong>${formatHour(time)}</strong> to:</div>
-    ${opts.map(o => `
-      <button class="save-opt ${o.isToday ? 'is-today' : ''}" data-key="${o.key}">
-        ${o.label}<span class="save-opt-sub">${o.sub}</span>
-      </button>`).join('')}
-  `;
-  pop.dataset.kind = kind;
-  pop.querySelectorAll('.save-opt').forEach(b => {
-    b.addEventListener('click', (e) => {
-      e.stopPropagation();
-      commitSave(kind, b.dataset.key);
-    });
-  });
-  // Reset any prior viewport-clamp shift before measuring.
-  pop.style.transform = '';
-  pop.classList.add('open');
-  // Clamp to viewport: if the centered popover would clip past the screen edge
-  // (common on mobile when wake/bed handle is near the chart edge), nudge it
-  // back inside via an additional translateX.
-  const margin = 8;
-  const popRect = pop.getBoundingClientRect();
-  const overshootLeft = margin - popRect.left;
-  const overshootRight = popRect.right - (window.innerWidth - margin);
-  let shift = 0;
-  if (overshootLeft > 0) shift = overshootLeft;
-  else if (overshootRight > 0) shift = -overshootRight;
-  pop.style.transform = `translateX(calc(-50% + ${shift}px))`;
+function showUndoChip(kind, prevSnapshot) {
+  const el = document.getElementById(kind + '-undo');
+  if (!el) return;
+  const state = _undoState[kind];
+  if (state.timer) { clearTimeout(state.timer); state.timer = null; }
+  state.prev = prevSnapshot;
+  el.classList.add('visible');
+  state.timer = setTimeout(() => hideUndoChip(kind), 5000);
+}
+
+function hideUndoChip(kind) {
+  const el = document.getElementById(kind + '-undo');
+  const state = _undoState[kind];
+  if (state.timer) { clearTimeout(state.timer); state.timer = null; }
+  state.prev = null;
+  if (el) el.classList.remove('visible');
+}
+
+function undoLastSave(kind) {
+  const state = _undoState[kind];
+  const prev = state.prev;
+  if (!prev) return hideUndoChip(kind);
+  // Restore the pre-save snapshot for both wake and bed slots so multi-key
+  // saves (e.g. 'all') are fully reverted, not just the dragged kind.
+  config.wake_time = prev.wake_time;
+  config.wake_alt_time = prev.wake_alt_time;
+  config.wake_alt_days = Array.isArray(prev.wake_alt_days) ? prev.wake_alt_days.slice() : [];
+  config.bed_time = prev.bed_time;
+  config.bed_alt_time = prev.bed_alt_time;
+  config.bed_alt_days = Array.isArray(prev.bed_alt_days) ? prev.bed_alt_days.slice() : [];
+  hideUndoChip(kind);
+  syncUIFromConfig();
+  takeConfigSnapshot();
+  recomputeAscendStart();
+  renderChart();
+  updateSectionDirtyState();
+  saveZoneSettings();
 }
 
 function closeSavePopover() {
@@ -4521,18 +4575,6 @@ function commitSave(kind, key) {
   saveZoneSettings();
 }
 
-/**
- * Revert a wake/bed handle back to its last-saved (snapshot) value.
- */
-function resetWakeOrBed(kind) {
-  // Drag is now decoupled from config — Reset just clears the working copy.
-  if (kind === 'wake') chartState.wakeDragVal = null;
-  else chartState.bedDragVal = null;
-  closeSavePopover();
-  renderChart();
-  updateSectionDirtyState();
-}
-
 // ============================================================
 // UI Updates
 // ============================================================
@@ -4566,6 +4608,49 @@ function snapCursorToNow() {
   cursorHour = now.getHours() + now.getMinutes() / 60;
   renderChart();
   applyCursor();
+}
+
+/**
+ * Master reset for the rhythm-design chart view. Reverts the page to its
+ * "as-just-loaded" state for transient view controls — does NOT roll back
+ * saved config. Resets:
+ *   - cursor → now (resume live tracking)
+ *   - outdoor source → 'current' (live weather)
+ *   - wake/bed drag working values → null (handles snap back to saved)
+ *   - month → current month
+ */
+function resetChartView() {
+  // Cursor → now
+  cursorTrackingNow = true;
+  const now = new Date();
+  cursorHour = now.getHours() + now.getMinutes() / 60;
+  // Outdoor → current
+  chartState.outdoorSrc = 'current';
+  updateOutdoorChipIcon();
+  buildOutdoorPopover();
+  // Wake/bed drag → null (handles snap back to saved config values)
+  chartState.wakeDragVal = null;
+  chartState.bedDragVal = null;
+  chartState.wakeDragActive = false;
+  chartState.bedDragActive = false;
+  // Hide any auto-save undo chips that may be visible
+  hideUndoChip('wake');
+  hideUndoChip('bed');
+  // Month → current
+  chartState.monthIdx = new Date().getMonth();
+  const monthSlider = document.getElementById('month-slider');
+  const monthChipLabel = document.getElementById('month-chip-label');
+  if (monthSlider) {
+    monthSlider.value = String(chartState.monthIdx);
+    updateSliderFill(monthSlider);
+  }
+  if (monthChipLabel) monthChipLabel.textContent = MONTH_NAMES[chartState.monthIdx];
+  // Re-render and resume live cursor application
+  closeSavePopover();
+  recomputeAscendStart();
+  renderChart();
+  applyCursor();
+  updateSectionDirtyState();
 }
 function positionTimelineBadges() {
   const ascendBadge = document.getElementById('ascend-start-badge');
@@ -5496,15 +5581,13 @@ function setupEventListeners() {
     });
   }
 
-  // Cursor chip controls — Jump-to-now resumes live tracking; ←/→ step the
-  // cursor by `cursorStepMin` (configurable via Settings → App → Rhythm chart).
-  document.getElementById('cursor-chip-jump')?.addEventListener('click', (e) => {
+  // Cursor chip controls — ↺ master reset reverts page view to defaults
+  // (cursor → now, outdoor → current, wake/bed drag → null, month → current).
+  // Does NOT roll back saved config. ←/→ step the cursor by `cursorStepMin`
+  // (configurable via Settings → App → Rhythm chart).
+  document.getElementById('cursor-chip-reset')?.addEventListener('click', (e) => {
     e.stopPropagation();
-    cursorTrackingNow = true;
-    const now = new Date();
-    cursorHour = now.getHours() + now.getMinutes() / 60;
-    renderChart();
-    applyCursor();
+    resetChartView();
   });
 
   const _stepCursor = (dirSign) => {
@@ -5536,12 +5619,12 @@ function setupEventListeners() {
   // Outdoor chip toggle + popover wiring
   setupOutdoorPopover();
 
-  // Save / Reset chip event delegation (chips live in #wake-actions / #bed-actions)
+  // Undo chip event delegation (chips live in #wake-undo / #bed-undo)
   setupHandleActions();
 
   // Outside-click closes popovers
   document.addEventListener('pointerdown', (e) => {
-    if (!e.target.closest('.save-popover') && !e.target.closest('.action-chip')) {
+    if (!e.target.closest('.save-popover') && !e.target.closest('.undo-chip')) {
       closeSavePopover();
     }
     if (!e.target.closest('.outdoor-popover') && !e.target.closest('.outdoor-chip')) {
