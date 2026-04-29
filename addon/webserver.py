@@ -2895,6 +2895,11 @@ class LightDesignerServer:
             sun_times = (
                 self.client._get_sun_times() if self.client else SunTimes()
             )
+            # Outdoor data is attached to sun_times by _get_sun_times (always
+            # fresh, never cached). Pull into locals — referenced repeatedly
+            # below per area for sun-bright + status payload.
+            outdoor_norm = sun_times.outdoor_normalized
+            outdoor_source = sun_times.outdoor_source
 
             # Optional single-area filter
             filter_area_id = request.query.get("area_id")
