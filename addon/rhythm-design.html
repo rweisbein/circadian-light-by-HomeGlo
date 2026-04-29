@@ -3485,16 +3485,17 @@ function renderChart() {
 
   // Color-gradient brightness curve (filled + line segments). Fill alpha
   // matches line color so the area under the curve is color-honest. Solid =
-  // roomTargetPct (the calculated graph, un-dimmed). The dotted overlay below
-  // shows the sun-dimmed bulb output where it dips beneath the calculated.
+  // brightnessPct (sun-dimmed bulb output) — what the lights actually emit
+  // and what Live Design broadcasts. The dotted overlay above shows the
+  // un-dimmed calculated target so the gap = "what the sun is doing for me."
   const step = 2;
   for (let i = step; i < hours.length; i += step) {
     const color = cctToRGB(cct[i]);
     const fillColor = colorWithAlpha(color, 0.5);
     const x0 = hours[i - step];
     const x1 = hours[i];
-    const y0 = roomTargetPct[i - step];
-    const y1 = roomTargetPct[i];
+    const y0 = brightnessPct[i - step];
+    const y1 = brightnessPct[i];
 
     traces.push({
       type: 'scatter', mode: 'lines',
@@ -3511,10 +3512,10 @@ function renderChart() {
     });
   }
 
-  // Dotted line = sun-dimmed bulb output. Sits BELOW the solid calculated
-  // curve during daylight; the gap = how much the sun is doing the bulb's job.
-  // Only drawn in segments where the gap is real.
-  let sunDimmedAnchor = null;  // {x, y} for the "sun dimmed" label
+  // Dotted reference line = room target (un-dimmed brightness). Sits ABOVE
+  // the visible bulb-output curve during daylight; the gap = how much the sun
+  // is doing the bulb's job. Only drawn in segments where the gap is real.
+  let sunContribAnchor = null;  // {x, y} for the "sun contribution" label
   if (showDottedTarget) {
     const GAP_THRESHOLD = 0.75;
     const dx = []; const dy = [];
@@ -3523,7 +3524,7 @@ function renderChart() {
     for (let i = 0; i < hours.length; i++) {
       const gap = roomTargetPct[i] - brightnessPct[i];
       if (gap > GAP_THRESHOLD) {
-        dx.push(hours[i]); dy.push(brightnessPct[i]);
+        dx.push(hours[i]); dy.push(roomTargetPct[i]);
         if (gap > maxGap) { maxGap = gap; maxGapIdx = i; }
       } else if (dx.length && dx[dx.length - 1] !== null) {
         dx.push(null); dy.push(null);  // segment break
@@ -3538,13 +3539,13 @@ function renderChart() {
         hoverinfo: 'skip', showlegend: false,
       });
       if (maxGapIdx >= 0) {
-        sunDimmedAnchor = { x: hours[maxGapIdx], y: brightnessPct[maxGapIdx] };
+        sunContribAnchor = { x: hours[maxGapIdx], y: roomTargetPct[maxGapIdx] };
       }
     }
   }
 
-  // Hover trace - CCT colored background (calculated curve = solid line)
-  const hoverDetails = roomTargetPct.map((v, i) => {
+  // Hover trace - CCT colored background (bulb output, matches visible curve)
+  const hoverDetails = brightnessPct.map((v, i) => {
     const pct = Math.round(v);
     const kelvin = Math.round(cct[i]);
     return `${pct}% \u2022 ${kelvin}K`;
@@ -3554,7 +3555,7 @@ function renderChart() {
   const hoverBorderColors = cct.map(k => colorWithAlpha(cctToRGB(k), 0.65));
   traces.push({
     type: 'scatter', mode: 'lines',
-    x: hours, y: roomTargetPct,
+    x: hours, y: brightnessPct,
     line: { width: 0 },
     showlegend: false,
     text: hoverDetails,
@@ -3590,7 +3591,7 @@ function renderChart() {
     const wIdx = idxFor(wt);
     traces.push({
       type: 'scatter', mode: 'markers',
-      x: [tFor(wt)], y: [roomTargetPct[wIdx]],
+      x: [tFor(wt)], y: [brightnessPct[wIdx]],
       marker: { size: 14, color: cctToRGB(cct[wIdx]),
                 line: { width: 2, color: ASCEND_COLORS.text } },
       cliponaxis: false, hoverinfo: 'skip', showlegend: false,
@@ -3601,7 +3602,7 @@ function renderChart() {
     const bIdx = idxFor(bt);
     traces.push({
       type: 'scatter', mode: 'markers',
-      x: [tFor(bt)], y: [roomTargetPct[bIdx]],
+      x: [tFor(bt)], y: [brightnessPct[bIdx]],
       marker: { size: 14, color: cctToRGB(cct[bIdx]),
                 line: { width: 2, color: DESCEND_COLORS.text } },
       cliponaxis: false, hoverinfo: 'skip', showlegend: false,
@@ -3624,10 +3625,10 @@ function renderChart() {
       line: { color: DESCEND_COLORS.text, width: 1.5 } });
   }
   const annotations = [];
-  if (sunDimmedAnchor) {
+  if (sunContribAnchor) {
     annotations.push({
-      x: sunDimmedAnchor.x, y: sunDimmedAnchor.y, xref: 'x', yref: 'y',
-      text: 'sun dimmed', showarrow: false, yshift: -10,
+      x: sunContribAnchor.x, y: sunContribAnchor.y, xref: 'x', yref: 'y',
+      text: 'sun contribution', showarrow: false, yshift: -10,
       font: { size: 9, color: 'rgba(220, 220, 220, 0.7)' },
     });
   }
@@ -3826,9 +3827,10 @@ function applyCursor() {
   // Get cursor point data using core calculation functions (exact values, no interpolation)
   let cursorPoint = null;
   if (config) {
+    const dim = chartState.sunDimFactor ? chartState.sunDimFactor(cursorHour) : 1.0;
     cursorPoint = {
       x: cursorHour,
-      y: calculateBrightnessAtHour(cursorHour) * 100,  // Calculated (un-dimmed) curve
+      y: calculateBrightnessAtHour(cursorHour) * dim * 100,  // Sun-dimmed bulb output
       cct: calculateColorAtHour(cursorHour, true),     // With solar rules
       phase: getPhaseAtHour(cursorHour),
     };
@@ -5598,9 +5600,11 @@ async function loadLiveDesignAreas() {
 function getCursorLightValues() {
   if (cursorHour === null || !config) return null;
 
-  // Use core calculation functions for exact values (consistent with brain.py)
+  // Sun-dim factor matches the visible solid curve (brightnessPct), so the
+  // value broadcast to the bulb tracks what the chart shows at the cursor.
+  const dim = chartState.sunDimFactor ? chartState.sunDimFactor(cursorHour) : 1.0;
   return {
-    brightness: calculateBrightnessAtHour(cursorHour) * 100,  // Convert 0-1 to 0-100
+    brightness: calculateBrightnessAtHour(cursorHour) * dim * 100,
     colorTemp: calculateColorAtHour(cursorHour, true)         // With solar rules
   };
 }
