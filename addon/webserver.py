@@ -1910,7 +1910,7 @@ class LightDesignerServer:
         "use_ha_location",
         "month",
         "sun_saturation",  # Sun intensity saturation cap (1-100, default 40)
-        "sun_saturation_ramp",  # Ramp curve: 'linear' or 'squared' (default squared)
+        "sun_saturation_ramp",  # Ramp curve: 'linear' (Gradual) or 'sqrt' (Natural, default). Legacy 'squared' is read as 'sqrt'.
         "show_sun_angle_in_zone",  # Expose Sun angle response controls in rhythm zone Brightness card (default false)
         "turn_on_transition",  # Transition time in tenths of seconds for turn-on operations
         "turn_off_transition",  # Transition time in tenths of seconds for turn-off operations

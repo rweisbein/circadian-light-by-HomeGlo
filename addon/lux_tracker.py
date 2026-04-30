@@ -88,7 +88,10 @@ _latitude: float = 35.0
 _longitude: float = -78.6
 _max_summer_elevation: float = 78.0  # default for ~35°N, set via set_latitude()
 _sun_saturation: int = 40  # % of max elevation at which angle factor saturates to 1.0
-_sun_saturation_ramp: str = "squared"  # "linear" or "squared"
+_sun_saturation_ramp: str = "sqrt"  # "linear" (Gradual) or "sqrt" (Natural).
+# Legacy "squared" is read as "sqrt" (the curves were intentionally swapped — old
+# squared was slow-start/fast-end, sqrt is fast-start/slow-end which matches
+# perceived room brightness from sun much better).
 
 # ---------------------------------------------------------------------------
 # Module state — runtime condition map (CONDITION_MULTIPLIERS + user overrides)
@@ -159,7 +162,9 @@ def init(config: Optional[dict] = None):
 
     # Sun saturation settings
     _sun_saturation = max(1, min(100, int(config.get("sun_saturation", 40))))
-    _sun_saturation_ramp = config.get("sun_saturation_ramp", "squared")
+    # Normalize legacy "squared" → "sqrt" on read (one-way migration; the next
+    # config save will persist "sqrt" so the legacy value disappears).
+    _sun_saturation_ramp = "linear" if config.get("sun_saturation_ramp") == "linear" else "sqrt"
 
     # Reset runtime state (re-seeded by _seed_outdoor_from_ha)
     # Note: override is NOT reset — it's user-initiated and time-limited
@@ -231,7 +236,7 @@ def reload_config(config: Optional[dict] = None):
         _condition_map = dict(CONDITION_MULTIPLIERS)
 
     _sun_saturation = max(1, min(100, int(config.get("sun_saturation", 40))))
-    _sun_saturation_ramp = config.get("sun_saturation_ramp", "squared")
+    _sun_saturation_ramp = "linear" if config.get("sun_saturation_ramp") == "linear" else "sqrt"
 
     logger.info(
         f"Lux tracker config reloaded: source={_preferred_source}, "
@@ -488,9 +493,12 @@ def _compute_elev_factor() -> float:
     if threshold <= 0:
         return 1.0
     raw = min(1.0, elev / threshold)
-    if _sun_saturation_ramp == "squared":
-        return raw * raw
-    return raw
+    # "linear" (Gradual) returns raw; anything else (including legacy "squared")
+    # uses sqrt — Stevens-power-law shape that rises fast early and saturates,
+    # matching how sun "fills the room" perceptually.
+    if _sun_saturation_ramp == "linear":
+        return raw
+    return math.sqrt(raw)
 
 
 def get_angle_factor() -> float:

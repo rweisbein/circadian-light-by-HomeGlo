@@ -2013,11 +2013,13 @@
       if (elev <= 0) return 0;
       const maxElev = sunTimes.maxSummerElevation ?? 78.0;
       const sat = sunTimes.sunSaturation ?? 40;
-      const ramp = sunTimes.sunSaturationRamp ?? 'squared';
+      const ramp = sunTimes.sunSaturationRamp ?? 'sqrt';
       const threshold = maxElev * sat / 100.0;
       if (threshold <= 0) return 1.0;
       const raw = Math.min(1.0, elev / threshold);
-      return ramp === 'squared' ? raw * raw : raw;
+      // "linear" (Gradual) returns raw; anything else (sqrt / legacy "squared")
+      // uses sqrt — fast-rise/saturate shape matching perceived room brightness.
+      return ramp === 'linear' ? raw : Math.sqrt(raw);
     }
 
     // Bulb output = room target × projected sun_bright_factor at hour.
@@ -3713,7 +3715,8 @@
             const actualNorm = firstStatus.outdoor_normalized ?? firstStatus.sun_factor ?? 0;
             cachedSunTimes.outdoorNormalized = actualNorm;
             cachedSunTimes.sunSaturation = firstStatus.sun_saturation ?? 40;
-            cachedSunTimes.sunSaturationRamp = firstStatus.sun_saturation_ramp ?? 'squared';
+            cachedSunTimes.sunSaturationRamp =
+              firstStatus.sun_saturation_ramp === 'linear' ? 'linear' : 'sqrt';
             cachedSunTimes.maxSummerElevation = firstStatus.max_summer_elevation ?? 78.0;
             cachedSunTimes.sunBrightFactorNow = firstStatus.sun_bright_factor ?? 1.0;
             // Derive condition multiplier from current reading vs clear-sky at current hour
@@ -3811,7 +3814,8 @@
                 const actualNorm = ls0.outdoor_normalized ?? ls0.sun_factor ?? 0;
                 cachedSunTimes.outdoorNormalized = actualNorm;
                 cachedSunTimes.sunSaturation = ls0.sun_saturation ?? 40;
-                cachedSunTimes.sunSaturationRamp = ls0.sun_saturation_ramp ?? 'squared';
+                cachedSunTimes.sunSaturationRamp =
+                  ls0.sun_saturation_ramp === 'linear' ? 'linear' : 'sqrt';
                 cachedSunTimes.maxSummerElevation = ls0.max_summer_elevation ?? 78.0;
                 cachedSunTimes.sunBrightFactorNow = ls0.sun_bright_factor ?? 1.0;
                 const now = new Date();

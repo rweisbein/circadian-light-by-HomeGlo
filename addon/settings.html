@@ -1100,8 +1100,8 @@
               <input type="number" class="form-input" id="sun-saturation" min="1" max="100" step="5" value="40" style="width: 80px;">
               <span class="form-hint">% of peak elevation</span>
               <select class="form-input" id="sun-saturation-ramp" style="width: 100px; margin-left: 8px;">
-                <option value="linear">Linear</option>
-                <option value="squared" selected>Squared</option>
+                <option value="linear">Gradual</option>
+                <option value="sqrt" selected>Natural</option>
               </select>
             </div>
           </div>
@@ -1334,7 +1334,9 @@
           updateCtCompState();
           updateLocationSection(config);
           document.getElementById('sun-saturation').value = config.sun_saturation ?? 40;
-          document.getElementById('sun-saturation-ramp').value = config.sun_saturation_ramp ?? 'squared';
+          // Legacy "squared" maps to "sqrt" (Natural). Default also "sqrt".
+          document.getElementById('sun-saturation-ramp').value =
+            (config.sun_saturation_ramp === 'linear') ? 'linear' : 'sqrt';
           document.getElementById('show-sun-angle-in-zone').checked = !!config.show_sun_angle_in_zone;
         }
       } catch (err) {
@@ -1390,7 +1392,7 @@
         ct_comp_end: parseInt(document.getElementById('ct-comp-end').value) || 2250,
         ct_comp_factor: parseFloat(document.getElementById('ct-comp-factor').value) || 1.7,
         sun_saturation: parseInt(document.getElementById('sun-saturation').value) || 40,
-        sun_saturation_ramp: document.getElementById('sun-saturation-ramp').value || 'squared',
+        sun_saturation_ramp: document.getElementById('sun-saturation-ramp').value || 'sqrt',
         show_sun_angle_in_zone: document.getElementById('show-sun-angle-in-zone').checked
       };
 

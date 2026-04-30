@@ -143,11 +143,11 @@ class TestGetOutdoorNormalized:
 
     def test_angle_fallback_with_elevation(self):
         """Angle fallback should return positive value with sun up."""
-        # threshold = 78 * 40% = 31.2°; 10 / 31.2 ≈ 0.32, squared → ~0.10
+        # threshold = 78 * 40% = 31.2°; 10 / 31.2 ≈ 0.32, sqrt → ~0.566
         lux_tracker._elev_override = 10.0
         result = lux_tracker.get_outdoor_normalized()
         assert result is not None
-        assert 0.05 < result < 0.2
+        assert 0.45 < result < 0.65
 
     def test_active_sensor_returns_float(self):
         """When sensor + baselines + data are all present, returns sun_factor."""
@@ -728,12 +728,12 @@ class TestTwilightModel:
         assert result == 0.0
 
     def test_angle_norm_at_2deg(self):
-        """outdoor_norm at 2° should be small positive."""
+        """outdoor_norm at 2° should rise meaningfully (sqrt ramp, fast-rise early)."""
         lux_tracker._elev_override = 2.0
         result = lux_tracker._compute_angle_outdoor_norm()
-        # 2 / 19.5 (saturation threshold) ≈ 0.103
+        # 2 / 19.5 (saturation threshold) ≈ 0.103, sqrt → ~0.320
         assert result > 0.0
-        assert result < 0.15
+        assert 0.25 < result < 0.40
 
 
 class TestSetLatitude:

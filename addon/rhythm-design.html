@@ -320,7 +320,7 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
   width: 12px;
   height: 1.5px;
   border-radius: 1px;
-  background: var(--accent);
+  background: var(--muted);
 }
 .sleep-time-group .day-indicator.today.active::after { background: #000; }
 .sleep-time-group.no-alt .alt-block {
@@ -1912,7 +1912,7 @@ input[type=range]::-moz-range-thumb {
       </div>
       <div class="sub-section" id="pattern-sub-section">
         <div class="sub-section-header">
-          <span class="sub-section-title">Sleep pattern</span>
+          <span class="sub-section-title">Pattern</span>
           <select id="activity-preset" class="rhythm-pattern-inline-select" onclick="event.stopPropagation()" style="margin-left:8px;">
             <option value="young">Young Child</option>
             <option value="adult" selected>Adult</option>
@@ -2120,8 +2120,8 @@ input[type=range]::-moz-range-thumb {
                 </span>
                 <span class="tune-control-impact">
                   <select id="zone-sun-saturation-ramp" style="width:100px;">
-                    <option value="linear">Linear</option>
-                    <option value="squared">Squared</option>
+                    <option value="linear">Gradual</option>
+                    <option value="sqrt">Natural</option>
                   </select>
                 </span>
               </div>
@@ -2891,7 +2891,9 @@ function elevationToOutdoorNorm(elevDeg, conditionMultiplier) {
   const threshold = maxElev * satPct / 100;
   if (threshold <= 0) return conditionMultiplier;
   let raw = Math.min(1.0, elevDeg / threshold);
-  if (ramp === 'squared') raw = raw * raw;
+  // "linear" (Gradual) returns raw; anything else (sqrt / legacy "squared")
+  // uses sqrt — fast-rise/saturate shape matching perceived room brightness.
+  if (ramp !== 'linear') raw = Math.sqrt(raw);
   return raw * conditionMultiplier;
 }
 
@@ -6953,7 +6955,8 @@ document.addEventListener('DOMContentLoaded', () => {
     _outdoorParams = {
       maxSummerElevation: data.max_summer_elevation || 78,
       sunSaturation: data.sun_saturation || 40,
-      sunSaturationRamp: data.sun_saturation_ramp || 'squared',
+      // Legacy "squared" maps to "sqrt" (Natural). Default also "sqrt".
+      sunSaturationRamp: (data.sun_saturation_ramp === 'linear') ? 'linear' : 'sqrt',
     };
     // Sun angle response controls: visible only when home setting opts in
     if (data.show_sun_angle_in_zone) {
@@ -6981,7 +6984,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Save on commit, mirror into _outdoorParams so the chart redraws against the new shape.
   const _saveSunAngleResponse = async () => {
     const sat = parseInt(document.getElementById('zone-sun-saturation').value);
-    const ramp = document.getElementById('zone-sun-saturation-ramp').value || 'squared';
+    const ramp = document.getElementById('zone-sun-saturation-ramp').value || 'sqrt';
     const safeSat = Number.isFinite(sat) ? Math.max(1, Math.min(100, sat)) : 40;
     _outdoorParams.sunSaturation = safeSat;
     _outdoorParams.sunSaturationRamp = ramp;
