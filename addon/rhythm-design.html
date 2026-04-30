@@ -1045,14 +1045,16 @@ input[type=range]::-moz-range-thumb {
   margin-top: 2px;
 }
 
-/* Month label — quiet caption inside chart-shell (bottom-left, near sunrise
-   label). Replaces the prominent banner chip — month is a low-priority dial
-   (set once for "what time of year am I designing for") so it gets caption
-   weight, not header weight. Tap opens the same month-popover slider. */
+/* Month label — quiet caption in the card-color gap ABOVE the chart canvas
+   (same band as the sun-intensity chip, but pinned far-left while the chip
+   floats at solar-noon). Bottom corners of chart-shell are off-limits because
+   wake/bed pills can land anywhere along the bottom edge depending on the
+   user's schedule. Top of the chart's gap band is the only spot guaranteed
+   clear. Position is set per-frame in positionOverlays() against the live
+   cct-banner bottom. */
 .month-label {
   position: absolute;
-  bottom: 14px;
-  left: 12px;
+  left: 8px;
   font-size: 10px;
   font-weight: 500;
   text-transform: lowercase;
@@ -1072,7 +1074,9 @@ input[type=range]::-moz-range-thumb {
 }
 .month-popover {
   position: absolute;
-  bottom: 36px;
+  /* top set per-frame in positionOverlays() to track cct-banner bottom +
+     month-label height + small gap, so the popover opens just below the
+     "april" caption regardless of banner content height. */
   left: 8px;
   background: rgba(24, 26, 32, 0.98);
   border: 1px solid rgba(255,255,255,0.18);
@@ -4431,6 +4435,7 @@ function positionOverlays() {
   const pop = document.getElementById('outdoor-popover');
   const chartElForChip = document.getElementById('chart');
   const bannerElForChip = document.getElementById('cct-banner');
+  let _gapBannerBottom = null, _gapChartTop = null;
   if (chip && Number.isFinite(sr) && Number.isFinite(ss)) {
     const noon = (sr + ss) / 2;
     const px = xToPx(noon);
@@ -4438,6 +4443,8 @@ function positionOverlays() {
     if (bannerElForChip && chartElForChip) {
       const bannerBottom = bannerElForChip.offsetTop + bannerElForChip.offsetHeight;
       const chartTop = chartElForChip.offsetTop;
+      _gapBannerBottom = bannerBottom;
+      _gapChartTop = chartTop;
       const chipH = chip.offsetHeight || 14;
       // Center the chip vertically in the gap.
       chip.style.top = Math.round(bannerBottom + (chartTop - bannerBottom - chipH) / 2) + 'px';
@@ -4447,6 +4454,16 @@ function positionOverlays() {
         pop.style.top = (chartTop + 4) + 'px';
       }
     }
+  }
+  // Month label — pinned far-left in the same gap as the sun-intensity chip,
+  // vertically centered. Popover opens downward into the chart (below the
+  // label + a small gap), mirroring the outdoor popover's anchor logic.
+  const monthLabelEl = document.getElementById('month-label');
+  const monthPop = document.getElementById('month-popover');
+  if (monthLabelEl && _gapBannerBottom != null && _gapChartTop != null) {
+    const labelH = monthLabelEl.offsetHeight || 14;
+    monthLabelEl.style.top = Math.round(_gapBannerBottom + (_gapChartTop - _gapBannerBottom - labelH) / 2) + 'px';
+    if (monthPop) monthPop.style.top = (_gapChartTop + 4) + 'px';
   }
 
   // Wake/Bed handles — working drag value (until commit/reset) takes priority
