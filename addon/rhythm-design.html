@@ -519,21 +519,33 @@ input[type=range]::-moz-range-thumb {
 
 /* CCT-tinted edge-to-edge banner — replaces the old chart-chrome + cursor chip.
    The whole banner IS the cursor controller; its background tint follows the
-   cursor's CCT. Two rows:
-     Row 1: big % · K readout (left/center, focal) + ↺ master reset (right corner)
-     Row 2: month chip (L) + ← time → cluster (center) + Try-it (R)
-   Master reset = page-scope (cursor→now, outdoor→current, drag→null, month→
-   current). Does NOT roll back saved config. */
+   cursor's CCT. Layout (single flex row):
+     [Experience pill — far left, vertically centered]
+     [stack: row 1 = % · K readout (centered) + ↺ master reset
+             row 2 = ← time → cluster (centered)]
+   Experience is the primary CTA so it gets the prominent left slot, full-banner-
+   height vertical centering. Month chip moved out of the banner entirely (small
+   muted caption inside chart-shell — see .month-label). Master reset is page-
+   scope (cursor→now, outdoor→current, drag→null, month→current). Does NOT roll
+   back saved config. */
 .cct-banner {
   position: relative;
   border-radius: 10px 10px 0 0;
   padding: 8px 12px 8px;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
   user-select: none;
   -webkit-user-select: none;
   transition: background 0.12s, color 0.12s;
+}
+.cct-banner-stack {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 .cct-banner-row1 {
   display: flex;
@@ -582,13 +594,10 @@ input[type=range]::-moz-range-thumb {
   color: var(--accent-hover);
 }
 .cct-banner-row2 {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
+  justify-content: center;
   align-items: center;
-  gap: 8px;
 }
-.cct-banner-row2-left  { justify-self: start; display: inline-flex; align-items: center; }
-.cct-banner-row2-right { justify-self: end;   display: inline-flex; align-items: center; }
 .cct-banner-arrows {
   display: inline-flex;
   align-items: center;
@@ -1032,34 +1041,35 @@ input[type=range]::-moz-range-thumb {
   margin-top: 2px;
 }
 
-/* Month chip — lives in cct-banner row 2 left slot, taps open a slider popover.
-   Inherits banner ink color so it stays readable against the CCT tint. */
-.month-chip {
-  background: rgba(0,0,0,0.18);
-  border: 1px solid currentColor;
-  padding: 3px 9px;
-  border-radius: 12px;
+/* Month label — quiet caption inside chart-shell (bottom-left, near sunrise
+   label). Replaces the prominent banner chip — month is a low-priority dial
+   (set once for "what time of year am I designing for") so it gets caption
+   weight, not header weight. Tap opens the same month-popover slider. */
+.month-label {
+  position: absolute;
+  bottom: 14px;
+  left: 12px;
   font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: inherit;
+  font-weight: 500;
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+  color: var(--muted);
   cursor: pointer;
   z-index: 6;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  white-space: nowrap;
   user-select: none;
   -webkit-user-select: none;
-  font-variant-numeric: tabular-nums;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
 }
-.month-chip:hover { background: rgba(0,0,0,0.30); }
-.month-chip-icon { font-size: 11px; line-height: 1; opacity: 0.85; }
+.month-label:hover {
+  color: var(--text);
+  background: rgba(255,255,255,0.05);
+}
 .month-popover {
   position: absolute;
-  top: 60px;
-  left: 10px;
+  bottom: 36px;
+  left: 8px;
   background: rgba(24, 26, 32, 0.98);
   border: 1px solid rgba(255,255,255,0.18);
   border-radius: 8px;
@@ -1775,35 +1785,36 @@ input[type=range]::-moz-range-thumb {
     <div class="chart-wrapper">
       <div id="chart-shell">
         <!-- CCT-tinted edge-to-edge banner — IS the cursor chip. Tint follows
-             cursor CCT. Row 1 = % · K (focal) + ↺ master reset. Row 2 = month
-             chip + ← time → cluster + Try-it. -->
+             cursor CCT. Layout: Experience pill (far-left, vertically centered
+             across the banner) | stacked rows: row 1 = % · K (focal) + ↺ master
+             reset; row 2 = ← time → cluster (centered). Month moved out of the
+             header to a quiet caption near sunrise/sunset (it's a low-priority
+             dial, doesn't deserve header prominence). -->
         <div class="cct-banner" id="cct-banner">
-          <div class="cct-banner-row1">
-            <div class="cct-banner-readout-cluster">
-              <span class="cct-banner-readout" id="cct-banner-readout">--% &middot; ----K</span>
-              <button type="button" class="cct-banner-reset" id="cct-banner-reset" title="Reset chart view">&#x21BA;</button>
+          <button type="button" class="try-it-btn" id="try-it-btn" aria-haspopup="true" aria-expanded="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/></svg>
+            <span class="try-it-label" id="try-it-label">Experience</span>
+          </button>
+          <div class="cct-banner-stack">
+            <div class="cct-banner-row1">
+              <div class="cct-banner-readout-cluster">
+                <span class="cct-banner-readout" id="cct-banner-readout">--% &middot; ----K</span>
+                <button type="button" class="cct-banner-reset" id="cct-banner-reset" title="Reset chart view">&#x21BA;</button>
+              </div>
             </div>
-          </div>
-          <div class="cct-banner-row2">
-            <div class="cct-banner-row2-left">
-              <button type="button" class="month-chip" id="month-chip">
-                <span id="month-chip-label">April</span>
-              </button>
-            </div>
-            <div class="cct-banner-arrows">
-              <button type="button" id="cct-banner-prev" title="Step back">&#x2190;</button>
-              <span class="cct-banner-time" id="cct-banner-time">--:--</span>
-              <button type="button" id="cct-banner-next" title="Step forward">&#x2192;</button>
-            </div>
-            <div class="cct-banner-row2-right">
-              <button type="button" class="try-it-btn" id="try-it-btn" aria-haspopup="true" aria-expanded="false">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/></svg>
-                <span class="try-it-label" id="try-it-label">Experience</span>
-              </button>
+            <div class="cct-banner-row2">
+              <div class="cct-banner-arrows">
+                <button type="button" id="cct-banner-prev" title="Step back">&#x2190;</button>
+                <span class="cct-banner-time" id="cct-banner-time">--:--</span>
+                <button type="button" id="cct-banner-next" title="Step forward">&#x2192;</button>
+              </div>
             </div>
           </div>
         </div>
 
+        <!-- Month label — quiet caption in chart-shell bottom-left (replaces
+             the v1.2.205 banner chip). Tap opens the slider popover. -->
+        <div class="month-label" id="month-label">april</div>
         <div class="month-popover" id="month-popover">
           <input type="range" class="month-slider" id="month-slider" min="0" max="11" value="3">
         </div>
@@ -4815,12 +4826,12 @@ function resetChartView() {
   // Month → current
   chartState.monthIdx = new Date().getMonth();
   const monthSlider = document.getElementById('month-slider');
-  const monthChipLabel = document.getElementById('month-chip-label');
+  const monthLabelEl = document.getElementById('month-label');
   if (monthSlider) {
     monthSlider.value = String(chartState.monthIdx);
     updateSliderFill(monthSlider);
   }
-  if (monthChipLabel) monthChipLabel.textContent = MONTH_NAMES[chartState.monthIdx];
+  if (monthLabelEl) monthLabelEl.textContent = MONTH_NAMES[chartState.monthIdx];
   // Re-render and resume live cursor application
   closeSavePopover();
   recomputeAscendStart();
@@ -5729,29 +5740,28 @@ function setupEventListeners() {
     }
   });
 
-  // Month slider — lives inside the month-chip popover (top-left of chart).
-  // 12 stops; renderChart() reads chartState.monthIdx via getSelectedDateISO()
-  // to compute sun times.
+  // Month slider — opens from the quiet "april" caption inside chart-shell
+  // (bottom-left). 12 stops; renderChart() reads chartState.monthIdx via
+  // getSelectedDateISO() to compute sun times.
   const monthSlider = document.getElementById('month-slider');
-  const monthChipLabel = document.getElementById('month-chip-label');
+  const monthLabelEl = document.getElementById('month-label');
   if (monthSlider) {
     monthSlider.addEventListener('input', () => {
       chartState.monthIdx = parseInt(monthSlider.value, 10);
-      if (monthChipLabel) monthChipLabel.textContent = MONTH_NAMES[chartState.monthIdx];
+      if (monthLabelEl) monthLabelEl.textContent = MONTH_NAMES[chartState.monthIdx];
       updateSliderFill(monthSlider);
       renderChart();
     });
     updateSliderFill(monthSlider);
   }
-  const monthChip = document.getElementById('month-chip');
   const monthPop = document.getElementById('month-popover');
-  if (monthChip && monthPop) {
-    monthChip.addEventListener('click', (e) => {
+  if (monthLabelEl && monthPop) {
+    monthLabelEl.addEventListener('click', (e) => {
       e.stopPropagation();
       monthPop.classList.toggle('open');
     });
     document.addEventListener('click', (e) => {
-      if (!monthPop.contains(e.target) && e.target !== monthChip) {
+      if (!monthPop.contains(e.target) && e.target !== monthLabelEl) {
         monthPop.classList.remove('open');
       }
     });
@@ -6871,10 +6881,10 @@ function setupSectionActions() {
 document.addEventListener('DOMContentLoaded', () => {
   // Initialize month slider to current month
   const monthSlider = document.getElementById('month-slider');
-  const monthChipLabel = document.getElementById('month-chip-label');
+  const monthLabelEl = document.getElementById('month-label');
   chartState.monthIdx = new Date().getMonth();
   if (monthSlider) monthSlider.value = chartState.monthIdx;
-  if (monthChipLabel) monthChipLabel.textContent = MONTH_NAMES[chartState.monthIdx];
+  if (monthLabelEl) monthLabelEl.textContent = MONTH_NAMES[chartState.monthIdx];
 
   // Apply server-injected global settings (lat, lon, timezone, cursor step)
   // before first render. `rhythm_cursor_step_min` drives the banner ←/→
