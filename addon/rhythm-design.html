@@ -536,10 +536,14 @@ input[type=range]::-moz-range-thumb {
   transition: background 0.12s, color 0.12s;
 }
 .cct-banner-row1 {
-  display: grid;
-  grid-template-columns: 1fr auto;
+  display: flex;
+  justify-content: center;
   align-items: center;
-  gap: 8px;
+}
+.cct-banner-readout-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 .cct-banner-readout {
   font-size: 22px;
@@ -827,6 +831,8 @@ input[type=range]::-moz-range-thumb {
   border-radius: 8px;
   padding: 6px;
   min-width: 220px;
+  max-height: 232px;
+  overflow-y: auto;
   z-index: 20;
   box-shadow: 0 6px 18px rgba(0,0,0,0.5);
   display: none;
@@ -1772,8 +1778,10 @@ input[type=range]::-moz-range-thumb {
              chip + ← time → cluster + Try-it. -->
         <div class="cct-banner" id="cct-banner">
           <div class="cct-banner-row1">
-            <div class="cct-banner-readout" id="cct-banner-readout">--% &middot; ----K</div>
-            <button type="button" class="cct-banner-reset" id="cct-banner-reset" title="Reset chart view">&#x21BA;</button>
+            <div class="cct-banner-readout-cluster">
+              <span class="cct-banner-readout" id="cct-banner-readout">--% &middot; ----K</span>
+              <button type="button" class="cct-banner-reset" id="cct-banner-reset" title="Reset chart view">&#x21BA;</button>
+            </div>
           </div>
           <div class="cct-banner-row2">
             <div class="cct-banner-row2-left">
@@ -4292,7 +4300,9 @@ function isChartViewDirty() {
 function updateBannerResetVisibility() {
   const btn = document.getElementById('cct-banner-reset');
   if (!btn) return;
-  btn.style.display = isChartViewDirty() ? '' : 'none';
+  // visibility (not display) so the reset always reserves space — keeps the
+  // readout centered identically whether the chart view is clean or dirty.
+  btn.style.visibility = isChartViewDirty() ? 'visible' : 'hidden';
 }
 
 // Position the HTML overlays (NOW pill, sunrise/sunset labels, outdoor chip,
