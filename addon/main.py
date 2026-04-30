@@ -163,8 +163,12 @@ class HomeAssistantWebSocketClient:
         # Maps entity_id -> device_id (used to look up contact sensor config)
         self.contact_sensor_ids: Dict[str, str] = {}
 
-        # Live Design tracking - skip this area in periodic updates
-        self.live_design_area: str = None
+        # Live Design tracking — set of area_ids currently being broadcast to.
+        # Used to (a) skip these areas in periodic ticks (belt-and-suspenders;
+        # state.set_is_circadian(False) is the primary mechanism) and (b)
+        # suppress switch / motion / contact handlers for any of these areas
+        # so external triggers don't fight the user's design broadcast.
+        self.live_design_areas: Set[str] = set()
 
         # Initialize state module (loads from circadian_state.json)
         state.init()
@@ -626,6 +630,26 @@ class HomeAssistantWebSocketClient:
             )
             return
 
+        # Live Design suppression: skip area_configs whose area is currently
+        # being broadcast to. User scrubbing wins over physical motion trigger.
+        scoped_areas = sensor_config.areas
+        if self.live_design_areas:
+            filtered = [
+                ac for ac in scoped_areas
+                if ac.area_id not in self.live_design_areas
+            ]
+            if len(filtered) < len(scoped_areas):
+                suppressed = sorted(
+                    {ac.area_id for ac in scoped_areas} & self.live_design_areas
+                )
+                logger.info(
+                    f"[Motion] Suppressing live-design areas {suppressed} "
+                    f"for {sensor_config.name}"
+                )
+            if not filtered:
+                return
+            scoped_areas = filtered
+
         logger.info(
             f"[Motion] {entity_id} -> {new_state} (sensor={sensor_config.name})"
         )
@@ -637,7 +661,7 @@ class HomeAssistantWebSocketClient:
         # Per-scope cooldown: filter out area configs whose scope is cooled down.
         now = time.time()
         active_configs = []
-        for i, area_config in enumerate(sensor_config.areas):
+        for i, area_config in enumerate(scoped_areas):
             # Scope-level trigger filter: skip if this entity isn't in the scope's trigger list
             if (
                 area_config.trigger_entities
@@ -869,6 +893,26 @@ class HomeAssistantWebSocketClient:
             )
             return
 
+        # Live Design suppression: skip area_configs whose area is currently
+        # being broadcast to. User scrubbing wins over physical motion trigger.
+        scoped_areas = sensor_config.areas
+        if self.live_design_areas:
+            filtered = [
+                ac for ac in scoped_areas
+                if ac.area_id not in self.live_design_areas
+            ]
+            if len(filtered) < len(scoped_areas):
+                suppressed = sorted(
+                    {ac.area_id for ac in scoped_areas} & self.live_design_areas
+                )
+                logger.info(
+                    f"[ZHA Motion] Suppressing live-design areas {suppressed} "
+                    f"for {sensor_config.name}"
+                )
+            if not filtered:
+                return
+            scoped_areas = filtered
+
         # Motion detected
         logger.info(
             f"[ZHA Motion] {sensor_config.name}: motion detected (command={command})"
@@ -878,7 +922,7 @@ class HomeAssistantWebSocketClient:
         # Per-scope cooldown: filter out cooled-down area configs
         now = time.time()
         active_configs = []
-        for i, area_config in enumerate(sensor_config.areas):
+        for i, area_config in enumerate(scoped_areas):
             cd = area_config.cooldown
             if cd > 0:
                 cd_key = f"{sensor_config.id}_scope{i}"
@@ -1046,16 +1090,36 @@ class HomeAssistantWebSocketClient:
             )
             return
 
+        # Live Design suppression: skip area_configs whose area is currently
+        # being broadcast to. User scrubbing wins over physical contact trigger.
+        scoped_areas = sensor_config.areas
+        if self.live_design_areas:
+            filtered = [
+                ac for ac in scoped_areas
+                if ac.area_id not in self.live_design_areas
+            ]
+            if len(filtered) < len(scoped_areas):
+                suppressed = sorted(
+                    {ac.area_id for ac in scoped_areas} & self.live_design_areas
+                )
+                logger.info(
+                    f"[Contact] Suppressing live-design areas {suppressed} "
+                    f"for {sensor_config.name}"
+                )
+            if not filtered:
+                return
+            scoped_areas = filtered
+
         logger.info(
             f"[Contact] {entity_id} -> {new_state} (sensor={sensor_config.name})"
         )
 
         # Process each area configured for this sensor
         contact_areas_needing_commands = []
-        active_areas = [ac for ac in sensor_config.areas if ac.mode != "disabled"]
+        active_areas = [ac for ac in scoped_areas if ac.mode != "disabled"]
         use_batch = len(active_areas) >= 2
 
-        for area_config in sensor_config.areas:
+        for area_config in scoped_areas:
             area_id = area_config.area_id
             mode = area_config.mode
             duration = area_config.duration
@@ -1907,6 +1971,27 @@ class HomeAssistantWebSocketClient:
         if not areas and not is_moment_action:
             logger.warning(f"No areas configured for switch {switch_id}")
             return
+
+        # Live Design suppression: filter out any areas currently being
+        # broadcast to. User scrubbing wins over physical switch press.
+        # Moments (set_*) apply globally and need no filter — broadcast
+        # areas already have is_circadian=False so they're naturally skipped
+        # by the moment's own circadian-area enumeration.
+        if areas and self.live_design_areas:
+            filtered = [a for a in areas if a not in self.live_design_areas]
+            if len(filtered) < len(areas):
+                suppressed = sorted(set(areas) & self.live_design_areas)
+                logger.info(
+                    f"[Switch] {switch_name}: suppressing live-design areas "
+                    f"{suppressed}"
+                )
+            if not filtered and not is_moment_action:
+                logger.info(
+                    f"[Switch] {switch_name}: all target areas are live, "
+                    f"ignoring press"
+                )
+                return
+            areas = filtered
 
         logger.info(
             f"[Switch] {switch_name}: {main_action}"
@@ -5649,16 +5734,23 @@ class HomeAssistantWebSocketClient:
             self.refresh_event.set()
 
     def handle_live_design(self, area_id, active):
-        """Start or stop Live Design for an area. Called by webserver."""
+        """Start or stop Live Design for an area. Called by webserver.
+
+        Multi-area: each broadcasting area is tracked independently in
+        self.live_design_areas, so a Stop on area X never disturbs other
+        areas still broadcasting.
+        """
         if active:
-            self.live_design_area = area_id
+            self.live_design_areas.add(area_id)
             logger.info(
-                f"Live Design started for area: {area_id} — skipping periodic updates"
+                f"Live Design started for area: {area_id} "
+                f"(active areas: {sorted(self.live_design_areas)})"
             )
-        elif self.live_design_area == area_id:
-            self.live_design_area = None
+        elif area_id in self.live_design_areas:
+            self.live_design_areas.discard(area_id)
             logger.info(
-                f"Live Design ended for area: {area_id} — resuming periodic updates"
+                f"Live Design ended for area: {area_id} "
+                f"(remaining: {sorted(self.live_design_areas) or 'none'})"
             )
 
     async def handle_service_event(self, service, area_id, **kwargs):
@@ -6343,17 +6435,20 @@ class HomeAssistantWebSocketClient:
                 if not circadian_areas:
                     logger.debug("No areas enabled for Circadian Light update")
                 else:
-                    # Skip area being designed in Live Design mode
-                    if (
-                        self.live_design_area
-                        and self.live_design_area in circadian_areas
-                    ):
-                        circadian_areas = [
-                            a for a in circadian_areas if a != self.live_design_area
+                    # Skip any areas currently being designed in Live Design mode.
+                    # Belt-and-suspenders: state.set_is_circadian(False) already
+                    # excludes them upstream via get_circadian_areas_for_update,
+                    # but this guards against a race where the state flip and
+                    # the periodic tick interleave.
+                    if self.live_design_areas:
+                        skipped = [
+                            a for a in circadian_areas if a in self.live_design_areas
                         ]
-                        logger.debug(
-                            f"Skipping Live Design area: {self.live_design_area}"
-                        )
+                        if skipped:
+                            circadian_areas = [
+                                a for a in circadian_areas if a not in self.live_design_areas
+                            ]
+                            logger.debug(f"Skipping Live Design areas: {skipped}")
 
                     trigger_source = (
                         "refresh signal"
@@ -7090,17 +7185,9 @@ class HomeAssistantWebSocketClient:
             elif event_type == "circadian_light_live_design":
                 area_id = event_data.get("area_id")
                 active = event_data.get("active", False)
-                if active:
-                    self.live_design_area = area_id
-                    logger.info(
-                        f"Live Design started for area: {area_id} - skipping periodic updates"
-                    )
-                else:
-                    if self.live_design_area == area_id:
-                        self.live_design_area = None
-                        logger.info(
-                            f"Live Design ended for area: {area_id} - resuming periodic updates"
-                        )
+                # Delegate to handle_live_design so add/remove and logging
+                # behavior stays in one place.
+                self.handle_live_design(area_id, active)
 
             # Handle device registry updates (log only, use Sync button to apply)
             elif event_type == "device_registry_updated":

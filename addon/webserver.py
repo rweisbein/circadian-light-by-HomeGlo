@@ -451,19 +451,22 @@ class LightDesignerServer:
         self.options_file = os.path.join(self.data_dir, "options.json")
         self.designer_file = os.path.join(self.data_dir, "designer_config.json")
 
-        # Live Design capability cache (one area at a time)
-        # Populated when Live Design is enabled for an area
-        self.live_design_area: str = None  # Currently active Live Design area
-        self.live_design_color_lights: list = []  # Color-capable lights in area
-        self.live_design_ct_lights: list = []  # CT-only lights in area
-        self.live_design_saved_states: dict = (
-            {}
-        )  # Saved light states to restore when ending
-        # Heartbeat watchdog — abandoned browser safety net.
-        # Browser pings /api/live-design/heartbeat every ~30s; the watcher
-        # ends Live Design if no ping arrives for LIVE_DESIGN_TIMEOUT_SEC.
-        self.live_design_started_at: float = 0.0
-        self.live_design_last_heartbeat: float = 0.0
+        # Live Design capability cache, keyed per area_id so multi-area
+        # broadcasts (up to TRY_IT_MAX simultaneous targets) don't clobber
+        # each other. Each entry holds the snapshot needed to restore the
+        # area's prior state when Live Design ends for that area.
+        # Schema per area_id:
+        #   {
+        #     "color_lights": [entity_id, ...],
+        #     "ct_lights":    [entity_id, ...],
+        #     "saved_states": {entity_id: attrs_dict, ...},
+        #     "started_at":   float (epoch),
+        #     "last_heartbeat": float (epoch),
+        #   }
+        # Browser pings /api/live-design/heartbeat per-area every ~30s; the
+        # watcher ends Live Design for any area whose heartbeat is older
+        # than LIVE_DESIGN_TIMEOUT_SEC, leaving the rest untouched.
+        self.live_design_areas: Dict[str, Dict[str, Any]] = {}
         self._live_design_watcher_task = None
 
         # Areas cache - populated once on first request, refreshed by sync-devices
@@ -3713,6 +3716,28 @@ class LightDesignerServer:
             client = self.client
             bri = max(1, min(100, int(bri_in))) if bri_in is not None else None
             kelvin = int(ct_in) if ct_in is not None else None
+
+            # CT compensation — boost brightness when kelvin is very warm so the
+            # *perceived* brightness matches what the chart implies at that
+            # kelvin. Same function the periodic pipeline uses (pipeline.py
+            # apply_ct_compensation), so any future tuning of the curve flows
+            # through to Live Design automatically. No other pipeline steps
+            # apply (no sun_exposure scaling, no area_factor, etc.) — raw means
+            # raw, except for this perception correction which is part of what
+            # the chart promises.
+            if bri is not None and kelvin is not None:
+                from pipeline import apply_ct_compensation
+
+                raw_cfg = glozone.load_config_from_files()
+                bri = apply_ct_compensation(
+                    bri,
+                    kelvin,
+                    enabled=raw_cfg.get("ct_comp_enabled", False),
+                    begin=raw_cfg.get("ct_comp_begin", 1650),
+                    end=raw_cfg.get("ct_comp_end", 2250),
+                    factor=raw_cfg.get("ct_comp_factor", 1.7),
+                )
+
             xy = (
                 CircadianLight.color_temperature_to_xy(kelvin)
                 if kelvin is not None
@@ -3873,7 +3898,9 @@ class LightDesignerServer:
             state.set_is_circadian(area_id, is_circadian)
 
             if not is_circadian:
-                # Live Design is starting - get light capabilities from client cache
+                # Live Design starting for this area — independent of any
+                # other areas already broadcasting. Each area gets its own
+                # snapshot in self.live_design_areas[area_id].
                 if self.client:
                     area_lights = self.client.area_lights.get(area_id, [])
                     color_lights = []
@@ -3885,51 +3912,63 @@ class LightDesignerServer:
                         else:
                             ct_lights.append(eid)
 
-                    self.live_design_area = area_id
-                    self.live_design_color_lights = color_lights
-                    self.live_design_ct_lights = ct_lights
-                    self.live_design_started_at = time.time()
-                    self.live_design_last_heartbeat = time.time()
-
-                    # Save current light states from cache for restoration later
+                    saved_states = {}
                     all_lights = color_lights + ct_lights
-                    self.live_design_saved_states = {}
                     for eid in all_lights:
                         s = self.client.cached_states.get(eid, {})
                         if s.get("state") == "on":
-                            self.live_design_saved_states[eid] = s.get("attributes", {})
+                            saved_states[eid] = s.get("attributes", {})
+
+                    now = time.time()
+                    self.live_design_areas[area_id] = {
+                        "color_lights": color_lights,
+                        "ct_lights": ct_lights,
+                        "saved_states": saved_states,
+                        "started_at": now,
+                        "last_heartbeat": now,
+                    }
 
                     logger.info(
-                        f"[Live Design] Started for area {area_id}: {len(color_lights)} color, {len(ct_lights)} CT-only, saved {len(self.live_design_saved_states)} states"
+                        f"[Live Design] Started for area {area_id}: "
+                        f"{len(color_lights)} color, {len(ct_lights)} CT-only, "
+                        f"saved {len(saved_states)} states "
+                        f"(active areas: {len(self.live_design_areas)})"
                     )
 
                     # Visual feedback: fade to off over 2 seconds
-                    await self.client.call_service(
-                        "light",
-                        "turn_off",
-                        {"transition": 2},
-                        {"entity_id": all_lights},
-                    )
+                    if all_lights:
+                        await self.client.call_service(
+                            "light",
+                            "turn_off",
+                            {"transition": 2},
+                            {"entity_id": all_lights},
+                        )
 
                     self.client.handle_live_design(area_id, True)
                 else:
                     logger.warning(
                         "[Live Design] Cannot fetch capabilities - client not ready"
                     )
-                    self.live_design_area = area_id
-                    self.live_design_color_lights = []
-                    self.live_design_ct_lights = []
-                    self.live_design_saved_states = {}
-                    self.live_design_started_at = time.time()
-                    self.live_design_last_heartbeat = time.time()
+                    now = time.time()
+                    self.live_design_areas[area_id] = {
+                        "color_lights": [],
+                        "ct_lights": [],
+                        "saved_states": {},
+                        "started_at": now,
+                        "last_heartbeat": now,
+                    }
             else:
-                # Live Design is ending - restore saved states and clear cache
-                if self.live_design_area == area_id:
+                # Live Design ending for this area — restore its saved state
+                # and remove it from the active set. Other broadcasting areas
+                # are unaffected.
+                area_entry = self.live_design_areas.get(area_id)
+                if area_entry:
                     logger.info(f"[Live Design] Ended for area {area_id}")
 
                     all_lights = (
-                        self.live_design_color_lights + self.live_design_ct_lights
+                        area_entry["color_lights"] + area_entry["ct_lights"]
                     )
+                    saved_states = area_entry["saved_states"]
 
                     # Visual feedback: fade to off over 2 seconds, then restore
                     if all_lights and self.client:
@@ -3941,8 +3980,8 @@ class LightDesignerServer:
                         )
 
                     # Restore saved light states with 2s transition
-                    if self.live_design_saved_states and self.client:
-                        for eid, attrs in self.live_design_saved_states.items():
+                    if saved_states and self.client:
+                        for eid, attrs in saved_states.items():
                             restore_data = {"transition": 2}
                             if attrs.get("brightness"):
                                 restore_data["brightness"] = attrs["brightness"]
@@ -3959,18 +3998,13 @@ class LightDesignerServer:
                                 {"entity_id": eid},
                             )
                         logger.info(
-                            f"[Live Design] Restored {len(self.live_design_saved_states)} light states"
+                            f"[Live Design] Restored {len(saved_states)} light states for {area_id}"
                         )
 
                     if self.client:
                         self.client.handle_live_design(area_id, False)
 
-                    self.live_design_area = None
-                    self.live_design_color_lights = []
-                    self.live_design_ct_lights = []
-                    self.live_design_saved_states = {}
-                    self.live_design_started_at = 0.0
-                    self.live_design_last_heartbeat = 0.0
+                    self.live_design_areas.pop(area_id, None)
 
             logger.info(
                 f"[Live Design] Circadian mode {'enabled' if is_circadian else 'disabled'} for area {area_id}"
@@ -3984,19 +4018,21 @@ class LightDesignerServer:
             return web.json_response({"error": str(e)}, status=500)
 
     async def live_design_heartbeat(self, request: Request) -> Response:
-        """Browser pings this while the rhythm-design page is open.
+        """Browser pings this per active broadcast area while the page is open.
 
-        Updates `live_design_last_heartbeat` only if the area_id matches
-        the currently-active Live Design area, so a stale ping from a
-        different area can't keep the wrong session alive.
+        Each area in self.live_design_areas has its own last_heartbeat
+        timestamp; a ping for area_id X only refreshes X's timer, so an
+        abandoned area (browser closed, laptop slept) eventually times out
+        independently while still-active areas stay alive.
         """
         try:
             data = await request.json()
             area_id = data.get("area_id")
             if not area_id:
                 return web.json_response({"error": "area_id is required"}, status=400)
-            if self.live_design_area == area_id:
-                self.live_design_last_heartbeat = time.time()
+            entry = self.live_design_areas.get(area_id)
+            if entry:
+                entry["last_heartbeat"] = time.time()
                 return web.json_response({"status": "ok", "active": True})
             return web.json_response({"status": "ok", "active": False})
         except json.JSONDecodeError:
@@ -4006,35 +4042,37 @@ class LightDesignerServer:
             return web.json_response({"error": str(e)}, status=500)
 
     async def _live_design_watcher(self):
-        """Background loop that ends Live Design if heartbeats go stale.
+        """Background loop that ends Live Design for any area whose heartbeat
+        has gone stale.
 
-        Handles the abandoned-browser case (closed tab, slept laptop, network
-        drop). Lights resume circadian on the next periodic update; we don't
-        attempt the saved-state restoration the manual-end path does, since
-        the user's intent is to resume normal operation, not freeze them.
+        Iterates all entries in self.live_design_areas independently — a slept
+        laptop with 3 broadcasting areas resumes all 3 to circadian, not just
+        whichever was last-added. Lights resume circadian on the next periodic
+        update; saved-state restoration is skipped on the watchdog path since
+        the user's intent (after abandoning the page) is to resume normal
+        operation, not freeze the broadcast snapshot in place.
         """
         while True:
             try:
                 await asyncio.sleep(LIVE_DESIGN_WATCHER_INTERVAL_SEC)
-                if not self.live_design_area:
+                if not self.live_design_areas:
                     continue
-                age = time.time() - (self.live_design_last_heartbeat or 0)
-                if age <= LIVE_DESIGN_TIMEOUT_SEC:
-                    continue
-                area_id = self.live_design_area
-                logger.info(
-                    f"[Live Design] Watchdog: ending area {area_id} "
-                    f"(no heartbeat for {age:.0f}s, threshold {LIVE_DESIGN_TIMEOUT_SEC}s)"
-                )
-                state.set_is_circadian(area_id, True)
-                if self.client:
-                    self.client.handle_live_design(area_id, False)
-                self.live_design_area = None
-                self.live_design_color_lights = []
-                self.live_design_ct_lights = []
-                self.live_design_saved_states = {}
-                self.live_design_started_at = 0.0
-                self.live_design_last_heartbeat = 0.0
+                now = time.time()
+                stale_areas = [
+                    aid
+                    for aid, entry in self.live_design_areas.items()
+                    if (now - entry.get("last_heartbeat", 0)) > LIVE_DESIGN_TIMEOUT_SEC
+                ]
+                for area_id in stale_areas:
+                    age = now - self.live_design_areas[area_id].get("last_heartbeat", 0)
+                    logger.info(
+                        f"[Live Design] Watchdog: ending area {area_id} "
+                        f"(no heartbeat for {age:.0f}s, threshold {LIVE_DESIGN_TIMEOUT_SEC}s)"
+                    )
+                    state.set_is_circadian(area_id, True)
+                    if self.client:
+                        self.client.handle_live_design(area_id, False)
+                    self.live_design_areas.pop(area_id, None)
             except asyncio.CancelledError:
                 raise
             except Exception as e:

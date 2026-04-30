@@ -215,7 +215,14 @@ def compute(ctx: PipelineContext) -> PipelineResult:
 
         # CT brightness compensation
         if not should_off and purpose_bri > 0:
-            purpose_bri = _apply_ct_compensation(purpose_bri, kelvin, ctx)
+            purpose_bri = apply_ct_compensation(
+                purpose_bri,
+                kelvin,
+                enabled=ctx.ct_comp_enabled,
+                begin=ctx.ct_comp_begin,
+                end=ctx.ct_comp_end,
+                factor=ctx.ct_comp_factor,
+            )
 
         purposes.append(
             PurposeResult(
@@ -318,21 +325,41 @@ def _apply_purpose_filter(
     return (final, False)
 
 
-def _apply_ct_compensation(
-    brightness: int, color_temp: int, ctx: PipelineContext
+def apply_ct_compensation(
+    brightness: int,
+    color_temp: int,
+    *,
+    enabled: bool,
+    begin: int,
+    end: int,
+    factor: float,
 ) -> int:
-    """Apply CT brightness compensation for warm color temperatures."""
-    if not ctx.ct_comp_enabled or brightness <= 0:
+    """Apply CT brightness compensation for warm color temperatures.
+
+    Public so callers outside the pipeline (e.g. Live Design's raw broadcast
+    in webserver.py) can apply the same perception-correction without
+    reimplementing the curve. Anyone tuning CT comp behavior changes only
+    this function and both call sites pick up the change.
+
+    Args:
+        brightness: Pre-comp brightness (0-100).
+        color_temp: Color temperature in Kelvin.
+        enabled: CT comp on/off.
+        begin: Below this kelvin, full `factor` boost applies.
+        end: Above this kelvin, no boost. Linear interpolation between.
+        factor: Multiplier applied at `begin` and below (e.g. 1.7 = 70% boost).
+    """
+    if not enabled or brightness <= 0:
         return brightness
 
-    if color_temp >= ctx.ct_comp_end:
+    if color_temp >= end:
         return brightness
-    if color_temp <= ctx.ct_comp_begin:
-        compensated = brightness * ctx.ct_comp_factor
+    if color_temp <= begin:
+        compensated = brightness * factor
         return min(100, int(round(compensated)))
 
     # Linear interpolation within handover zone
-    position = (ctx.ct_comp_end - color_temp) / (ctx.ct_comp_end - ctx.ct_comp_begin)
-    factor = 1.0 + position * (ctx.ct_comp_factor - 1.0)
-    compensated = brightness * factor
+    position = (end - color_temp) / (end - begin)
+    interp_factor = 1.0 + position * (factor - 1.0)
+    compensated = brightness * interp_factor
     return min(100, int(round(compensated)))
