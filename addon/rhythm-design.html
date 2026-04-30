@@ -401,8 +401,11 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
   top: 0;
   z-index: 50;
 }
-/* Chart section: zero padding so the CCT banner spans the card edge-to-edge. */
-#chart-section { padding: 0; overflow: hidden; }
+/* Chart section: zero padding so the CCT banner spans the card edge-to-edge.
+   `overflow: visible` so the Experience popover (and any other floating
+   overlay anchored inside) can extend past the card's bottom edge into the
+   cards below — it's a transient floating UI, not chart content. */
+#chart-section { padding: 0; overflow: visible; }
 #chart-section .chart-wrapper { margin-bottom: 0; }
 
 /* Sliders — custom minimal styling for regular sliders */
@@ -527,7 +530,10 @@ input[type=range]::-moz-range-thumb {
    back saved config. */
 .cct-banner {
   position: relative;
-  border-radius: 10px 10px 0 0;
+  /* 7px (not 10) to fit inside the section-block's 8px outer radius minus its
+     1px border — so the banner's top corners don't poke past the card edge
+     now that #chart-section has overflow:visible. */
+  border-radius: 7px 7px 0 0;
   padding: 8px 12px 8px;
   user-select: none;
   -webkit-user-select: none;
