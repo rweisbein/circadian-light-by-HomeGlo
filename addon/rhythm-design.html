@@ -666,10 +666,15 @@ input[type=range]::-moz-range-thumb {
 .try-it-btn:hover {
   background: rgba(0,0,0,0.30);
 }
-.try-it-btn svg {
+/* Broadcast SVG only shows when live — when idle the "Experience" word is
+   self-explanatory and the icon is decorative noise; when broadcasting the
+   icon becomes a meaningful "active right now" state indicator. Two-line
+   stack collapses to a single-line label when the icon is hidden. */
+.try-it-btn svg { display: none; }
+.try-it-btn.is-live svg {
+  display: block;
   width: 12px;
   height: 12px;
-  opacity: 0.85;
 }
 /* Live state — dark container so the accent-orange ink reads cleanly even when
    the cct-banner background tint is also warm (mid-day → orange-on-orange would
@@ -720,6 +725,22 @@ input[type=range]::-moz-range-thumb {
   overflow-y: auto;
   margin: 6px 0 8px;
   padding-right: 2px;
+}
+/* Zone header inside the area list — small muted caption that visually groups
+   the areas underneath, matching the home page (areas.html) zone-grouped
+   layout. `.not-first` adds a divider gap between zone groups. */
+.try-it-zone-header {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted2);
+  padding: 4px 4px 2px;
+}
+.try-it-zone-header.not-first {
+  margin-top: 6px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  padding-top: 8px;
 }
 .try-it-area-row {
   display: flex;
@@ -2441,6 +2462,7 @@ let graphData = null;
 let liveDesignEnabled = false;
 let liveDesignAreaIds = [];               // Array of area_ids currently being broadcast to (max 3)
 let liveDesignAreas = [];                 // Cached list of {area_id, name} from /api/areas
+let liveDesignZones = [];                 // Same areas grouped by glozone: [{name, areas:[...]}]
 let liveDesignFirstApply = false;         // Use longer transition on first apply after entering
 const TRY_IT_MAX = 3;                     // Zigbee-friendly cap on simultaneous broadcast targets
 
@@ -5900,11 +5922,45 @@ async function saveConfig() {
  */
 async function loadLiveDesignAreas() {
   try {
-    const response = await fetch('./api/areas');
-    if (!response.ok) return;
-    const areas = await response.json();
+    const [areasRes, zonesRes] = await Promise.all([
+      fetch('./api/areas'),
+      fetch('./api/glozones'),
+    ]);
+    if (!areasRes.ok) return;
+    const areas = await areasRes.json();
     if (!Array.isArray(areas)) return;
     liveDesignAreas = areas.map(a => ({ area_id: a.area_id, name: a.name }));
+
+    // Group areas by glozone to mirror the home page's zone-grouped layout.
+    // Within each zone, preserve the API-returned order (= user's drag order
+    // from areas.html). Areas not in any zone fall into "Unassigned" at end.
+    liveDesignZones = [];
+    if (zonesRes && zonesRes.ok) {
+      const zonesData = await zonesRes.json();
+      const zones = zonesData.zones || {};
+      const claimed = new Set();
+      // Sort zone names alphabetically (matches areas.html line 2402).
+      const zoneNames = Object.keys(zones).sort();
+      for (const zoneName of zoneNames) {
+        const zoneAreaIds = (zones[zoneName].areas || [])
+          .map(a => (typeof a === 'object' ? a.id : a))
+          .filter(Boolean);
+        const zoneAreas = [];
+        for (const id of zoneAreaIds) {
+          const match = liveDesignAreas.find(a => a.area_id === id);
+          if (match) {
+            zoneAreas.push(match);
+            claimed.add(id);
+          }
+        }
+        if (zoneAreas.length) liveDesignZones.push({ name: zoneName, areas: zoneAreas });
+      }
+      const unassigned = liveDesignAreas.filter(a => !claimed.has(a.area_id));
+      if (unassigned.length) liveDesignZones.push({ name: 'Unassigned', areas: unassigned });
+    } else {
+      // Fallback: single bucket if glozones fetch failed.
+      liveDesignZones = [{ name: '', areas: liveDesignAreas }];
+    }
   } catch (err) {
     console.error('[Try-it] Error loading areas:', err);
   }
@@ -5918,24 +5974,37 @@ function renderTryItAreaList() {
   const counter = document.getElementById('try-it-counter');
   if (!list || !counter) return;
   list.innerHTML = '';
-  liveDesignAreas.forEach(area => {
-    const row = document.createElement('label');
-    row.className = 'try-it-area-row';
-    const checked = liveDesignAreaIds.includes(area.area_id);
-    const atCap = !checked && liveDesignAreaIds.length >= TRY_IT_MAX;
-    if (atCap) row.classList.add('is-disabled');
-    row.innerHTML = `<input type="checkbox" data-area-id="${area.area_id}" ${checked ? 'checked' : ''} ${atCap ? 'disabled' : ''}> <span>${area.name}</span>`;
-    const cb = row.querySelector('input');
-    cb.addEventListener('change', (e) => {
-      const id = e.target.dataset.areaId;
-      if (e.target.checked) {
-        if (!liveDesignAreaIds.includes(id)) liveDesignAreaIds.push(id);
-      } else {
-        liveDesignAreaIds = liveDesignAreaIds.filter(x => x !== id);
-      }
-      renderTryItAreaList();
+  // Render grouped by zone (matches areas.html layout). Zone header = small
+  // muted caption; areas underneath in user's drag order. If glozones fetch
+  // failed we get a single unnamed bucket with all areas.
+  const groups = liveDesignZones.length ? liveDesignZones : [{ name: '', areas: liveDesignAreas }];
+  groups.forEach((group, gi) => {
+    if (group.name) {
+      const header = document.createElement('div');
+      header.className = 'try-it-zone-header';
+      header.textContent = group.name;
+      if (gi > 0) header.classList.add('not-first');
+      list.appendChild(header);
+    }
+    group.areas.forEach(area => {
+      const row = document.createElement('label');
+      row.className = 'try-it-area-row';
+      const checked = liveDesignAreaIds.includes(area.area_id);
+      const atCap = !checked && liveDesignAreaIds.length >= TRY_IT_MAX;
+      if (atCap) row.classList.add('is-disabled');
+      row.innerHTML = `<input type="checkbox" data-area-id="${area.area_id}" ${checked ? 'checked' : ''} ${atCap ? 'disabled' : ''}> <span>${area.name}</span>`;
+      const cb = row.querySelector('input');
+      cb.addEventListener('change', (e) => {
+        const id = e.target.dataset.areaId;
+        if (e.target.checked) {
+          if (!liveDesignAreaIds.includes(id)) liveDesignAreaIds.push(id);
+        } else {
+          liveDesignAreaIds = liveDesignAreaIds.filter(x => x !== id);
+        }
+        renderTryItAreaList();
+      });
+      list.appendChild(row);
     });
-    list.appendChild(row);
   });
   counter.textContent = `${liveDesignAreaIds.length} / ${TRY_IT_MAX}`;
 }
