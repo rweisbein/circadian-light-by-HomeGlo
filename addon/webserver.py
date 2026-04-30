@@ -1661,9 +1661,7 @@ class LightDesignerServer:
             # Sun times — delegate to client's cached resolver (single source of
             # truth: instance-attr lat/lon → env fallback → is_fallback safety net,
             # outdoor data attached fresh).
-            sun_times = (
-                self.client._get_sun_times() if self.client else SunTimes()
-            )
+            sun_times = self.client._get_sun_times() if self.client else SunTimes()
 
             # Get zones and rhythms from glozone module (consistent with area-status)
             zones = glozone.get_glozones()
@@ -1910,8 +1908,6 @@ class LightDesignerServer:
         "use_ha_location",
         "month",
         "sun_saturation",  # Sun intensity saturation cap (1-100, default 40)
-        "sun_saturation_ramp",  # Ramp curve: 'linear' (Gradual) or 'sqrt' (Natural, default). Legacy 'squared' is read as 'sqrt'.
-        "show_sun_angle_in_zone",  # Expose Sun angle response controls in rhythm zone Brightness card (default false)
         "turn_on_transition",  # Transition time in tenths of seconds for turn-on operations
         "turn_off_transition",  # Transition time in tenths of seconds for turn-off operations
         "two_step_bri_threshold",  # Min brightness change (%) to trigger 2-step (default 15)
@@ -2892,9 +2888,7 @@ class LightDesignerServer:
             current_hour = get_current_hour()
 
             # Sun times — delegate to client's cached resolver
-            sun_times = (
-                self.client._get_sun_times() if self.client else SunTimes()
-            )
+            sun_times = self.client._get_sun_times() if self.client else SunTimes()
             # Outdoor data is attached to sun_times by _get_sun_times (always
             # fresh, never cached). Pull into locals — referenced repeatedly
             # below per area for sun-bright + status payload.
@@ -3236,7 +3230,6 @@ class LightDesignerServer:
                         ),
                         "angle_factor": round(lux_tracker.get_angle_factor(), 3),
                         "sun_saturation": lux_tracker.get_sun_saturation(),
-                        "sun_saturation_ramp": lux_tracker.get_sun_saturation_ramp(),
                         "max_summer_elevation": round(
                             lux_tracker.get_max_summer_elevation(), 1
                         ),
@@ -3867,9 +3860,7 @@ class LightDesignerServer:
             data = await request.json()
             area_id = data.get("area_id")
             if not area_id:
-                return web.json_response(
-                    {"error": "area_id is required"}, status=400
-                )
+                return web.json_response({"error": "area_id is required"}, status=400)
             if self.live_design_area == area_id:
                 self.live_design_last_heartbeat = time.time()
                 return web.json_response({"status": "ok", "active": True})
@@ -5008,9 +4999,7 @@ class LightDesignerServer:
             )
 
             # Sun times — delegate to client's cached resolver
-            sun_times = (
-                self.client._get_sun_times() if self.client else SunTimes()
-            )
+            sun_times = self.client._get_sun_times() if self.client else SunTimes()
 
             b_min = area_config.min_brightness
             b_max = area_config.max_brightness
@@ -5794,8 +5783,6 @@ class LightDesignerServer:
                 ),
                 "angle_factor": round(lux_tracker.get_angle_factor(), 3),
                 "sun_saturation": lux_tracker._sun_saturation,
-                "sun_saturation_ramp": lux_tracker._sun_saturation_ramp,
-                "show_sun_angle_in_zone": bool(config.get("show_sun_angle_in_zone", False)),
                 "max_summer_elevation": round(lux_tracker._max_summer_elevation, 1),
             }
         )

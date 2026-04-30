@@ -143,11 +143,12 @@ class TestGetOutdoorNormalized:
 
     def test_angle_fallback_with_elevation(self):
         """Angle fallback should return positive value with sun up."""
-        # threshold = 78 * 40% = 31.2°; 10 / 31.2 ≈ 0.32, sqrt → ~0.566
+        # threshold = 78 * 40% = 31.2°; raw = 10/31.2 ≈ 0.321
+        # x = raw^0.75 ≈ 0.426; smoothstep(x) ≈ 0.39
         lux_tracker._elev_override = 10.0
         result = lux_tracker.get_outdoor_normalized()
         assert result is not None
-        assert 0.45 < result < 0.65
+        assert 0.30 < result < 0.50
 
     def test_active_sensor_returns_float(self):
         """When sensor + baselines + data are all present, returns sun_factor."""
@@ -728,12 +729,13 @@ class TestTwilightModel:
         assert result == 0.0
 
     def test_angle_norm_at_2deg(self):
-        """outdoor_norm at 2° should rise meaningfully (sqrt ramp, fast-rise early)."""
+        """outdoor_norm at 2° should be small but positive — smoothstep eases gently from 0."""
         lux_tracker._elev_override = 2.0
         result = lux_tracker._compute_angle_outdoor_norm()
-        # 2 / 19.5 (saturation threshold) ≈ 0.103, sqrt → ~0.320
+        # threshold = 78 * 40% = 31.2; raw = 2/31.2 ≈ 0.064
+        # x = raw^0.75 ≈ 0.128; smoothstep(x) ≈ 0.045
         assert result > 0.0
-        assert 0.25 < result < 0.40
+        assert 0.0 < result < 0.10
 
 
 class TestSetLatitude:
@@ -782,9 +784,8 @@ class TestElevFactor:
 
     def setup_method(self):
         _reset_all()
-        # Use 100% saturation so threshold = max_summer_elevation (simple linear)
+        # Use 100% saturation so threshold = max_summer_elevation
         lux_tracker._sun_saturation = 100
-        lux_tracker._sun_saturation_ramp = "linear"
 
     def test_negative_elevation_zero(self):
         """Negative elevation should give 0."""
@@ -809,20 +810,20 @@ class TestElevFactor:
         assert lux_tracker._compute_elev_factor() == 1.0
 
     def test_midpoint(self):
-        """Half of max should give 0.5."""
+        """Half of max → smoothstep(0.5^0.75) ≈ 0.640."""
         lux_tracker._max_summer_elevation = 78.0
         lux_tracker._elev_override = 39.0
-        assert lux_tracker._compute_elev_factor() == 0.5
+        assert abs(lux_tracker._compute_elev_factor() - 0.640) < 0.005
 
-    def test_linear_scaling(self):
-        """Factor should scale linearly with elevation."""
+    def test_smoothstep_shape(self):
+        """Factor follows smoothstep(raw^0.75): monotonic, S-shaped, flat tangents at 0/1."""
         lux_tracker._max_summer_elevation = 80.0
-        lux_tracker._elev_override = 20.0
-        assert lux_tracker._compute_elev_factor() == 0.25
-        lux_tracker._elev_override = 40.0
-        assert lux_tracker._compute_elev_factor() == 0.5
-        lux_tracker._elev_override = 60.0
-        assert lux_tracker._compute_elev_factor() == 0.75
+        lux_tracker._elev_override = 20.0  # raw=0.25
+        assert abs(lux_tracker._compute_elev_factor() - 0.287) < 0.005
+        lux_tracker._elev_override = 40.0  # raw=0.5
+        assert abs(lux_tracker._compute_elev_factor() - 0.640) < 0.005
+        lux_tracker._elev_override = 60.0  # raw=0.75
+        assert abs(lux_tracker._compute_elev_factor() - 0.902) < 0.005
 
 
 class TestConditionMap:

@@ -88,10 +88,6 @@ _latitude: float = 35.0
 _longitude: float = -78.6
 _max_summer_elevation: float = 78.0  # default for ~35°N, set via set_latitude()
 _sun_saturation: int = 40  # % of max elevation at which angle factor saturates to 1.0
-_sun_saturation_ramp: str = "sqrt"  # "linear" (Gradual) or "sqrt" (Natural).
-# Legacy "squared" is read as "sqrt" (the curves were intentionally swapped — old
-# squared was slow-start/fast-end, sqrt is fast-start/slow-end which matches
-# perceived room brightness from sun much better).
 
 # ---------------------------------------------------------------------------
 # Module state — runtime condition map (CONDITION_MULTIPLIERS + user overrides)
@@ -117,7 +113,7 @@ def init(config: Optional[dict] = None):
     global _ema_lux, _last_update_time, _cached_sun_factor
     global _preferred_source, _cloud_cover, _weather_condition
     global _last_outdoor_update, _condition_map
-    global _sun_saturation, _sun_saturation_ramp
+    global _sun_saturation
 
     if config is None:
         config = glozone.load_config_from_files()
@@ -162,9 +158,6 @@ def init(config: Optional[dict] = None):
 
     # Sun saturation settings
     _sun_saturation = max(1, min(100, int(config.get("sun_saturation", 40))))
-    # Normalize legacy "squared" → "sqrt" on read (one-way migration; the next
-    # config save will persist "sqrt" so the legacy value disappears).
-    _sun_saturation_ramp = "linear" if config.get("sun_saturation_ramp") == "linear" else "sqrt"
 
     # Reset runtime state (re-seeded by _seed_outdoor_from_ha)
     # Note: override is NOT reset — it's user-initiated and time-limited
@@ -197,7 +190,7 @@ def reload_config(config: Optional[dict] = None):
     _sun_elevation, etc.).
     """
     global _sensor_entity, _smoothing_interval, _learned_ceiling, _learned_floor
-    global _preferred_source, _condition_map, _sun_saturation, _sun_saturation_ramp
+    global _preferred_source, _condition_map, _sun_saturation
 
     if config is None:
         config = glozone.load_config_from_files()
@@ -236,7 +229,6 @@ def reload_config(config: Optional[dict] = None):
         _condition_map = dict(CONDITION_MULTIPLIERS)
 
     _sun_saturation = max(1, min(100, int(config.get("sun_saturation", 40))))
-    _sun_saturation_ramp = "linear" if config.get("sun_saturation_ramp") == "linear" else "sqrt"
 
     logger.info(
         f"Lux tracker config reloaded: source={_preferred_source}, "
@@ -421,10 +413,9 @@ def compute_sun_elevation(latitude: float = None, longitude: float = None) -> fl
     solar_noon = 12 + tz_offset - (lon / 15) + eot
     hour = now.hour + now.minute / 60 + now.second / 3600
     hour_angle = math.radians((hour - solar_noon) * 15)
-    sin_elev = (
-        math.sin(lat_rad) * math.sin(decl)
-        + math.cos(lat_rad) * math.cos(decl) * math.cos(hour_angle)
-    )
+    sin_elev = math.sin(lat_rad) * math.sin(decl) + math.cos(lat_rad) * math.cos(
+        decl
+    ) * math.cos(hour_angle)
     return max(0.0, math.degrees(math.asin(sin_elev)))
 
 
@@ -485,7 +476,13 @@ def _estimate_clear_sky_lux(elevation_deg: float) -> float:
 
 
 def _compute_elev_factor() -> float:
-    """Sun elevation → 0-1 factor, saturating at sun_saturation % of max elevation."""
+    """Sun elevation → 0-1 factor, saturating at sun_saturation % of max elevation.
+
+    Smoothstep over raw^0.75 — tangent-flat at both 0 and 1 so brightness eases
+    into its peak at sunrise/sunset and into its mid-day floor without abrupt
+    corners. γ=0.75 biases the rise slightly earlier (closer to linear in the
+    morning) while preserving smoothstep's rounded approach to 1.
+    """
     elev = compute_sun_elevation()
     if elev <= 0:
         return 0.0
@@ -493,12 +490,8 @@ def _compute_elev_factor() -> float:
     if threshold <= 0:
         return 1.0
     raw = min(1.0, elev / threshold)
-    # "linear" (Gradual) returns raw; anything else (including legacy "squared")
-    # uses sqrt — Stevens-power-law shape that rises fast early and saturates,
-    # matching how sun "fills the room" perceptually.
-    if _sun_saturation_ramp == "linear":
-        return raw
-    return math.sqrt(raw)
+    x = raw**0.75
+    return x * x * (3 - 2 * x)
 
 
 def get_angle_factor() -> float:
@@ -508,10 +501,6 @@ def get_angle_factor() -> float:
 
 def get_sun_saturation() -> int:
     return _sun_saturation
-
-
-def get_sun_saturation_ramp() -> str:
-    return _sun_saturation_ramp
 
 
 def get_max_summer_elevation() -> float:

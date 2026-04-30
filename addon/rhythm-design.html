@@ -384,30 +384,6 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 /* Brightness "Sun impact" sub-section: divider above for equal weight; label + value inline left-aligned */
 .bri-sub-section { margin-top: 18px; padding-top: 6px; border-top: 1px solid var(--line); }
 
-/* Sub-subsection: nested grouping inside a sub-section (e.g. Sun angle response
-   under Sun dimming). Indented + lighter divider so the parent-child hierarchy
-   reads cleanly without using a third card-style box. */
-.sub-subsection {
-  margin: 14px 0 0 14px;
-  padding: 10px 0 4px 12px;
-  border-left: 2px solid var(--line);
-}
-.sub-subsection-title {
-  font-size: 0.92rem;
-  color: var(--text);
-  font-weight: 700;
-  margin-bottom: 10px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--line);
-  letter-spacing: 0.01em;
-}
-.sub-subsection-meta {
-  font-weight: 400;
-  color: var(--muted);
-  margin-left: 6px;
-  font-size: 0.78rem;
-}
-.sub-subsection .tune-control-row { padding-left: 0; }
 .bri-sub-section .tune-control-row {
   grid-template-columns: max-content 1fr;
   gap: 0 12px;
@@ -2097,34 +2073,6 @@ input[type=range]::-moz-range-thumb {
                 <input type="range" id="brightness-sensitivity" min="0" max="8" step="1" value="5">
               </div>
             </div>
-            <!-- Sun angle response — sub-subsection of Sun dimming. Visible only
-                 when home setting opts in (show_sun_angle_in_zone). Applies to
-                 all zones, so styled muted to communicate its global scope. -->
-            <div id="sun-angle-response-block" class="sub-subsection" style="display:none;">
-              <div class="sub-subsection-title">
-                Sun angle response
-                <span class="sub-subsection-meta">(applies to all zones, also affects sun cooling)</span>
-              </div>
-              <div class="tune-control-row">
-                <span class="tune-control-left">
-                  <span class="tune-control-label">Saturates at</span>
-                </span>
-                <span class="tune-control-impact">
-                  <input type="number" id="zone-sun-saturation" min="1" max="100" step="5" style="width:60px;"> % of peak elevation
-                </span>
-              </div>
-              <div class="tune-control-row">
-                <span class="tune-control-left">
-                  <span class="tune-control-label">Ramp</span>
-                </span>
-                <span class="tune-control-impact">
-                  <select id="zone-sun-saturation-ramp" style="width:100px;">
-                    <option value="linear">Gradual</option>
-                    <option value="sqrt">Natural</option>
-                  </select>
-                </span>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -2886,14 +2834,11 @@ function elevationToOutdoorNorm(elevDeg, conditionMultiplier) {
   if (elevDeg <= 0 || conditionMultiplier <= 0) return 0;
   const maxElev = _outdoorParams.maxSummerElevation || 78;
   const satPct = _outdoorParams.sunSaturation || 25;
-  const ramp = _outdoorParams.sunSaturationRamp || 'linear';
   const threshold = maxElev * satPct / 100;
   if (threshold <= 0) return conditionMultiplier;
-  let raw = Math.min(1.0, elevDeg / threshold);
-  // "linear" (Gradual) returns raw; anything else (sqrt / legacy "squared")
-  // uses sqrt — fast-rise/saturate shape matching perceived room brightness.
-  if (ramp !== 'linear') raw = Math.sqrt(raw);
-  return raw * conditionMultiplier;
+  const raw = Math.min(1.0, elevDeg / threshold);
+  const x = Math.pow(raw, 0.75);
+  return x * x * (3 - 2 * x) * conditionMultiplier;
 }
 
 function getSelectedDateISO() {
@@ -6954,20 +6899,7 @@ document.addEventListener('DOMContentLoaded', () => {
     _outdoorParams = {
       maxSummerElevation: data.max_summer_elevation || 78,
       sunSaturation: data.sun_saturation || 40,
-      // Legacy "squared" maps to "sqrt" (Natural). Default also "sqrt".
-      sunSaturationRamp: (data.sun_saturation_ramp === 'linear') ? 'linear' : 'sqrt',
     };
-    // Sun angle response controls: visible only when home setting opts in
-    if (data.show_sun_angle_in_zone) {
-      const block = document.getElementById('sun-angle-response-block');
-      const satInput = document.getElementById('zone-sun-saturation');
-      const rampSelect = document.getElementById('zone-sun-saturation-ramp');
-      if (block && satInput && rampSelect) {
-        satInput.value = _outdoorParams.sunSaturation;
-        rampSelect.value = _outdoorParams.sunSaturationRamp;
-        block.style.display = '';
-      }
-    }
     // Use condition_multiplier directly from backend (no reverse-engineering)
     _liveConditionMult = data.condition_multiplier ?? 1.0;
     // Rebuild popover now that we have weather_groups + live condition data.
@@ -6978,31 +6910,6 @@ document.addEventListener('DOMContentLoaded', () => {
       applyCursor();
     }
   }).catch(() => {});
-
-  // Sun angle response — home-wide controls surfaced in zone view (when settings toggle on).
-  // Save on commit, mirror into _outdoorParams so the chart redraws against the new shape.
-  const _saveSunAngleResponse = async () => {
-    const sat = parseInt(document.getElementById('zone-sun-saturation').value);
-    const ramp = document.getElementById('zone-sun-saturation-ramp').value || 'sqrt';
-    const safeSat = Number.isFinite(sat) ? Math.max(1, Math.min(100, sat)) : 40;
-    _outdoorParams.sunSaturation = safeSat;
-    _outdoorParams.sunSaturationRamp = ramp;
-    if (typeof renderChart === 'function') {
-      renderChart();
-      if (typeof applyCursor === 'function') applyCursor();
-    }
-    try {
-      await fetch('./api/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sun_saturation: safeSat, sun_saturation_ramp: ramp }),
-      });
-    } catch (e) { /* network noise — chart already updated locally */ }
-  };
-  const _zsat = document.getElementById('zone-sun-saturation');
-  const _zramp = document.getElementById('zone-sun-saturation-ramp');
-  if (_zsat) _zsat.addEventListener('change', _saveSunAngleResponse);
-  if (_zramp) _zramp.addEventListener('change', _saveSunAngleResponse);
 
   // Keep cursor at "now" when tracking now and not in Live Design mode (tick every 30s)
   setInterval(() => {
