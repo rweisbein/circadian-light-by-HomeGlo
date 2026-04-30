@@ -159,9 +159,6 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
   display: flex;
   align-items: center;
   gap: 8px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
 }
 /* Rhythm-name + RHYTHM ZONE chip stack. Center the group vertically against
    the back button so the name reads as the page's primary title; chip is a
@@ -401,7 +398,7 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
   padding: 10px 6px 8px;
   margin-bottom: 16px;
   position: sticky;
-  top: 49px;
+  top: 0;
   z-index: 50;
 }
 /* Chart section: zero padding so the CCT banner spans the card edge-to-edge. */
@@ -456,7 +453,7 @@ input[type=range]::-moz-range-thumb {
 
 /* Chart Section */
 .chart-wrapper { position: relative; margin-bottom: 8px; }
-#chart { height: 240px; touch-action: pan-x pan-y; }
+#chart { height: 200px; touch-action: pan-x pan-y; }
 /* Time hover label - above x-axis, shows time with phase color */
 .time-hover-label {
   position: absolute;
@@ -498,7 +495,7 @@ input[type=range]::-moz-range-thumb {
      chip lives — card-color (lighter) background visually separates the chip
      from the chart's "sun dimming" annotation that lives in the dark plot
      area below. Sized to fit the ~14px chip with breathing room. */
-  height: 240px;
+  height: 200px;
   margin-top: 24px;
   touch-action: none;
   cursor: pointer;
@@ -642,10 +639,12 @@ input[type=range]::-moz-range-thumb {
    Inherits banner ink color so it stays readable against the CCT tint. */
 .try-it-btn {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 3px 9px 3px 7px;
-  border-radius: 12px;
+  justify-content: center;
+  gap: 2px;
+  padding: 5px 8px;
+  border-radius: 10px;
   border: 1px solid currentColor;
   background: rgba(0,0,0,0.18);
   color: inherit;
@@ -653,6 +652,7 @@ input[type=range]::-moz-range-thumb {
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
+  line-height: 1;
   cursor: pointer;
   z-index: 10;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
@@ -661,14 +661,18 @@ input[type=range]::-moz-range-thumb {
   background: rgba(0,0,0,0.30);
 }
 .try-it-btn svg {
-  width: 11px;
-  height: 11px;
-  opacity: 0.75;
+  width: 12px;
+  height: 12px;
+  opacity: 0.85;
 }
+/* Live state — dark container so the accent-orange ink reads cleanly even when
+   the cct-banner background tint is also warm (mid-day → orange-on-orange would
+   otherwise wash out). Border + glow stay accent-tinted as the actionable
+   signal. */
 .try-it-btn.is-live {
   color: var(--accent);
-  border-color: rgba(254,172,96,0.5);
-  background: rgba(254,172,96,0.12);
+  border-color: rgba(254,172,96,0.6);
+  background: rgba(0,0,0,0.6);
   animation: try-it-glow 2s ease-in-out infinite;
 }
 .try-it-btn.is-live svg {
@@ -681,8 +685,10 @@ input[type=range]::-moz-range-thumb {
 }
 .try-it-popover {
   position: absolute;
-  top: 60px;
-  right: 10px;
+  /* Anchored under the Experience pill (far-left of cct-banner), not far-right.
+     Top set per-frame in positionOverlays() to clear the live cct-banner
+     bottom + small gap, regardless of banner content height. */
+  left: 8px;
   min-width: 220px;
   max-width: 280px;
   background: #2a2a2a;
@@ -697,12 +703,11 @@ input[type=range]::-moz-range-thumb {
 .try-it-popover-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   font-size: var(--font-body);
   color: var(--muted);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
-.try-it-popover-title { font-weight: 600; color: var(--text); }
 .try-it-counter { font-size: 0.8rem; }
 .try-it-area-list {
   max-height: 260px;
@@ -1828,7 +1833,6 @@ input[type=range]::-moz-range-thumb {
         </div>
         <div class="try-it-popover" id="try-it-popover" role="dialog" aria-hidden="true">
           <div class="try-it-popover-header">
-            <span class="try-it-popover-title">Try in (max 3)</span>
             <span class="try-it-counter" id="try-it-counter">0 / 3</span>
           </div>
           <div class="try-it-area-list" id="try-it-area-list"></div>
@@ -4465,6 +4469,13 @@ function positionOverlays() {
     monthLabelEl.style.top = Math.round(_gapBannerBottom + (_gapChartTop - _gapBannerBottom - labelH) / 2) + 'px';
     if (monthPop) monthPop.style.top = (_gapChartTop + 4) + 'px';
   }
+  // Try-it (Experience) popover — anchored under the Experience pill (far-left
+  // of cct-banner). Top = cct-banner bottom + small gap, so the popover hangs
+  // just below the banner regardless of banner content height.
+  const tryItPop = document.getElementById('try-it-popover');
+  if (tryItPop && _gapBannerBottom != null) {
+    tryItPop.style.top = (_gapBannerBottom + 4) + 'px';
+  }
 
   // Wake/Bed handles — working drag value (until commit/reset) takes priority
   // over saved time, so the pill stays where the user dragged it.
@@ -5945,11 +5956,14 @@ function closeTryItPopover() {
 }
 
 function _formatAreaLabel(ids) {
-  if (ids.length === 0) return 'Try it';
+  if (ids.length === 0) return 'Experience';
   const nameOf = id => (liveDesignAreas.find(a => a.area_id === id) || {}).name || id;
-  if (ids.length === 1) return `Trying in ${nameOf(ids[0])}`;
-  if (ids.length === 2) return `Trying in ${nameOf(ids[0])} + ${nameOf(ids[1])}`;
-  return `Trying in ${nameOf(ids[0])} +${ids.length - 1}`;
+  // Live state: drop the "Trying in" prefix — the broadcast SVG (already inside
+  // the button) carries that meaning, and the dark .is-live container makes the
+  // accent-orange room name stand out as the "active" signal.
+  if (ids.length === 1) return nameOf(ids[0]);
+  if (ids.length === 2) return `${nameOf(ids[0])} + ${nameOf(ids[1])}`;
+  return `${nameOf(ids[0])} +${ids.length - 1}`;
 }
 
 /**
@@ -6060,7 +6074,7 @@ function updateLiveVisuals() {
   const label = document.getElementById('try-it-label');
   if (!btn || !label) return;
   btn.classList.toggle('is-live', liveDesignEnabled);
-  label.textContent = liveDesignEnabled ? _formatAreaLabel(liveDesignAreaIds) : 'Try it';
+  label.textContent = liveDesignEnabled ? _formatAreaLabel(liveDesignAreaIds) : 'Experience';
 }
 
 /**
