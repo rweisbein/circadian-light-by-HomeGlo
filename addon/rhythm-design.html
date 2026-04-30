@@ -631,14 +631,15 @@ input[type=range]::-moz-range-thumb {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 5px 11px 5px 8px;
-  border-radius: 20px;
+  padding: 3px 9px 3px 7px;
+  border-radius: 12px;
   border: 1px solid currentColor;
   background: rgba(0,0,0,0.18);
   color: inherit;
   font-family: inherit;
-  font-size: var(--font-body);
+  font-size: 10px;
   font-weight: 600;
+  letter-spacing: 0.04em;
   cursor: pointer;
   z-index: 10;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
@@ -647,8 +648,8 @@ input[type=range]::-moz-range-thumb {
   background: rgba(0,0,0,0.30);
 }
 .try-it-btn svg {
-  width: 14px;
-  height: 14px;
+  width: 11px;
+  height: 11px;
   opacity: 0.75;
 }
 .try-it-btn.is-live {
@@ -4300,9 +4301,12 @@ function isChartViewDirty() {
 function updateBannerResetVisibility() {
   const btn = document.getElementById('cct-banner-reset');
   if (!btn) return;
-  // visibility (not display) so the reset always reserves space — keeps the
-  // readout centered identically whether the chart view is clean or dirty.
-  btn.style.visibility = isChartViewDirty() ? 'visible' : 'hidden';
+  // display:none (not visibility:hidden) so the % · K readout is truly
+  // centered in the banner when the chart view is clean. When the reset
+  // appears, the readout+reset cluster centers as a unit (readout shifts
+  // slightly left to make room) — acceptable since the reset only appears
+  // when the user is already in an interactive state.
+  btn.style.display = isChartViewDirty() ? '' : 'none';
 }
 
 // Position the HTML overlays (NOW pill, sunrise/sunset labels, outdoor chip,
