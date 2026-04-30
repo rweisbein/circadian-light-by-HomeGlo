@@ -510,10 +510,7 @@ input[type=range]::-moz-range-thumb {
   position: relative;
   background: var(--card);
   border-radius: 10px;
-  /* padding-top reserves a strip ABOVE the cct-banner for the sun-intensity
-     chip so the chip reads as its own header element rather than being
-     visually attached to the chart's "sun dimming" annotation. */
-  padding: 22px 0 70px;
+  padding: 0 0 70px;
   margin-top: 8px;
   overflow: visible;
   -webkit-user-select: none;
@@ -522,8 +519,12 @@ input[type=range]::-moz-range-thumb {
 }
 #chart-shell #chart {
   width: 100%;
+  /* margin-top opens the strip BELOW the cct-banner where the sun-intensity
+     chip lives — card-color (lighter) background visually separates the chip
+     from the chart's "sun dimming" annotation that lives in the dark plot
+     area below. Sized to fit the ~14px chip with breathing room. */
   height: 240px;
-  margin-top: 14px;
+  margin-top: 24px;
   touch-action: none;
   cursor: pointer;
 }
@@ -815,14 +816,16 @@ input[type=range]::-moz-range-thumb {
 }
 .solar-label:hover::after { opacity: 1; }
 
-/* Sun intensity chip — floats in the chart-shell's top padding strip ABOVE
-   the cct-banner, anchored at solar-noon x. Yellow icon + percent only.
-   Lives in its own row so it reads as a header element (independent of the
-   chart's "sun dimming" annotation below). Tap → opens popover with
-   prominent "Sun intensity" header (no inline label needed). */
+/* Sun intensity chip — floats in the card-color gap BETWEEN the cct-banner
+   bottom and the chart canvas top, anchored at solar-noon x. Yellow icon +
+   percent only. The lighter card-color background (vs the dark chart canvas
+   below) visually separates the chip from the "sun dimming" annotation
+   inside the chart, so the chip reads as a header for the chart rather than
+   a value of that annotation. Top is set per-frame in positionOverlays
+   from bannerBottom so it tracks any banner height changes. Tap → opens
+   popover with prominent "Sun intensity" header (no inline label needed). */
 .outdoor-chip {
   position: absolute;
-  top: 4px;
   transform: translateX(-50%);
   background: transparent;
   border: none;
@@ -843,7 +846,6 @@ input[type=range]::-moz-range-thumb {
 .outdoor-chip-icon { font-size: 13px; line-height: 1; color: rgba(255,225,140,0.95); }
 .outdoor-popover {
   position: absolute;
-  top: 24px;
   transform: translateX(-50%);
   background: rgba(24, 26, 32, 0.98);
   border: 1px solid rgba(255,255,255,0.18);
@@ -4444,17 +4446,32 @@ function positionOverlays() {
   setSolar(sunriseEl, sr);
   setSolar(sunsetEl, ss);
 
-  // Sun intensity chip + popover — live in the chart-shell top padding strip
-  // ABOVE the cct-banner (so the chip reads as a sibling header element, not
-  // as part of the chart's "sun dimming" annotation). Top is the CSS default
-  // (4px from chart-shell top); only horizontal anchoring needs JS.
+  // Sun intensity chip + popover — live in the card-color gap between the
+  // cct-banner bottom and the chart canvas top, at solar-noon x. Vertically
+  // centered in the gap so the chip reads as a header for the chart (the
+  // gap is lighter card-color, distinct from both the bright banner above
+  // and the dark chart below — the chip's chrome blends with the chart side
+  // visually, not the banner). Popover hangs just below into the chart.
   const chip = document.getElementById('outdoor-chip');
   const pop = document.getElementById('outdoor-popover');
+  const chartElForChip = document.getElementById('chart');
+  const bannerElForChip = document.getElementById('cct-banner');
   if (chip && Number.isFinite(sr) && Number.isFinite(ss)) {
     const noon = (sr + ss) / 2;
     const px = xToPx(noon);
     chip.style.left = px + 'px';
-    if (pop) pop.style.left = px + 'px';
+    if (bannerElForChip && chartElForChip) {
+      const bannerBottom = bannerElForChip.offsetTop + bannerElForChip.offsetHeight;
+      const chartTop = chartElForChip.offsetTop;
+      const chipH = chip.offsetHeight || 14;
+      // Center the chip vertically in the gap.
+      chip.style.top = Math.round(bannerBottom + (chartTop - bannerBottom - chipH) / 2) + 'px';
+      if (pop) {
+        pop.style.left = px + 'px';
+        // Popover hangs just below the chip, into the chart.
+        pop.style.top = (chartTop + 4) + 'px';
+      }
+    }
   }
 
   // Wake/Bed handles — working drag value (until commit/reset) takes priority
