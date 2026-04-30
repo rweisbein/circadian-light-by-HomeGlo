@@ -3677,13 +3677,23 @@ class LightDesignerServer:
             return brightness
 
     async def apply_light(self, request: Request) -> Response:
-        """Apply brightness and color temperature to lights in an area.
+        """Raw light broadcast for Live Design — bypass pipeline.
 
-        Uses per-light filter pipeline (area_factor, filter presets, off_threshold)
-        to calculate individual brightness per filter group, then dispatches:
-        - Color-capable lights: xy_color for full color range
-        - CT-only lights: color_temp_kelvin (clamped to 2000K minimum)
-        - Lights below off_threshold: turn_off
+        Sends chart values directly to bulbs without sun_exposure scaling,
+        area_factor, per-purpose filter splits, 2-step CT handover, or CT
+        compensation. The chart shows what the user is designing and the
+        broadcast must show exactly that — pipeline adjustments would make
+        the live preview disagree with the curve being edited (e.g. a sun
+        room at full sun-exposure would broadcast a much-dimmed value).
+
+        Optimized for ZHA radio efficiency:
+        - All ZHA bulbs in an area: 1 light.turn_on per existing
+          Circadian_<area>_<purpose>_<color|ct> ZHA group entity → bulbs
+          sync at the radio level (single packet). Typical area = 1-2
+          group calls regardless of bulb count.
+        - Non-ZHA bulbs: 1 bulk light.turn_on per capability bucket with
+          entity_id list → HA dispatches per-platform internally
+          (Hue bridge batches via Hue API, etc.).
         """
         if not self.client:
             return web.json_response(
@@ -3693,30 +3703,154 @@ class LightDesignerServer:
         try:
             data = await request.json()
             area_id = data.get("area_id")
-            base_brightness = data.get("brightness")
-            color_temp = data.get("color_temp")
-            transition = data.get("transition", 0.3)
+            bri_in = data.get("brightness")
+            ct_in = data.get("color_temp")
+            transition = float(data.get("transition", 0.1))
 
             if not area_id:
                 return web.json_response({"error": "area_id is required"}, status=400)
 
-            # Send through pipeline — applies sun bright, area factor, filters, CT comp
-            bri = int(base_brightness) if base_brightness is not None else None
-            ct = int(color_temp) if color_temp is not None else None
-            await self.client.send_light(
-                area_id,
-                {"brightness": bri, "kelvin": ct},
-                transition=transition,
+            client = self.client
+            bri = max(1, min(100, int(bri_in))) if bri_in is not None else None
+            kelvin = int(ct_in) if ct_in is not None else None
+            xy = (
+                CircadianLight.color_temperature_to_xy(kelvin)
+                if kelvin is not None
+                else None
             )
 
+            color_lights, ct_lights, brightness_lights, onoff_lights = (
+                client.get_lights_by_capability(area_id)
+            )
+
+            normalized_key = client._normalize_area_key(area_id)
+            group_candidates = (
+                client.area_group_map.get(normalized_key, {}) if normalized_key else {}
+            )
+            zha_color_groups = [
+                v
+                for k, v in group_candidates.items()
+                if k.startswith("zha_group_") and k.endswith("_color") and v
+            ]
+            zha_ct_groups = [
+                v
+                for k, v in group_candidates.items()
+                if k.startswith("zha_group_") and k.endswith("_ct") and v
+            ]
+
+            tasks = []
+
+            if zha_color_groups and xy is not None and bri is not None:
+                color_data = {
+                    "transition": transition,
+                    "brightness_pct": bri,
+                    "xy_color": list(xy),
+                }
+                for gid in zha_color_groups:
+                    tasks.append(
+                        asyncio.create_task(
+                            client.call_service(
+                                "light", "turn_on", color_data, {"entity_id": gid}
+                            )
+                        )
+                    )
+
+            if zha_ct_groups and kelvin is not None and bri is not None:
+                ct_data = {
+                    "transition": transition,
+                    "brightness_pct": bri,
+                    "color_temp_kelvin": max(2000, kelvin),
+                }
+                for gid in zha_ct_groups:
+                    tasks.append(
+                        asyncio.create_task(
+                            client.call_service(
+                                "light", "turn_on", ct_data, {"entity_id": gid}
+                            )
+                        )
+                    )
+
+            non_zha_color = [
+                eid for eid in color_lights if eid not in client.zha_lights
+            ]
+            if non_zha_color and xy is not None and bri is not None:
+                color_data = {
+                    "transition": transition,
+                    "brightness_pct": bri,
+                    "xy_color": list(xy),
+                }
+                tasks.append(
+                    asyncio.create_task(
+                        client.call_service(
+                            "light",
+                            "turn_on",
+                            color_data,
+                            {"entity_id": non_zha_color},
+                        )
+                    )
+                )
+
+            non_zha_ct = [eid for eid in ct_lights if eid not in client.zha_lights]
+            if non_zha_ct and kelvin is not None and bri is not None:
+                # Highest min_color_temp_kelvin among members so the value
+                # is valid for all (some CT bulbs floor at 2200K, etc.).
+                ct_floor = 2000
+                for eid in non_zha_ct:
+                    m = client.light_min_ct_kelvin.get(eid)
+                    if m and m > ct_floor:
+                        ct_floor = m
+                ct_data = {
+                    "transition": transition,
+                    "brightness_pct": bri,
+                    "color_temp_kelvin": max(ct_floor, kelvin),
+                }
+                tasks.append(
+                    asyncio.create_task(
+                        client.call_service(
+                            "light", "turn_on", ct_data, {"entity_id": non_zha_ct}
+                        )
+                    )
+                )
+
+            if brightness_lights and bri is not None:
+                tasks.append(
+                    asyncio.create_task(
+                        client.call_service(
+                            "light",
+                            "turn_on",
+                            {"transition": transition, "brightness_pct": bri},
+                            {"entity_id": brightness_lights},
+                        )
+                    )
+                )
+
+            if onoff_lights:
+                tasks.append(
+                    asyncio.create_task(
+                        client.call_service(
+                            "light",
+                            "turn_on",
+                            {"transition": transition},
+                            {"entity_id": onoff_lights},
+                        )
+                    )
+                )
+
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
+
             logger.info(
-                f"Live Design: Applied {bri}% / {ct}K to area {area_id} via pipeline"
+                f"Live Design RAW: {area_id} → {bri}% / {kelvin}K "
+                f"({len(zha_color_groups)} ZHA color groups, "
+                f"{len(zha_ct_groups)} ZHA CT groups, "
+                f"{len(non_zha_color)} non-ZHA color, "
+                f"{len(non_zha_ct)} non-ZHA CT)"
             )
             return web.json_response({"status": "ok"})
         except json.JSONDecodeError:
             return web.json_response({"error": "Invalid JSON"}, status=400)
         except Exception as e:
-            logger.error(f"Error applying light: {e}")
+            logger.error(f"Error applying light (raw): {e}")
             return web.json_response({"error": str(e)}, status=500)
 
     async def set_circadian_mode(self, request: Request) -> Response:

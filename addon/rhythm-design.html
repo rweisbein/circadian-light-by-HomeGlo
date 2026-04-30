@@ -668,13 +668,19 @@ input[type=range]::-moz-range-thumb {
 }
 /* Broadcast SVG only shows when live — when idle the "Experience" word is
    self-explanatory and the icon is decorative noise; when broadcasting the
-   icon becomes a meaningful "active right now" state indicator. Two-line
-   stack collapses to a single-line label when the icon is hidden. */
+   icon becomes a meaningful "active right now" state indicator (and pulses
+   to reinforce the live signal). Two-line stack collapses to a single-line
+   label when the icon is hidden. */
 .try-it-btn svg { display: none; }
 .try-it-btn.is-live svg {
   display: block;
   width: 12px;
   height: 12px;
+  animation: try-it-icon-pulse 1.4s ease-in-out infinite;
+}
+@keyframes try-it-icon-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
 }
 /* Live state — dark container so the accent-orange ink reads cleanly even when
    the cct-banner background tint is also warm (mid-day → orange-on-orange would
@@ -714,12 +720,29 @@ input[type=range]::-moz-range-thumb {
 .try-it-popover-header {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
+  gap: 8px;
   font-size: var(--font-body);
   color: var(--muted);
   margin-bottom: 6px;
+  min-height: 22px;
 }
-.try-it-counter { font-size: 0.8rem; }
+.try-it-counter { font-size: 0.8rem; margin-left: auto; }
+/* Stop pill in the popover header — only visible when live. Gives the user a
+   reachable "end broadcast" affordance without scrolling past the area list
+   to the footer (which can be long once zone groups expand). Footer Stop is
+   hidden when this is shown. */
+.try-it-header-stop {
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(254,172,96,0.5);
+  background: rgba(254,172,96,0.12);
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.try-it-header-stop:hover { background: rgba(254,172,96,0.2); }
 .try-it-area-list {
   max-height: 260px;
   overflow-y: auto;
@@ -1860,6 +1883,7 @@ input[type=range]::-moz-range-thumb {
         </div>
         <div class="try-it-popover" id="try-it-popover" role="dialog" aria-hidden="true">
           <div class="try-it-popover-header">
+            <button type="button" class="try-it-header-stop" id="try-it-header-stop" style="display:none;">Stop</button>
             <span class="try-it-counter" id="try-it-counter">0 / 3</span>
           </div>
           <div class="try-it-area-list" id="try-it-area-list"></div>
@@ -6012,10 +6036,14 @@ function renderTryItAreaList() {
 function openTryItPopover() {
   const pop = document.getElementById('try-it-popover');
   const btn = document.getElementById('try-it-btn');
-  const stop = document.getElementById('try-it-stop-btn');
+  const headerStop = document.getElementById('try-it-header-stop');
+  const footerStop = document.getElementById('try-it-stop-btn');
   if (!pop || !btn) return;
   renderTryItAreaList();
-  if (stop) stop.style.display = liveDesignEnabled ? '' : 'none';
+  // Stop now lives in header when live; footer Stop stays hidden (kept in DOM
+  // so legacy listeners still resolve, but the visible affordance is in the header).
+  if (headerStop) headerStop.style.display = liveDesignEnabled ? '' : 'none';
+  if (footerStop) footerStop.style.display = 'none';
   pop.classList.add('open');
   pop.setAttribute('aria-hidden', 'false');
   btn.setAttribute('aria-expanded', 'true');
@@ -6035,9 +6063,10 @@ function _formatAreaLabel(ids) {
   const nameOf = id => (liveDesignAreas.find(a => a.area_id === id) || {}).name || id;
   // Live state: drop the "Trying in" prefix — the broadcast SVG (already inside
   // the button) carries that meaning, and the dark .is-live container makes the
-  // accent-orange room name stand out as the "active" signal.
+  // accent-orange room name stand out as the "active" signal. Multi-area uses
+  // a "+N more" tail (not concatenated names) so even longer area names like
+  // "SunOffice" don't push the centered % · K readout off-center in the banner.
   if (ids.length === 1) return nameOf(ids[0]);
-  if (ids.length === 2) return `${nameOf(ids[0])} + ${nameOf(ids[1])}`;
   return `${nameOf(ids[0])} +${ids.length - 1}`;
 }
 
@@ -6059,14 +6088,43 @@ function getCursorLightValues() {
 
 /**
  * Apply the current cursor lighting values to all selected areas in parallel.
+ *
+ * Trailing-debounced (100ms) so rapid cursor scrubs collapse to ~10 calls/sec
+ * instead of one-per-cursor-pixel. The latest pending value always fires —
+ * we never drop the user's intent, just suppress redundant intermediates that
+ * would saturate the ZHA radio. First-apply (Go) bypasses the debounce so
+ * lights respond instantly when broadcast starts.
  */
-async function applyLiveLight() {
+let _liveDesignDebounceTimer = null;
+let _liveDesignPendingApply = false;
+const LIVE_DESIGN_DEBOUNCE_MS = 100;
+
+function applyLiveLight() {
   if (!liveDesignEnabled || liveDesignAreaIds.length === 0) return;
+  if (liveDesignFirstApply) {
+    // Initial apply: fire immediately so user sees lights respond when
+    // pressing Go, then subsequent scrubs are debounced.
+    _doApplyLiveLight();
+    return;
+  }
+  _liveDesignPendingApply = true;
+  if (_liveDesignDebounceTimer) clearTimeout(_liveDesignDebounceTimer);
+  _liveDesignDebounceTimer = setTimeout(() => {
+    _liveDesignDebounceTimer = null;
+    if (_liveDesignPendingApply) {
+      _liveDesignPendingApply = false;
+      _doApplyLiveLight();
+    }
+  }, LIVE_DESIGN_DEBOUNCE_MS);
+}
+
+async function _doApplyLiveLight() {
   const values = getCursorLightValues();
   if (!values) return;
-
-  // Use 2-second transition on first apply after entering, then default 0.3s
-  const transition = liveDesignFirstApply ? 2 : 0.3;
+  // 2s transition on first apply (smooth fade-in from current state); 0.1s on
+  // subsequent scrubs so bulbs feel responsive to cursor drag instead of
+  // chasing the cursor with a noticeable lag.
+  const transition = liveDesignFirstApply ? 2 : 0.1;
   if (liveDesignFirstApply) liveDesignFirstApply = false;
 
   const bri = Math.round(values.brightness);
@@ -6217,6 +6275,7 @@ function setupLiveDesign() {
   const popover = document.getElementById('try-it-popover');
   const doneBtn = document.getElementById('try-it-done-btn');
   const stopBtn = document.getElementById('try-it-stop-btn');
+  const headerStopBtn = document.getElementById('try-it-header-stop');
 
   if (btn) {
     btn.addEventListener('click', (e) => {
@@ -6234,13 +6293,13 @@ function setupLiveDesign() {
       commitTryItSelection();
     });
   }
-  if (stopBtn) {
-    stopBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      await stopTryIt();
-      closeTryItPopover();
-    });
-  }
+  const stopHandler = async (e) => {
+    e.stopPropagation();
+    await stopTryIt();
+    closeTryItPopover();
+  };
+  if (stopBtn) stopBtn.addEventListener('click', stopHandler);
+  if (headerStopBtn) headerStopBtn.addEventListener('click', stopHandler);
   // Click-outside closes the popover (without committing)
   document.addEventListener('click', (e) => {
     if (!popover || !popover.classList.contains('open')) return;
