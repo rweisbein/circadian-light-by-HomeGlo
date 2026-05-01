@@ -152,13 +152,63 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 .container { max-width: 1200px; margin: 0 auto; padding: 10px; }
 
 /* Page Header */
+/* Merged page-header: hosts navigation chrome (back btn + rhythm name) AND the
+   former cct-banner controller (% · K readout, ← time → arrows, Experience pill).
+   Background tint is set per-frame by positionOverlays() to follow cursor CCT
+   — same role the cct-banner used to play, now lifted up to the page-level
+   header so the chart card is no longer split in two by an inner colored strip.
+   2-row grid: navigation + readout on row 1, time arrows on row 2; Experience
+   pill spans both rows on the far right. */
 .page-header {
+  position: sticky;
+  top: 0;
+  z-index: 60;
   background: var(--panel);
   border-bottom: 1px solid var(--line);
-  padding: 10px 12px;
-  display: flex;
+  padding: 6px 12px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  row-gap: 2px;
   align-items: center;
-  gap: 8px;
+  transition: background 0.12s, color 0.12s;
+}
+.page-header .back-btn {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+.page-header .rhythm-name-group {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+.page-header .cct-banner-readout-cluster {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
+  align-self: end;
+}
+.page-header .cct-banner-arrows {
+  grid-column: 3;
+  grid-row: 2;
+  justify-self: end;
+  align-self: start;
+}
+.page-header .try-it-btn {
+  grid-column: 4;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+/* Try-it popover anchors below the merged header on the right (under the
+   Experience pill, no longer under the cct-banner's far-left). CSS-positioned
+   relative to .page-header so positionOverlays() doesn't need to compute top. */
+.page-header .try-it-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 8px;
+  left: auto;
 }
 /* Rhythm-name + RHYTHM ZONE chip stack. Center the group vertically against
    the back button so the name reads as the page's primary title; chip is a
@@ -390,16 +440,15 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
   min-width: 0;
 }
 
-/* Section block (chart) */
+/* Section block (chart). Sticky moved up to .page-header in v1.2.215 — the
+   merged tinted header is what stays pinned now; the chart card scrolls
+   normally below it. */
 .section-block {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px 6px 8px;
   margin-bottom: 16px;
-  position: sticky;
-  top: 0;
-  z-index: 50;
 }
 /* Chart section: zero padding so the CCT banner spans the card edge-to-edge.
    `overflow: visible` so the Experience popover (and any other floating
@@ -504,61 +553,17 @@ input[type=range]::-moz-range-thumb {
   cursor: pointer;
 }
 
-/* Cursor line extender — continues the chart's CCT-tinted cursor line up
-   through the gap and into the bottom edge of the banner so the whole column
-   (banner readout → line → ball on curve → wake/bed handle below) reads as
-   one continuous "current moment" thread. Positioned by positionOverlays(). */
-.cursor-extender {
-  position: absolute;
-  width: 2px;
-  pointer-events: none;
-  z-index: 3;
-  transform: translateX(-50%);
-  opacity: 0.85;
-}
+/* Cursor line extender — DISABLED. Used to bridge banner-bottom → chart-top
+   inside chart-shell when the cct-banner lived inside the chart card. After
+   the banner moved up to the page-header (v1.2.215), there's no banner inside
+   chart-shell to bridge to; the page-header is sticky-pinned at viewport top
+   and separated from the chart card by the container's top padding, so a
+   visual continuation isn't really achievable here. Kept in DOM as a no-op. */
+.cursor-extender { display: none !important; }
 
-/* CCT-tinted edge-to-edge banner — replaces the old chart-chrome + cursor chip.
-   The whole banner IS the cursor controller; its background tint follows the
-   cursor's CCT. Layout (single flex row):
-     [Experience pill — far left, vertically centered]
-     [stack: row 1 = % · K readout (centered) + ↺ master reset
-             row 2 = ← time → cluster (centered)]
-   Experience is the primary CTA so it gets the prominent left slot, full-banner-
-   height vertical centering. Month chip moved out of the banner entirely (small
-   muted caption inside chart-shell — see .month-label). Master reset is page-
-   scope (cursor→now, outdoor→current, drag→null, month→current). Does NOT roll
-   back saved config. */
-.cct-banner {
-  position: relative;
-  /* 7px (not 10) to fit inside the section-block's 8px outer radius minus its
-     1px border — so the banner's top corners don't poke past the card edge
-     now that #chart-section has overflow:visible. */
-  border-radius: 7px 7px 0 0;
-  padding: 8px 12px 8px;
-  user-select: none;
-  -webkit-user-select: none;
-  transition: background 0.12s, color 0.12s;
-}
-/* Experience pill — absolutely positioned far-left, vertically centered
-   against the full banner. Absolute (not flex) so it doesn't take a slot
-   in the row, which would push the readout/arrows off-center. */
-.cct-banner .try-it-btn {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-}
-.cct-banner-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-.cct-banner-row1 {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
+/* Banner-derived elements (now hosted directly inside .page-header — no .cct-banner
+   wrapper anymore). The header itself carries the CCT tint set per-frame by
+   positionOverlays(). */
 .cct-banner-readout-cluster {
   display: inline-flex;
   align-items: center;
@@ -599,11 +604,6 @@ input[type=range]::-moz-range-thumb {
   background: rgba(254,172,96,0.18);
   border-color: var(--accent);
   color: var(--accent-hover);
-}
-.cct-banner-row2 {
-  display: flex;
-  justify-content: center;
-  align-items: center;
 }
 .cct-banner-arrows {
   display: inline-flex;
@@ -666,18 +666,18 @@ input[type=range]::-moz-range-thumb {
 .try-it-btn:hover {
   background: rgba(0,0,0,0.30);
 }
-/* Broadcast SVG only shows when live — when idle the "Experience" word is
-   self-explanatory and the icon is decorative noise; when broadcasting the
-   icon becomes a meaningful "active right now" state indicator (and pulses
-   to reinforce the live signal). Two-line stack collapses to a single-line
-   label when the icon is hidden. */
+/* Broadcast SVG only shows when live; idle keeps the "Experience" word.
+   Live state: collapses to icon-only (label hidden) — the user just selected
+   the areas in the popover so re-displaying area names in the pill is wasted
+   space, and the pulsing icon + glow already carry "active right now" clearly. */
 .try-it-btn svg { display: none; }
 .try-it-btn.is-live svg {
   display: block;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   animation: try-it-icon-pulse 1.4s ease-in-out infinite;
 }
+.try-it-btn.is-live .try-it-label { display: none; }
 @keyframes try-it-icon-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
@@ -1827,8 +1827,11 @@ input[type=range]::-moz-range-thumb {
 </style>
 </head>
 <body>
-<!-- Page Header -->
-<header class="page-header">
+<!-- Page Header — merged: navigation chrome (back btn + rhythm name + zone chip)
+     on the left, the former cct-banner controller (% · K readout, ← time →
+     arrows, Experience pill) on the right. Background tint follows cursor CCT
+     (set per-frame by positionOverlays()). -->
+<header class="page-header" id="page-header">
   <button class="back-btn" onclick="goBack()" title="Back">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <polyline points="15 18 9 12 15 6"/>
@@ -1837,6 +1840,30 @@ input[type=range]::-moz-range-thumb {
   <div class="rhythm-name-group">
     <input type="text" class="rhythm-name-input" id="rhythm-name" value="Daily Rhythm 1" placeholder="Zone name">
     <span class="rhythm-zone-type-chip">Rhythm Zone</span>
+  </div>
+  <div class="cct-banner-readout-cluster">
+    <span class="cct-banner-readout" id="cct-banner-readout">--% &middot; ----K</span>
+    <button type="button" class="cct-banner-reset" id="cct-banner-reset" title="Reset chart view">&#x21BA;</button>
+  </div>
+  <div class="cct-banner-arrows">
+    <button type="button" id="cct-banner-prev" title="Step back">&#x2190;</button>
+    <span class="cct-banner-time" id="cct-banner-time">--:--</span>
+    <button type="button" id="cct-banner-next" title="Step forward">&#x2192;</button>
+  </div>
+  <button type="button" class="try-it-btn" id="try-it-btn" aria-haspopup="true" aria-expanded="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/></svg>
+    <span class="try-it-label" id="try-it-label">Experience</span>
+  </button>
+  <div class="try-it-popover" id="try-it-popover" role="dialog" aria-hidden="true">
+    <div class="try-it-popover-header">
+      <button type="button" class="try-it-header-stop" id="try-it-header-stop" style="display:none;">Stop</button>
+      <span class="try-it-counter" id="try-it-counter">0 / 3</span>
+    </div>
+    <div class="try-it-area-list" id="try-it-area-list"></div>
+    <div class="try-it-popover-footer">
+      <button type="button" class="try-it-stop-btn" id="try-it-stop-btn" style="display:none;">Stop</button>
+      <button type="button" class="try-it-done-btn" id="try-it-done-btn">Go</button>
+    </div>
   </div>
 </header>
 
@@ -1847,33 +1874,9 @@ input[type=range]::-moz-range-thumb {
   <div class="section-block" id="chart-section">
     <div class="chart-wrapper">
       <div id="chart-shell">
-        <!-- CCT-tinted edge-to-edge banner — IS the cursor chip. Tint follows
-             cursor CCT. Layout: Experience pill (far-left, vertically centered
-             across the banner) | stacked rows: row 1 = % · K (focal) + ↺ master
-             reset; row 2 = ← time → cluster (centered). Month moved out of the
-             header to a quiet caption near sunrise/sunset (it's a low-priority
-             dial, doesn't deserve header prominence). -->
-        <div class="cct-banner" id="cct-banner">
-          <button type="button" class="try-it-btn" id="try-it-btn" aria-haspopup="true" aria-expanded="false">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/></svg>
-            <span class="try-it-label" id="try-it-label">Experience</span>
-          </button>
-          <div class="cct-banner-stack">
-            <div class="cct-banner-row1">
-              <div class="cct-banner-readout-cluster">
-                <span class="cct-banner-readout" id="cct-banner-readout">--% &middot; ----K</span>
-                <button type="button" class="cct-banner-reset" id="cct-banner-reset" title="Reset chart view">&#x21BA;</button>
-              </div>
-            </div>
-            <div class="cct-banner-row2">
-              <div class="cct-banner-arrows">
-                <button type="button" id="cct-banner-prev" title="Step back">&#x2190;</button>
-                <span class="cct-banner-time" id="cct-banner-time">--:--</span>
-                <button type="button" id="cct-banner-next" title="Step forward">&#x2192;</button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <!-- Banner contents (Experience pill, % · K readout, ← time → arrows)
+             and the try-it-popover were moved up into .page-header in v1.2.215.
+             chart-shell now starts directly with the chart-relative overlays. -->
 
         <!-- Month label — quiet caption in chart-shell bottom-left (replaces
              the v1.2.205 banner chip). Tap opens the slider popover. -->
@@ -1881,21 +1884,6 @@ input[type=range]::-moz-range-thumb {
         <div class="month-popover" id="month-popover">
           <input type="range" class="month-slider" id="month-slider" min="0" max="11" value="3">
         </div>
-        <div class="try-it-popover" id="try-it-popover" role="dialog" aria-hidden="true">
-          <div class="try-it-popover-header">
-            <button type="button" class="try-it-header-stop" id="try-it-header-stop" style="display:none;">Stop</button>
-            <span class="try-it-counter" id="try-it-counter">0 / 3</span>
-          </div>
-          <div class="try-it-area-list" id="try-it-area-list"></div>
-          <div class="try-it-popover-footer">
-            <button type="button" class="try-it-stop-btn" id="try-it-stop-btn" style="display:none;">Stop</button>
-            <button type="button" class="try-it-done-btn" id="try-it-done-btn">Go</button>
-          </div>
-        </div>
-
-        <!-- CCT-tinted cursor extender — fills the visual gap between banner
-             bottom and chart top so the cursor line reads continuous. -->
-        <div class="cursor-extender" id="cursor-extender"></div>
 
         <!-- Sun intensity chip — floats above chart at solar-noon x ("sun
              shining over the graph"). Tap → opens popover. -->
@@ -4393,50 +4381,21 @@ function positionOverlays() {
 
   const xA = chartState.ascendStart;
 
-  // CCT-tinted banner — IS the cursor controller. Tint follows cursor CCT.
-  // Row 1 = % · K (focal), Row 2 = month / ← time → / Try-it.
-  let _cursorRgb = null;
-  const banner = document.getElementById('cct-banner');
+  // CCT tint — applied to the merged page-header (which now hosts the readout +
+  // arrows + Experience pill that the cct-banner used to). Tint follows cursor
+  // CCT just like the banner did.
+  const headerEl = document.getElementById('page-header');
   const bannerReadout = document.getElementById('cct-banner-readout');
   const bannerTimeEl = document.getElementById('cct-banner-time');
-  if (banner && bannerReadout && cursorHour != null) {
+  if (headerEl && bannerReadout && cursorHour != null) {
     const dim = chartState.sunDimFactor ? chartState.sunDimFactor(cursorHour) : 1.0;
     const bri = calculateBrightnessAtHour(cursorHour) * dim * 100;
     const cct = calculateColorAtHour(cursorHour, true);
     const rgb = cctToRGB(cct);
-    _cursorRgb = rgb;
     bannerReadout.textContent = `${Math.round(bri)}% \u00b7 ${Math.round(cct)}K`;
     if (bannerTimeEl) bannerTimeEl.textContent = formatHour(cursorHour);
-    banner.style.background = colorWithAlpha(rgb, 0.92);
-    banner.style.color = readableTextColor(rgb);
-  }
-
-  // Cursor-line extender — bridges banner bottom → top of Plotly's plot area
-  // so the CCT-tinted cursor line reads continuous from the banner readout down
-  // through the chart to the curve. We:
-  //  - overlap the banner by 3px on top to eliminate any visible seam, and
-  //  - extend down past chart.offsetTop by yaxis._offset so the extender meets
-  //    Plotly's cursor line exactly at the top of the plot area (Plotly's own
-  //    top margin would otherwise leave a gap between extender and cursor).
-  const extender = document.getElementById('cursor-extender');
-  const chartElForLine = document.getElementById('chart');
-  if (extender && chartElForLine && cursorHour != null && _cursorRgb) {
-    const xA = chartState.ascendStart;
-    const cursorPx = xToPx(visHour(cursorHour, xA));
-    const bannerEl = document.getElementById('cct-banner');
-    const bannerBottom = bannerEl ? (bannerEl.offsetTop + bannerEl.offsetHeight) : 0;
-    const chartTop = chartElForLine.offsetTop;
-    const plotTopOffset = chartElForLine._fullLayout?.yaxis?._offset || 0;
-    const TOP_OVERLAP = 3;
-    const extenderTop = Math.max(0, bannerBottom - TOP_OVERLAP);
-    const extenderBottom = chartTop + plotTopOffset;
-    extender.style.left = cursorPx + 'px';
-    extender.style.top = extenderTop + 'px';
-    extender.style.height = Math.max(0, extenderBottom - extenderTop) + 'px';
-    extender.style.background = _cursorRgb;
-    extender.style.display = 'block';
-  } else if (extender) {
-    extender.style.display = 'none';
+    headerEl.style.background = colorWithAlpha(rgb, 0.92);
+    headerEl.style.color = readableTextColor(rgb);
   }
 
   // Sunrise / sunset HTML labels + connector heights to the x-axis line.
@@ -4481,53 +4440,41 @@ function positionOverlays() {
   setSolar(sunriseEl, sr);
   setSolar(sunsetEl, ss);
 
-  // Sun intensity chip + popover — live in the card-color gap between the
-  // cct-banner bottom and the chart canvas top, at solar-noon x. Vertically
-  // centered in the gap so the chip reads as a header for the chart (the
-  // gap is lighter card-color, distinct from both the bright banner above
-  // and the dark chart below — the chip's chrome blends with the chart side
-  // visually, not the banner). Popover hangs just below into the chart.
+  // Sun intensity chip + popover — live in the card-color gap above the chart
+  // canvas, at solar-noon x. Centered vertically in chart-shell's top margin
+  // (chart has margin-top:24px which gives the chip ~24px of headroom above
+  // the dark plot area). Popover hangs just below into the chart.
+  // Note: pre-v1.2.215 the gap was banner-bottom → chart-top; now that the
+  // banner has been lifted up to .page-header the gap is simply 0 → chart-top.
   const chip = document.getElementById('outdoor-chip');
   const pop = document.getElementById('outdoor-popover');
   const chartElForChip = document.getElementById('chart');
-  const bannerElForChip = document.getElementById('cct-banner');
-  let _gapBannerBottom = null, _gapChartTop = null;
+  let _gapChartTop = null;
   if (chip && Number.isFinite(sr) && Number.isFinite(ss)) {
     const noon = (sr + ss) / 2;
     const px = xToPx(noon);
     chip.style.left = px + 'px';
-    if (bannerElForChip && chartElForChip) {
-      const bannerBottom = bannerElForChip.offsetTop + bannerElForChip.offsetHeight;
+    if (chartElForChip) {
       const chartTop = chartElForChip.offsetTop;
-      _gapBannerBottom = bannerBottom;
       _gapChartTop = chartTop;
       const chipH = chip.offsetHeight || 14;
-      // Center the chip vertically in the gap.
-      chip.style.top = Math.round(bannerBottom + (chartTop - bannerBottom - chipH) / 2) + 'px';
+      chip.style.top = Math.round((chartTop - chipH) / 2) + 'px';
       if (pop) {
         pop.style.left = px + 'px';
-        // Popover hangs just below the chip, into the chart.
         pop.style.top = (chartTop + 4) + 'px';
       }
     }
   }
-  // Month label — pinned far-left in the same gap as the sun-intensity chip,
-  // vertically centered. Popover opens downward into the chart (below the
-  // label + a small gap), mirroring the outdoor popover's anchor logic.
+  // Month label — pinned far-left in the same gap as the sun-intensity chip.
   const monthLabelEl = document.getElementById('month-label');
   const monthPop = document.getElementById('month-popover');
-  if (monthLabelEl && _gapBannerBottom != null && _gapChartTop != null) {
+  if (monthLabelEl && _gapChartTop != null) {
     const labelH = monthLabelEl.offsetHeight || 14;
-    monthLabelEl.style.top = Math.round(_gapBannerBottom + (_gapChartTop - _gapBannerBottom - labelH) / 2) + 'px';
+    monthLabelEl.style.top = Math.round((_gapChartTop - labelH) / 2) + 'px';
     if (monthPop) monthPop.style.top = (_gapChartTop + 4) + 'px';
   }
-  // Try-it (Experience) popover — anchored under the Experience pill (far-left
-  // of cct-banner). Top = cct-banner bottom + small gap, so the popover hangs
-  // just below the banner regardless of banner content height.
-  const tryItPop = document.getElementById('try-it-popover');
-  if (tryItPop && _gapBannerBottom != null) {
-    tryItPop.style.top = (_gapBannerBottom + 4) + 'px';
-  }
+  // Try-it (Experience) popover now lives inside .page-header and is positioned
+  // by CSS (top: 100% + 4px, right: 8px). No JS positioning needed.
 
   // Wake/Bed handles — working drag value (until commit/reset) takes priority
   // over saved time, so the pill stays where the user dragged it.
