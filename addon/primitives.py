@@ -1777,7 +1777,7 @@ class CircadianLightPrimitives:
                 brightness_override=effective_override,
             )
             logger.info(
-                f"circadian_on applied: {final_brightness}%, {result.color_temp}K (is_on=True)"
+                f"circadian_on applied: {result.brightness}%, {result.color_temp}K (is_on=True)"
             )
         else:
             # Enforce off state

@@ -1771,7 +1771,9 @@ input[type=range]::-moz-range-thumb {
   color: #fff;
 }
 
-/* Back-button page header */
+/* Back-button page header — ghost chevron (matches area.html). Tracks
+   page-header's readableTextColor via color: inherit so the chevron
+   reads against any CCT-tinted bg. */
 .back-btn {
   display: flex;
   align-items: center;
@@ -1779,16 +1781,16 @@ input[type=range]::-moz-range-thumb {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  border: 1px solid var(--line);
-  background: var(--card);
-  color: var(--text);
+  border: none;
+  background: transparent;
+  color: inherit;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.15s;
   flex-shrink: 0;
+  padding: 0;
 }
 .back-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: var(--accent);
+  background: rgba(0, 0, 0, 0.18);
 }
 .back-btn svg {
   width: 18px;

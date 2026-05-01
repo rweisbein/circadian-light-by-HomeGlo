@@ -84,7 +84,10 @@
       grid-column: 2 / span 2;
       grid-row: 2;
       align-self: center;
-      justify-self: start;
+      justify-self: stretch;  /* fill col 2 + col 3 so margin-left: auto on
+                                 the right action group pushes circadian to
+                                 the far right edge of row 2 (per spec —
+                                 "burying" the rare-action toggle). */
       display: flex;
       align-items: center;
       gap: 10px;
@@ -186,9 +189,12 @@
     .area-chip--warning { color: #e6a817; animation: timer-pulse 1s ease-in-out infinite; }
     .area-chip-arrow { opacity: 0.7; margin: 0 1px; }
 
-    /* Row 2 readout cluster — power icon + % · K text, left-aligned.
-       The readout is the page's actual headline (largest, boldest element). */
-    .page-header-power {
+    /* Row 2 readout cluster — state controls left, readout center, dirty
+       reset + circadian-toggle right. The readout is the page's actual
+       headline (largest, boldest element). */
+    .page-header-power,
+    .page-header-freeze,
+    .page-header-circadian {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -200,11 +206,52 @@
       color: inherit;
       cursor: pointer;
       border-radius: 8px;
-      transition: background 0.15s;
+      transition: background 0.15s, opacity 0.15s, color 0.15s;
       -webkit-tap-highlight-color: transparent;
     }
-    .page-header-power:hover { background: rgba(0,0,0,0.18); }
-    .page-header-power svg { width: 18px; height: 18px; }
+    .page-header-power:hover,
+    .page-header-freeze:hover,
+    .page-header-circadian:hover { background: rgba(0,0,0,0.18); }
+    .page-header-power svg,
+    .page-header-freeze svg,
+    .page-header-circadian svg { width: 18px; height: 18px; }
+    /* Power active = lights on. Subtle white pill — power state flips
+       50/50 throughout the day so a noticeable active treatment would be
+       visual noise. The pill just confirms the icon is "engaged". */
+    .page-header-power.active { background: rgba(255, 255, 255, 0.12); }
+    .page-header-power.active:hover { background: rgba(255, 255, 255, 0.22); }
+    /* Freeze active = bright cyan icon on a tinted bg pill so the active
+       state stays visible against any header tint (cool CCT bgs were
+       washing out a color-only treatment). Stronger contrast than power
+       since frozen state IS noteworthy. */
+    .page-header-freeze.active {
+      color: #8fcef0;
+      background: rgba(40, 80, 120, 0.55);
+    }
+    .page-header-freeze.active:hover { background: rgba(40, 80, 120, 0.75); }
+    /* Circadian: neutral icon when ON (default — full opacity, color
+       inherits like the back chevron). The "burying" of this rare-action
+       toggle is via right-edge position + absence of an active pill (power
+       + freeze get pills when on; circadian doesn't), NOT via opacity —
+       earlier dim-when-on treatment was reading as "off" because users
+       hardwired bright = on. When OFF, the orange accent + bg pill makes
+       the non-default state loud + obvious. */
+    .page-header-circadian.is-off {
+      color: var(--accent);
+      background: rgba(254,172,96,0.14);
+    }
+    .page-header-circadian.is-off:hover {
+      background: rgba(254,172,96,0.28);
+      color: var(--accent-hover);
+    }
+    /* Right-side action group (reset + circadian) pushed to the far right
+       so the left-side controls + readout flow naturally on the left. */
+    .page-header-actions-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+    }
 
     .page-header-readout {
       font-size: 22px;
@@ -306,53 +353,18 @@
     .row-slider-thumb { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 30px; height: 16px; border-radius: 8px 8px 5px 5px; background: rgba(255,255,255,0.9); box-shadow: 0 1px 4px rgba(0,0,0,0.4); pointer-events: none; transition: left 0.15s; }
     .row-slider-track.dragging .row-slider-thumb { transition: none; }
 
-    /* Mode toggle buttons (circadian + freeze) — relocated from the deleted
-       area-state tile to the top of the Adjust card body. */
-    .toggle-btn {
-      width: 36px;
-      height: 36px;
-      border-radius: 6px;
-      border: 1px solid rgba(255,255,255,0.2);
-      background: rgba(30,30,30,0.9);
-      color: var(--muted);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s;
-      font-size: var(--font-display);
-      -webkit-tap-highlight-color: transparent;
-      outline: none;
+    /* Sliders muted when circadian is off — stay interactive (so the user
+       can still pre-set overrides that take effect when circadian comes
+       back on), dim opacity signals "not active right now". */
+    .curve-controls-wrap.circadian-off-overlay .hslider-row {
+      opacity: 0.5;
     }
-    @media (hover: hover) {
-      .toggle-btn:hover {
-        border-color: rgba(255,255,255,0.4);
-        background: rgba(50,50,50,0.9);
-      }
-    }
-    .toggle-btn.active {
-      background: rgba(60,60,60,0.9);
-      color: var(--text);
-      border-color: var(--accent);
-    }
-    .toggle-btn:disabled {
-      opacity: 0.3;
-      cursor: default;
-      pointer-events: none;
-    }
-    .toggle-btn svg {
-      width: 18px;
-      height: 18px;
-    }
-
-    /* Mode-toggles row inside the Adjust card. Holds circadian + freeze
-       icons; lays them out left-aligned with a small gap. */
-    .adjust-mode-toggles {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 4px 8px;
-    }
+    /* Stronger mute on color + phase sliders specifically when the room is
+       OFF (power off, but circadian still on). Bright slider stays at full
+       prominence — dragging it is the natural turn-on gesture. Color/phase
+       are informational only when the room is dark, so they get pushed
+       further into the background. */
+    .hslider-row--power-off { opacity: 0.35; }
 
     /* Mini chart container (from modal) */
     #mini-chart {
@@ -549,11 +561,13 @@
        sticky; scrolls with the page. Positioned relative so absolutely-
        positioned children (NOW pill, sun-info chip, solar/phase labels)
        anchor correctly. Bottom padding holds the two below-axis label
-       rows (sunrise/sunset just below axis, wake/bed one row lower). */
+       rows (sunrise/sunset just below axis, wake/bed one row lower).
+       Tightened bottom + margin so the Bright slider sits closer to the
+       chart without crowding the wake/bed label. */
     #chart-shell {
       position: relative;
-      padding: 4px 0 40px;
-      margin-bottom: 4px;
+      padding: 4px 0 32px;
+      margin-bottom: 0;
     }
     #chart-shell #mini-chart { height: 120px; margin-top: 6px; }
     /* Sun-intensity chip — sits above the chart at solar noon (clamped to
@@ -562,7 +576,7 @@
        room has any sun-exposure AND the cursor is between sunrise/sunset. */
     .chart-sun-info {
       position: absolute;
-      top: 4px;
+      top: 12px;
       display: none;
       align-items: center;
       gap: 4px;
@@ -952,11 +966,18 @@
     .ctrl-list-chevron { flex-shrink: 0; color: var(--muted2); font-size: var(--font-value); }
     .ctrl-list-divider { border-top: 1px solid var(--line); margin: 0; }
     /* Recently active pinned strip */
-    .ctrl-recent-section { padding-bottom: 6px; border-bottom: 2px solid var(--line); margin-bottom: 4px; }
-    .ctrl-recent-label { font-size: var(--font-caps); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted2); padding: 8px 14px 4px; }
-    .ctrl-recent-section .ctrl-list-row { border-bottom: 1px solid rgba(255,255,255,0.04); }
-    .ctrl-recent-section .ctrl-list-row:last-child { border-bottom: none; }
-    .ctrl-fresh-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-left: 6px; vertical-align: middle; flex-shrink: 0; }
+    /* Section headers inside the Controls card body. Group rows into
+       "In <area>" + "Reaches <area>" buckets — each header same caps-label
+       treatment that the old Recent strip used. Headers are hidden when
+       their group has zero rows. */
+    .ctrl-section-label { font-size: var(--font-caps); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted2); padding: 10px 14px 4px; }
+    .ctrl-section + .ctrl-section .ctrl-section-label { border-top: 1px solid var(--line); margin-top: 4px; }
+    /* Recency dot — fixed-width slot on the LEFT of every row so all names
+       align regardless of whether a row's dot is currently active.
+       Bright green when just-triggered, fades down to dim green over 1h,
+       disappears after that. */
+    .ctrl-fresh-dot-slot { display: inline-flex; align-items: center; justify-content: center; width: 12px; height: 12px; flex-shrink: 0; }
+    .ctrl-fresh-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .tune-brightness-val { margin-left: auto; font-size: var(--font-display); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; transition: opacity 0.25s; }
     .tune-brightness-card.is-open .tune-brightness-val { opacity: 0; }
     .tune-brightness-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; padding-bottom: 0; }
@@ -1143,13 +1164,41 @@
       <span id="header-meta-rhythm"></span>
     </div>
     <div class="page-header-readout-cluster">
-      <button type="button" class="page-header-power" id="toggle-power" onclick="executeAction('lights_toggle')" title="Power">
+      <button type="button" class="page-header-power" id="toggle-power" onclick="powerToggleSmart()" title="Power">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/>
         </svg>
       </button>
+      <button type="button" class="page-header-freeze" id="toggle-freeze" onclick="executeAction('freeze_toggle')" title="Freeze">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="2" x2="12" y2="22"/>
+          <line x1="2" y1="12" x2="22" y2="12"/>
+          <line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/>
+          <line x1="18.4" y1="5.6" x2="5.6" y2="18.4"/>
+          <line x1="12" y1="2" x2="9.5" y2="4.5"/><line x1="12" y1="2" x2="14.5" y2="4.5"/>
+          <line x1="22" y1="12" x2="19.5" y2="9.5"/><line x1="22" y1="12" x2="19.5" y2="14.5"/>
+          <line x1="12" y1="22" x2="14.5" y2="19.5"/><line x1="12" y1="22" x2="9.5" y2="19.5"/>
+          <line x1="2" y1="12" x2="4.5" y2="14.5"/><line x1="2" y1="12" x2="4.5" y2="9.5"/>
+        </svg>
+      </button>
       <span class="page-header-readout" id="page-header-readout">--% &middot; ----K</span>
       <button type="button" class="page-header-reset" id="page-header-reset" onclick="resetAllOverrides()" title="Reset overrides" style="display:none;">&#x21BA;</button>
+      <div class="page-header-actions-right">
+        <button type="button" class="page-header-circadian" id="toggle-circadian" onclick="toggleCircadian()" title="Circadian Light">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -1165,36 +1214,9 @@
       </div>
       <div class="auto-sched-body" id="chart-body">
         <div id="circadian-content-wrap" class="curve-controls-wrap">
-          <!-- Mode toggles relocated from the deleted area-state tile. Live
-               at the top of the Adjust card body per the 2026-05 spec. -->
-          <div class="adjust-mode-toggles">
-            <button class="toggle-btn" id="toggle-circadian" onclick="toggleCircadian()" title="Circadian Light">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="5"/>
-                <line x1="12" y1="1" x2="12" y2="3"/>
-                <line x1="12" y1="21" x2="12" y2="23"/>
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                <line x1="1" y1="12" x2="3" y2="12"/>
-                <line x1="21" y1="12" x2="23" y2="12"/>
-                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-              </svg>
-            </button>
-            <button class="toggle-btn" id="toggle-freeze" onclick="executeAction('freeze_toggle')" title="Freeze">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-                   stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="2" x2="12" y2="22"/>
-                <line x1="2" y1="12" x2="22" y2="12"/>
-                <line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/>
-                <line x1="18.4" y1="5.6" x2="5.6" y2="18.4"/>
-                <line x1="12" y1="2" x2="9.5" y2="4.5"/><line x1="12" y1="2" x2="14.5" y2="4.5"/>
-                <line x1="22" y1="12" x2="19.5" y2="9.5"/><line x1="22" y1="12" x2="19.5" y2="14.5"/>
-                <line x1="12" y1="22" x2="14.5" y2="19.5"/><line x1="12" y1="22" x2="9.5" y2="19.5"/>
-                <line x1="2" y1="12" x2="4.5" y2="14.5"/><line x1="2" y1="12" x2="4.5" y2="9.5"/>
-              </svg>
-            </button>
-          </div>
+          <!-- Mode toggles relocated to header row 2 (circadian + freeze).
+               Adjust card body now starts directly with the chart. -->
+
           <!-- Chart relocated into the Adjust card body in Ship 2. Read-only:
                cursor is "now" (live ticking, not user-controllable). Single
                active phase only — see renderMiniChart for the windowing. -->
@@ -1284,7 +1306,7 @@
     <div class="auto-sched-card auto-sched-card--auto" id="auto-outer-card">
       <div class="auto-sched-header" onclick="toggleAutoOuter(event)">
         <span class="auto-sched-chevron" id="auto-outer-chevron">&#x203A;</span>
-        <span class="auto-sched-title">Auto</span>
+        <span class="auto-sched-title">Schedule</span>
         <span class="auto-outer-next" id="auto-outer-next"></span>
       </div>
       <div class="auto-sched-body" id="auto-outer-body">
@@ -2046,9 +2068,14 @@
         const h = xAnchor + (i / numSamples) * 24;
         const hMod = ((h % 24) + 24) % 24;
         hours.push(h);
-        // Pure room target (no override).
+        // Pure room target (natural circadian curve, no override, no sun dimming).
         const pureRoom = calcMiniBrightness(hMod, cfg, state, currentHour, { skipOverride: true }) * 100;
-        brightnessPct.push(pureRoom);
+        // Sun-dimming reference dotted line: pureRoom + flat brightness
+        // override. Same override the solid bulb curve gets, just without the
+        // sun-dimming reduction. Gap between dotted and solid = sun-dimming
+        // amount only — so dragging brightness slider down moves BOTH lines
+        // down by the same delta and the gap stays equal to the sun-dimming.
+        brightnessPct.push(Math.max(0, Math.min(100, pureRoom + flatBriOverride)));
         // Bulb output = pure_room × sun_factor + flat override delta. Override
         // is added in bulb-space, not pre-sun, so it doesn't get squished by
         // sun_bright_factor — matching backend's set_position accounting.
@@ -2147,6 +2174,10 @@
       const hasDivergence = maxDivergence > 1.0;
 
       const traces = [];
+      // Declare shapes + annotations early so any trace-emit block (the
+      // sun-dimming label, the wake/bed lines, etc.) can push into them.
+      const shapes = [];
+      const annotations = [];
 
       // Color-gradient BULB curve (filled + line segments) — what bulbs output after sun dimming
       const step = 2;
@@ -2175,17 +2206,72 @@
         });
       }
 
-      // Sun-contribution dotted line dropped on the area page (kept on rhythm
-      // details where it has more context). The dotted line on this page is
-      // repurposed below as a slider-drag ghost: snapshots the pre-drag bulb
-      // curve so users can see "before vs. after" while dialing brightness/
-      // color, then disappears on pointerup.
-      if (window._chartDragGhostCurve && Array.isArray(window._chartDragGhostCurve.bulbPct)
-          && window._chartDragGhostCurve.bulbPct.length === hours.length) {
+      // Two dotted-line modes — only one renders at a time:
+      //   1. Drag ghost: pre-drag bulb curve, shown while a slider is being
+      //      dragged so the user can compare before/after.
+      //   2. Sun-dimming reference: natural-light target (pre-sun-dimming),
+      //      shown when bulb output is being reduced by sun dimming. Mirrors
+      //      rhythm-details' "sun dimming" treatment — the gap between solid
+      //      bulb curve and dotted reference visualizes how much the sun is
+      //      cutting into the rhythm.
+      const dragGhostActive = !!(window._chartDragGhostCurve
+        && Array.isArray(window._chartDragGhostCurve.bulbPct)
+        && window._chartDragGhostCurve.bulbPct.length === hours.length);
+      if (dragGhostActive) {
+        // Drag ghost as a solid line (not dotted) — visually distinct from
+        // the sun-dimming dotted reference, and reads as a "previous state"
+        // without the dashed treatment that the dotted line owns.
         traces.push({
           type: 'scatter', mode: 'lines',
           x: hours, y: window._chartDragGhostCurve.bulbPct,
+          line: { width: 1.5, color: 'rgba(220, 220, 220, 0.45)' },
+          hoverinfo: 'skip', showlegend: false,
+        });
+      } else if (hasDivergence && maxDivergence >= 8.0) {
+        // Mask the natural curve to null where it's identical to the bulb
+        // curve (so the dotted line doesn't render outside the sun-dimming
+        // window — pre-sunrise / post-sunset). connectgaps=false breaks the
+        // line at the null gaps. Label only renders when the peak gap is
+        // ≥8% — at smaller gaps the label cramps against the lines.
+        const maskedNatural = hours.map((h, i) =>
+          (brightnessPct[i] - bulbPct[i]) >= 1.0 ? brightnessPct[i] : null
+        );
+        traces.push({
+          type: 'scatter', mode: 'lines',
+          x: hours, y: maskedNatural,
           line: { width: 1.5, color: 'rgba(220, 220, 220, 0.55)', dash: 'dot' },
+          connectgaps: false,
+          hoverinfo: 'skip', showlegend: false,
+        });
+        // "sun dimming" label — anchor at the FIRST divergent sample (left
+        // edge of the dotted-line region), at the midpoint of the gap there.
+        // Pinning to the leading edge (vs peak divergence) keeps the label
+        // away from the cursor (which sits at NOW, often near peak when sun
+        // is still up) and away from the wake/bed line (often at peak).
+        let firstDivIdx = -1;
+        for (let i = 0; i < hours.length; i++) {
+          if (brightnessPct[i] - bulbPct[i] >= 1.0) { firstDivIdx = i; break; }
+        }
+        if (firstDivIdx >= 0) {
+          const divX = hours[firstDivIdx];
+          const divY = (brightnessPct[firstDivIdx] + bulbPct[firstDivIdx]) / 2;
+          annotations.push({
+            x: divX, y: divY, xref: 'x', yref: 'y',
+            text: 'sun dimming', showarrow: false, xshift: 4,
+            xanchor: 'left',
+            font: { size: 10, color: 'rgba(220, 220, 220, 0.6)' },
+          });
+        }
+      } else if (hasDivergence) {
+        // Small-gap case: render the dotted line without the label.
+        const maskedNatural = hours.map((h, i) =>
+          (brightnessPct[i] - bulbPct[i]) >= 1.0 ? brightnessPct[i] : null
+        );
+        traces.push({
+          type: 'scatter', mode: 'lines',
+          x: hours, y: maskedNatural,
+          line: { width: 1.5, color: 'rgba(220, 220, 220, 0.55)', dash: 'dot' },
+          connectgaps: false,
           hoverinfo: 'skip', showlegend: false,
         });
       }
@@ -2244,9 +2330,8 @@
         if (Number.isFinite(markerOverride.cct)) markerCCT = markerOverride.cct;
       }
 
-      // Shapes and annotations
-      const shapes = [];
-      const annotations = [];
+      // (shapes + annotations declared earlier so the sun-dimming label
+      //  block can push into them.)
 
       // Wake/bed vertical lines
       const wakeTime = shiftIntoWindow(cfg.wake_time);
@@ -2491,14 +2576,22 @@
         return bulbPct[bulbPct.length - 1];
       })();
 
-      const nowDotFill = isFrozen
-        ? 'rgba(120, 190, 240, 0.95)'
-        : tintColorByBrightness(cctToRGB(markerCCT), Math.round(markerBri));
+      // NOW dot stays CCT-tinted regardless of frozen state — the freeze
+      // status is signaled by the header freeze icon (active styling).
+      // Earlier code recolored the dot blue when frozen, which masked the
+      // current bulb color and was redundant chrome.
+      const nowDotFill = tintColorByBrightness(cctToRGB(markerCCT), Math.round(markerBri));
       // White outline (2px) when lights are on — matches rhythm-design's NOW
       // dot styling so the cursor reads as the same focal element across both
       // pages. Falls back to near-black when the room is off (or circadian
       // off) since white-on-dark would over-emphasize a non-active state.
-      const isOnForDot = state && state.is_on !== false && state.is_circadian !== false;
+      // Outline: white when room is on (matches rhythm-design styling),
+      // near-black when off so the dot doesn't over-emphasize an inactive
+      // state. `state` here doesn't carry is_on — that lives on
+      // selectedArea — so read it from there. Circadian-off also drops
+      // back to the muted black outline since the room isn't being driven.
+      const liveAreaForDot = (selectedArea && areaStatus) ? (areaStatus[selectedArea.area_id] || {}) : {};
+      const isOnForDot = liveAreaForDot.is_on === true && liveAreaForDot.is_circadian !== false;
       const nowDotBorder = isOnForDot ? '#fff' : '#0a0a0a';
       traces.push({
         type: 'scatter', mode: 'markers',
@@ -2739,13 +2832,20 @@
 
       const phaseCtx = buildPhaseCtx(cfg, areaState, currentHour);
 
+      // When the room is OFF (lights off), the bright slider thumb falls
+      // to 0% — reflects the bulb's actual output. Color + bed sliders get
+      // a stronger mute (extra dim) since they're informational only when
+      // the room is dark. Sliders stay interactive: dragging brightness
+      // up sets a starting brightness for the next turn-on.
+      const isRoomOff = selectedArea && selectedArea.is_on === false;
+
       document.querySelectorAll('.slider-track').forEach(track => {
         if (track.classList.contains('dragging')) return;
         const mode = track.dataset.mode;
         let pct, thumbBri, thumbCCT;
         if (mode === 'brightness') {
-          pct = briFrac;
-          thumbBri = areaState.actual_brightness ?? currentBri;
+          pct = isRoomOff ? 0 : briFrac;
+          thumbBri = isRoomOff ? 0 : (areaState.actual_brightness ?? currentBri);
           thumbCCT = currentCCT;
         } else if (mode === 'color') {
           pct = cctFrac;
@@ -2761,6 +2861,13 @@
         }
         (track.querySelector('.slider-track-bg') || track).style.background = buildTrackGradient(mode, cfg, currentBri, currentCCT, effRange, phaseCtx);
         applyOneSlider(track, pct, thumbBri, thumbCCT, mode);
+        // Stronger mute on color + phase sliders when room is off; bright
+        // stays at full visual prominence so the user can drag it to turn
+        // the room on at a desired brightness.
+        const row = track.closest('.hslider-row');
+        if (row) {
+          row.classList.toggle('hslider-row--power-off', !!isRoomOff && mode !== 'brightness');
+        }
       });
 
       const heroBri = document.getElementById('slider-hero-brightness');
@@ -3099,15 +3206,27 @@
         const slopeSigned = cursorInAscend ? kAscend : -kDescend;
         const bMinNorm = bMin / 100, bMaxNorm = bMax / 100;
         const now48 = currentHour < cfg.ascend_start ? currentHour + 24 : currentHour;
+        // Pull active overrides off the live area state so the gradient
+        // shows the actual colors/brightnesses the lights would hit at NOW
+        // for each candidate phase-time. Without this, dialing color
+        // override warmer left the gradient unchanged — confusing because
+        // moving the slider would land on a position whose gradient stop
+        // didn't match the bulb's real output.
+        const liveStatus = (selectedArea && areaStatus) ? (areaStatus[selectedArea.area_id] || {}) : {};
+        const briOv = liveStatus.brightness_override ?? 0;
+        const colorOv = liveStatus.color_override ?? 0;
         for (let i = 0; i <= n; i++) {
           const frac = i / n;
           const candidateTargetH48 = phaseMin + (phaseMax - phaseMin) * frac;
           const shiftedMid = computeCandidateShiftedMid(candidateTargetH48, cfg, cursorInAscend);
           const briNorm = bMinNorm + (bMaxNorm - bMinNorm) / (1 + Math.exp(-slopeSigned * (now48 - shiftedMid)));
-          const b = Math.max(0, Math.min(100, briNorm * 100));
+          let b = Math.max(0, Math.min(100, briNorm * 100 + briOv));
           // Color follows same midpoint: normalized 0..1 logistic, mapped to [cMin, cMax]
           const ct = 1 / (1 + Math.exp(-slopeSigned * (now48 - shiftedMid)));
-          const k = cMin + (cMax - cMin) * ct;
+          let k = cMin + (cMax - cMin) * ct + colorOv;
+          // Clamp K to a perceptually-sensible range so the gradient
+          // doesn't flatten when overrides push past min/max.
+          k = Math.max(1000, Math.min(10000, k));
           const color = tintColorByBrightness(cctToRGB(k), b);
           stops.push(color + ' ' + Math.round(frac * 100) + '%');
         }
@@ -3762,17 +3881,19 @@
         metaRhythm.style.display = 'none';
       }
 
-      // Power button (header row 2) — only the .active class flag, classes
-      // styled in CSS. Boost/freeze states render as chips (see updateTimerStatus).
+      // Power, freeze, circadian — three header row 2 toggles. Power active
+      // when lights are on (no special styling — readout shows 0% when off).
+      // Freeze active when frozen (cyan tint via .active). Circadian uses
+      // the inverse — `.is-off` flag flips it from de-emphasized (default)
+      // to full-prominence (the noteworthy state).
       const powerBtn = document.getElementById('toggle-power');
       if (powerBtn) powerBtn.classList.toggle('active', selectedArea.is_on);
 
-      // Freeze toggle now lives in the Adjust card body. Keep its active flag
-      // in sync with the area's frozen state.
       const freezeBtn = document.getElementById('toggle-freeze');
       if (freezeBtn) freezeBtn.classList.toggle('active', selectedArea.frozen);
 
-      // Circadian-off overlay + header toggle
+      // Circadian-off overlay (greys chart + sliders, surfaces "Enable"
+      // button on the chart card) + header circadian icon prominence.
       const wrap = document.getElementById('circadian-content-wrap');
       const enableBtn = document.getElementById('enable-circadian-btn');
       const circToggle = document.getElementById('toggle-circadian');
@@ -3780,19 +3901,33 @@
         if (selectedArea.is_circadian === false) {
           wrap.classList.add('circadian-off-overlay');
           enableBtn.style.display = 'flex';
-          if (freezeBtn) freezeBtn.disabled = true;
         } else {
           wrap.classList.remove('circadian-off-overlay');
           enableBtn.style.display = 'none';
-          if (freezeBtn) freezeBtn.disabled = false;
         }
       }
       if (circToggle) {
-        circToggle.classList.toggle('active', selectedArea.is_circadian);
-        circToggle.title = selectedArea.is_circadian ? 'Circadian Light: active' : 'Circadian Light: off';
+        circToggle.classList.toggle('is-off', selectedArea.is_circadian === false);
+        circToggle.title = selectedArea.is_circadian === false
+          ? 'Turn on Circadian Light'
+          : 'Turn off Circadian Light; frees lights for other apps';
       }
 
       updateTimerStatus();
+    }
+
+    // Power button wrapper — when circadian is off, tapping power should
+    // do BOTH: re-enable circadian first, then toggle lights. Reflects
+    // user intent: "power on" while circadian-off almost always means
+    // "wake up the addon AND the lights". executeAction's optimistic UI
+    // already updates the power icon immediately on the lights_toggle
+    // call, so the user sees the response without waiting on circadian_on.
+    async function powerToggleSmart() {
+      if (!selectedArea) return;
+      if (selectedArea.is_circadian === false) {
+        await executeAction('circadian_on');
+      }
+      await executeAction('lights_toggle');
     }
 
     // CCT-tint the page-header to reflect the area's current bulb color.
@@ -3953,13 +4088,9 @@
           );
         }
 
-        if (selectedArea.frozen) {
-          parts.push(
-            `<button type="button" class="area-chip area-chip--frozen"`
-            + ` onclick="executeAction('freeze_toggle')" title="Unfreeze">`
-            + `<span class="area-chip-icon">❄</span></button>`
-          );
-        }
+        // Frozen state now surfaces via the page-header freeze icon (cyan
+        // .active styling) — chip retired to avoid duplication with the
+        // always-visible header control.
       }
 
       el.innerHTML = parts.join('');
@@ -5657,86 +5788,99 @@
       });
     }
 
-    // Returns controls active in the last 5 minutes, most-recent first.
-    function getRecentControls() {
-      if (!areaControls) return [];
-      const cutoff = Date.now() - 5 * 60 * 1000;
-      const tagged = [];
-      for (const c of areaControls) {
-        const ts = c && c.last_action && c.last_action.timestamp;
-        if (!ts) continue;
-        const t = Date.parse(ts);
-        if (isNaN(t) || t < cutoff) continue;
-        tagged.push({ ctrl: c, t });
-      }
-      tagged.sort((a, b) => b.t - a.t);
-      return tagged;
-    }
-
-    // Green at <=1m, fading to grey by 5m.
+    // Recency dot color — bright green at 0–1m, fades to a dim green by 1h
+    // (no grey transition; user wanted "less bright" not "different hue").
+    // Returns null when the timestamp is older than 1h or absent — caller
+    // renders an empty slot in that case so row alignment stays stable.
+    const FRESHNESS_WINDOW_MIN = 60;
     function freshnessDotColor(timestampMs) {
-      const ageSec = (Date.now() - timestampMs) / 1000;
-      if (ageSec <= 60) return 'rgb(80, 220, 140)';
-      const t = Math.min(1, (ageSec - 60) / 240);
-      const r = Math.round(80 + (140 - 80) * t);
-      const g = Math.round(220 + (140 - 220) * t);
-      return `rgb(${r}, ${g}, 140)`;
+      if (timestampMs == null) return null;
+      const ageMin = (Date.now() - timestampMs) / 60000;
+      if (ageMin >= FRESHNESS_WINDOW_MIN) return null;
+      if (ageMin <= 1) return 'rgba(80, 220, 140, 1)';
+      const t = (ageMin - 1) / (FRESHNESS_WINDOW_MIN - 1);
+      // Linear fade alpha 1.0 → 0.30 — same green hue throughout, just dimmer.
+      const alpha = 1 - t * 0.7;
+      return `rgba(80, 220, 140, ${alpha.toFixed(2)})`;
     }
 
-    function renderRecentControlsStrip() {
-      const recent = getRecentControls();
-      if (recent.length === 0) return '';
+    function controlLastActionMs(ctrl) {
+      const ts = ctrl && ctrl.last_action && ctrl.last_action.timestamp;
+      if (!ts) return null;
+      const t = Date.parse(ts);
+      return isNaN(t) ? null : t;
+    }
+
+    // Renders one row, with a fixed-width dot slot on the LEFT so names
+    // align across rows regardless of whether the dot is currently active.
+    function renderControlRow(ctrl) {
+      const icon = controlCategoryIcon(ctrl.category);
+      const impact = controlImpactLabel(ctrl);
+      const pausedBadge = ctrl.inactive ? '<span class="ctrl-paused-badge">paused</span>' : '';
+      const encodedId = encodeURIComponent(ctrl.id);
       const areaId = selectedArea ? encodeURIComponent(selectedArea.area_id) : '';
-      let html = '<div class="ctrl-recent-section">';
-      html += '<div class="ctrl-recent-label">Recent</div>';
-      for (const { ctrl, t } of recent) {
-        const icon = controlCategoryIcon(ctrl.category);
-        const impact = controlImpactLabel(ctrl);
-        const pausedBadge = ctrl.inactive ? '<span class="ctrl-paused-badge">paused</span>' : '';
-        const encodedId = encodeURIComponent(ctrl.id);
-        const dotColor = freshnessDotColor(t);
-        html += `<div class="ctrl-list-row" onclick="window.location.href='${basePath}/control/${encodedId}?from=area&id=${areaId}'">`;
-        html += `<span class="ctrl-list-icon">${icon}</span>`;
-        html += `<span class="ctrl-list-info"><span class="ctrl-list-name">${ctrl.name}<span class="ctrl-fresh-dot" style="background:${dotColor};"></span>${pausedBadge}</span></span>`;
-        html += `<span class="ctrl-list-impact">${impact}</span>`;
-        html += `<span class="ctrl-list-chevron">&#x203A;</span>`;
-        html += `</div>`;
+      const dotColor = freshnessDotColor(controlLastActionMs(ctrl));
+      const dotHtml = dotColor
+        ? `<span class="ctrl-fresh-dot" style="background:${dotColor};"></span>`
+        : '';
+      let row = `<div class="ctrl-list-row" onclick="window.location.href='${basePath}/control/${encodedId}?from=area&id=${areaId}'">`;
+      row += `<span class="ctrl-list-icon">${icon}</span>`;
+      row += `<span class="ctrl-fresh-dot-slot">${dotHtml}</span>`;
+      row += `<span class="ctrl-list-info"><span class="ctrl-list-name">${ctrl.name}${pausedBadge}</span></span>`;
+      row += `<span class="ctrl-list-impact">${impact}</span>`;
+      row += `<span class="ctrl-list-chevron">&#x203A;</span>`;
+      row += `</div>`;
+      return row;
+    }
+
+    // Re-render the controls list every 60s so the freshness dots fade out
+    // smoothly (bright → dim → gone) without waiting for a full status
+    // refresh. No-op when the controls card hasn't been rendered yet.
+    let _controlsRefreshTimer = null;
+    function ensureControlsRefreshTimer() {
+      if (_controlsRefreshTimer) return;
+      _controlsRefreshTimer = setInterval(() => {
+        const container = document.getElementById('ctrl-list-container');
+        if (container && areaControls && areaControls.length) {
+          container.innerHTML = renderAreaControlsBody();
+        }
+      }, 60000);
+    }
+
+    function renderAreaControlsBody() {
+      if (!areaControls || areaControls.length === 0) return '';
+      const currentAreaId = selectedArea ? selectedArea.area_id : '';
+      const sorted = sortAreaControls(areaControls);
+      const inGroup = sorted.filter(c => c.area_id === currentAreaId);
+      const reachGroup = sorted.filter(c => c.area_id !== currentAreaId);
+      const areaLabel = (selectedArea && selectedArea.name) ? selectedArea.name : 'this area';
+      // Section headers only appear when there's something to differentiate
+      // between (i.e. both groups populated). When only one group has rows,
+      // it's just "the controls" — the card title already names that. Avoids
+      // a redundant "In SunOffice" header above all controls when no
+      // outside-area control targets this room.
+      const showHeaders = inGroup.length > 0 && reachGroup.length > 0;
+      const sections = [];
+      if (inGroup.length) {
+        let html = '<div class="ctrl-section">';
+        if (showHeaders) html += `<div class="ctrl-section-label">In ${areaLabel}</div>`;
+        for (const ctrl of inGroup) html += renderControlRow(ctrl);
+        html += '</div>';
+        sections.push(html);
       }
-      html += '</div>';
-      return html;
-    }
-
-    function refreshRecentControlsStrip() {
-      const container = document.getElementById('ctrl-recent-container');
-      if (!container) return;
-      container.innerHTML = renderRecentControlsStrip();
-    }
-
-    let _recentControlsTimer = null;
-    function ensureRecentControlsTimer() {
-      if (_recentControlsTimer) return;
-      _recentControlsTimer = setInterval(refreshRecentControlsStrip, 30000);
+      if (reachGroup.length) {
+        let html = '<div class="ctrl-section">';
+        if (showHeaders) html += `<div class="ctrl-section-label">Reaches ${areaLabel}</div>`;
+        for (const ctrl of reachGroup) html += renderControlRow(ctrl);
+        html += '</div>';
+        sections.push(html);
+      }
+      return sections.join('');
     }
 
     function renderAreaControlsList() {
-      if (!areaControls || areaControls.length === 0) return '';
-      const sorted = sortAreaControls(areaControls);
-      let html = `<div id="ctrl-recent-container">${renderRecentControlsStrip()}</div>`;
-      for (const ctrl of sorted) {
-        const icon = controlCategoryIcon(ctrl.category);
-        const impact = controlImpactLabel(ctrl);
-        const pausedBadge = ctrl.inactive ? '<span class="ctrl-paused-badge">paused</span>' : '';
-        const encodedId = encodeURIComponent(ctrl.id);
-        const areaId = selectedArea ? encodeURIComponent(selectedArea.area_id) : '';
-        html += `<div class="ctrl-list-row" onclick="window.location.href='${basePath}/control/${encodedId}?from=area&id=${areaId}'">`;
-        html += `<span class="ctrl-list-icon">${icon}</span>`;
-        html += `<span class="ctrl-list-info"><span class="ctrl-list-name">${ctrl.name}${pausedBadge}</span></span>`;
-        html += `<span class="ctrl-list-impact">${impact}</span>`;
-        html += `<span class="ctrl-list-chevron">&#x203A;</span>`;
-        html += `</div>`;
-      }
-      ensureRecentControlsTimer();
-      return html;
+      ensureControlsRefreshTimer();
+      return `<div id="ctrl-list-container">${renderAreaControlsBody()}</div>`;
     }
 
     function toggleBrightnessBody() {
@@ -6360,7 +6504,7 @@
       const text = daySuffix ? core + ' ' + daySuffix : core;
       return {
         enabled: true,
-        html: `<a href="#" data-auto-hit="${type}" onclick="event.preventDefault(); event.stopPropagation(); focusAutoSub('${type}');">${label} ${text}</a>`
+        html: `<a href="#" data-auto-hit="${type}" onclick="event.preventDefault(); event.stopPropagation(); focusAutoSub('${type}');">${label} @ ${text}</a>`
       };
     }
 
