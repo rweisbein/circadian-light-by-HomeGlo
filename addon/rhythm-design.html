@@ -731,22 +731,13 @@ input[type=range]::-moz-range-thumb {
   margin-bottom: 6px;
   min-height: 22px;
 }
-.try-it-counter { font-size: 0.8rem; margin-left: auto; }
-/* Stop pill in the popover header — only visible when live. Gives the user a
-   reachable "end broadcast" affordance without scrolling past the area list
-   to the footer (which can be long once zone groups expand). Footer Stop is
-   hidden when this is shown. */
-.try-it-header-stop {
-  padding: 3px 10px;
-  border-radius: 6px;
-  border: 1px solid rgba(254,172,96,0.5);
-  background: rgba(254,172,96,0.12);
-  color: var(--accent);
-  font-family: inherit;
-  font-size: 0.8rem;
-  cursor: pointer;
+.try-it-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.01em;
 }
-.try-it-header-stop:hover { background: rgba(254,172,96,0.2); }
+.try-it-counter { font-size: 0.8rem; margin-left: auto; }
 .try-it-area-list {
   max-height: 260px;
   overflow-y: auto;
@@ -1872,7 +1863,7 @@ input[type=range]::-moz-range-thumb {
   </button>
   <div class="try-it-popover" id="try-it-popover" role="dialog" aria-hidden="true">
     <div class="try-it-popover-header">
-      <button type="button" class="try-it-header-stop" id="try-it-header-stop" style="display:none;">Stop</button>
+      <span class="try-it-title">Broadcast</span>
       <span class="try-it-counter" id="try-it-counter">0 / 3</span>
     </div>
     <div class="try-it-area-list" id="try-it-area-list"></div>
@@ -6022,14 +6013,12 @@ function renderTryItAreaList() {
 function openTryItPopover() {
   const pop = document.getElementById('try-it-popover');
   const btn = document.getElementById('try-it-btn');
-  const headerStop = document.getElementById('try-it-header-stop');
   const footerStop = document.getElementById('try-it-stop-btn');
   if (!pop || !btn) return;
   renderTryItAreaList();
-  // Stop now lives in header when live; footer Stop stays hidden (kept in DOM
-  // so legacy listeners still resolve, but the visible affordance is in the header).
-  if (headerStop) headerStop.style.display = liveDesignEnabled ? '' : 'none';
-  if (footerStop) footerStop.style.display = 'none';
+  // Footer Stop appears next to Go only when live — the header is now reserved
+  // for the "Broadcast" title + area counter (no Stop pill in the header).
+  if (footerStop) footerStop.style.display = liveDesignEnabled ? '' : 'none';
   pop.classList.add('open');
   pop.setAttribute('aria-hidden', 'false');
   btn.setAttribute('aria-expanded', 'true');
@@ -6261,7 +6250,6 @@ function setupLiveDesign() {
   const popover = document.getElementById('try-it-popover');
   const doneBtn = document.getElementById('try-it-done-btn');
   const stopBtn = document.getElementById('try-it-stop-btn');
-  const headerStopBtn = document.getElementById('try-it-header-stop');
 
   if (btn) {
     btn.addEventListener('click', (e) => {
@@ -6285,7 +6273,6 @@ function setupLiveDesign() {
     closeTryItPopover();
   };
   if (stopBtn) stopBtn.addEventListener('click', stopHandler);
-  if (headerStopBtn) headerStopBtn.addEventListener('click', stopHandler);
   // Click-outside closes the popover (without committing)
   document.addEventListener('click', (e) => {
     if (!popover || !popover.classList.contains('open')) return;

@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.221
+- **Rhythm details — Broadcast popover header now shows a "Broadcast" title.** Header was empty except for the area counter pinned right (e.g., "0 / 3") — felt unlabeled, especially when first opening the popover. Added a "Broadcast" title on the left so the header reads as a proper popover heading.
+- **Rhythm details — Stop button moved out of the popover header to the footer alongside Go.** The header had a Stop pill (visible only when live) to give a quick "end broadcast" affordance without scrolling past the area list. With the header now carrying the title, Stop moves down to the footer next to Go — both terminal actions live together, and the header stays a clean title row. Footer Stop visibility is gated on `liveDesignEnabled`: hidden in idle (Go is the only action), shown next to Go when live.
+
 ## 1.2.220
 - **Rhythm details — wake/bed ambient lines made actually visible.** v1.2.219 set idle width 0.75px and alpha 0.15, which against the dark plot bg and the curve's gradient fill (line is `layer: 'below'` so it sits behind the fill) was effectively invisible — Plotly also tends to drop sub-1px line widths inconsistently across renderers. Bumped to width 1 / alpha 0.30 so the line is "just visible" as the user requested without competing with the curve. Hover/drag still bumps to 1.5 / 0.55 — the active state stays clearly distinct.
 
