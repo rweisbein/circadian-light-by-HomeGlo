@@ -173,6 +173,10 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
   row-gap: 2px;
   align-items: center;
   transition: background 0.12s, color 0.12s;
+  /* Above .section-block (z-index: 50) so the Preview popover, anchored
+     just below the header on the right, renders ABOVE the sticky chart card
+     instead of sliding under it. */
+  z-index: 60;
 }
 .page-header .back-btn {
   grid-column: 1;
@@ -545,11 +549,15 @@ input[type=range]::-moz-range-thumb {
   position: relative;
   background: var(--card);
   border-radius: 10px;
-  /* Bottom padding sized for the wake/bed handle stack (handle bottom 14
-     + handle height 34 = 48). 45px is just under that, with the pill base
-     hugging the card edge. Was 70 in v1.2.214; trimmed in v1.2.216 to claw
-     back vertical space now that the banner moved up to the page-header. */
-  padding: 0 0 45px;
+  /* Bottom padding holds two stacked rows: solar-labels (sunrise/sunset, ~14px
+     tall) sit just below the chart's x-tick row; wake/bed pills (~34px tall)
+     sit below the solar labels. Sized to keep both clear of the chart's
+     in-canvas tick label band. v1.2.216 shrunk this to 45 along with the chart
+     height (200→160), but at 45 the solar labels overlapped the tick labels.
+     v1.2.217 bumped back to 60 (was 70 pre-shrink) — preserves the original
+     vertical relationships (chart-bottom → solar 20px gap → pill 2px gap)
+     while still clawing back 10px from pre-shrink. */
+  padding: 0 0 60px;
   overflow: visible;
   -webkit-user-select: none;
   -moz-user-select: none;
@@ -829,7 +837,12 @@ input[type=range]::-moz-range-thumb {
    each label bridges up to the x-axis (added in positionOverlays). */
 .solar-label {
   position: absolute;
-  bottom: 50px;
+  /* 20px below chart-bottom (chart-shell padding-bottom 60 - 40 = 20),
+     matching the v1.2.214 spacing relationship. v1.2.216 left this at 50
+     when padding-bottom shrank to 45, which pushed the label INTO the
+     chart's bottom 24px tick-label band — the user reported sunrise/sunset
+     "hitting" the time ticks. */
+  bottom: 40px;
   transform: translateX(-50%);
   font-size: 11px;
   font-weight: 600;
@@ -981,7 +994,11 @@ input[type=range]::-moz-range-thumb {
 /* Wake/Bed pill drag handles in bottom margin */
 .phase-handle {
   position: absolute;
-  bottom: 14px;
+  /* Pill base hugs the chart-shell's bottom edge (small 4px breathing room
+     from the card border). Pill height ~34 puts the pill TOP at ~38, leaving
+     ~2px gap below the solar-label bottom (40) — same tight spacing as
+     v1.2.214 (handle bottom 14, solar bottom 50). */
+  bottom: 4px;
   transform: translateX(-50%);
   cursor: grab;
   user-select: none;
@@ -1115,15 +1132,17 @@ input[type=range]::-moz-range-thumb {
 }
 
 /* Month label — quiet caption in the card-color gap ABOVE the chart canvas
-   (same band as the sun-intensity chip, but pinned far-left while the chip
+   (same band as the sun-intensity chip, but pinned far-right while the chip
    floats at solar-noon). Bottom corners of chart-shell are off-limits because
    wake/bed pills can land anywhere along the bottom edge depending on the
    user's schedule. Top of the chart's gap band is the only spot guaranteed
-   clear. Position is set per-frame in positionOverlays() against the live
-   cct-banner bottom. */
+   clear. v1.2.217 moved this from far-left to far-right because the left edge
+   collided with the y-axis "100%" tick label; the right edge is clear (no
+   right-side y-axis labels). Top is set per-frame in positionOverlays(). */
 .month-label {
   position: absolute;
-  left: 8px;
+  right: 8px;
+  left: auto;
   font-size: 10px;
   font-weight: 500;
   text-transform: lowercase;
@@ -1145,8 +1164,10 @@ input[type=range]::-moz-range-thumb {
   position: absolute;
   /* top set per-frame in positionOverlays() to track cct-banner bottom +
      month-label height + small gap, so the popover opens just below the
-     "april" caption regardless of banner content height. */
-  left: 8px;
+     "april" caption regardless of banner content height. v1.2.217 flipped
+     to right-aligned to match the label's new far-right position. */
+  right: 8px;
+  left: auto;
   background: rgba(24, 26, 32, 0.98);
   border: 1px solid rgba(255,255,255,0.18);
   border-radius: 8px;
@@ -3885,7 +3906,7 @@ function renderChart() {
     annotations.push({
       x: sunContribAnchor.x, y: sunContribAnchor.y, xref: 'x', yref: 'y',
       text: 'sun dimming', showarrow: false, yshift: -10,
-      font: { size: 8, color: 'rgba(220, 220, 220, 0.5)' },
+      font: { size: 10, color: 'rgba(220, 220, 220, 0.5)' },
     });
   }
 
