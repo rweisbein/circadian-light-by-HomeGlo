@@ -41,52 +41,203 @@
       min-height: 100vh;
     }
 
-    /* Page header with back button */
+    /* Page header — 2-row CCT-tinted grid (Ship 1 redesign).
+       Background + text color set per-frame by updateHeaderTint() so the
+       header reads the room's current CCT. */
     .page-header {
-      background: var(--panel);
-      border-bottom: 1px solid var(--line);
-      padding: 12px 16px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
       position: sticky;
       top: 0;
       z-index: 100;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 6px 12px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-rows: auto auto;
+      column-gap: 10px;
+      row-gap: 4px;
+      align-items: center;
+      transition: background 0.12s, color 0.12s;
+    }
+    .page-header > .back-btn {
+      grid-column: 1;
+      grid-row: 1 / span 2;
+      align-self: center;
+    }
+    .page-header > .page-header-title-row {
+      grid-column: 2;
+      grid-row: 1;
+      align-self: center;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex-wrap: wrap;
+    }
+    .page-header > .page-header-meta {
+      grid-column: 3;
+      grid-row: 1;
+      align-self: center;
+      justify-self: end;
+    }
+    .page-header > .page-header-readout-cluster {
+      grid-column: 2 / span 2;
+      grid-row: 2;
+      align-self: center;
+      justify-self: start;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
     }
 
     .back-btn {
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 36px;
-      height: 36px;
+      width: 32px;
+      height: 32px;
       border-radius: 8px;
-      border: 1px solid var(--line);
-      background: var(--card);
-      color: var(--text);
+      border: none;
+      background: transparent;
+      color: inherit;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: background 0.15s;
       flex-shrink: 0;
+      padding: 0;
     }
 
     .back-btn:hover {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: var(--accent);
+      background: rgba(0, 0, 0, 0.18);
     }
 
     .back-btn svg {
-      width: 20px;
-      height: 20px;
+      width: 18px;
+      height: 18px;
     }
 
+    /* Demoted title — chrome label on row 1, not the page's visual headline.
+       The row-2 readout (% · K) is the actual focal element. */
     .page-title {
-      font-size: var(--font-display);
+      font-size: 0.95rem;
       font-weight: 600;
-      flex: 1;
+      color: inherit;
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      margin: 0;
+    }
+
+    /* Status chips that flow next to the title on row 1, wrapping below if
+       many are active simultaneously. Each chip is a button so boost/freeze
+       can cancel via tap. Motion + fade chips render disabled (TODO: wire
+       once finish_fade / cancel_motion primitives land). */
+    .page-header-chips {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      flex-shrink: 1;
+      min-width: 0;
+    }
+    .area-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(0,0,0,0.45);
+      border: 1px solid rgba(255,255,255,0.18);
+      color: inherit;
+      font: inherit;
+      font-size: var(--font-micro);
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      padding: 4px 10px;
+      border-radius: 14px;
+      min-height: 28px;
+      line-height: 1;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s, border-color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .area-chip:hover {
+      background: rgba(0,0,0,0.6);
+      border-color: rgba(255,255,255,0.35);
+    }
+    .area-chip:disabled {
+      cursor: default;
+      opacity: 0.85;
+    }
+    .area-chip:disabled:hover {
+      background: rgba(0,0,0,0.45);
+      border-color: rgba(255,255,255,0.18);
+    }
+    .area-chip-icon {
+      display: inline-flex;
+      align-items: center;
+      line-height: 1;
+    }
+    /* Per-state color treatments; mirror the prior timer-* class scheme. */
+    .area-chip--frozen { color: #63b3ed; border-color: rgba(99,179,237,0.55); }
+    .area-chip--motion { color: #e2e8f0; }
+    .area-chip--boost  { color: #e2e8f0; }
+    .area-chip--fade   { color: #e2e8f0; animation: fade-pulse 2.5s ease-in-out infinite; }
+    .area-chip--warning { color: #e6a817; animation: timer-pulse 1s ease-in-out infinite; }
+    .area-chip-arrow { opacity: 0.7; margin: 0 1px; }
+
+    /* Row 2 readout cluster — power icon + % · K text, left-aligned.
+       The readout is the page's actual headline (largest, boldest element). */
+    .page-header-power {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      background: transparent;
+      border: none;
+      color: inherit;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .page-header-power:hover { background: rgba(0,0,0,0.18); }
+    .page-header-power svg { width: 18px; height: 18px; }
+
+    .page-header-readout {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.05;
+      white-space: nowrap;
+    }
+
+    /* Master reset (↺) — orange-on-dark so it stands out against any CCT
+       tint. Visible only when the area has overrides applied (dirty). */
+    .page-header-reset {
+      background: rgba(0,0,0,0.45);
+      border: 1px solid rgba(254,172,96,0.45);
+      color: var(--accent);
+      width: 26px;
+      height: 26px;
+      border-radius: 13px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .page-header-reset:hover {
+      background: rgba(254,172,96,0.18);
+      border-color: var(--accent);
+      color: var(--accent-hover);
     }
 
     /* Main content */
@@ -106,20 +257,22 @@
     }
 
     .page-header-meta a {
-      color: var(--accent);
+      color: inherit;
       text-decoration: none;
       font-size: var(--font-display);
       white-space: nowrap;
+      opacity: 0.85;
     }
 
     .page-header-meta a:hover {
       text-decoration: underline;
+      opacity: 1;
     }
 
     .page-header-meta-label {
       font-size: var(--font-micro);
-      color: var(--text);
-      opacity: 0.35;
+      color: inherit;
+      opacity: 0.55;
       white-space: nowrap;
       text-transform: uppercase;
       letter-spacing: 0.08em;
@@ -136,101 +289,25 @@
       opacity: 0.72;
       white-space: nowrap;
       line-height: 1.4;
-      color: var(--accent);
     }
 
-    /* Area state display - with dynamic shading (from modal) */
-    .area-state {
-      --state-bg: var(--panel);
-      --state-fill: 0;
-      background: var(--state-bg);
-      border-radius: 8px;
-      padding: 10px 8px;
-      margin-bottom: 12px;
-      position: relative;
-      overflow: hidden;
+    /* Animations used by header chips (boost/freeze/motion/fade). Kept after
+       the area-state tile + timer-status row were removed in the Ship 1
+       redesign — chips reference fade-pulse and timer-pulse. */
+    @keyframes fade-pulse { 0%,100% { opacity: 0.9; } 50% { opacity: 0.3; } }
+    @keyframes timer-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
     }
 
-    .area-state::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: rgba(255,255,255,0.12);
-      opacity: var(--state-fill);
-      pointer-events: none;
-    }
-
-    .area-state-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .area-state-status-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-top: 6px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .row-slider-section { margin-bottom: 4px; padding: 6px 16px; }
-    .adjusted-schedule-label { font-size: var(--font-muted); color: var(--muted2); text-align: center; padding: 4px 0 0; letter-spacing: 0.02em; }
+    /* Legacy row-slider thumb (used by JS in the legacy banner element). */
     .row-slider-track { height: 10px; position: relative; cursor: pointer; touch-action: none; border-radius: 5px; overflow: visible; }
     .row-slider-fill { display: none; }
     .row-slider-thumb { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 30px; height: 16px; border-radius: 8px 8px 5px 5px; background: rgba(255,255,255,0.9); box-shadow: 0 1px 4px rgba(0,0,0,0.4); pointer-events: none; transition: left 0.15s; }
     .row-slider-track.dragging .row-slider-thumb { transition: none; }
 
-    .area-state-values {
-      font-size: var(--font-hero);
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .area-state-controls {
-      display: flex;
-      gap: 4px;
-      flex-shrink: 0;
-    }
-
-    .area-state-controls-left {
-      display: flex;
-      gap: 4px;
-      flex-shrink: 0;
-      background: rgba(0,0,0,0.5);
-      padding: 4px;
-      border-radius: 10px;
-    }
-
-    .control-cluster {
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-      min-width: 0;
-    }
-    .control-cluster--right {
-      align-items: flex-end;
-    }
-    .control-cluster-label {
-      font-size: var(--font-micro);
-      font-weight: 700;
-      color: rgba(255,255,255,0.78);
-      opacity: 1;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      padding: 0 6px;
-      line-height: 1;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.45);
-    }
-
-    /* Toggle switch styles (from modal) */
+    /* Mode toggle buttons (circadian + freeze) — relocated from the deleted
+       area-state tile to the top of the Adjust card body. */
     .toggle-btn {
       width: 36px;
       height: 36px;
@@ -247,88 +324,34 @@
       -webkit-tap-highlight-color: transparent;
       outline: none;
     }
-
     @media (hover: hover) {
       .toggle-btn:hover {
         border-color: rgba(255,255,255,0.4);
         background: rgba(50,50,50,0.9);
       }
-      #controls-left .toggle-btn:hover {
-        border-color: var(--accent);
-      }
     }
-
     .toggle-btn.active {
       background: rgba(60,60,60,0.9);
       color: var(--text);
       border-color: var(--accent);
     }
-
-    #controls-left .toggle-btn.active {
-      border-color: var(--accent);
-    }
-    @keyframes fade-pulse { 0%,100% { opacity: 0.9; } 50% { opacity: 0.3; } }
-    .timer-fade { animation: fade-pulse 2.5s ease-in-out infinite; }
-
     .toggle-btn:disabled {
       opacity: 0.3;
       cursor: default;
       pointer-events: none;
     }
-
     .toggle-btn svg {
       width: 18px;
       height: 18px;
     }
 
-    /* Timer status (inline in status row) */
-    .timer-status {
+    /* Mode-toggles row inside the Adjust card. Holds circadian + freeze
+       icons; lays them out left-aligned with a small gap. */
+    .adjust-mode-toggles {
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: var(--font-body);
-      margin-left: auto;
-    }
-
-    .timer-status:empty {
-      display: none;
-    }
-
-    .timer-status:not(:empty) {
-      background: rgba(0,0,0,0.45);
-      padding: 2px 8px;
-      border-radius: 10px;
-    }
-
-    .timer-motion {
-      color: #e2e8f0;
-      opacity: 0.9;
-    }
-
-    .timer-boost {
-      color: #e2e8f0;
-      opacity: 0.9;
-      margin-left: auto;
-    }
-
-    .timer-frozen {
-      color: #63b3ed;
-      opacity: 1;
-    }
-
-    .timer-arrow {
-      color: inherit;
-      margin: 0 3px;
-    }
-
-    .timer-warning {
-      color: #e6a817;
-      animation: timer-pulse 1s ease-in-out infinite;
-    }
-
-    @keyframes timer-pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
+      gap: 6px;
+      padding: 4px 4px 8px;
     }
 
     /* Mini chart container (from modal) */
@@ -1123,99 +1146,36 @@
   <script src="./shared.js"></script>
 </head>
 <body>
-  <!-- Page Header -->
-  <header class="page-header">
+  <!-- Page Header — 2-row CCT-tinted (Ship 1 redesign).
+       Row 1: chevron · entry name + status chips · zone link
+       Row 2: power · % · K readout · reset (when dirty)
+       Background tint follows the area's current CCT (set per-frame by
+       updateHeaderTint(), invoked from updateContent()). -->
+  <header class="page-header" id="page-header">
     <button class="back-btn" onclick="goBack()" title="Back">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <polyline points="15 18 9 12 15 6"/>
       </svg>
     </button>
-    <h1 class="page-title" id="page-title">Loading...</h1>
+    <div class="page-header-title-row">
+      <h1 class="page-title" id="page-title">Loading...</h1>
+      <div class="page-header-chips" id="page-header-chips"></div>
+    </div>
     <div class="page-header-meta" id="page-header-meta">
       <span id="header-meta-rhythm"></span>
-      <span class="page-header-meta-label" id="header-meta-zone"></span>
+    </div>
+    <div class="page-header-readout-cluster">
+      <button type="button" class="page-header-power" id="toggle-power" onclick="executeAction('lights_toggle')" title="Power">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/>
+        </svg>
+      </button>
+      <span class="page-header-readout" id="page-header-readout">--% &middot; ----K</span>
+      <button type="button" class="page-header-reset" id="page-header-reset" onclick="resetAllOverrides()" title="Reset overrides" style="display:none;">&#x21BA;</button>
     </div>
   </header>
 
   <main class="main">
-
-    <div class="area-state" id="area-state">
-      <div class="area-state-row">
-        <div class="control-cluster">
-          <span class="control-cluster-label">Mode</span>
-        <div class="area-state-controls-left" id="controls-left">
-          <button class="toggle-btn" id="toggle-circadian" onclick="toggleCircadian()" title="Circadian Light">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="5"/>
-              <line x1="12" y1="1" x2="12" y2="3"/>
-              <line x1="12" y1="21" x2="12" y2="23"/>
-              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-              <line x1="1" y1="12" x2="3" y2="12"/>
-              <line x1="21" y1="12" x2="23" y2="12"/>
-              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-            </svg>
-          </button>
-          <button class="toggle-btn" id="toggle-power" onclick="executeAction('lights_toggle')" title="Power">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/>
-            </svg>
-          </button>
-          <button class="toggle-btn" id="toggle-freeze" onclick="executeAction('freeze_toggle')" title="Freeze">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-                 stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="2" x2="12" y2="22"/>
-              <line x1="2" y1="12" x2="22" y2="12"/>
-              <line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/>
-              <line x1="18.4" y1="5.6" x2="5.6" y2="18.4"/>
-              <line x1="12" y1="2" x2="9.5" y2="4.5"/><line x1="12" y1="2" x2="14.5" y2="4.5"/>
-              <line x1="22" y1="12" x2="19.5" y2="9.5"/><line x1="22" y1="12" x2="19.5" y2="14.5"/>
-              <line x1="12" y1="22" x2="14.5" y2="19.5"/><line x1="12" y1="22" x2="9.5" y2="19.5"/>
-              <line x1="2" y1="12" x2="4.5" y2="14.5"/><line x1="2" y1="12" x2="4.5" y2="9.5"/>
-            </svg>
-          </button>
-          <button class="toggle-btn" id="toggle-boost" onclick="executeAction('boost')" title="Boost">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                 stroke-linecap="round" stroke-linejoin="round">
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-            </svg>
-          </button>
-        </div>
-        </div>
-        <div class="control-cluster control-cluster--right">
-          <span class="control-cluster-label">Adjust</span>
-        <div class="area-state-controls" id="controls-area">
-          <button class="toggle-btn" id="toggle-full-send" onclick="confirmFullSend()" title="Full Send: push to entire Rhythm Zone">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="5 8 12 2 19 8"/>
-              <line x1="4" y1="12" x2="20" y2="12"/>
-              <polyline points="5 16 12 22 19 16"/>
-            </svg>
-          </button>
-          <button class="toggle-btn" id="toggle-glo-up" onclick="executeAction('glo_up')" title="GloUp: send area settings to Rhythm Zone">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="5 13 12 6 19 13"/>
-              <line x1="4" y1="19" x2="20" y2="19"/>
-            </svg>
-          </button>
-          <button class="toggle-btn" id="toggle-glo-down" onclick="executeAction('glo_down')" title="GloDown: pull Rhythm Zone settings to this area">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="4" y1="5" x2="20" y2="5"/>
-              <polyline points="5 11 12 18 19 11"/>
-            </svg>
-          </button>
-          <button class="toggle-btn" id="toggle-glo-reset" onclick="executeAction('glo_reset')" title="Reset: return to rhythm">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-          </button>
-        </div>
-        </div>
-      </div>
-      <div class="area-state-status-row">
-        <div class="area-state-values" id="state-values"></div>
-        <div class="timer-status" id="timer-status"></div>
-      </div>
-    </div>
 
     <!-- Cards Section (curve + auto schedule) -->
     <div id="auto-sched-section" class="auto-sched-section" style="display:none;">
@@ -1246,6 +1206,36 @@
       </div>
       <div class="auto-sched-body" id="chart-body">
         <div id="circadian-content-wrap" class="curve-controls-wrap">
+          <!-- Mode toggles relocated from the deleted area-state tile. Live
+               at the top of the Adjust card body per the 2026-05 spec. -->
+          <div class="adjust-mode-toggles">
+            <button class="toggle-btn" id="toggle-circadian" onclick="toggleCircadian()" title="Circadian Light">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="5"/>
+                <line x1="12" y1="1" x2="12" y2="3"/>
+                <line x1="12" y1="21" x2="12" y2="23"/>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                <line x1="1" y1="12" x2="3" y2="12"/>
+                <line x1="21" y1="12" x2="23" y2="12"/>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+              </svg>
+            </button>
+            <button class="toggle-btn" id="toggle-freeze" onclick="executeAction('freeze_toggle')" title="Freeze">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="2" x2="12" y2="22"/>
+                <line x1="2" y1="12" x2="22" y2="12"/>
+                <line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/>
+                <line x1="18.4" y1="5.6" x2="5.6" y2="18.4"/>
+                <line x1="12" y1="2" x2="9.5" y2="4.5"/><line x1="12" y1="2" x2="14.5" y2="4.5"/>
+                <line x1="22" y1="12" x2="19.5" y2="9.5"/><line x1="22" y1="12" x2="19.5" y2="14.5"/>
+                <line x1="12" y1="22" x2="14.5" y2="19.5"/><line x1="12" y1="22" x2="9.5" y2="19.5"/>
+                <line x1="2" y1="12" x2="4.5" y2="14.5"/><line x1="2" y1="12" x2="4.5" y2="9.5"/>
+              </svg>
+            </button>
+          </div>
           <div class="adjust-section">
             <div class="hslider-row">
               <div class="hslider-header">
@@ -2718,9 +2708,13 @@
       // Drop the "NOW" prefix in real-time mode (it's redundant with the time
       // value — if the chart is live, the time IS now). Keep "FROZEN" prefix
       // when frozen since the time then refers to the freeze moment, not now.
+      // Time dropped from the cursor readout in the 2026-05 redesign — the
+      // sticky page-header now carries the % · K readout. Frozen state still
+      // shows the freeze-moment time since the time refers to the freeze, not
+      // "now"; live state omits it (page-header reflects current values).
       const pillText = isFrozen
         ? `FROZEN   ${cursorTimeStr} · ${nowBriPct}% · ${nowK}K`
-        : `${cursorTimeStr} · ${nowBriPct}% · ${nowK}K`;
+        : `${nowBriPct}% · ${nowK}K`;
       let pillColor, pillBg, pillBorder;
       if (isFrozen) {
         pillColor = 'rgba(120, 190, 240, 0.95)';
@@ -3768,10 +3762,6 @@
 
       document.getElementById('page-title').textContent = area.name;
 
-      // Show area controls
-      document.getElementById('controls-left').style.display = 'flex';
-      document.getElementById('controls-area').style.display = 'flex';
-
       updateContent();
       // Fetch slider preview points for gradient
       fetchSliderPreview(areaId).then(() => updateAllSliders());
@@ -3924,88 +3914,47 @@
         fade_direction: status.fade_direction || null
       });
 
-      // Header shading based on CCT and brightness
-      const stateEl = document.getElementById('area-state');
-      if (selectedArea.is_circadian === false) {
-        // Circadian off: very muted neutral — don't imply off or a specific color
-        stateEl.style.setProperty('--state-bg', '#1a1a1a');
-        stateEl.style.setProperty('--state-fill', selectedArea.is_on ? '0.08' : '0');
-      } else if (selectedArea.is_on) {
-        const cctColor = cctToRGB(selectedArea.kelvin);
-        const tintedColor = tintColorByBrightness(cctColor, selectedArea.actual_brightness);
-        stateEl.style.setProperty('--state-bg', tintedColor);
-        stateEl.style.setProperty('--state-fill', (selectedArea.actual_brightness / 100).toFixed(3));
-      } else {
-        stateEl.style.setProperty('--state-bg', 'var(--panel)');
-        stateEl.style.setProperty('--state-fill', '0');
-      }
+      // CCT-tint the page-header background per current room state, plus
+      // refresh the row-2 readout (% · K) and the dirty-reset visibility.
+      updateHeaderTint();
+      updateHeaderResetVisibility();
 
-      // Values display
-      const valuesEl = document.getElementById('state-values');
-      if (selectedArea.is_on) {
-        const cctColor = cctToRGB(selectedArea.kelvin);
-        const tintedColor = tintColorByBrightness(cctColor, selectedArea.actual_brightness);
-        valuesEl.style.color = readableTextColor(tintedColor);
-      } else {
-        valuesEl.style.color = 'var(--muted)';
-      }
-      valuesEl.textContent = ''; // Brightness and color now shown on slider heroes
-
-      // Header meta: zone link + "Rhythm zone" label
-      const metaZone = document.getElementById('header-meta-zone');
+      // Header meta — just the zone link now (the "Rhythm Zone" caps label was
+      // dropped as redundant chrome). color: inherit so it tracks the
+      // readableTextColor that updateHeaderTint sets on .page-header.
       const metaRhythm = document.getElementById('header-meta-rhythm');
       const areaZoneName = selectedArea.zone_name;
       if (areaZoneName) {
         metaRhythm.innerHTML = `<a href="${basePath}/zone/${encodeURIComponent(areaZoneName)}?back=area/${encodeURIComponent(selectedArea.area_id)}">${areaZoneName}</a>`;
         metaRhythm.style.display = '';
-        metaZone.innerHTML = '<span class="zone-type-chip">Rhythm Zone</span>';
-        metaZone.style.display = '';
       } else {
         metaRhythm.innerHTML = '';
         metaRhythm.style.display = 'none';
-        metaZone.innerHTML = '';
-        metaZone.style.display = 'none';
       }
 
-      // Update toggle button states
+      // Power button (header row 2) — only the .active class flag, classes
+      // styled in CSS. Boost/freeze states render as chips (see updateTimerStatus).
       const powerBtn = document.getElementById('toggle-power');
-      const freezeBtn = document.getElementById('toggle-freeze');
-      const boostBtn = document.getElementById('toggle-boost');
-
       if (powerBtn) powerBtn.classList.toggle('active', selectedArea.is_on);
+
+      // Freeze toggle now lives in the Adjust card body. Keep its active flag
+      // in sync with the area's frozen state.
+      const freezeBtn = document.getElementById('toggle-freeze');
       if (freezeBtn) freezeBtn.classList.toggle('active', selectedArea.frozen);
-      if (boostBtn) boostBtn.classList.toggle('active', selectedArea.boosted);
-
-
-      // Dynamic tooltips with zone/rhythm names
-      const zoneName = selectedArea.zone_name;
-      const fullSendBtn = document.getElementById('toggle-full-send');
-      const gloUpBtn = document.getElementById('toggle-glo-up');
-      const gloDownBtn = document.getElementById('toggle-glo-down');
-      const gloResetBtn = document.getElementById('toggle-glo-reset');
-      if (fullSendBtn) fullSendBtn.title = `Full Send --> to all areas in '${zoneName || 'Rhythm Zone'}'`;
-      if (gloUpBtn) gloUpBtn.title = `GloUp: send to '${zoneName || 'Rhythm Zone'}'`;
-      if (gloDownBtn) gloDownBtn.title = `GloDown: pull from '${zoneName || 'Rhythm Zone'}'`;
-      if (gloResetBtn) gloResetBtn.title = `Reset Glo --> '${zoneName || 'zone'}'`;
 
       // Circadian-off overlay + header toggle
       const wrap = document.getElementById('circadian-content-wrap');
       const enableBtn = document.getElementById('enable-circadian-btn');
       const circToggle = document.getElementById('toggle-circadian');
-      const rightBtns = document.querySelectorAll('#controls-area .toggle-btn');
       if (wrap && enableBtn) {
         if (selectedArea.is_circadian === false) {
           wrap.classList.add('circadian-off-overlay');
           enableBtn.style.display = 'flex';
           if (freezeBtn) freezeBtn.disabled = true;
-          if (boostBtn) boostBtn.disabled = true;
-          rightBtns.forEach(btn => btn.disabled = true);
         } else {
           wrap.classList.remove('circadian-off-overlay');
           enableBtn.style.display = 'none';
           if (freezeBtn) freezeBtn.disabled = false;
-          if (boostBtn) boostBtn.disabled = false;
-          rightBtns.forEach(btn => btn.disabled = false);
         }
       }
       if (circToggle) {
@@ -4016,31 +3965,114 @@
       updateTimerStatus();
     }
 
+    // CCT-tint the page-header to reflect the area's current bulb color.
+    // Mirrors rhythm-design.html positionOverlays(): tinted bg + readable text
+    // color flow inheriting through .page-title, .page-header-meta a, chips,
+    // power icon, and back button. When the room is off or circadian-disabled,
+    // fall back to the neutral panel color so the header doesn't lie about
+    // current state.
+    function updateHeaderTint() {
+      const headerEl = document.getElementById('page-header');
+      const readoutEl = document.getElementById('page-header-readout');
+      if (!headerEl || !selectedArea) return;
+      // actual_brightness reflects what the bulb WOULD emit at current
+      // settings — it doesn't drop to 0 when the room is off (the bulb's
+      // power state is is_on). Force brightness to 0 for both the tint
+      // and the readout when off so the header darkens and 0% shows.
+      const effectiveBri = selectedArea.is_on
+        ? (selectedArea.actual_brightness ?? 0)
+        : 0;
+      // Match home-page area-card treatment (areas.html getRowStyle): tint
+      // with CCT only when on; when off (or circadian off), fall back to
+      // var(--card) — same near-black the area cards use, so the two
+      // surfaces stay visually consistent.
+      let bg, color;
+      if (selectedArea.is_on && selectedArea.is_circadian !== false) {
+        const cctColor = cctToRGB(selectedArea.kelvin);
+        const tintedColor = tintColorByBrightness(cctColor, effectiveBri);
+        bg = tintedColor;
+        color = readableTextColor(tintedColor);
+      } else {
+        bg = 'var(--card)';
+        color = 'var(--text)';
+      }
+      headerEl.style.background = bg;
+      headerEl.style.color = color;
+      // Readout always shows current K — color stays informative when off,
+      // brightness reads 0% as the off indicator. Power button has no
+      // on/off styling; the % readout IS the off indicator.
+      if (readoutEl) {
+        const k = Math.round(selectedArea.kelvin ?? 0);
+        readoutEl.textContent = `${Math.round(effectiveBri)}% · ${k}K`;
+      }
+    }
 
+    // Show the master reset (↺) button only when the area has any override
+    // applied — brightness, color, or phase-time. Three independent reset
+    // primitives exist server-side; this commit calls them sequentially.
+    // Replace with a single reset_all_overrides primitive in the backend
+    // follow-up commit.
+    function updateHeaderResetVisibility() {
+      const btn = document.getElementById('page-header-reset');
+      if (!btn || !selectedArea) return;
+      const status = areaStatus[selectedArea.area_id] || {};
+      const dirty = status.brightness_override != null
+        || status.color_override != null
+        || status.brightness_mid != null
+        || status.color_mid != null;
+      btn.style.display = dirty ? '' : 'none';
+    }
+
+    // Sequential 3-call reset (brightness override, color override, phase
+    // time). Wired to the master ↺ button. Future: collapse into a single
+    // primitive (see project_area_redesign_2026_05.md backend follow-up).
+    async function resetAllOverrides() {
+      if (!selectedArea) return;
+      try {
+        await executeAction('reset_brightness_override');
+        await executeAction('reset_color_override');
+        await executeAction('reset_phase');
+      } catch (e) { console.error('resetAllOverrides failed', e); }
+    }
+
+
+    // Render header status chips (boost / freeze / motion / fade) into
+    // page-header-chips. Each chip is a button so users can tap to cancel
+    // the active state. Boost + freeze cancellations wire to existing
+    // services; motion + fade are disabled until backend follow-up adds
+    // cancel_motion / finish_fade primitives.
     function updateTimerStatus() {
-      const el = document.getElementById('timer-status');
+      const el = document.getElementById('page-header-chips');
+      if (!el) return;
       if (!selectedArea) {
         el.innerHTML = '';
         return;
       }
 
       const parts = [];
-
-      if (selectedArea) {
+      {
         const hasMotion = selectedArea.motion_expires_at && selectedArea.motion_expires_at !== 'forever';
         const hasBoostedMotion = selectedArea.boosted && selectedArea.is_motion_coupled;
-        const warnClass = selectedArea.motion_warning_active ? ' timer-warning' : '';
+        const warnClass = selectedArea.motion_warning_active ? ' area-chip--warning' : '';
+        const motionTitle = 'Motion timer (cancel: TODO — needs cancel_motion primitive)';
 
         if (hasMotion && hasBoostedMotion) {
           const remaining = formatCountdown(selectedArea.motion_expires_at);
           if (remaining) {
-            parts.push(`<span class="timer-motion${warnClass}">+${selectedArea.boost_brightness}%: ${remaining}<span class="timer-arrow">→</span>off</span>`);
+            parts.push(
+              `<button type="button" class="area-chip area-chip--motion${warnClass}" disabled title="${motionTitle}">`
+              + `+${selectedArea.boost_brightness}%: ${remaining}`
+              + `<span class="area-chip-arrow">→</span>off</button>`
+            );
           }
         } else {
           if (hasMotion) {
             const remaining = formatCountdown(selectedArea.motion_expires_at);
             if (remaining) {
-              parts.push(`<span class="timer-motion${warnClass}">${remaining}<span class="timer-arrow">→</span>off</span>`);
+              parts.push(
+                `<button type="button" class="area-chip area-chip--motion${warnClass}" disabled title="${motionTitle}">`
+                + `${remaining}<span class="area-chip-arrow">→</span>off</button>`
+              );
             }
           }
 
@@ -4052,7 +4084,7 @@
               if (selectedArea.motion_expires_at) {
                 const remaining = formatCountdown(selectedArea.motion_expires_at);
                 if (remaining) {
-                  text += ` · ${remaining}<span class="timer-arrow">→</span>circadian`;
+                  text += ` · ${remaining}<span class="area-chip-arrow">→</span>circadian`;
                 } else {
                   text += ' · ending';
                 }
@@ -4063,10 +4095,14 @@
               const remaining = formatCountdown(selectedArea.boost_expires_at);
               if (remaining) {
                 const outcome = selectedArea.boost_started_from_off ? 'off' : 'circadian';
-                text += ` · ${remaining}<span class="timer-arrow">→</span>${outcome}`;
+                text += ` · ${remaining}<span class="area-chip-arrow">→</span>${outcome}`;
               }
             }
-            parts.push(`<span class="timer-boost">Boost: ${text}</span>`);
+            parts.push(
+              `<button type="button" class="area-chip area-chip--boost"`
+              + ` onclick="executeAction('boost')" title="Cancel boost">`
+              + `Boost: ${text}</button>`
+            );
           }
         }
 
@@ -4080,11 +4116,19 @@
             const s = remaining % 60;
             countdown = m > 0 ? `${m}m ${s}s` : `${s}s`;
           }
-          parts.push(`<span class="timer-fade">\u23F0 ${fadeIcon} ${target} ${countdown}</span>`);
+          parts.push(
+            `<button type="button" class="area-chip area-chip--fade" disabled`
+            + ` title="Fade in progress (cancel: TODO \u2014 needs finish_fade primitive)">`
+            + `\u23F0 ${fadeIcon} ${target} ${countdown}</button>`
+          );
         }
 
         if (selectedArea.frozen) {
-          parts.push(`<span class="timer-frozen">❄</span>`);
+          parts.push(
+            `<button type="button" class="area-chip area-chip--frozen"`
+            + ` onclick="executeAction('freeze_toggle')" title="Unfreeze">`
+            + `<span class="area-chip-icon">❄</span></button>`
+          );
         }
       }
 
@@ -4296,28 +4340,6 @@
       if (!selectedArea) return;
       const action = selectedArea.is_circadian ? 'circadian_off' : 'circadian_on';
       executeAction(action);
-    }
-
-    async function confirmFullSend() {
-      if (!selectedArea) return;
-      const zoneName = selectedArea.zone_name;
-      if (!zoneName) { alert('This area is not in a Rhythm Zone.'); return; }
-
-      if (cachedConfig?.confirm_zone_pushes) {
-        const bri = Math.round(selectedArea.brightness);
-        const kelvin = Math.round(selectedArea.kelvin);
-        const affectedAreas = areas.filter(a => {
-          const s = areaStatus[a.area_id] || {};
-          if (s.zone_name !== zoneName || !s.is_on) return false;
-          return Math.round(s.brightness || 0) !== bri || Math.round(s.kelvin || 4000) !== kelvin;
-        });
-        if (affectedAreas.length > 0) {
-          const areaList = affectedAreas.map(a => a.name).join('\n');
-          const msg = `Full Send ${bri}% / ${kelvin}K to "${zoneName}"? These areas will adjust:\n\n${areaList}`;
-          if (!confirm(msg)) return;
-        }
-      }
-      executeAction('full_send');
     }
 
     async function executeAction(action) {

@@ -40,7 +40,9 @@ def _get_last_action_file() -> Path:
         elif os.path.isdir("/data"):
             _LAST_ACTION_FILE = Path("/data/switch_last_actions.json")
         else:
-            _LAST_ACTION_FILE = Path("/app/.data/switch_last_actions.json")
+            # Dev fallback — mirror _get_data_directory() so native macOS runs
+            # land in addon/.data/ instead of the read-only /app/.data Docker path.
+            _LAST_ACTION_FILE = Path(__file__).parent / ".data" / "switch_last_actions.json"
         _LAST_ACTION_FILE.parent.mkdir(parents=True, exist_ok=True)
     return _LAST_ACTION_FILE
 
