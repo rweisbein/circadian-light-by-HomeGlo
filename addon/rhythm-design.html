@@ -178,7 +178,7 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 }
 .page-header .back-btn {
   grid-column: 1;
-  grid-row: 1;
+  grid-row: 1 / span 2;
   align-self: center;
 }
 .page-header .rhythm-name-group {
@@ -643,10 +643,12 @@ input[type=range]::-moz-range-thumb {
   text-align: center;
   opacity: 0.95;
 }
-/* Preview button — always icon-only (broadcast glyph). Tooltip carries the
-   "Preview" word; the label span is kept in the DOM so the live-state code
-   path that toggles its text into an area-name list still works for popover
-   internals, but it's hidden from view in the header. */
+/* Preview button — idle is a quiet ghost icon (no border, no fill) so it reads
+   as a less-prominent action than the time arrows on row 2. Live state turns
+   into a fully-boxed accent button (dark bg, accent border, glow + pulse) —
+   the box appearing IS part of the "now I'm doing something" signal.
+   Icon color inherits from the page-header (readableTextColor — black on warm
+   tints, white on cool tints) so it stays legible against any cursor CCT. */
 .try-it-btn {
   display: inline-flex;
   align-items: center;
@@ -654,27 +656,30 @@ input[type=range]::-moz-range-thumb {
   width: 32px;
   height: 32px;
   padding: 0;
-  border-radius: 10px;
-  border: 1px solid currentColor;
-  background: rgba(0,0,0,0.18);
+  background: transparent;
+  border: none;
   color: inherit;
   font-family: inherit;
   line-height: 1;
   cursor: pointer;
   z-index: 10;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  border-radius: 8px;
+  transition: background 0.15s, color 0.15s;
 }
 .try-it-btn:hover {
-  background: rgba(0,0,0,0.30);
+  background: rgba(0,0,0,0.18);
 }
 .try-it-btn svg {
   display: block;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
+  opacity: 0.75;
 }
+.try-it-btn:hover svg { opacity: 1; }
 .try-it-label { display: none; }
 .try-it-btn.is-live svg {
   animation: try-it-icon-pulse 1.4s ease-in-out infinite;
+  opacity: 1;
 }
 @keyframes try-it-icon-pulse {
   0%, 100% { opacity: 1; }
@@ -686,8 +691,9 @@ input[type=range]::-moz-range-thumb {
    signal. */
 .try-it-btn.is-live {
   color: var(--accent);
-  border-color: rgba(254,172,96,0.6);
+  border: 1px solid rgba(254,172,96,0.6);
   background: rgba(0,0,0,0.6);
+  border-radius: 10px;
   animation: try-it-glow 2s ease-in-out infinite;
 }
 .try-it-btn.is-live svg {
@@ -2399,6 +2405,8 @@ let chartState = {
   bedDragVal: null,     // working bed time during drag (0-24)
   wakeHovering: false,  // pointer over wake pill (no drag) — show preview cursor
   bedHovering: false,
+  sunriseHovering: false,  // pointer over sunrise label — draw chart-spanning yellow line
+  sunsetHovering: false,
   outdoorSrc: 'current',  // 'current' or 'manual'
   outdoorPctManual: 100,  // user-picked manual condition %
 };
@@ -3829,52 +3837,44 @@ function renderChart() {
   });
   window.cursorTraceIndex = traces.length - 1;
 
-  // Wake/bed preview cursor: a SECOND cursor (separate from the white one)
-  // that appears while the pill is hovered or dragged. Vertical line uses the
-  // pill color (blue/yellow); the circle is CCT-tinted, sitting on the visible
-  // bulb-output curve. Hovering does NOT move the white cursor.
+  // Vertical wake/bed preview lines — ALWAYS visible as ambient context
+  // (whisper-quiet width + opacity); brighten + thicken on hover/drag so the
+  // interaction still feels distinct. The CCT-tinted "circle on the curve"
+  // marker was dropped — it just duplicated the pill's x-position without
+  // adding readable info. Yellow sunrise/sunset lines render only on hover
+  // (no always-visible state — would compete with the wake/bed ambient lines).
+  // The cursor line is independent and managed by applyCursor().
   const tFor = h => visHour(h, xA);
-  const idxFor = h => Math.max(0, Math.min(hours.length - 1,
-                       Math.round(((tFor(h) - xA) / 24) * (hours.length - 1))));
-  const wakeShown = chartState.wakeDragActive || chartState.wakeHovering;
-  const bedShown = chartState.bedDragActive || chartState.bedHovering;
-  if (wakeShown) {
-    const wt = chartState.wakeDragVal != null ? chartState.wakeDragVal : config.wake_time;
-    const wIdx = idxFor(wt);
-    traces.push({
-      type: 'scatter', mode: 'markers',
-      x: [tFor(wt)], y: [brightnessPct[wIdx]],
-      marker: { size: 14, color: cctToRGB(cct[wIdx]),
-                line: { width: 2, color: ASCEND_COLORS.text } },
-      cliponaxis: false, hoverinfo: 'skip', showlegend: false,
-    });
-  }
-  if (bedShown) {
-    const bt = chartState.bedDragVal != null ? chartState.bedDragVal : config.bed_time;
-    const bIdx = idxFor(bt);
-    traces.push({
-      type: 'scatter', mode: 'markers',
-      x: [tFor(bt)], y: [brightnessPct[bIdx]],
-      marker: { size: 14, color: cctToRGB(cct[bIdx]),
-                line: { width: 2, color: DESCEND_COLORS.text } },
-      cliponaxis: false, hoverinfo: 'skip', showlegend: false,
-    });
-  }
-
-  // Vertical preview lines — wake/bed when hovering or dragging. The white
-  // cursor line is independent and managed by applyCursor().
+  const wakeActive = chartState.wakeDragActive || chartState.wakeHovering;
+  const bedActive = chartState.bedDragActive || chartState.bedHovering;
   const shapes = [];
-  if (wakeShown) {
+  {
     const wt = chartState.wakeDragVal != null ? chartState.wakeDragVal : config.wake_time;
     shapes.push({ type: 'line', xref: 'x', yref: 'paper', layer: 'below',
       x0: tFor(wt), x1: tFor(wt), y0: 0, y1: 1,
-      line: { color: ASCEND_COLORS.text, width: 1.5 } });
+      line: {
+        color: wakeActive ? 'rgba(92,179,255,0.55)' : 'rgba(92,179,255,0.15)',
+        width: wakeActive ? 1.5 : 0.75,
+      } });
   }
-  if (bedShown) {
+  {
     const bt = chartState.bedDragVal != null ? chartState.bedDragVal : config.bed_time;
     shapes.push({ type: 'line', xref: 'x', yref: 'paper', layer: 'below',
       x0: tFor(bt), x1: tFor(bt), y0: 0, y1: 1,
-      line: { color: DESCEND_COLORS.text, width: 1.5 } });
+      line: {
+        color: bedActive ? 'rgba(111,169,255,0.55)' : 'rgba(111,169,255,0.15)',
+        width: bedActive ? 1.5 : 0.75,
+      } });
+  }
+  if (chartState.sunriseHovering && Number.isFinite(sunTimes.sunrise)) {
+    shapes.push({ type: 'line', xref: 'x', yref: 'paper', layer: 'below',
+      x0: tFor(sunTimes.sunrise), x1: tFor(sunTimes.sunrise), y0: 0, y1: 1,
+      line: { color: 'rgba(255,225,140,0.55)', width: 1.5 } });
+  }
+  if (chartState.sunsetHovering && Number.isFinite(sunTimes.sunset)) {
+    shapes.push({ type: 'line', xref: 'x', yref: 'paper', layer: 'below',
+      x0: tFor(sunTimes.sunset), x1: tFor(sunTimes.sunset), y0: 0, y1: 1,
+      line: { color: 'rgba(255,225,140,0.55)', width: 1.5 } });
   }
   const annotations = [];
   if (sunContribAnchor) {
@@ -4425,11 +4425,12 @@ function positionOverlays() {
     axisFromShellBottom = shellEl.offsetHeight
       - chartElForConn.offsetTop - fl.yaxis._offset - fl.yaxis._length;
   }
-  // Wake/bed connector base sits 42px from chart-shell bottom (handle bottom 14
-  //   + handle height 34 - 6px overlap into pill). Solar-label top = bottom+lineHeight,
-  //   connector starts at solar-label top + 1px margin.
+  // Wake/bed connector base sits 32px from chart-shell bottom (handle bottom 4
+  //   + handle height 34 - 6px overlap into pill). v1.2.217 dropped handle
+  //   bottom 14 → 4 but left this offset at 42 — lines stopped 10px short of
+  //   the x-axis. Now 32 so the connector lands on the axis line.
   if (axisFromShellBottom != null) {
-    const phaseConnectorH = Math.max(0, axisFromShellBottom - 42);
+    const phaseConnectorH = Math.max(0, axisFromShellBottom - 32);
     const wh = document.getElementById('wake-handle');
     const bh = document.getElementById('bed-handle');
     if (wh) wh.style.setProperty('--phase-connector-h', phaseConnectorH + 'px');
@@ -4440,10 +4441,11 @@ function positionOverlays() {
     el.style.left = xToPx(h) + 'px';
     el.dataset.time = formatHour(h);
     if (axisFromShellBottom != null) {
-      // solar-label bottom: 50; label height ~14px → label top at 64 from
-      // chart-shell bottom. Connector starts at label top + 1px margin = 65,
-      // ends at axis line. Clamp to 0.
-      const solarConnectorH = Math.max(0, axisFromShellBottom - 65);
+      // solar-label bottom: 40; label height ~14px → label top at 54 from
+      // chart-shell bottom. Connector starts at label top + 1px margin = 55,
+      // ends at axis line. v1.2.217 dropped solar-label bottom 50 → 40 but
+      // left this offset at 65 — same 10px short bug as the phase connector.
+      const solarConnectorH = Math.max(0, axisFromShellBottom - 55);
       el.style.setProperty('--solar-connector-h', solarConnectorH + 'px');
     }
   };
@@ -4603,6 +4605,30 @@ function setupHandleDrag(elId, kind) {
     chartState[kind + 'Hovering'] = false;
     renderChart();
   });
+}
+
+/**
+ * Hover wiring for sunrise/sunset labels — sets chartState.{sunrise,sunset}Hovering
+ * so renderChart() draws the chart-spanning yellow line. Mirror of wake/bed
+ * pointerenter/leave but solar isn't draggable, so hover-only.
+ */
+function setupSolarHover() {
+  const wire = (id, kind) => {
+    const el = document.getElementById(id);
+    if (!el || el._solarHoverInit) return;
+    el._solarHoverInit = true;
+    el.addEventListener('pointerenter', (e) => {
+      if (e.pointerType === 'touch') return;
+      chartState[kind + 'Hovering'] = true;
+      renderChart();
+    });
+    el.addEventListener('pointerleave', () => {
+      chartState[kind + 'Hovering'] = false;
+      renderChart();
+    });
+  };
+  wire('sunrise-label', 'sunrise');
+  wire('sunset-label', 'sunset');
 }
 
 /**
@@ -5848,6 +5874,9 @@ function setupEventListeners() {
   // Wake/Bed handle drag setup
   setupHandleDrag('wake-handle', 'wake');
   setupHandleDrag('bed-handle', 'bed');
+
+  // Sunrise/sunset hover → chart-spanning yellow line
+  setupSolarHover();
 
   // Outdoor chip toggle + popover wiring
   setupOutdoorPopover();
