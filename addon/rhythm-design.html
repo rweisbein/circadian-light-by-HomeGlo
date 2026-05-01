@@ -153,21 +153,21 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 
 /* Page Header */
 /* Merged page-header: hosts navigation chrome (back btn + rhythm name) AND the
-   former cct-banner controller (% · K readout, ← time → arrows, Experience pill).
+   former cct-banner controller (% · K readout, ← time → arrows, Preview pill).
    Background tint is set per-frame by positionOverlays() to follow cursor CCT
    — same role the cct-banner used to play, now lifted up to the page-level
    header so the chart card is no longer split in two by an inner colored strip.
-   2-row grid: navigation + readout on row 1, time arrows on row 2; Experience
-   pill spans both rows on the far right. */
+   2-row grid with buffer columns flanking the readout so it true-centers between
+   the rhythm-name (left) and the Preview pill (right) at wide widths and
+   collapses cleanly when there's no slack. NOT sticky — the chart card is the
+   one that pins (see #chart-section). */
 .page-header {
-  position: sticky;
-  top: 0;
-  z-index: 60;
+  position: relative;
   background: var(--panel);
   border-bottom: 1px solid var(--line);
   padding: 6px 12px;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto;
   grid-template-rows: auto auto;
   column-gap: 10px;
   row-gap: 2px;
@@ -187,23 +187,23 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 .page-header .cct-banner-readout-cluster {
   grid-column: 3;
   grid-row: 1;
-  justify-self: end;
+  justify-self: center;
   align-self: end;
 }
 .page-header .cct-banner-arrows {
   grid-column: 3;
   grid-row: 2;
-  justify-self: end;
+  justify-self: center;
   align-self: start;
 }
 .page-header .try-it-btn {
-  grid-column: 4;
+  grid-column: 5;
   grid-row: 1 / span 2;
   align-self: center;
 }
 /* Try-it popover anchors below the merged header on the right (under the
-   Experience pill, no longer under the cct-banner's far-left). CSS-positioned
-   relative to .page-header so positionOverlays() doesn't need to compute top. */
+   Preview pill). CSS-positioned relative to .page-header so positionOverlays()
+   doesn't need to compute top. */
 .page-header .try-it-popover {
   position: absolute;
   top: calc(100% + 4px);
@@ -228,7 +228,11 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
   font-weight: 700;
   background: transparent;
   border: none;
-  color: var(--text);
+  /* Inherit page-header's dynamic readableTextColor so the name reads with the
+     same contrast treatment as the % · K readout — dark on warm tints, light
+     on cool tints. Hardcoding var(--text) made the name wash out at warm
+     mid-day amber tints. */
+  color: inherit;
   padding: 1px 0;
   width: auto;
   min-width: 80px;
@@ -246,10 +250,13 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
   padding: 0 5px;
   border: 1px solid currentColor;
   border-radius: 8px;
-  opacity: 0.5;
+  /* Inherit color (same logic as .rhythm-name-input above). 0.7 opacity gives
+     it a sub-label feel without the var(--muted) override that washed out
+     against warm header tints. */
+  color: inherit;
+  opacity: 0.7;
   white-space: nowrap;
   line-height: 1.5;
-  color: var(--muted);
 }
 .header-actions {
   display: flex;
@@ -440,15 +447,18 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
   min-width: 0;
 }
 
-/* Section block (chart). Sticky moved up to .page-header in v1.2.215 — the
-   merged tinted header is what stays pinned now; the chart card scrolls
-   normally below it. */
+/* Section block (chart). Sticky-pinned at top:0 so the chart stays visible
+   while the user scrolls the form fields below; the page-header itself does
+   NOT stick (it scrolls away normally). */
 .section-block {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px 6px 8px;
   margin-bottom: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
 }
 /* Chart section: zero padding so the CCT banner spans the card edge-to-edge.
    `overflow: visible` so the Experience popover (and any other floating
@@ -535,7 +545,11 @@ input[type=range]::-moz-range-thumb {
   position: relative;
   background: var(--card);
   border-radius: 10px;
-  padding: 0 0 70px;
+  /* Bottom padding sized for the wake/bed handle stack (handle bottom 14
+     + handle height 34 = 48). 45px is just under that, with the pill base
+     hugging the card edge. Was 70 in v1.2.214; trimmed in v1.2.216 to claw
+     back vertical space now that the banner moved up to the page-header. */
+  padding: 0 0 45px;
   overflow: visible;
   -webkit-user-select: none;
   -moz-user-select: none;
@@ -543,12 +557,12 @@ input[type=range]::-moz-range-thumb {
 }
 #chart-shell #chart {
   width: 100%;
-  /* margin-top opens the strip BELOW the cct-banner where the sun-intensity
-     chip lives — card-color (lighter) background visually separates the chip
-     from the chart's "sun dimming" annotation that lives in the dark plot
-     area below. Sized to fit the ~14px chip with breathing room. */
-  height: 200px;
-  margin-top: 24px;
+  /* margin-top opens the strip above the chart canvas where the sun-intensity
+     chip + month label live. Was 24px when the cct-banner sat above this gap
+     (separating chip from the banner color); now banner is gone, so a tighter
+     14px is enough breathing room for the ~14px chip. */
+  height: 160px;
+  margin-top: 14px;
   touch-action: none;
   cursor: pointer;
 }
@@ -1852,7 +1866,7 @@ input[type=range]::-moz-range-thumb {
   </div>
   <button type="button" class="try-it-btn" id="try-it-btn" aria-haspopup="true" aria-expanded="false">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/></svg>
-    <span class="try-it-label" id="try-it-label">Experience</span>
+    <span class="try-it-label" id="try-it-label">Preview</span>
   </button>
   <div class="try-it-popover" id="try-it-popover" role="dialog" aria-hidden="true">
     <div class="try-it-popover-header">
@@ -6006,7 +6020,7 @@ function closeTryItPopover() {
 }
 
 function _formatAreaLabel(ids) {
-  if (ids.length === 0) return 'Experience';
+  if (ids.length === 0) return 'Preview';
   const nameOf = id => (liveDesignAreas.find(a => a.area_id === id) || {}).name || id;
   // Live state: drop the "Trying in" prefix — the broadcast SVG (already inside
   // the button) carries that meaning, and the dark .is-live container makes the
@@ -6154,7 +6168,7 @@ function updateLiveVisuals() {
   const label = document.getElementById('try-it-label');
   if (!btn || !label) return;
   btn.classList.toggle('is-live', liveDesignEnabled);
-  label.textContent = liveDesignEnabled ? _formatAreaLabel(liveDesignAreaIds) : 'Experience';
+  label.textContent = liveDesignEnabled ? _formatAreaLabel(liveDesignAreaIds) : 'Preview';
 }
 
 /**
