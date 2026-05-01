@@ -563,11 +563,16 @@
        anchor correctly. Bottom padding holds the two below-axis label
        rows (sunrise/sunset just below axis, wake/bed one row lower).
        Tightened bottom + margin so the Bright slider sits closer to the
-       chart without crowding the wake/bed label. */
+       chart without crowding the wake/bed label.
+       user-select: none — chart + labels aren't text content; without
+       this every tap-and-drag on the chart starts a text selection,
+       leaving blue swatches on sunset/bed labels and the chart edges. */
     #chart-shell {
       position: relative;
       padding: 4px 0 32px;
       margin-bottom: 0;
+      -webkit-user-select: none;
+      user-select: none;
     }
     #chart-shell #mini-chart { height: 120px; margin-top: 6px; }
     /* Sun-intensity chip — sits above the chart at solar noon (clamped to
@@ -785,7 +790,7 @@
     /* Headline variant: always-open card, no chevron, static header */
     .auto-sched-card--headline.is-open .auto-sched-body { max-height: 1600px; }
     .auto-sched-header--static { cursor: default; }
-    .curve-controls-wrap { position: relative; padding: 4px 14px 12px 14px; }
+    .curve-controls-wrap { position: relative; padding: 4px 14px 12px 14px; -webkit-user-select: none; user-select: none; }
     .curve-controls-wrap .adjust-section { margin-bottom: 0; }
 
     /* Unified field row — label left, content right */
@@ -2227,12 +2232,26 @@
           line: { width: 1.5, color: 'rgba(220, 220, 220, 0.45)' },
           hoverinfo: 'skip', showlegend: false,
         });
-      } else if (hasDivergence && maxDivergence >= 8.0) {
+      } else if (hasDivergence) {
+        // Compute peak divergence + first-divergent-sample WITHIN the
+        // visible phase window only — earlier `maxDivergence` was scanned
+        // across the full 24h `hours` array, so a tiny sun-dimming spike
+        // in the morning could trigger the label even when the visible
+        // afternoon window had no perceptible gap. Threshold bumped to
+        // ≥15% so we only show the label when there's a meaningful gap
+        // for the user to actually see.
+        const visStart = curInAscend ? tAscAnchor : tDescAnchor;
+        const visEnd = curInAscend ? tDescAnchor : tAscAnchor + 24;
+        let visMaxDiv = 0;
+        let firstDivIdx = -1;
+        for (let i = 0; i < hours.length; i++) {
+          if (hours[i] < visStart || hours[i] > visEnd) continue;
+          const d = brightnessPct[i] - bulbPct[i];
+          if (d > visMaxDiv) visMaxDiv = d;
+          if (firstDivIdx < 0 && d >= 1.0) firstDivIdx = i;
+        }
         // Mask the natural curve to null where it's identical to the bulb
-        // curve (so the dotted line doesn't render outside the sun-dimming
-        // window — pre-sunrise / post-sunset). connectgaps=false breaks the
-        // line at the null gaps. Label only renders when the peak gap is
-        // ≥8% — at smaller gaps the label cramps against the lines.
+        // curve so the dotted line breaks naturally at sunrise/sunset.
         const maskedNatural = hours.map((h, i) =>
           (brightnessPct[i] - bulbPct[i]) >= 1.0 ? brightnessPct[i] : null
         );
@@ -2243,21 +2262,11 @@
           connectgaps: false,
           hoverinfo: 'skip', showlegend: false,
         });
-        // "sun dimming" label — anchor at the FIRST divergent sample WITHIN
-        // the visible phase window (the chart only renders the active half
-        // of the day, so a divergent sample outside that range — e.g.
-        // morning sun dimming when we're rendering the descend phase —
-        // would clip off-canvas). Pinning to the leading edge (vs peak
-        // divergence) keeps the label clear of the cursor and wake/bed
-        // line, which both tend to sit near peak.
-        const visStart = curInAscend ? tAscAnchor : tDescAnchor;
-        const visEnd = curInAscend ? tDescAnchor : tAscAnchor + 24;
-        let firstDivIdx = -1;
-        for (let i = 0; i < hours.length; i++) {
-          if (hours[i] < visStart || hours[i] > visEnd) continue;
-          if (brightnessPct[i] - bulbPct[i] >= 1.0) { firstDivIdx = i; break; }
-        }
-        if (firstDivIdx >= 0) {
+        // "sun dimming" label only when the peak gap WITHIN the visible
+        // window is ≥15%. Anchored at the leading edge of dimming (first
+        // divergent sample), at the gap midpoint there — keeps the label
+        // clear of the cursor + wake/bed line which tend to sit near peak.
+        if (firstDivIdx >= 0 && visMaxDiv >= 15.0) {
           const divX = hours[firstDivIdx];
           const divY = (brightnessPct[firstDivIdx] + bulbPct[firstDivIdx]) / 2;
           annotations.push({
@@ -2267,18 +2276,6 @@
             font: { size: 10, color: 'rgba(220, 220, 220, 0.6)' },
           });
         }
-      } else if (hasDivergence) {
-        // Small-gap case: render the dotted line without the label.
-        const maskedNatural = hours.map((h, i) =>
-          (brightnessPct[i] - bulbPct[i]) >= 1.0 ? brightnessPct[i] : null
-        );
-        traces.push({
-          type: 'scatter', mode: 'lines',
-          x: hours, y: maskedNatural,
-          line: { width: 1.5, color: 'rgba(220, 220, 220, 0.55)', dash: 'dot' },
-          connectgaps: false,
-          hoverinfo: 'skip', showlegend: false,
-        });
       }
 
       // Hover trace — CCT-colored tooltips showing time, bulb brightness, color.

@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.247
+- **Adjust card body now `user-select: none`.** Tap-and-drag on the chart, the sunset/bed labels, the sun-intensity chip, or the slider rows was kicking off text selection — leaving blue selection swatches across the card. None of this content is meant to be selectable as text. Applied to `#chart-shell` (chart + labels + chip) and `.curve-controls-wrap` (the entire Adjust card body), with the `-webkit-` prefix for older Safari.
+
+## 1.2.246
+- **Sun-dimming label gating tightened.** Previously the threshold check (`maxDivergence >= 8.0`) ran against the full 24h `hours` array — so a tiny sun-dimming spike outside the visible phase window could trigger the label even when the visible window itself had no perceptible gap. Now the peak-divergence calculation is also bounded to the visible phase window, AND the threshold bumped 8% → 15%. Net effect: label only renders when there's a clearly readable gap inside what the user can actually see.
+
 ## 1.2.245
 - **Wake/bed in-plot line collapses to just the below-axis connector tick when idle.** Previously the full-height wake/bed line drew through the chart at all times, competing with the cursor for vertical attention. Now it only renders during an active phase-slider drag — when the user is bending the curve, the line extends through the chart so they can see the shift at every y. On release, the line snaps back to nothing (just the connector tick from the below-axis label up to the x-axis remains, mirroring sunrise/sunset). Detection: read `.slider-track[data-mode="phase"].dragging` from the DOM at render time.
 - **NOW vertical line added — always visible, most-prominent vertical element.** Solid line at `cursorHour`, CCT-tinted to match the cursor dot + page-header readout (so dot + line + header read as one "current moment" cluster). Width 1.5, two segments with a 5% y-gap around the cursor dot so the line doesn't overdraw it. Layer `above` — sits on top of wake/bed when both are visible during phase drag.
