@@ -3853,8 +3853,8 @@ function renderChart() {
     shapes.push({ type: 'line', xref: 'x', yref: 'paper', layer: 'below',
       x0: tFor(wt), x1: tFor(wt), y0: 0, y1: 1,
       line: {
-        color: wakeActive ? 'rgba(92,179,255,0.55)' : 'rgba(92,179,255,0.15)',
-        width: wakeActive ? 1.5 : 0.75,
+        color: wakeActive ? 'rgba(92,179,255,0.55)' : 'rgba(92,179,255,0.30)',
+        width: wakeActive ? 1.5 : 1,
       } });
   }
   {
@@ -3862,8 +3862,8 @@ function renderChart() {
     shapes.push({ type: 'line', xref: 'x', yref: 'paper', layer: 'below',
       x0: tFor(bt), x1: tFor(bt), y0: 0, y1: 1,
       line: {
-        color: bedActive ? 'rgba(111,169,255,0.55)' : 'rgba(111,169,255,0.15)',
-        width: bedActive ? 1.5 : 0.75,
+        color: bedActive ? 'rgba(111,169,255,0.55)' : 'rgba(111,169,255,0.30)',
+        width: bedActive ? 1.5 : 1,
       } });
   }
   if (chartState.sunriseHovering && Number.isFinite(sunTimes.sunrise)) {

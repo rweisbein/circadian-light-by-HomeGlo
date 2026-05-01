@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.220
+- **Rhythm details — wake/bed ambient lines made actually visible.** v1.2.219 set idle width 0.75px and alpha 0.15, which against the dark plot bg and the curve's gradient fill (line is `layer: 'below'` so it sits behind the fill) was effectively invisible — Plotly also tends to drop sub-1px line widths inconsistently across renderers. Bumped to width 1 / alpha 0.30 so the line is "just visible" as the user requested without competing with the curve. Hover/drag still bumps to 1.5 / 0.55 — the active state stays clearly distinct.
+
 ## 1.2.219
 - **Rhythm details — back button vertically centered against full header.** Was anchored to row 1 only with `align-self: center` inside that row, so it sat visually high relative to the taller row 2 (readout cluster). Spanned across both rows (`grid-row: 1 / span 2; align-self: center`) so it centers against the entire 2-row header height.
 - **Rhythm details — Preview button is now a quiet ghost icon in idle.** Was a 32×32 boxed button with border + dark fill — read as more prominent than the time arrows on row 2 (which are the actual navigation utility for this page). Stripped the border and background; idle shows just the broadcast glyph at 0.75 opacity, hover lifts to full opacity with a subtle bg. Live state still gets the boxed dark+accent+pulse+glow treatment — the box appearing IS part of the "now I'm doing something" signal, and the asymmetry communicates state change more loudly than a color/border tweak alone. Icon color still inherits the page-header's readableTextColor so it stays legible across warm/cool cursor tints.
