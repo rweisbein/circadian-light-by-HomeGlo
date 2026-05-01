@@ -2243,13 +2243,18 @@
           connectgaps: false,
           hoverinfo: 'skip', showlegend: false,
         });
-        // "sun dimming" label — anchor at the FIRST divergent sample (left
-        // edge of the dotted-line region), at the midpoint of the gap there.
-        // Pinning to the leading edge (vs peak divergence) keeps the label
-        // away from the cursor (which sits at NOW, often near peak when sun
-        // is still up) and away from the wake/bed line (often at peak).
+        // "sun dimming" label — anchor at the FIRST divergent sample WITHIN
+        // the visible phase window (the chart only renders the active half
+        // of the day, so a divergent sample outside that range — e.g.
+        // morning sun dimming when we're rendering the descend phase —
+        // would clip off-canvas). Pinning to the leading edge (vs peak
+        // divergence) keeps the label clear of the cursor and wake/bed
+        // line, which both tend to sit near peak.
+        const visStart = curInAscend ? tAscAnchor : tDescAnchor;
+        const visEnd = curInAscend ? tDescAnchor : tAscAnchor + 24;
         let firstDivIdx = -1;
         for (let i = 0; i < hours.length; i++) {
+          if (hours[i] < visStart || hours[i] > visEnd) continue;
           if (brightnessPct[i] - bulbPct[i] >= 1.0) { firstDivIdx = i; break; }
         }
         if (firstDivIdx >= 0) {
@@ -2362,38 +2367,36 @@
       // Convert curve y (0–100) to paper y (chart range 0–110, plus paper offset)
       const yToPaper = (y) => Math.max(0, Math.min(0.91, (y / 110) * 0.91));
 
-      // Wake/bed vertical line — Ship 2: thin ambient line (rhythm-design
-      // style: width 1, alpha 0.30) for the bounding wake or bed of the
-      // active phase only. Adjusted/daily distinction stays so the shift
-      // remains visible. Active-phase wash + inactive mute + multiple
-      // line treatments dropped because xaxis.range now constrains the
-      // visible plot to the active phase, making them redundant.
+      // Wake/bed line is normally NOT drawn inside the plot — the below-
+      // axis label's connector tick (rendered by positionChartLabels) is
+      // enough to mark the time. Only when the user is actively dragging
+      // the phase slider does the line extend up through the chart, so
+      // they can see how the shift bends the curve at every y. Once they
+      // release, the line collapses back to just the connector tick.
       const vLineTop = 0.91;  // ≈ y=100 in data coords (range 0-110)
       const wakeColor = 'rgba(92, 179, 255, 0.55)';
       const bedColor = 'rgba(111, 169, 255, 0.55)';
-      const wakeIdleLine = { color: 'rgba(92, 179, 255, 0.30)', width: 1 };
-      const bedIdleLine = { color: 'rgba(111, 169, 255, 0.30)', width: 1 };
-      // Single line per active phase — daily OR adjusted, never both. Earlier
-      // versions drew the daily line as a muted "ghost" alongside the adjusted
-      // line so the user could see the shift, but the result was two competing
-      // blue lines on the chart with the slider only moving one of them. Now
-      // it's just the active line at the current target time, full stop.
-      if (wakeIsActive) {
-        const wakeX = hasAdjWake ? shiftIntoWindow(adjustedTimes.wake) : wakeTime;
-        shapes.push({
-          type: 'line', xref: 'x', yref: 'paper', layer: 'below',
-          x0: wakeX, x1: wakeX, y0: 0, y1: vLineTop,
-          line: hasAdjWake ? { color: wakeColor, width: 1.25 } : wakeIdleLine,
-        });
+      const phaseTrack = document.querySelector('.slider-track[data-mode="phase"]');
+      const phaseDragging = !!(phaseTrack && phaseTrack.classList.contains('dragging'));
+      if (phaseDragging) {
+        if (wakeIsActive) {
+          const wakeX = hasAdjWake ? shiftIntoWindow(adjustedTimes.wake) : wakeTime;
+          shapes.push({
+            type: 'line', xref: 'x', yref: 'paper', layer: 'below',
+            x0: wakeX, x1: wakeX, y0: 0, y1: vLineTop,
+            line: { color: wakeColor, width: 1.5 },
+          });
+        }
+        if (bedIsActive) {
+          const bedX = hasAdjBed ? shiftIntoWindow(adjustedTimes.bed) : bedTime;
+          shapes.push({
+            type: 'line', xref: 'x', yref: 'paper', layer: 'below',
+            x0: bedX, x1: bedX, y0: 0, y1: vLineTop,
+            line: { color: bedColor, width: 1.5 },
+          });
+        }
       }
-      if (bedIsActive) {
-        const bedX = hasAdjBed ? shiftIntoWindow(adjustedTimes.bed) : bedTime;
-        shapes.push({
-          type: 'line', xref: 'x', yref: 'paper', layer: 'below',
-          x0: bedX, x1: bedX, y0: 0, y1: vLineTop,
-          line: hasAdjBed ? { color: bedColor, width: 1.25 } : bedIdleLine,
-        });
-      }
+
 
       // Active-phase geometry + draggable handle
       const tAscendGeom = cfg.ascend_start;
@@ -2593,6 +2596,30 @@
       const liveAreaForDot = (selectedArea && areaStatus) ? (areaStatus[selectedArea.area_id] || {}) : {};
       const isOnForDot = liveAreaForDot.is_on === true && liveAreaForDot.is_circadian !== false;
       const nowDotBorder = isOnForDot ? '#fff' : '#0a0a0a';
+
+      // NOW vertical line — most-prominent vertical element on the chart.
+      // CCT-tinted to match the cursor dot + page-header readout, so the
+      // dot + line + header all read as one continuous "current moment"
+      // cluster. Two segments with a y-gap around the dot so the line
+      // doesn't overdraw it. Solid line, width 1.5, layer above so it
+      // sits over the wake/bed line during phase drag.
+      const nowLineColor = colorWithAlpha(cctToRGB(markerCCT), 0.85);
+      const nowLineStyle = { color: nowLineColor, width: 1.5 };
+      const cursorDotPaperY = cursorBulbY / 110;
+      const dotGap = 0.05;  // ~5% of plot height above/below the dot
+      shapes.push({
+        type: 'line', xref: 'x', yref: 'paper',
+        x0: cursorHour, x1: cursorHour,
+        y0: 0, y1: Math.max(0, cursorDotPaperY - dotGap),
+        line: nowLineStyle, layer: 'above',
+      });
+      shapes.push({
+        type: 'line', xref: 'x', yref: 'paper',
+        x0: cursorHour, x1: cursorHour,
+        y0: Math.min(vLineTop, cursorDotPaperY + dotGap), y1: vLineTop,
+        line: nowLineStyle, layer: 'above',
+      });
+
       traces.push({
         type: 'scatter', mode: 'markers',
         x: [cursorHour], y: [cursorBulbY],

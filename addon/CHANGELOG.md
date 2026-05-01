@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.245
+- **Wake/bed in-plot line collapses to just the below-axis connector tick when idle.** Previously the full-height wake/bed line drew through the chart at all times, competing with the cursor for vertical attention. Now it only renders during an active phase-slider drag — when the user is bending the curve, the line extends through the chart so they can see the shift at every y. On release, the line snaps back to nothing (just the connector tick from the below-axis label up to the x-axis remains, mirroring sunrise/sunset). Detection: read `.slider-track[data-mode="phase"].dragging` from the DOM at render time.
+- **NOW vertical line added — always visible, most-prominent vertical element.** Solid line at `cursorHour`, CCT-tinted to match the cursor dot + page-header readout (so dot + line + header read as one "current moment" cluster). Width 1.5, two segments with a 5% y-gap around the cursor dot so the line doesn't overdraw it. Layer `above` — sits on top of wake/bed when both are visible during phase drag.
+
+## 1.2.244
+- **Sun-dimming label clipped off-canvas when cursor was in the descend phase.** `firstDivIdx` was searching the full 24h `hours` array for the first divergent sample, but the chart only renders the active half of the day. So when rendering the descend phase, the search would find the morning sun-dimming peak (~9a) which lives in the invisible morning half — the label anchored there got clipped off the visible plot. Bounded the search to samples within the active phase window, so the label always anchors at the leading edge of dimming WITHIN what the user can see.
+
 ## 1.2.243
 - **Section headers only appear when both groups have rows.** Previously the "In SunOffice" header still rendered as the only section header even when there was no Reaches group to compare against — read as redundant chrome. Now: headers show only when there's actually something to differentiate. If a room has no cross-area controls (every control physically lives in the room AND targets only the room — common case for setups where each switch is configured for its own room), the controls list is just a flat list with the card title carrying the context.
 
