@@ -357,7 +357,7 @@
     /* Mini chart container (from modal) */
     #mini-chart {
       width: 100%;
-      height: 280px;
+      height: 120px;
       margin: 4px 0;
       touch-action: pan-x pan-y;
     }
@@ -385,7 +385,7 @@
     .hslider-row {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 4px;
     }
     .hslider-header {
       display: flex;
@@ -545,131 +545,109 @@
       pointer-events: none;
       text-shadow: 0 1px 2px rgba(0,0,0,0.6);
     }
-    /* Chart hero cluster — positioned inside the chart's bottom margin
-       at the active handle's x-position, directly under the wake/bed line end */
+    /* Chart shell — lives inside the Adjust card body in Ship 2. No longer
+       sticky; scrolls with the page. Positioned relative so absolutely-
+       positioned children (NOW pill, sun-info chip, solar/phase labels)
+       anchor correctly. Bottom padding holds the two below-axis label
+       rows (sunrise/sunset just below axis, wake/bed one row lower). */
     #chart-shell {
-      position: sticky;
-      top: 56px;
-      z-index: 5;
-      background: var(--bg);
-      padding: 16px 0 2px;
+      position: relative;
+      padding: 4px 0 40px;
       margin-bottom: 4px;
     }
-    /* Sun-conditions chip in top-right of chart (intensity % + weather icon).
-       Visible only between sunrise and sunset. */
+    #chart-shell #mini-chart { height: 120px; margin-top: 6px; }
+    /* Sun-intensity chip — sits above the chart at solar noon (clamped to
+       the visible phase window). Borderless, transparent bg so it reads as
+       inline annotation rather than a clickable pill. Visible only when the
+       room has any sun-exposure AND the cursor is between sunrise/sunset. */
     .chart-sun-info {
       position: absolute;
-      top: 8px;
-      right: 12px;
+      top: 4px;
       display: none;
       align-items: center;
       gap: 4px;
-      font-size: var(--font-body);
+      transform: translateX(-50%);
+      font-size: 11px;
       font-weight: 600;
-      color: rgba(245, 230, 200, 0.9);
-      background: rgba(20, 22, 28, 0.55);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      padding: 2px 7px;
-      border-radius: 10px;
+      color: rgba(255, 225, 140, 0.92);
+      background: transparent;
+      border: none;
+      padding: 0;
       z-index: 6;
-      pointer-events: none;
+      cursor: default;
       letter-spacing: 0.02em;
     }
     .chart-sun-info.visible { display: inline-flex; }
-    .chart-sun-info-icon { font-size: var(--font-value); line-height: 1; }
-    /* NOW pill — HTML overlay positioned at the cursor x above the plot.
-       Uses HTML (not a Plotly annotation) so we get rounded corners + crisp
-       weighted font rendering that matches rhythm-design's chip styling. */
-    .chart-now-pill {
+    .chart-sun-info-icon { font-size: 13px; line-height: 1; color: rgba(255, 225, 140, 0.95); }
+    /* Below-axis labels — sunrise/sunset (yellow) + wake/bed (blue), ported
+       from rhythm-design's .solar-label pattern. Sit ~6px below the chart's
+       x-axis; a 1px connector bridges up to the axis line. Hover reveals a
+       time chip in the dark popover style. Hidden until .visible flag is
+       added by positionChartLabels(). */
+    .area-solar-label,
+    .area-phase-label {
       position: absolute;
-      top: 4px;
       transform: translateX(-50%);
-      display: none;
-      padding: 3px 10px;
-      border-radius: 8px;
-      border: 1.5px solid;
-      font-size: 13px;
+      font-size: 11px;
       font-weight: 600;
       white-space: nowrap;
-      pointer-events: none;
-      z-index: 6;
-      letter-spacing: 0.02em;
-    }
-    .chart-now-pill.visible { display: inline-block; }
-    .chart-hero {
-      position: absolute;
-      left: 0;
-      bottom: 6px;
-      transform: translate(-50%, 0);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 2px;
-      pointer-events: none;
       z-index: 4;
-    }
-    .chart-hero-line1,
-    .chart-hero-line2 {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      white-space: nowrap;
-      pointer-events: auto;
-    }
-    .chart-hero-label {
-      font-size: var(--font-body);
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: rgba(220, 220, 220, 0.7);
-    }
-    .chart-hero.phase-wake .chart-hero-label,
-    .chart-hero.phase-wake .chart-hero-time { color: #5cb3ff; }
-    .chart-hero.phase-bed .chart-hero-label,
-    .chart-hero.phase-bed .chart-hero-time { color: #ffe680; }
-    .chart-hero-reset {
-      background: none;
-      border: none;
-      color: rgba(200, 200, 200, 0.65);
-      font-size: var(--font-value);
-      line-height: 1;
-      padding: 2px 4px;
-      cursor: pointer;
-      border-radius: 3px;
-    }
-    .chart-hero-reset:hover {
-      color: #fff;
-      background: rgba(255, 255, 255, 0.08);
-    }
-    .chart-hero-reset.hidden {
+      cursor: default;
+      user-select: none;
+      -webkit-user-select: none;
+      font-variant-numeric: tabular-nums;
       display: none;
     }
-    .chart-hero-time {
-      font-size: var(--font-display);
-      font-weight: 600;
-      color: var(--text);
-      min-width: 60px;
-      text-align: center;
+    /* sunrise/sunset (yellow) sit just below the x-axis with a short
+       connector tick. wake/bed (blue) sit one row LOWER per spec — same
+       visual treatment as rhythm-design's sleep pills, but as a label. */
+    .area-solar-label { bottom: 22px; }
+    .area-phase-label { bottom: 4px; }
+    .area-solar-label.visible,
+    .area-phase-label.visible { display: inline-block; }
+    .area-solar-label { color: rgba(255,225,140,0.92); }
+    .area-phase-label { color: rgba(140, 195, 255, 0.95); }
+    .area-solar-label:hover { color: rgba(255,235,170,1); }
+    .area-phase-label:hover { color: rgba(170, 215, 255, 1); }
+    /* Connector tick from the label up to the chart x-axis line. Height set
+       per-frame by positionChartLabels(). */
+    .area-solar-label::before,
+    .area-phase-label::before {
+      content: '';
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      width: 1px;
+      height: var(--area-label-connector-h, 0px);
+      margin-bottom: 1px;
+      transform: translateX(-50%);
+      pointer-events: none;
     }
-    .chart-hero-step {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      color: rgba(220, 220, 220, 0.85);
-      font-size: var(--font-muted);
-      line-height: 1;
-      padding: 4px 7px;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: opacity 0.15s, background 0.15s;
-    }
-    .chart-hero-step:hover:not(:disabled) {
-      background: rgba(255, 255, 255, 0.12);
+    .area-solar-label::before { background: rgba(255,225,140,0.55); }
+    .area-phase-label::before { background: rgba(140, 195, 255, 0.55); }
+    /* Hover tooltip — time pill above the label. */
+    .area-solar-label::after,
+    .area-phase-label::after {
+      content: attr(data-time);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 3px 7px;
+      background: #3a3a3a;
       color: #fff;
+      font-size: 11px;
+      font-weight: 500;
+      border-radius: 4px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.12s;
+      margin-bottom: 5px;
+      font-variant-numeric: tabular-nums;
     }
-    .chart-hero-step:disabled {
-      opacity: 0.25;
-      cursor: default;
-    }
+    .area-solar-label:hover::after,
+    .area-phase-label:hover::after { opacity: 1; }
     /* Circadian-off overlay */
     .circadian-off-overlay::after {
       content: '';
@@ -1179,25 +1157,6 @@
 
     <!-- Cards Section (curve + auto schedule) -->
     <div id="auto-sched-section" class="auto-sched-section" style="display:none;">
-    <div id="chart-shell">
-      <div id="mini-chart"></div>
-      <div id="chart-now-pill" class="chart-now-pill"></div>
-      <div id="chart-sun-info" class="chart-sun-info">
-        <span class="chart-sun-info-icon" id="chart-sun-info-icon">&#x2600;</span>
-        <span id="chart-sun-info-pct">&mdash;</span>
-      </div>
-      <div id="chart-hero" class="chart-hero" style="display:none;">
-        <div class="chart-hero-line1">
-          <span class="chart-hero-label" id="chart-hero-label">Wake</span>
-          <button class="chart-hero-reset hidden" id="reset-phase" onclick="executeAction('reset_phase')" title="Reset wake/bed time">&#x21BA;</button>
-        </div>
-        <div class="chart-hero-line2">
-          <button class="chart-hero-step" id="chart-step-back" type="button" title="Earlier" onclick="chartHeroStep('back')">&#x25C0;</button>
-          <span class="chart-hero-time" id="chart-hero-time">—</span>
-          <button class="chart-hero-step" id="chart-step-fwd" type="button" title="Later" onclick="chartHeroStep('fwd')">&#x25B6;</button>
-        </div>
-      </div>
-    </div>
     <div class="auto-sched-card auto-sched-card--headline is-open" id="chart-card">
       <div class="auto-sched-header" onclick="toggleChartCard()">
         <span class="auto-sched-chevron">&#x203A;</span>
@@ -1236,6 +1195,23 @@
               </svg>
             </button>
           </div>
+          <!-- Chart relocated into the Adjust card body in Ship 2. Read-only:
+               cursor is "now" (live ticking, not user-controllable). Single
+               active phase only — see renderMiniChart for the windowing. -->
+          <div id="chart-shell">
+            <div id="mini-chart"></div>
+            <div id="chart-sun-info" class="chart-sun-info" title="Current sun intensity">
+              <span class="chart-sun-info-icon" id="chart-sun-info-icon">&#x2600;</span>
+              <span id="chart-sun-info-pct">&mdash;</span>
+            </div>
+            <!-- Below-axis labels (Ship 2 polish) — yellow sunrise/sunset and
+                 blue wake/bed, mirroring rhythm-design's .solar-label pattern.
+                 Positioned per-frame by positionChartLabels() against
+                 _fullLayout.xaxis offsets. Hidden until shown via .visible. -->
+            <div class="area-solar-label" id="area-sunrise-label" data-time="">sunrise</div>
+            <div class="area-solar-label" id="area-sunset-label" data-time="">sunset</div>
+            <div class="area-phase-label" id="area-phase-label" data-time="">wake</div>
+          </div>
           <div class="adjust-section">
             <div class="hslider-row">
               <div class="hslider-header">
@@ -1256,6 +1232,22 @@
                 <button class="hslider-reset hidden" id="reset-color" onclick="executeAction('reset_color_override')" title="Reset color">&#x21BA;</button>
               </div>
               <div class="slider-track" data-mode="color">
+                <div class="slider-track-bg"></div>
+                <div class="slider-thumb-ghost"></div>
+                <div class="slider-thumb"></div>
+              </div>
+            </div>
+            <!-- Phase-time slider (Wake when in ascend, Bed when in descend).
+                 Auto-flips at the phase boundary. Constrained to phase bounds
+                 with the existing narrowed-boundary buffer formula
+                 (computePhaseSafeOffset). Drag-end calls set_phase_time. -->
+            <div class="hslider-row">
+              <div class="hslider-header">
+                <span class="hslider-label" id="slider-phase-label">Wake</span>
+                <span class="hslider-value" id="slider-hero-phase">—</span>
+                <button class="hslider-reset hidden" id="reset-phase" onclick="executeAction('reset_phase')" title="Reset wake/bed time">&#x21BA;</button>
+              </div>
+              <div class="slider-track" data-mode="phase">
                 <div class="slider-track-bg"></div>
                 <div class="slider-thumb-ghost"></div>
                 <div class="slider-thumb"></div>
@@ -2033,21 +2025,37 @@
       const bulbPct = [];
       const cct = [];
 
+      // Flat override (Ship 2 chart): apply both brightness and color
+      // overrides uniformly across the whole day instead of decaying from
+      // set_at to the phase boundary. Visualizes "what the curve would look
+      // like if this setting applied all day" — easier to read than the
+      // previous live-decay model which produced a sharp NOW cliff. The
+      // actual lights still apply forward-only on the server; this is a
+      // chart-only what-if rendering.
+      const flatBriOverride = state?.brightness_override ?? 0;
+      // Color flat: compute the natural CCT (no override) via a state with
+      // both override fields nulled, then add the override delta directly
+      // on top. Going through `calcMiniColor` with the override+null-set-at
+      // path routes through `applySolarRule` which only adds the override
+      // additively when sliderColor=true (i.e. set_at is non-null) — so the
+      // simplest way to apply it flatly is to re-add it ourselves here.
+      const colorOv = state?.color_override ?? 0;
+      const noColorOvState = state ? { ...state, color_override: null, color_override_set_at: null } : state;
+
       for (let i = 0; i < numSamples; i++) {
         const h = xAnchor + (i / numSamples) * 24;
         const hMod = ((h % 24) + 24) % 24;
         hours.push(h);
-        // Pure room target (no override) — drives the dotted natural-light line
-        // and is the basis for the sun-dimming reduction.
+        // Pure room target (no override).
         const pureRoom = calcMiniBrightness(hMod, cfg, state, currentHour, { skipOverride: true }) * 100;
         brightnessPct.push(pureRoom);
-        // Bulb output = pure_room × sun_factor + override (decayed). Override is
-        // added in bulb-space, not pre-sun, so the override doesn't get squished
-        // by sun_bright_factor — matching backend's set_position accounting.
+        // Bulb output = pure_room × sun_factor + flat override delta. Override
+        // is added in bulb-space, not pre-sun, so it doesn't get squished by
+        // sun_bright_factor — matching backend's set_position accounting.
         const bulbNatural = calcBulbBrightnessAt(hMod, sunTimes, currentHour, pureRoom);
-        const overridePct = calcOverrideDecay(hMod, cfg, state) * 100;
-        bulbPct.push(Math.max(0, Math.min(100, bulbNatural + overridePct)));
-        cct.push(calcMiniColor(hMod, cfg, state, sunTimes, currentHour));
+        bulbPct.push(Math.max(0, Math.min(100, bulbNatural + flatBriOverride)));
+        const naturalCct = calcMiniColor(hMod, cfg, noColorOvState, sunTimes, currentHour);
+        cct.push(naturalCct + colorOv);
       }
 
       return { hours, brightnessPct, bulbPct, cct };
@@ -2084,119 +2092,17 @@
       return remMin > 0 ? `${hr}h ${remMin}m` : `${hr}h`;
     }
 
-    // Drag state for chart midpoint handle
-    let _chartDrag = {
-      active: false,
-      dragHour: null,
-      phaseMin: null,
-      phaseMax: null,
-      phaseSlopeSigned: null,
-      nowHour: null,
-      cursorInAscend: null,
-      initialized: false,
-    };
+    // Stub kept for back-compat: chart drag was retired in Ship 2 (chart is
+    // now read-only — wake/bed time is changed via the dedicated phase
+    // slider in the Adjust card body). Code paths that read `_chartDrag.active`
+    // still exist but never see `active=true` since nothing flips it.
+    const _chartDrag = { active: false, dragHour: null, cursorInAscend: null };
 
-    // Expose active-phase geometry for drag handlers to read/clamp on move
+    // Active-phase geometry stashed by renderMiniChart for updateChartNowPill
+    // (positions the cursor pill at the cursor x-pixel inside chart-shell).
     let _chartGeom = { activeMidHour: null, phaseMin: null, phaseMax: null, phaseSlopeSigned: null, nowHour: null, cursorInAscend: null };
 
-    // NOW pill data, populated by renderMiniChart and consumed by updateChartNowPill
-    // after the chart renders (HTML overlay positioning needs the rendered _fullLayout).
-    let _chartNowPillData = null;
-
-    function setupChartDragHandlers() {
-      const chartDiv = document.getElementById('mini-chart');
-      if (!chartDiv || _chartDrag.initialized) return;
-      _chartDrag.initialized = true;
-
-      function pixelToDataX(clientX) {
-        const fl = chartDiv._fullLayout;
-        if (!fl || !fl.xaxis) return null;
-        const rect = chartDiv.getBoundingClientRect();
-        const relX = clientX - rect.left - fl.xaxis._offset;
-        if (relX < 0 || relX > fl.xaxis._length) return null;
-        const xAnchor = _chartGeom.xAnchor ?? 0;
-        return xAnchor + (relX / fl.xaxis._length) * 24;
-      }
-      function dataXToClientPixel(dataX) {
-        const fl = chartDiv._fullLayout;
-        if (!fl || !fl.xaxis) return null;
-        const rect = chartDiv.getBoundingClientRect();
-        const xAnchor = _chartGeom.xAnchor ?? 0;
-        return rect.left + fl.xaxis._offset + ((dataX - xAnchor) / 24) * fl.xaxis._length;
-      }
-
-      const HANDLE_HIT_PX = 18;
-      function isNearHandle(clientX) {
-        if (_chartGeom.activeMidHour == null) return false;
-        const handlePx = dataXToClientPixel(_chartGeom.activeMidHour);
-        if (handlePx == null) return false;
-        return Math.abs(clientX - handlePx) <= HANDLE_HIT_PX;
-      }
-
-      function onDown(e) {
-        if (!isNearHandle(e.clientX)) return;
-        e.preventDefault();
-        try { chartDiv.setPointerCapture(e.pointerId); } catch (err) {}
-        _chartDrag.active = true;
-        _chartDrag.dragHour = _chartGeom.activeMidHour;
-        _chartDrag.phaseMin = _chartGeom.phaseMin;
-        _chartDrag.phaseMax = _chartGeom.phaseMax;
-        _chartDrag.phaseSlopeSigned = _chartGeom.phaseSlopeSigned;
-        _chartDrag.nowHour = _chartGeom.nowHour;
-        _chartDrag.cursorInAscend = _chartGeom.cursorInAscend;
-        chartDiv.classList.add('dragging');
-        chartDiv.classList.remove('handle-hover');
-      }
-      function onMove(e) {
-        if (_chartDrag.active) {
-          e.preventDefault();
-          const dataX = pixelToDataX(e.clientX);
-          if (dataX == null) return;
-          const phaseMid = (_chartDrag.phaseMin + _chartDrag.phaseMax) / 2;
-          let dragX = dataX;
-          if (Math.abs(dragX + 24 - phaseMid) < Math.abs(dragX - phaseMid)) dragX += 24;
-          if (Math.abs(dragX - 24 - phaseMid) < Math.abs(dragX - phaseMid)) dragX -= 24;
-          dragX = Math.max(_chartDrag.phaseMin + 0.05, Math.min(_chartDrag.phaseMax - 0.05, dragX));
-          _chartDrag.dragHour = ((dragX % 24) + 24) % 24;
-          if (selectedArea) renderMiniChartForArea(selectedArea.area_id);
-          return;
-        }
-        // Not dragging — toggle hover class for cursor feedback near the handle
-        chartDiv.classList.toggle('handle-hover', isNearHandle(e.clientX));
-      }
-      function onUp(e) {
-        if (!_chartDrag.active) return;
-        e.preventDefault();
-        try { chartDiv.releasePointerCapture(e.pointerId); } catch (err) {}
-        chartDiv.classList.remove('dragging');
-        const targetTime = _chartDrag.dragHour;
-        _chartDrag.active = false;
-        executeSetPhaseTime(targetTime);
-      }
-      function onLeave() {
-        if (!_chartDrag.active) chartDiv.classList.remove('handle-hover');
-      }
-
-      chartDiv.addEventListener('pointerdown', onDown);
-      chartDiv.addEventListener('pointermove', onMove);
-      chartDiv.addEventListener('pointerup', onUp);
-      chartDiv.addEventListener('pointercancel', onUp);
-      chartDiv.addEventListener('pointerleave', onLeave);
-
-      // Re-align the chart-hero cluster whenever the chart resizes
-      // (responsive: true on Plotly means the plot stretches with the
-      // container, but our overlay needs a recompute).
-      if (window.ResizeObserver) {
-        const ro = new ResizeObserver(() => {
-          if (!selectedArea) return;
-          const ctx = getSliderCfgAndState();
-          if (!ctx) return;
-          const phaseCtx = buildPhaseCtx(ctx.cfg, ctx.areaState, ctx.currentHour);
-          updateChartHero(phaseCtx, ctx.cfg, ctx.areaState);
-        });
-        ro.observe(chartDiv);
-      }
-    }
+    // NOW pill stash retired in Ship 2 — header readout carries this now.
 
     function renderMiniChart(cfg, state, sunTimes, currentHour, isActive, adjustedTimes, markerOverride) {
       if (!cfg || !sunTimes) return;
@@ -2269,19 +2175,18 @@
         });
       }
 
-      // Natural-light target curve — only drawn where bulb/natural diverge (>=1%).
-      // Uses null breaks so the dotted line disappears before sunrise / after sunset
-      // and at any other point where the two curves coincide.
-      if (hasDivergence) {
-        const maskedNatural = hours.map((h, i) =>
-          (brightnessPct[i] - bulbPct[i]) >= 1.0 ? brightnessPct[i] : null
-        );
+      // Sun-contribution dotted line dropped on the area page (kept on rhythm
+      // details where it has more context). The dotted line on this page is
+      // repurposed below as a slider-drag ghost: snapshots the pre-drag bulb
+      // curve so users can see "before vs. after" while dialing brightness/
+      // color, then disappears on pointerup.
+      if (window._chartDragGhostCurve && Array.isArray(window._chartDragGhostCurve.bulbPct)
+          && window._chartDragGhostCurve.bulbPct.length === hours.length) {
         traces.push({
           type: 'scatter', mode: 'lines',
-          x: hours, y: maskedNatural,
+          x: hours, y: window._chartDragGhostCurve.bulbPct,
           line: { width: 1.5, color: 'rgba(220, 220, 220, 0.55)', dash: 'dot' },
-          connectgaps: false,
-          hoverinfo: 'skip', showlegend: false
+          hoverinfo: 'skip', showlegend: false,
         });
       }
 
@@ -2372,96 +2277,38 @@
       // Convert curve y (0–100) to paper y (chart range 0–110, plus paper offset)
       const yToPaper = (y) => Math.max(0, Math.min(0.91, (y / 110) * 0.91));
 
-      // Wake/bed vertical lines — only the ACTIVE phase renders; inactive phase markers
-      // dropped per UX direction (focus on next-up bed or wake, plus NOW).
+      // Wake/bed vertical line — Ship 2: thin ambient line (rhythm-design
+      // style: width 1, alpha 0.30) for the bounding wake or bed of the
+      // active phase only. Adjusted/daily distinction stays so the shift
+      // remains visible. Active-phase wash + inactive mute + multiple
+      // line treatments dropped because xaxis.range now constrains the
+      // visible plot to the active phase, making them redundant.
       const vLineTop = 0.91;  // ≈ y=100 in data coords (range 0-110)
-      const wakeColor = 'rgba(92, 179, 255, 0.78)';
-      const wakeWidth = 2.5;
-      const bedColor = 'rgba(255, 230, 128, 0.78)';
-      const bedWidth = 2.5;
-      const wakeTopPaper = vLineTop;
-      const bedTopPaper = vLineTop;
-      // Daily (default) wake/bed lines — muted phase color when shifted so the
-      // user can see the gap between daily and adjusted.
-      const wakeDailyLine = hasAdjWake
-        ? { color: 'rgba(92, 179, 255, 0.28)', width: 1.25 }
-        : { color: wakeColor, width: wakeWidth };
-      const bedDailyLine = hasAdjBed
-        ? { color: 'rgba(255, 230, 128, 0.28)', width: 1.25 }
-        : { color: bedColor, width: bedWidth };
+      const wakeColor = 'rgba(92, 179, 255, 0.55)';
+      const bedColor = 'rgba(111, 169, 255, 0.55)';
+      const wakeIdleLine = { color: 'rgba(92, 179, 255, 0.30)', width: 1 };
+      const bedIdleLine = { color: 'rgba(111, 169, 255, 0.30)', width: 1 };
+      // Single line per active phase — daily OR adjusted, never both. Earlier
+      // versions drew the daily line as a muted "ghost" alongside the adjusted
+      // line so the user could see the shift, but the result was two competing
+      // blue lines on the chart with the slider only moving one of them. Now
+      // it's just the active line at the current target time, full stop.
       if (wakeIsActive) {
+        const wakeX = hasAdjWake ? shiftIntoWindow(adjustedTimes.wake) : wakeTime;
         shapes.push({
-          type: 'line', xref: 'x', yref: 'paper',
-          x0: wakeTime, x1: wakeTime, y0: -0.29, y1: wakeTopPaper,
-          line: wakeDailyLine
+          type: 'line', xref: 'x', yref: 'paper', layer: 'below',
+          x0: wakeX, x1: wakeX, y0: 0, y1: vLineTop,
+          line: hasAdjWake ? { color: wakeColor, width: 1.25 } : wakeIdleLine,
         });
       }
       if (bedIsActive) {
+        const bedX = hasAdjBed ? shiftIntoWindow(adjustedTimes.bed) : bedTime;
         shapes.push({
-          type: 'line', xref: 'x', yref: 'paper',
-          x0: bedTime, x1: bedTime, y0: -0.29, y1: bedTopPaper,
-          line: bedDailyLine
+          type: 'line', xref: 'x', yref: 'paper', layer: 'below',
+          x0: bedX, x1: bedX, y0: 0, y1: vLineTop,
+          line: hasAdjBed ? { color: bedColor, width: 1.25 } : bedIdleLine,
         });
       }
-
-      // Adjusted wake/bed vertical lines (solid, colored) when midpoint is shifted,
-      // and a faint phase-colored band between daily and adjusted so the shift
-      // reads visually. Only renders for the ACTIVE phase (inactive-phase markers are dropped).
-      if (hasAdjWake && wakeIsActive) {
-        const adjWake = shiftIntoWindow(adjustedTimes.wake);
-        const adjWakeTop = vLineTop;
-        const bandX0 = Math.min(wakeTime, adjWake);
-        const bandX1 = Math.max(wakeTime, adjWake);
-        shapes.push({
-          type: 'rect', xref: 'x', yref: 'paper',
-          x0: bandX0, x1: bandX1, y0: -0.29, y1: Math.max(wakeTopPaper, adjWakeTop),
-          fillcolor: 'rgba(92, 179, 255, 0.14)',
-          line: { width: 0 }, layer: 'below'
-        });
-        shapes.push({
-          type: 'line', xref: 'x', yref: 'paper',
-          x0: adjWake, x1: adjWake, y0: -0.29, y1: adjWakeTop,
-          line: { color: wakeColor, width: wakeWidth }
-        });
-      }
-      if (hasAdjBed && bedIsActive) {
-        const adjBed = shiftIntoWindow(adjustedTimes.bed);
-        const adjBedTop = vLineTop;
-        const bandX0 = Math.min(bedTime, adjBed);
-        const bandX1 = Math.max(bedTime, adjBed);
-        shapes.push({
-          type: 'rect', xref: 'x', yref: 'paper',
-          x0: bandX0, x1: bandX1, y0: -0.29, y1: Math.max(bedTopPaper, adjBedTop),
-          fillcolor: 'rgba(255, 230, 128, 0.14)',
-          line: { width: 0 }, layer: 'below'
-        });
-        shapes.push({
-          type: 'line', xref: 'x', yref: 'paper',
-          x0: adjBed, x1: adjBed, y0: -0.29, y1: adjBedTop,
-          line: { color: bedColor, width: bedWidth }
-        });
-      }
-
-      // Phase wash — faint colored fill across the active half so the active phase reads
-      const activePhaseLeft = wakeIsActive ? tAscendGeom_ : tDescendGeom_;
-      const activePhaseRight = wakeIsActive ? tDescendGeom_ : (tAscendGeom_ + 24);
-      const washColor = wakeIsActive ? 'rgba(92, 179, 255, 0.045)' : 'rgba(255, 230, 128, 0.045)';
-      shapes.push({
-        type: 'rect', xref: 'x', yref: 'paper',
-        x0: activePhaseLeft, x1: activePhaseRight, y0: 0, y1: vLineTop,
-        fillcolor: washColor, line: { width: 0 }, layer: 'below'
-      });
-
-      // Inactive-phase mute — dark overlay recedes the inactive half (including the
-      // bulb-curve trace beneath) so the active phase reads as primary. y1 stops short
-      // of the plot top so the moon image (y=0.91..1.05) stays bright.
-      const inactiveLeft = wakeIsActive ? tDescendGeom_ : tAscendGeom_;
-      const inactiveRight = wakeIsActive ? (tAscendGeom_ + 24) : tDescendGeom_;
-      shapes.push({
-        type: 'rect', xref: 'x', yref: 'paper',
-        x0: inactiveLeft, x1: inactiveRight, y0: 0, y1: 0.88,
-        fillcolor: 'rgba(8, 10, 14, 0.55)', line: { width: 0 }, layer: 'above'
-      });
 
       // Active-phase geometry + draggable handle
       const tAscendGeom = cfg.ascend_start;
@@ -2512,9 +2359,27 @@
         return bulbPct[bulbPct.length - 1];
       })();
 
-      // Handle hover: show time + drag affordance (visual delta band replaces delta text)
+      // Wake/bed handle dot retired in Ship 2 — chart is read-only; the
+      // wake/bed slider in the Adjust card body owns phase-time editing.
       const defaultMidHour = cursorInAscendGeom ? wakeTime : bedTime;
       const isHandleShifted = cursorInAscendGeom ? hasAdjWake : hasAdjBed;
+
+      // Helper: interpolate bulb-curve y at any hour along the sample grid.
+      // Used by the NOW dot below.
+      const bulbYAt = (hr) => {
+        for (let i = 1; i < hours.length; i++) {
+          if (hours[i] >= hr) {
+            const span = hours[i] - hours[i - 1];
+            const t = span > 0 ? (hr - hours[i - 1]) / span : 0;
+            return bulbPct[i - 1] + t * (bulbPct[i] - bulbPct[i - 1]);
+          }
+        }
+        return bulbPct[bulbPct.length - 1];
+      };
+
+      // (handle marker + daily-hover pseudo-marker dropped; vertical line +
+      //  below-axis label carry the visual; no on-curve dot needed.)
+      /* RETIRED:
       const handleLabel = (cursorInAscendGeom ? 'wake' : 'bed') + ' \u00B7 ' + formatHourLabel(activeMidHour)
         + '<br><span style="font-size:10px; opacity:0.7;">drag to shift</span>';
       traces.push({
@@ -2564,29 +2429,15 @@
           showlegend: false,
         });
       }
+      */ // end RETIRED handle marker block
 
       // NOW dot — sits on the bulb curve at the current cursor position so
       // the NOW anchor gets the same on-curve callout as wake/bed. Styled
       // in the NOW pill's cyan to tie the dot + pill + cursor line together.
+      // Legacy cyan NOW dot trace removed \u2014 the CCT-tinted dot drawn below
+      // (with white outline when lights on) is the cursor; this older one
+      // was duplicating it and carrying a redundant `% \u00B7 K` tooltip.
       const cursorHourForDot = shiftIntoWindow(currentHour);
-      traces.push({
-        type: 'scatter', mode: 'markers',
-        x: [cursorHourForDot], y: [bulbYAt(cursorHourForDot)],
-        marker: {
-          size: 16, color: 'rgba(140, 210, 255, 0.95)', symbol: 'circle',
-          line: { width: 2, color: '#0a0a0a' },
-        },
-        cliponaxis: false,
-        hovertext: 'now \u00B7 ' + formatHourLabel(currentHour)
-          + ' \u00B7 ' + Math.round(markerBri) + '% \u00B7 ' + Math.round(markerCCT) + 'K',
-        hoverinfo: 'text',
-        hoverlabel: {
-          bgcolor: colorWithAlpha(cctToRGB(markerCCT), 0.92),
-          bordercolor: colorWithAlpha(cctToRGB(markerCCT), 0.65),
-          font: { color: readableTextColor(cctToRGB(markerCCT)), size: 13 }
-        },
-        showlegend: false,
-      });
 
       const sunrise = sunTimes.sunrise;
       const sunset = sunTimes.sunset;
@@ -2596,31 +2447,17 @@
       const effectiveWake = hasAdjWake ? shiftIntoWindow(adjustedTimes.wake) : wakeTime;
       const effectiveBed = hasAdjBed ? shiftIntoWindow(adjustedTimes.bed) : bedTime;
 
-      // Sunrise / sunset markers — simple rayed sun + crescent moon.
+      // Sunrise/sunset above-axis sun + moon images dropped in Ship 2 polish —
+      // labels move below the x-axis as HTML overlays (mirroring rhythm-design's
+      // .solar-label treatment).
       const cursorHour = shiftIntoWindow(currentHour);
-      const svgSunrise = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-        + '<circle cx="12" cy="12" r="5" fill="rgb(244,201,107)"/>'
-        + '<g stroke="rgb(244,201,107)" stroke-width="1.6" stroke-linecap="round">'
-        + '<line x1="12" y1="1.5" x2="12" y2="4"/>'
-        + '<line x1="12" y1="20" x2="12" y2="22.5"/>'
-        + '<line x1="1.5" y1="12" x2="4" y2="12"/>'
-        + '<line x1="20" y1="12" x2="22.5" y2="12"/>'
-        + '<line x1="4.4" y1="4.4" x2="6.2" y2="6.2"/>'
-        + '<line x1="17.8" y1="17.8" x2="19.6" y2="19.6"/>'
-        + '<line x1="4.4" y1="19.6" x2="6.2" y2="17.8"/>'
-        + '<line x1="17.8" y1="6.2" x2="19.6" y2="4.4"/>'
-        + '</g>'
-        + '</svg>';
       const images = [];
+      // Sunrise/sunset hover targets — invisible markers along the x-axis at
+      // sunrise/sunset hours so users can see the time chip on hover.
+      // Above-axis sun + moon images and SVG icons replaced by HTML
+      // .area-solar-label overlays positioned below the x-axis (see
+      // positionChartLabels). Hover targets retained for chart tooltips.
       if (Number.isFinite(sunrise)) {
-        images.push({
-          source: 'data:image/svg+xml;utf8,' + encodeURIComponent(svgSunrise),
-          xref: 'x', yref: 'paper',
-          x: sunriseX, y: 1.04,
-          sizex: 1.0, sizey: 0.16,
-          xanchor: 'center', yanchor: 'bottom',
-          layer: 'above'
-        });
         traces.push({
           type: 'scatter', mode: 'markers',
           x: [sunriseX], y: [100],
@@ -2629,25 +2466,7 @@
           hoverinfo: 'text', showlegend: false, cliponaxis: false
         });
       }
-      // Crescent moon: outer disc masked by an offset disc at the same cy so
-      // the crescent is vertically symmetric (earlier offset-cy geometry gave
-      // a thin-top / fat-bottom blob that read as "clipped").
-      const svgSunset = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-        + '<defs><mask id="cresmask">'
-        + '<rect width="24" height="24" fill="white"/>'
-        + '<circle cx="15" cy="12" r="9" fill="black"/>'
-        + '</mask></defs>'
-        + '<circle cx="10" cy="12" r="9" fill="rgb(230,225,195)" mask="url(#cresmask)"/>'
-        + '</svg>';
       if (Number.isFinite(sunset)) {
-        images.push({
-          source: 'data:image/svg+xml;utf8,' + encodeURIComponent(svgSunset),
-          xref: 'x', yref: 'paper',
-          x: sunsetX, y: 1.04,
-          sizex: 1.0, sizey: 0.16,
-          xanchor: 'center', yanchor: 'bottom',
-          layer: 'above'
-        });
         traces.push({
           type: 'scatter', mode: 'markers',
           x: [sunsetX], y: [100],
@@ -2657,14 +2476,10 @@
         });
       }
 
-      // Cursor vertical line — dashed, tinted to match NOW pill so line + chip read as one
+      // Cursor: NOW dot only, no dashed vertical line (Ship 2 chart simplification).
       const isFrozen = state && state.frozen_at != null;
-      const cursorLineColor = isFrozen
-        ? 'rgba(99, 179, 237, 0.7)'
-        : colorWithAlpha(cctToRGB(markerCCT), 0.7);
-      const cursorLineStyle = { color: cursorLineColor, width: 1.25, dash: '3px,3px' };
 
-      // Compute where the bulb curve is at cursorHour so the line can start there
+      // Compute where the bulb curve is at cursorHour so the dot lands on the curve
       const cursorBulbY = (() => {
         for (let i = 1; i < hours.length; i++) {
           if (hours[i] >= cursorHour) {
@@ -2676,90 +2491,75 @@
         return bulbPct[bulbPct.length - 1];
       })();
 
-      // Line runs from just above the bulb dot up to the pill's bottom edge
-      // — no longer extends down through the plot to the x-axis.
-      const cursorDotPaperY = cursorBulbY / 110;
-      shapes.push({
-        type: 'line', xref: 'x', yref: 'paper',
-        x0: cursorHour, x1: cursorHour, y0: cursorDotPaperY + 0.04, y1: 1.24,
-        line: cursorLineStyle, layer: 'above'
-      });
-
       const nowDotFill = isFrozen
         ? 'rgba(120, 190, 240, 0.95)'
         : tintColorByBrightness(cctToRGB(markerCCT), Math.round(markerBri));
-      // Black border matches the bed/wake handle marker for visual consistency
-      // — both anchor markers now read as the same kind of focal point.
-      const nowDotBorder = '#0a0a0a';
+      // White outline (2px) when lights are on — matches rhythm-design's NOW
+      // dot styling so the cursor reads as the same focal element across both
+      // pages. Falls back to near-black when the room is off (or circadian
+      // off) since white-on-dark would over-emphasize a non-active state.
+      const isOnForDot = state && state.is_on !== false && state.is_circadian !== false;
+      const nowDotBorder = isOnForDot ? '#fff' : '#0a0a0a';
       traces.push({
         type: 'scatter', mode: 'markers',
         x: [cursorHour], y: [cursorBulbY],
         marker: { size: 16, color: nowDotFill, symbol: 'circle', line: { width: 2, color: nowDotBorder } },
-        cliponaxis: false, hoverinfo: 'skip', showlegend: false
+        cliponaxis: false,
+        hovertext: 'now · ' + formatHourLabel(currentHour),
+        hoverinfo: 'text',
+        hoverlabel: {
+          bgcolor: 'rgba(40, 40, 40, 0.95)',
+          bordercolor: 'rgba(255, 255, 255, 0.2)',
+          font: { color: '#fff', size: 12 },
+        },
+        showlegend: false,
       });
+      // (Earlier "now" text annotation above the dot dropped — redundant
+      // with the hover tooltip and added visual noise to the chart.)
 
       // Stash NOW pill data for the HTML overlay (positioned after Plotly render).
       // HTML overlay path used instead of a Plotly annotation so we get crisp
       // rounded corners (Plotly annotations don't natively support border-radius)
-      // and proper font-weight rendering.
-      const cursorTimeStr = formatHourLabel(cursorHour);
-      const nowBriPct = Math.round(markerBri);
-      const nowK = Math.round(markerCCT);
-      // Drop the "NOW" prefix in real-time mode (it's redundant with the time
-      // value — if the chart is live, the time IS now). Keep "FROZEN" prefix
-      // when frozen since the time then refers to the freeze moment, not now.
-      // Time dropped from the cursor readout in the 2026-05 redesign — the
-      // sticky page-header now carries the % · K readout. Frozen state still
-      // shows the freeze-moment time since the time refers to the freeze, not
-      // "now"; live state omits it (page-header reflects current values).
-      const pillText = isFrozen
-        ? `FROZEN   ${cursorTimeStr} · ${nowBriPct}% · ${nowK}K`
-        : `${nowBriPct}% · ${nowK}K`;
-      let pillColor, pillBg, pillBorder;
-      if (isFrozen) {
-        pillColor = 'rgba(120, 190, 240, 0.95)';
-        pillBg = 'rgba(40, 60, 90, 0.85)';
-        pillBorder = 'rgba(99, 179, 237, 0.85)';
-      } else {
-        const tintedBg = tintColorByBrightness(cctToRGB(markerCCT), nowBriPct);
-        pillBg = tintedBg;
-        pillBorder = colorWithAlpha(cctToRGB(markerCCT), 0.85);
-        pillColor = readableTextColor(tintedBg);
-      }
-      _chartNowPillData = { cursorHour, text: pillText, color: pillColor, bg: pillBg, border: pillBorder };
+      // NOW chart pill retired in Ship 2 — the % · K readout in the
+      // page-header carries this info now, including during slider drag (the
+      // drag handler updates the header readout in real time). The chart
+      // surfaces "now" via the dot + tiny `now` annotation only.
 
-      // Curve label — "sun contribution" anchors at peak divergence when the
-      // two curves are meaningfully apart. The bulb curve is the main graph,
-      // so leaving it unlabeled reads cleanly; only the dotted natural-light
-      // reference line needs naming.
-      if (hasDivergence) {
-        const divX = hours[maxDivergenceIdx];
-        const divRoomY = brightnessPct[maxDivergenceIdx];
-        annotations.push({
-          x: divX, y: divRoomY, xref: 'x', yref: 'y',
-          text: 'sun contribution', showarrow: false, yshift: 10,
-          font: { size: 9, color: 'rgba(220, 220, 220, 0.7)' }
-        });
-      }
+      // "sun contribution" annotation dropped in Ship 2 simplification —
+      // dotted natural-light line stays but is unlabeled.
 
+      // Active-phase visible range (Ship 2 chart simplification): show only
+      // the half of the day the cursor is currently in. Ascend phase →
+      // [ascend_start, descend_start]; descend phase → [descend_start,
+      // ascend_start+24]. Curves still computed across full 24h; xaxis.range
+      // just clips what the user sees.
+      const phaseVisStart = curInAscend ? tAscAnchor : tDescAnchor;
+      const phaseVisEnd = curInAscend ? tDescAnchor : tAscAnchor + 24;
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        margin: { t: 50, r: 12, l: 32, b: 86 },
+        // Margins tightened in Ship 2: top down from 50 (which held the old
+        // sun + moon icons above the chart) to 22 (just enough for the
+        // sun-intensity chip). Bottom from 86 to 28 (was sized for the old
+        // chart-hero overlay; below-axis labels live OUTSIDE the plot area
+        // in chart-shell padding now, so the plot doesn't need that space).
+        margin: { t: 22, r: 12, l: 36, b: 28 },
         hovermode: 'closest',
         xaxis: (() => {
           const tickvals = [];
           const ticktext = [];
-          // Skip the trailing tick (xAnchor+24 == xAnchor, duplicate label)
-          for (let i = 0; i < 8; i++) {
-            const t = xAnchor + i * 3;
+          // Tick every 3h within the visible phase window.
+          const phaseSpan = phaseVisEnd - phaseVisStart;
+          const tickStep = 3;
+          const firstTick = Math.ceil(phaseVisStart / tickStep) * tickStep;
+          for (let t = firstTick; t <= phaseVisEnd; t += tickStep) {
             tickvals.push(t);
             ticktext.push(formatHourLabel(t));
           }
           return {
-            range: [xAnchor, xEnd],
+            range: [phaseVisStart, phaseVisEnd],
             fixedrange: true,
-            dtick: 3,
+            dtick: tickStep,
             tickvals,
             ticktext,
             gridcolor: 'rgba(80,100,130,0.22)',
@@ -2777,7 +2577,7 @@
           title: '',
           showticklabels: true,
           tickvals: [50, 100],
-          ticktext: ['50', '100']
+          ticktext: ['50%', '100%']
         },
         shapes,
         annotations,
@@ -2791,46 +2591,77 @@
         responsive: true,
         scrollZoom: false
       });
-      setupChartDragHandlers();
-      // Re-position the hero cluster against the freshly-rendered chart.
+      // Stash sunrise/sunset/wake/bed positions for the HTML overlay labels.
       try {
-        const phaseCtx = buildPhaseCtx(cfg, state, currentHour);
-        updateChartHero(phaseCtx, cfg, state);
+        // Phase label position tracks the adjusted time when shifted — so
+        // dragging the bed/wake slider moves the line AND the label together.
+        const phaseHour = cursorInAscendGeom
+          ? (hasAdjWake ? shiftIntoWindow(adjustedTimes.wake) : wakeTime)
+          : (hasAdjBed ? shiftIntoWindow(adjustedTimes.bed)  : bedTime);
+        const phaseTimeRaw = cursorInAscendGeom
+          ? (hasAdjWake ? adjustedTimes.wake : cfg.wake_time)
+          : (hasAdjBed  ? adjustedTimes.bed  : cfg.bed_time);
+        positionChartLabels({
+          sunrise: Number.isFinite(sunrise) ? sunriseX : null,
+          sunset: Number.isFinite(sunset) ? sunsetX : null,
+          phaseHour,
+          phaseLabel: cursorInAscendGeom ? 'wake' : 'bed',
+          phaseTime: phaseTimeRaw,
+          phaseVisStart, phaseVisEnd,
+          sunriseRaw: sunrise, sunsetRaw: sunset,
+        });
       } catch (e) {}
-      try { updateChartNowPill(); } catch (e) {}
     }
 
-    // Position the HTML NOW-pill overlay at the cursor's x-pixel inside chart-shell.
-    // Mirrors updateChartHero's positioning math; data is staged on _chartNowPillData
-    // by renderMiniChart so this runs cleanly after Plotly.react.
-    function updateChartNowPill() {
-      const pill = document.getElementById('chart-now-pill');
-      if (!pill) return;
-      const data = _chartNowPillData;
-      if (!data) { pill.classList.remove('visible'); return; }
+    // Position the four below-axis HTML overlay labels (sunrise, sunset,
+    // wake/bed) at their corresponding x-pixels inside chart-shell, with a
+    // dynamic connector bar bridging up to the chart x-axis line. Hide any
+    // label whose anchor falls outside the active phase visible window.
+    function positionChartLabels(opts) {
+      const shellEl = document.getElementById('chart-shell');
       const chartDiv = document.getElementById('mini-chart');
-      const shell = document.getElementById('chart-shell');
-      const fl = chartDiv && chartDiv._fullLayout;
-      if (!fl || !fl.xaxis || !shell) { pill.classList.remove('visible'); return; }
-      const xAnchor = _chartGeom.xAnchor ?? 0;
-      let visHour = data.cursorHour;
-      while (visHour < xAnchor) visHour += 24;
-      while (visHour > xAnchor + 24) visHour -= 24;
-      const chartOffsetInShell = chartDiv.getBoundingClientRect().left - shell.getBoundingClientRect().left;
-      let px = chartOffsetInShell + fl.xaxis._offset + ((visHour - xAnchor) / 24) * fl.xaxis._length;
-      pill.textContent = data.text;
-      pill.style.color = data.color;
-      pill.style.background = data.bg;
-      pill.style.borderColor = data.border;
-      pill.classList.add('visible');
-      // Clamp to chart-shell edges so the pill never spills off.
-      const shellWidth = shell.offsetWidth;
-      const pillWidth = pill.offsetWidth || 160;
-      const minLeft = Math.max(4, pillWidth / 2);
-      const maxLeft = Math.max(minLeft, shellWidth - pillWidth / 2 - 4);
-      px = Math.max(minLeft, Math.min(maxLeft, px));
-      pill.style.left = px + 'px';
+      if (!shellEl || !chartDiv) return;
+      const fl = chartDiv._fullLayout;
+      if (!fl || !fl.xaxis || !fl.yaxis) return;
+      const chartLeftInShell = chartDiv.getBoundingClientRect().left - shellEl.getBoundingClientRect().left;
+      const xOffset = fl.xaxis._offset;
+      const xLength = fl.xaxis._length;
+      const xRange = fl.xaxis.range;
+      const visSpan = (xRange && xRange.length === 2) ? (xRange[1] - xRange[0]) : 24;
+      const xStart = (xRange && xRange.length === 2) ? xRange[0] : 0;
+      const dataXToShellPx = (h) => chartLeftInShell + xOffset + ((h - xStart) / visSpan) * xLength;
+      // Connector height = chart-shell-bottom (label is 4px from bottom) up
+      // to the x-axis line. mirrors rhythm-design's solar-connector math.
+      const axisFromShellBottom = shellEl.offsetHeight - chartDiv.offsetTop - fl.yaxis._offset - fl.yaxis._length;
+      const labelTopGap = 4; // matches `.area-solar-label { bottom: 4px }`
+      const connectorH = Math.max(0, axisFromShellBottom - labelTopGap - 14 /* approx label height */);
+
+      const inWindow = (h) => h != null && h >= xRange[0] && h <= xRange[1];
+      // Connector should bridge from the TOP of each label up to (but not
+      // past) the chart's x-axis. Per-label `bottom` differs (solar 22, phase
+      // 4), so we read it from CSS rather than hardcoding — keeps the line
+      // landing exactly on the axis instead of overshooting into the chart.
+      const placeLabel = (el, h, time, suffixText) => {
+        if (!el) return;
+        if (!inWindow(h)) { el.classList.remove('visible'); return; }
+        const px = dataXToShellPx(h);
+        el.style.left = px + 'px';
+        const elBottom = parseFloat(getComputedStyle(el).bottom) || 0;
+        const elHeight = el.offsetHeight || 14;
+        const connH = Math.max(0, axisFromShellBottom - elBottom - elHeight);
+        el.style.setProperty('--area-label-connector-h', connH + 'px');
+        if (time != null) el.dataset.time = formatHourLabel(time);
+        if (suffixText) el.textContent = suffixText;
+        el.classList.add('visible');
+      };
+      placeLabel(document.getElementById('area-sunrise-label'), opts.sunrise, opts.sunriseRaw, 'sunrise');
+      placeLabel(document.getElementById('area-sunset-label'),  opts.sunset,  opts.sunsetRaw,  'sunset');
+      placeLabel(document.getElementById('area-phase-label'),   opts.phaseHour, opts.phaseTime, opts.phaseLabel);
     }
+
+    // updateChartNowPill retired in Ship 2 — chart NOW pill removed (was
+    // duplicating the page-header readout). The cursor on the chart is now
+    // just the dot + tiny "now" annotation.
 
     // ============================================================
     // Slider Functions (from areas.html modal)
@@ -2940,6 +2771,15 @@
       const kDisp = Math.round(effectiveCCT);
       if (heroColor) heroColor.textContent = kDisp + 'K';
 
+      // Phase slider: label flips Wake↔Bed at the phase boundary, value
+      // shows the active phase target time (live-replaced during drag).
+      const heroPhase = document.getElementById('slider-hero-phase');
+      const phaseLabelEl = document.getElementById('slider-phase-label');
+      if (phaseCtx) {
+        if (phaseLabelEl) phaseLabelEl.textContent = phaseCtx.cursorInAscend ? 'Wake' : 'Bed';
+        if (heroPhase) heroPhase.textContent = formatPhaseTime(phaseCtx.currentTargetTime);
+      }
+
       // Collapsed Adjust card header mirror — live brightness + kelvin
       const adjHeader = document.getElementById('adjust-outer-next');
       if (adjHeader) {
@@ -2949,129 +2789,24 @@
           + '<span style="color:' + kColor + '">' + kDisp + 'K</span>';
       }
 
-      updateChartHero(phaseCtx, cfg, areaState);
-
-      // Toggle reset buttons visibility based on override/mid state
+      // Toggle reset buttons visibility based on override/mid state.
+      // The phase reset surfaces when the wake/bed midpoint has been shifted.
       const rBri = document.getElementById('reset-brightness');
       if (rBri) rBri.classList.toggle('hidden', areaState.brightness_override == null);
       const rCol = document.getElementById('reset-color');
       if (rCol) rCol.classList.toggle('hidden', areaState.color_override == null);
-    }
-
-    // Step-size heuristic: inverse-logistic derivative at the midpoint gives
-    // delta_y = (k/4) * delta_t, so a brightness-vector step of 0.10 maps to
-    function updateChartHero(phaseCtx, cfg, areaState) {
-      const hero = document.getElementById('chart-hero');
-      if (!hero) return;
-      if (!phaseCtx || !cfg) { hero.style.display = 'none'; return; }
-      const labelEl = document.getElementById('chart-hero-label');
-      const timeEl = document.getElementById('chart-hero-time');
-      const backBtn = document.getElementById('chart-step-back');
-      const fwdBtn = document.getElementById('chart-step-fwd');
-      const resetBtn = document.getElementById('reset-phase');
-      const chartDiv = document.getElementById('mini-chart');
-      const shell = document.getElementById('chart-shell');
-
-      if (labelEl) labelEl.textContent = phaseCtx.cursorInAscend ? 'Wake' : 'Bed';
-      // Show the live drag hour in the time label if the user is actively
-      // dragging the chart handle; otherwise show the server-truth target.
-      const isChartDragging = _chartDrag.active && _chartDrag.dragHour != null;
-      const displayTime = isChartDragging ? _chartDrag.dragHour : phaseCtx.currentTargetTime;
-      if (timeEl) timeEl.textContent = formatPhaseTime(displayTime);
-      hero.classList.toggle('phase-wake', !!phaseCtx.cursorInAscend);
-      hero.classList.toggle('phase-bed', !phaseCtx.cursorInAscend);
-
-      const isShifted = areaState && (areaState.brightness_mid != null || areaState.color_mid != null);
-      if (resetBtn) resetBtn.classList.toggle('hidden', !isShifted);
-
-      const span = phaseCtx.phaseMax - phaseCtx.phaseMin;
-      // Suppress stepping near narrowed-boundary to avoid curve-shape artifacts.
-      const atMin = phaseCtx.currentTargetPct <= 3;
-      const atMax = phaseCtx.currentTargetPct >= 97;
-      if (backBtn) backBtn.disabled = atMin;
-      if (fwdBtn) fwdBtn.disabled = atMax;
-
-      // Position the hero at the active handle's x-pixel inside chart-shell.
-      // Prefer the live drag position if the chart handle is actively dragging,
-      // otherwise fall back to _chartGeom.activeMidHour (set by the last render).
-      const fl = chartDiv && chartDiv._fullLayout;
-      if (!fl || !fl.xaxis || !shell) { hero.style.display = 'none'; return; }
-      const xAnchor = _chartGeom.xAnchor ?? 0;
-      let activeMid = isChartDragging ? _chartDrag.dragHour : _chartGeom.activeMidHour;
-      if (activeMid == null) {
-        activeMid = phaseCtx.phaseMin + span * phaseCtx.currentTargetPct / 100;
-      }
-      // Map into the visible [xAnchor, xAnchor+24] range by adding/subtracting 24.
-      let activeMidVis = activeMid;
-      while (activeMidVis < xAnchor) activeMidVis += 24;
-      while (activeMidVis > xAnchor + 24) activeMidVis -= 24;
-      const chartOffsetInShell = chartDiv.getBoundingClientRect().left - shell.getBoundingClientRect().left;
-      let px = chartOffsetInShell + fl.xaxis._offset + ((activeMidVis - xAnchor) / 24) * fl.xaxis._length;
-      // Clamp to plot edges so the hero never spills off the chart.
-      const shellWidth = shell.offsetWidth;
-      const heroWidth = hero.offsetWidth || 120;
-      const minLeft = Math.max(4, heroWidth / 2);
-      const maxLeft = Math.max(minLeft, shellWidth - heroWidth / 2 - 4);
-      px = Math.max(minLeft, Math.min(maxLeft, px));
-      hero.style.left = px + 'px';
-      hero.style.display = '';
-    }
-
-    // Maps hero arrow buttons to step primitives. In wake phase, earlier (◀)
-    // means brighter now → step_up; in bed phase, earlier (◀) means dimmer
-    // now → step_down. The primitive handles step size, bounce-at-limit,
-    // sun-dimming hints, and midpoint shifting on the server.
-    //
-    // Plateau fallback: when current brightness is already at the top/bottom
-    // of the curve, step_up/step_down can't move the midpoint further (no
-    // brightness room to take a step). Backend returns at_limit=true; we then
-    // fall through to a direct time shift of ±cfg.step_fallback_minutes (default
-    // 30 min) so the user can keep nudging the handle along the time axis.
-    async function chartHeroStep(direction) {
-      if (!selectedArea) return;
-      const ctx = getSliderCfgAndState();
-      if (!ctx) return;
-      const { cfg, areaState, currentHour } = ctx;
-      const phaseCtx = buildPhaseCtx(cfg, areaState, currentHour);
-      if (!phaseCtx) return;
-      const isBack = direction === 'back';
-      const action = (isBack === phaseCtx.cursorInAscend) ? 'step_up' : 'step_down';
-      const areaId = selectedArea.area_id;
-      try {
-        const response = await fetch(basePath + '/api/area/action', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ area_id: areaId, action })
-        });
-        if (!response.ok) return;
-        const result = await response.json();
-        if (result.at_limit) {
-          const mins = cfg.step_fallback_minutes || 30;
-          const deltaHours = (isBack ? -1 : 1) * (mins / 60);
-          const span = phaseCtx.phaseMax - phaseCtx.phaseMin;
-          const curH48 = phaseCtx.phaseMin + span * phaseCtx.currentTargetPct / 100;
-          let newH48 = curH48 + deltaHours;
-          newH48 = Math.max(phaseCtx.phaseMin + 0.01, Math.min(phaseCtx.phaseMax - 0.01, newH48));
-          const newTime24 = ((newH48 % 24) + 24) % 24;
-          await executeSetPhaseTime(newTime24);
-          return;
-        }
-        setTimeout(async () => {
-          try {
-            const res = await fetch(basePath + `/api/area-status?area_id=${encodeURIComponent(areaId)}`);
-            if (res.ok) {
-              const singleStatus = await res.json();
-              Object.assign(areaStatus, singleStatus);
-            }
-            updateContent();
-            renderMiniChartForArea(areaId);
-            updateAllSliders();
-          } catch (err) {}
-        }, 500);
-      } catch (err) {
-        console.error('chartHeroStep error:', err);
+      const rPhase = document.getElementById('reset-phase');
+      if (rPhase) {
+        const phaseDirty = areaState.brightness_mid != null || areaState.color_mid != null;
+        rPhase.classList.toggle('hidden', !phaseDirty);
       }
     }
+
+    // updateChartHero + chartHeroStep retired in Ship 2 — the chart-hero
+    // overlay (WAKE / 6:45a / ◀▶) was removed and the wake/bed slider in the
+    // Adjust card body now covers phase-time editing. Slider drag posts
+    // directly to set_phase_time via executeSetPhaseTime; reset uses the
+    // .hslider-reset button next to the slider value.
 
     // How far the shifted midpoint will be pushed from the user's target time,
     // given the zone's brightness/slope config. Used to narrow the phase slider
@@ -3448,6 +3183,22 @@
             const borderColor = thumb.style.borderColor;
             if (borderColor) ghost.style.borderColor = borderColor;
           }
+          // Snapshot the current bulb curve as a "before" reference for the
+          // chart drag ghost. renderMiniChart picks up window._chartDragGhostCurve
+          // and renders it as a dotted line for the duration of the drag.
+          // Cleared on pointerup so the ghost vanishes the moment the user
+          // commits the new value. Applies to all three sliders (brightness,
+          // color, phase) — for phase, the ghost shows the original wake/bed
+          // shape so the user can see how the time shift bends the curve.
+          if (mode === 'brightness' || mode === 'color' || mode === 'phase') {
+            const ctx = getSliderCfgAndState();
+            if (ctx) {
+              try {
+                const snap = calcMiniCurveData(ctx.cfg, ctx.areaState, cachedSunTimes, ctx.currentHour, ctx.cfg.ascend_start);
+                window._chartDragGhostCurve = { bulbPct: snap.bulbPct };
+              } catch (_) { window._chartDragGhostCurve = null; }
+            }
+          }
           track.classList.add('dragging');
           track.setPointerCapture(e.pointerId);
           lastPos = getPositionFromPointer(track, e);
@@ -3463,13 +3214,34 @@
           if (!track.classList.contains('dragging')) return;
           e.preventDefault();
           track.classList.remove('dragging');
-          sliderInteracting = false;
-          if (lastPos === null) return;
+          // Drag ghost disappears the instant the user commits a value.
+          window._chartDragGhostCurve = null;
+          // Re-render once WITHOUT the ghost but WITH the dragged values.
+          // Using areaState here would snap the curve back to the pre-drag
+          // shape until the post-drop status fetch lands (~500ms later),
+          // which the user saw as a brief flicker. The stashed preview state
+          // carries the dragged override → chart stays put.
+          const lp = window._lastDragPreview;
+          if (lp) {
+            try {
+              renderMiniChart(lp.cfg, lp.state, lp.sunTimes, lp.currentHour, lp.isActive, lp.adjustedTimes ?? null, lp.markerOverride);
+            } catch (_) {}
+            window._lastDragPreview = null;
+          } else if (selectedArea) {
+            renderMiniChartForArea(selectedArea.area_id);
+          }
+          // Keep sliderInteracting=true through the post-drop window so the
+          // periodic 3s refresh doesn't fire with stale state and snap the
+          // thumb back to the pre-drop value before the server's set_position
+          // result lands. executeSetPosition / executeSetPhaseTime each clear
+          // it ~700ms later, after their fresh-status fetch completes.
+          if (lastPos === null) { sliderInteracting = false; return; }
           if (mode === 'phase') {
             const ctx = getSliderCfgAndState();
             const phaseCtx = ctx ? buildPhaseCtx(ctx.cfg, ctx.areaState, ctx.currentHour) : null;
             const targetTime = pctToPhaseTargetTime(lastPos, phaseCtx);
             if (targetTime != null) executeSetPhaseTime(targetTime);
+            else sliderInteracting = false;
           } else {
             executeSetPosition(Math.round(lastPos), mode);
           }
@@ -3553,6 +3325,25 @@
         const heroPhase = document.getElementById('slider-hero-phase');
         if (heroPhase) heroPhase.textContent = formatPhaseTime(targetTime24);
 
+        // Live-update Bright/Color hero readouts AND the page-header readout
+        // so they track the curve shift during phase drag — same treatment
+        // brightness/color drag got. Without this, dragging bed earlier shifts
+        // the curve visually but the displayed `% · K` stay frozen.
+        const phHeroBri = document.getElementById('slider-hero-brightness');
+        if (phHeroBri) phHeroBri.textContent = Math.round(previewBri) + '%';
+        const phHeroColor = document.getElementById('slider-hero-color');
+        if (phHeroColor) phHeroColor.textContent = Math.round(previewCCT) + 'K';
+        const phHeaderReadout = document.getElementById('page-header-readout');
+        if (phHeaderReadout) {
+          phHeaderReadout.textContent = `${Math.round(previewBri)}% · ${Math.round(previewCCT)}K`;
+        }
+        const phHeaderEl = document.getElementById('page-header');
+        if (phHeaderEl) {
+          const phTinted = tintColorByBrightness(cctToRGB(previewCCT), Math.round(previewBri));
+          phHeaderEl.style.background = phTinted;
+          phHeaderEl.style.color = readableTextColor(phTinted);
+        }
+
         // Live-sync the chart: shift the curve using the previewed midpoint
         // and move the wake/bed vertical line to the dragged target.
         if (selectedArea) {
@@ -3562,6 +3353,13 @@
           const adjustedTimes = {
             wake: phaseCtx.cursorInAscend ? targetTime24 : null,
             bed: phaseCtx.cursorInAscend ? null : targetTime24,
+          };
+          // Stash so onUp can re-render without the ghost using the dragged
+          // state (avoids snap-back to areaState during the post-drop window).
+          window._lastDragPreview = {
+            cfg, state: previewAreaState, sunTimes: cachedSunTimes, currentHour, isActive,
+            adjustedTimes,
+            markerOverride: { bri: previewBri, cct: previewCCT },
           };
           renderMiniChart(cfg, previewAreaState, cachedSunTimes, currentHour, isActive, adjustedTimes, { bri: previewBri, cct: previewCCT });
         }
@@ -3585,15 +3383,39 @@
       (track.querySelector('.slider-track-bg') || track).style.background = buildTrackGradient(dragMode, cfg, previewBri, previewCCT, effRange, phaseCtx);
       applyOneSlider(track, pct, previewBri, previewCCT, dragMode);
 
-      // Live-update the hero readouts as the user drags so the displayed value
-      // tracks the thumb in real time. Without this, "78%" / "2910K" stay frozen
-      // until pointerup triggers a state refresh.
+      // Live-update the hero readouts AND the page-header `% · K` readout as
+      // the user drags so both displayed values track the thumb in real time.
+      // Without this, "78%" / "2910K" stay frozen until pointerup triggers a
+      // state refresh, and the header readout stays at the pre-drag value.
+      const headerReadout = document.getElementById('page-header-readout');
+      const headerEl = document.getElementById('page-header');
       if (dragMode === 'brightness') {
         const heroBri = document.getElementById('slider-hero-brightness');
         if (heroBri) heroBri.textContent = Math.round(previewBri) + '%';
+        if (headerReadout) {
+          const k = Math.round(previewCCT);
+          headerReadout.textContent = `${Math.round(previewBri)}% · ${k}K`;
+        }
+        // Also live-tint the header background so dragging brightness
+        // visibly affects the header tint (matches the tint pipeline that
+        // runs on every status refresh via updateHeaderTint).
+        if (headerEl) {
+          const tinted = tintColorByBrightness(cctToRGB(previewCCT), Math.round(previewBri));
+          headerEl.style.background = tinted;
+          headerEl.style.color = readableTextColor(tinted);
+        }
       } else if (dragMode === 'color') {
         const heroColor = document.getElementById('slider-hero-color');
         if (heroColor) heroColor.textContent = Math.round(previewCCT) + 'K';
+        if (headerReadout) {
+          const k = Math.round(previewCCT);
+          headerReadout.textContent = `${Math.round(previewBri)}% · ${k}K`;
+        }
+        if (headerEl) {
+          const tinted = tintColorByBrightness(cctToRGB(previewCCT), Math.round(previewBri));
+          headerEl.style.background = tinted;
+          headerEl.style.color = readableTextColor(tinted);
+        }
       }
 
       // Build a preview state that injects the new override as if it were just
@@ -3627,6 +3449,14 @@
           previewState.color_override = previewCCT - pureCCTAtNow;
           previewState.color_override_set_at = currentHour;
         }
+        // Stash the last preview state so onUp can re-render WITHOUT the
+        // ghost but WITH the dragged values, instead of re-rendering from
+        // areaState (which still carries the pre-drag values until the 500ms
+        // status fetch lands). Avoids the snap-back flicker the user reported.
+        window._lastDragPreview = {
+          cfg, state: previewState, sunTimes: cachedSunTimes, currentHour, isActive,
+          markerOverride: { bri: previewBri, cct: previewCCT },
+        };
         renderMiniChart(cfg, previewState, cachedSunTimes, currentHour, isActive, null, { bri: previewBri, cct: previewCCT });
       }
     }
@@ -4158,12 +3988,12 @@
       return '\u2600';
     }
 
-    // Updates the chart's top-right sun-info chip. Visible only between sunrise
-    // and sunset (approximate — uses cachedSunTimes.sunrise / .sunset hours).
-    // Also suppressed when sun isn't a factor in this area's curve: sun_exposure
-    // is 0 (area gets no daylight) or brightness_sensitivity is 0 (rhythm sun
-    // response disabled). Reads live tuneState first so unsaved Tune edits
-    // hide/show the chip immediately.
+    // Updates the sun-intensity chip above the chart. Visible only when the
+    // room has sun-exposure > 0 AND the cursor is between sunrise/sunset.
+    // Position: solar noon if it falls inside the active phase window;
+    // otherwise clamp to whichever phase edge is closer to solar noon (so the
+    // chip lands at the brightest visible time). Sun glyph only — the % does
+    // the cloudiness signaling without needing a weather icon.
     function updateChartSunInfo(currentHour, sunTimes, status) {
       const el = document.getElementById('chart-sun-info');
       if (!el) return;
@@ -4185,34 +4015,30 @@
       if (!isDay) { el.classList.remove('visible'); return; }
       const norm = sunTimes?.outdoorNormalized ?? 0;
       const pct = Math.round(norm * 100);
-      const condMult = sunTimes?.conditionMultiplier ?? null;
-      const weather = status?.weather_condition ?? null;
       const iconEl = document.getElementById('chart-sun-info-icon');
       const pctEl = document.getElementById('chart-sun-info-pct');
-      if (iconEl) iconEl.textContent = chartConditionIcon(weather, condMult);
+      if (iconEl) iconEl.textContent = '☀';  // sun glyph; % conveys cloudiness
       if (pctEl) pctEl.textContent = pct + '%';
       el.classList.add('visible');
-      // Position the chip at solar noon (midpoint between sunrise & sunset),
-      // vertically aligned with the sun/moon icon row above the plot top
-      // (~10% of plot height above the 100% line, sitting in the t margin).
       const chartDiv = document.getElementById('mini-chart');
       const shell = document.getElementById('chart-shell');
       const fl = chartDiv && chartDiv._fullLayout;
       if (fl && fl.xaxis && fl.yaxis && shell) {
-        const xAnchor = _chartGeom.xAnchor ?? 0;
+        const xRange = fl.xaxis.range;  // [phaseVisStart, phaseVisEnd]
+        const xStart = xRange[0], xEnd = xRange[1];
+        const xLen = fl.xaxis._length;
+        // Solar noon — try the natural noon position first; if it falls
+        // outside the visible phase window, clamp to the nearest visible
+        // edge (so chip sits at the brightest time of what's shown).
         const noonHour = (sunrise + sunset) / 2;
         let visNoon = noonHour;
-        while (visNoon < xAnchor) visNoon += 24;
-        while (visNoon > xAnchor + 24) visNoon -= 24;
+        while (visNoon < xStart - 12) visNoon += 24;
+        while (visNoon > xEnd + 12) visNoon -= 24;
+        const clampedNoon = Math.max(xStart, Math.min(xEnd, visNoon));
         const chartLeftInShell = chartDiv.getBoundingClientRect().left - shell.getBoundingClientRect().left;
-        const chartTopInShell = chartDiv.getBoundingClientRect().top - shell.getBoundingClientRect().top;
-        const px = chartLeftInShell + fl.xaxis._offset + ((visNoon - xAnchor) / 24) * fl.xaxis._length;
-        // y_paper = 1.10 → 10% of plot height ABOVE 100% line, in the t-margin band
-        // shared with sun/moon icons → chartTop + yOffset − 0.10 * yLength.
-        const py = chartTopInShell + fl.yaxis._offset - 0.10 * fl.yaxis._length - el.offsetHeight / 2;
-        el.style.left = (px - el.offsetWidth / 2) + 'px';
+        const px = chartLeftInShell + fl.xaxis._offset + ((clampedNoon - xStart) / (xEnd - xStart)) * xLen;
+        el.style.left = px + 'px';
         el.style.right = 'auto';
-        el.style.top = py + 'px';
       }
     }
 
@@ -4284,52 +4110,15 @@
       }
 
       const isActive = (status.is_on || false) && (status.is_circadian !== false);
-      const isDragActive = _chartDrag.active && selectedArea?.area_id === areaId;
+      // Chart drag retired in Ship 2 — adjusted times come straight from
+      // server status now. Live phase-slider drag is handled by the existing
+      // slider drag pipeline (no chart-side live-sync needed).
       const adjustedTimes = {
-        wake: isDragActive && _chartDrag.cursorInAscend
-          ? _chartDrag.dragHour
-          : (status.adjusted_wake_time ?? null),
-        bed: isDragActive && !_chartDrag.cursorInAscend
-          ? _chartDrag.dragHour
-          : (status.adjusted_bed_time ?? null),
+        wake: status.adjusted_wake_time ?? null,
+        bed: status.adjusted_bed_time ?? null,
       };
-      if (isDragActive) {
-        const tAscendCfg = cfg.ascend_start;
-        let tDescendCfg = cfg.descend_start;
-        if (tDescendCfg <= tAscendCfg) tDescendCfg += 24;
-        const dragH48 = _chartDrag.dragHour < tAscendCfg ? _chartDrag.dragHour + 24 : _chartDrag.dragHour;
-        const shiftedMid = computeCandidateShiftedMid(dragH48, cfg, _chartDrag.cursorInAscend) % 24;
-        areaState.brightness_mid = shiftedMid;
-        areaState.color_mid = shiftedMid;
-      }
       renderMiniChart(cfg, areaState, cachedSunTimes, currentHour, isActive, adjustedTimes);
       updateChartSunInfo(currentHour, cachedSunTimes, status);
-
-      if (isDragActive) {
-        const newBri = calcMiniBrightness(currentHour, cfg, areaState, currentHour) * 100;
-        const newCCT = calcMiniColor(currentHour, cfg, areaState, cachedSunTimes, currentHour);
-        const heroBri = document.getElementById('slider-hero-brightness');
-        if (heroBri) heroBri.textContent = Math.round(newBri) + '%';
-        const heroColor = document.getElementById('slider-hero-color');
-        if (heroColor) heroColor.textContent = Math.round(newCCT) + 'K';
-
-        // Live-sync the phase slider thumb + hero to the chart drag position.
-        const sliderTrack = document.querySelector('.slider-track[data-mode="phase"]');
-        if (sliderTrack && !sliderTrack.classList.contains('dragging')) {
-          const phaseCtx = buildPhaseCtx(cfg, areaState, currentHour);
-          if (phaseCtx) {
-            const span = phaseCtx.phaseMax - phaseCtx.phaseMin;
-            if (span > 0) {
-              const tAscendCfg = cfg.ascend_start;
-              const dragH48 = _chartDrag.dragHour < tAscendCfg ? _chartDrag.dragHour + 24 : _chartDrag.dragHour;
-              const pct = Math.max(0, Math.min(100, (dragH48 - phaseCtx.phaseMin) / span * 100));
-              applyOneSlider(sliderTrack, pct, newBri, newCCT, 'phase');
-              const heroPhase = document.getElementById('slider-hero-phase');
-              if (heroPhase) heroPhase.textContent = formatPhaseTime(_chartDrag.dragHour);
-            }
-          }
-        }
-      }
     }
 
 
@@ -4482,11 +4271,16 @@
               updateAllSliders();
             } catch (err) {
               console.error('Error refreshing after set_phase_time:', err);
+            } finally {
+              sliderInteracting = false;
             }
           }, 300);
+        } else {
+          sliderInteracting = false;
         }
       } catch (err) {
         console.error('Error executing set_phase_time:', err);
+        sliderInteracting = false;
       }
     }
 
@@ -4532,11 +4326,16 @@
               updateAllSliders();
             } catch (err) {
               console.error('Error refreshing after set_position:', err);
+            } finally {
+              sliderInteracting = false;
             }
           }, 500);
+        } else {
+          sliderInteracting = false;
         }
       } catch (err) {
         console.error('Error executing set_position:', err);
+        sliderInteracting = false;
       }
     }
     // ---- Tune Section ----
