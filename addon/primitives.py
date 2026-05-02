@@ -682,12 +682,13 @@ class CircadianLightPrimitives:
         natural_exposure = glozone.get_area_natural_light_exposure(area_id)
         if natural_exposure <= 0:
             return 1.0
+        zone_cfg = glozone.get_zone_config_for_area(area_id)
+        if zone_cfg.get("brightness_sensitivity_enabled", True) is False:
+            return 1.0
         outdoor_norm = lux_tracker.get_outdoor_normalized()
         if outdoor_norm is None:
             outdoor_norm = 0.0
-        sensitivity = glozone.get_zone_config_for_area(area_id).get(
-            "brightness_sensitivity", 1.0
-        )
+        sensitivity = zone_cfg.get("brightness_sensitivity", 1.0)
         return calculate_natural_light_factor(
             natural_exposure, outdoor_norm, sensitivity
         )
@@ -1776,7 +1777,7 @@ class CircadianLightPrimitives:
                 brightness_override=effective_override,
             )
             logger.info(
-                f"circadian_on applied: {final_brightness}%, {result.color_temp}K (is_on=True)"
+                f"circadian_on applied: {result.brightness}%, {result.color_temp}K (is_on=True)"
             )
         else:
             # Enforce off state
@@ -2588,7 +2589,26 @@ class CircadianLightPrimitives:
                 else None
             )
             if sun_times is None:
-                sun_times = SunTimes()
+                sun_times = SunTimes(is_fallback=True)
+            # Safety net: refuse to fire sunrise/sunset schedules when the
+            # solar values are defaults (e.g. lat/long missing, network blip).
+            # Otherwise auto_on can trigger hours early — bug observed in
+            # v1.2.183 where outdoor lights came on at 17:55 instead of ~19:55.
+            if getattr(sun_times, "is_fallback", False):
+                from datetime import datetime as _dt
+
+                if not hasattr(self, "_fallback_warned"):
+                    self._fallback_warned: dict = {}
+                hour_key = _dt.now().strftime("%Y-%m-%d_%H")
+                warn_key = (prefix, source, hour_key)
+                if warn_key not in self._fallback_warned:
+                    self._fallback_warned[warn_key] = True
+                    logger.warning(
+                        f"{prefix} skipped: source={source} but SunTimes is "
+                        f"fallback (sunrise/sunset are defaults, not real solar "
+                        f"values). Check latitude/longitude config."
+                    )
+                return None
             base_time = sun_times.sunrise if source == "sunrise" else sun_times.sunset
             offset = settings.get(f"{prefix}_offset", 0)
             return base_time + offset / 60.0
@@ -3369,14 +3389,14 @@ class CircadianLightPrimitives:
                     b_max_norm = config.max_brightness / 100.0
                     if use_wake:
                         target_slope = SPEED_TO_SLOPE[
-                            max(1, min(10, config.wake_speed))
+                            max(1, min(12, config.wake_speed))
                         ]
                         mid48_raw = CircadianLight.lift_midpoint_to_phase(
                             default_mid, t_ascend, t_descend
                         )
                     else:
                         target_slope = -SPEED_TO_SLOPE[
-                            max(1, min(10, config.bed_speed))
+                            max(1, min(12, config.bed_speed))
                         ]
                         descend_end = t_ascend + 24
                         mid48_raw = CircadianLight.lift_midpoint_to_phase(
@@ -4265,7 +4285,7 @@ class CircadianLightPrimitives:
 
         # 2-step config
         raw_cfg = glozone.load_config_from_files()
-        ct_threshold = raw_cfg.get("two_step_ct_threshold", 500)
+        ct_threshold = raw_cfg.get("two_step_ct_threshold", 200)
         bri_delta_threshold = raw_cfg.get("two_step_bri_threshold", 15)
 
         handled_set: Set[Tuple[str, str]] = set()  # (area_id, purpose_norm)
@@ -4384,12 +4404,16 @@ class CircadianLightPrimitives:
         two_step_cmds = [c for c in batch_commands if c["needs_2step"]]
         direct_cmds = [c for c in batch_commands if not c["needs_2step"]]
 
+        # 2-step: Phase 1 transitions over `delay`, then bulb holds for `delay`,
+        # then Phase 2 fires — total wait from P1 fire to P2 fire = delay * 2.
+        delay = self._get_two_step_delay() if two_step_cmds else None
+
         # Wave 1: phase 1 for 2-step + direct commands (parallel)
         wave1 = []
         for cmd in two_step_cmds:
             p1_bri, p1_color = cmd["phase1_data"]
             xy = CircadianLight.color_temperature_to_xy(cmd["ct"])
-            sdata = {"transition": transition}
+            sdata = {"transition": delay}
             if p1_bri is not None:
                 sdata["brightness_pct"] = p1_bri
             if p1_color:
@@ -4425,8 +4449,7 @@ class CircadianLightPrimitives:
 
         # Wave 2: phase 2 for 2-step (after delay)
         if two_step_cmds:
-            delay = self._get_two_step_delay()
-            await asyncio.sleep(delay)
+            await asyncio.sleep(delay * 2)
 
             wave2 = []
             for cmd in two_step_cmds:

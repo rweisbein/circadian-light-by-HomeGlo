@@ -11,7 +11,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from brain import AreaState, CircadianLight, Config, SunTimes
-from pipeline import PipelineContext, PipelineResult, compute
+from pipeline import PipelineContext, PipelineResult, apply_ct_compensation, compute
 
 
 # ---------------------------------------------------------------------------
@@ -211,6 +211,54 @@ class TestPerPurposePipeline:
 # ---------------------------------------------------------------------------
 # Step 11: CT brightness compensation
 # ---------------------------------------------------------------------------
+
+
+class TestApplyCTCompensation:
+    """Direct tests on apply_ct_compensation — pins math so the public-API
+    refactor (and Live Design raw broadcast caller) stay in lockstep with
+    pipeline's internal use."""
+
+    DEFAULTS = dict(enabled=True, begin=1650, end=2250, factor=1.7)
+
+    def test_disabled_passthrough(self):
+        assert apply_ct_compensation(50, 1500, enabled=False, begin=1650, end=2250, factor=1.7) == 50
+
+    def test_zero_brightness_passthrough(self):
+        assert apply_ct_compensation(0, 1500, **self.DEFAULTS) == 0
+
+    def test_at_or_above_end_no_boost(self):
+        assert apply_ct_compensation(50, 2250, **self.DEFAULTS) == 50
+        assert apply_ct_compensation(50, 5000, **self.DEFAULTS) == 50
+
+    def test_at_or_below_begin_full_factor(self):
+        # 50 * 1.7 = 85
+        assert apply_ct_compensation(50, 1650, **self.DEFAULTS) == 85
+        assert apply_ct_compensation(50, 1000, **self.DEFAULTS) == 85
+
+    def test_midpoint_interpolation(self):
+        # At kelvin = 1950 (midpoint of 1650-2250), factor = 1 + 0.5 * 0.7 = 1.35
+        # 50 * 1.35 = 67.5 → 68 (round half to even — Python's banker's rounding)
+        assert apply_ct_compensation(50, 1950, **self.DEFAULTS) == 68
+
+    def test_clamps_to_100(self):
+        # 80 * 1.7 = 136 → clamped to 100
+        assert apply_ct_compensation(80, 1500, **self.DEFAULTS) == 100
+
+    def test_known_curve_points(self):
+        # Pin specific (bri, kelvin) → result so refactor doesn't drift
+        cases = [
+            (10, 1650, 17),   # 10 * 1.7 = 17
+            (10, 2250, 10),   # at end, no boost
+            (10, 1950, 14),   # midpoint: 10 * 1.35 = 13.5 → 14
+            (30, 1800, 47),   # position=0.75 → factor=1.525 → 30*1.525=45.75 → 46
+            (100, 1650, 100), # 100 * 1.7 = 170 → clamped
+        ]
+        for bri, kelvin, expected in cases:
+            actual = apply_ct_compensation(bri, kelvin, **self.DEFAULTS)
+            # Allow ±1 for banker's-rounding edge cases between platforms
+            assert abs(actual - expected) <= 1, (
+                f"apply_ct_compensation({bri}, {kelvin}) = {actual}, expected ~{expected}"
+            )
 
 
 class TestCTCompensation:

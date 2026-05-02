@@ -105,6 +105,11 @@ class HomeAssistantWebSocketClient:
         self.latitude = None  # Home Assistant latitude
         self.longitude = None  # Home Assistant longitude
         self.timezone = None  # Home Assistant timezone
+        # Daily cache for static solar values (sunrise/sunset/noon/mid).
+        # Outdoor data refreshed on every call. {date_str: {sunrise, sunset, ...}}
+        self._sun_times_cache: dict = {}
+        # Rate-limit fallback warnings: {(reason, "YYYY-MM-DD_HH"): True}
+        self._sun_warn_log: dict = {}
         self.periodic_update_task = None  # Task for periodic light updates
         self.refresh_event = None  # Will be created lazily in the running event loop
         self._log_periodic = False  # Updated by circadian tick from config
@@ -158,8 +163,12 @@ class HomeAssistantWebSocketClient:
         # Maps entity_id -> device_id (used to look up contact sensor config)
         self.contact_sensor_ids: Dict[str, str] = {}
 
-        # Live Design tracking - skip this area in periodic updates
-        self.live_design_area: str = None
+        # Live Design tracking — set of area_ids currently being broadcast to.
+        # Used to (a) skip these areas in periodic ticks (belt-and-suspenders;
+        # state.set_is_circadian(False) is the primary mechanism) and (b)
+        # suppress switch / motion / contact handlers for any of these areas
+        # so external triggers don't fight the user's design broadcast.
+        self.live_design_areas: Set[str] = set()
 
         # Initialize state module (loads from circadian_state.json)
         state.init()
@@ -621,6 +630,26 @@ class HomeAssistantWebSocketClient:
             )
             return
 
+        # Live Design suppression: skip area_configs whose area is currently
+        # being broadcast to. User scrubbing wins over physical motion trigger.
+        scoped_areas = sensor_config.areas
+        if self.live_design_areas:
+            filtered = [
+                ac for ac in scoped_areas
+                if ac.area_id not in self.live_design_areas
+            ]
+            if len(filtered) < len(scoped_areas):
+                suppressed = sorted(
+                    {ac.area_id for ac in scoped_areas} & self.live_design_areas
+                )
+                logger.info(
+                    f"[Motion] Suppressing live-design areas {suppressed} "
+                    f"for {sensor_config.name}"
+                )
+            if not filtered:
+                return
+            scoped_areas = filtered
+
         logger.info(
             f"[Motion] {entity_id} -> {new_state} (sensor={sensor_config.name})"
         )
@@ -632,7 +661,7 @@ class HomeAssistantWebSocketClient:
         # Per-scope cooldown: filter out area configs whose scope is cooled down.
         now = time.time()
         active_configs = []
-        for i, area_config in enumerate(sensor_config.areas):
+        for i, area_config in enumerate(scoped_areas):
             # Scope-level trigger filter: skip if this entity isn't in the scope's trigger list
             if (
                 area_config.trigger_entities
@@ -864,6 +893,26 @@ class HomeAssistantWebSocketClient:
             )
             return
 
+        # Live Design suppression: skip area_configs whose area is currently
+        # being broadcast to. User scrubbing wins over physical motion trigger.
+        scoped_areas = sensor_config.areas
+        if self.live_design_areas:
+            filtered = [
+                ac for ac in scoped_areas
+                if ac.area_id not in self.live_design_areas
+            ]
+            if len(filtered) < len(scoped_areas):
+                suppressed = sorted(
+                    {ac.area_id for ac in scoped_areas} & self.live_design_areas
+                )
+                logger.info(
+                    f"[ZHA Motion] Suppressing live-design areas {suppressed} "
+                    f"for {sensor_config.name}"
+                )
+            if not filtered:
+                return
+            scoped_areas = filtered
+
         # Motion detected
         logger.info(
             f"[ZHA Motion] {sensor_config.name}: motion detected (command={command})"
@@ -873,7 +922,7 @@ class HomeAssistantWebSocketClient:
         # Per-scope cooldown: filter out cooled-down area configs
         now = time.time()
         active_configs = []
-        for i, area_config in enumerate(sensor_config.areas):
+        for i, area_config in enumerate(scoped_areas):
             cd = area_config.cooldown
             if cd > 0:
                 cd_key = f"{sensor_config.id}_scope{i}"
@@ -1041,16 +1090,36 @@ class HomeAssistantWebSocketClient:
             )
             return
 
+        # Live Design suppression: skip area_configs whose area is currently
+        # being broadcast to. User scrubbing wins over physical contact trigger.
+        scoped_areas = sensor_config.areas
+        if self.live_design_areas:
+            filtered = [
+                ac for ac in scoped_areas
+                if ac.area_id not in self.live_design_areas
+            ]
+            if len(filtered) < len(scoped_areas):
+                suppressed = sorted(
+                    {ac.area_id for ac in scoped_areas} & self.live_design_areas
+                )
+                logger.info(
+                    f"[Contact] Suppressing live-design areas {suppressed} "
+                    f"for {sensor_config.name}"
+                )
+            if not filtered:
+                return
+            scoped_areas = filtered
+
         logger.info(
             f"[Contact] {entity_id} -> {new_state} (sensor={sensor_config.name})"
         )
 
         # Process each area configured for this sensor
         contact_areas_needing_commands = []
-        active_areas = [ac for ac in sensor_config.areas if ac.mode != "disabled"]
+        active_areas = [ac for ac in scoped_areas if ac.mode != "disabled"]
         use_batch = len(active_areas) >= 2
 
-        for area_config in sensor_config.areas:
+        for area_config in scoped_areas:
             area_id = area_config.area_id
             mode = area_config.mode
             duration = area_config.duration
@@ -1902,6 +1971,27 @@ class HomeAssistantWebSocketClient:
         if not areas and not is_moment_action:
             logger.warning(f"No areas configured for switch {switch_id}")
             return
+
+        # Live Design suppression: filter out any areas currently being
+        # broadcast to. User scrubbing wins over physical switch press.
+        # Moments (set_*) apply globally and need no filter — broadcast
+        # areas already have is_circadian=False so they're naturally skipped
+        # by the moment's own circadian-area enumeration.
+        if areas and self.live_design_areas:
+            filtered = [a for a in areas if a not in self.live_design_areas]
+            if len(filtered) < len(areas):
+                suppressed = sorted(set(areas) & self.live_design_areas)
+                logger.info(
+                    f"[Switch] {switch_name}: suppressing live-design areas "
+                    f"{suppressed}"
+                )
+            if not filtered and not is_moment_action:
+                logger.info(
+                    f"[Switch] {switch_name}: all target areas are live, "
+                    f"ignoring press"
+                )
+                return
+            areas = filtered
 
         logger.info(
             f"[Switch] {switch_name}: {main_action}"
@@ -3817,7 +3907,7 @@ class HomeAssistantWebSocketClient:
         two_step_dimming = set()  # filters where 2-step is dimming (swap phase order)
         is_all_hue = self.is_all_hue_area(area_id)
         raw_cfg = glozone.load_config_from_files()
-        ct_threshold = raw_cfg.get("two_step_ct_threshold", 500)
+        ct_threshold = raw_cfg.get("two_step_ct_threshold", 200)
         _two_step_gate = (
             not skip_two_step
             and not is_all_hue
@@ -3825,6 +3915,7 @@ class HomeAssistantWebSocketClient:
             and ct_threshold > 0
         )
         if _two_step_gate:
+            p1_transition = self.primitives._get_two_step_delay()
             for filter_name, lights_by_cap in filter_groups.items():
                 filt_norm = filter_name.replace(" ", "_").lower()
                 if skip_filters and filt_norm in skip_filters:
@@ -3894,7 +3985,7 @@ class HomeAssistantWebSocketClient:
                     )
 
                     def _add_p1_brighten(entity_id, cap_type):
-                        p1 = {"transition": transition, "brightness_pct": phase1_bri}
+                        p1 = {"transition": p1_transition, "brightness_pct": phase1_bri}
                         if cap_type == "color" and xy is not None:
                             p1["xy_color"] = list(xy)
                         elif cap_type == "ct":
@@ -3916,7 +4007,7 @@ class HomeAssistantWebSocketClient:
                 else:
                     # Dimming: phase 1 = dim to target brightness (keep OLD color)
                     def _add_p1_dim(entity_id, cap_type):
-                        p1 = {"transition": transition, "brightness_pct": filtered_bri}
+                        p1 = {"transition": p1_transition, "brightness_pct": filtered_bri}
                         # No color data — keep current color during dim
                         phase1_tasks.append(
                             self.call_service(
@@ -4236,8 +4327,7 @@ class HomeAssistantWebSocketClient:
         # NOTE: phase2_tasks contains already-started create_task coroutines.
         # We need to rebuild them as fresh coroutines so they execute AFTER the delay.
         if two_step_filters:
-            two_step_delay = self.primitives._get_two_step_delay()
-            await asyncio.sleep(two_step_delay)
+            await asyncio.sleep(p1_transition * 2)
             # Phase 2: complete the 2-step for each purpose
             # Brightening: send target brightness + color
             # Dimming: send new color at target brightness (already dimmed in phase 1)
@@ -5443,69 +5533,156 @@ class HomeAssistantWebSocketClient:
 
         return lighting_values
 
+    def _warn_sun_fallback_once(self, reason: str, date_str: str, message: str):
+        """Emit a sun-times fallback WARNING at most once per (reason, hour).
+
+        Without this, fast-tick callers (1Hz × N areas) would flood logs.
+        """
+        from datetime import datetime as _dt
+
+        hour_key = _dt.now().strftime("%Y-%m-%d_%H")
+        key = (reason, hour_key)
+        if key in self._sun_warn_log:
+            return
+        self._sun_warn_log[key] = True
+        # Cap dict growth: drop entries older than today
+        today = date_str
+        self._sun_warn_log = {
+            k: v for k, v in self._sun_warn_log.items() if k[1].startswith(today)
+        }
+        logger.warning(message)
+
     def _get_sun_times(self) -> SunTimes:
         """Get current sun times from configured location.
 
+        Static solar values (sunrise/sunset/noon/mid) are cached per-day on the
+        first successful resolve — subsequent calls reuse the cache instead of
+        re-running the astronomy. Outdoor lux/weather is always read fresh.
+
+        lat/lon source priority: instance attrs (set from HA WebSocket auth) →
+        env vars (HASS_LATITUDE/HASS_LONGITUDE, set by HA add-on runtime). If
+        neither is available we fall back to default sunrise=6/sunset=18 and
+        tag the result is_fallback=True so primitives.py refuses to fire
+        sunrise/sunset auto schedules with bogus times (the v1.2.184 bug).
+
         Returns:
-            SunTimes object with sunrise, sunset, solar_noon, solar_mid (as hours 0-24)
+            SunTimes with sunrise/sunset/noon/mid + fresh outdoor values.
         """
-        try:
-            from datetime import datetime
-            from zoneinfo import ZoneInfo
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
 
-            if self.latitude and self.longitude:
-                date_str = datetime.now().strftime("%Y-%m-%d")
-                sun_dict = calculate_sun_times(self.latitude, self.longitude, date_str)
+        date_str = datetime.now().strftime("%Y-%m-%d")
 
-                # Get local timezone for conversion
-                local_tz = None
-                if self.timezone:
-                    try:
-                        local_tz = ZoneInfo(self.timezone)
-                    except:
-                        pass
-
-                # Convert ISO strings to local hours
-                def iso_to_hour(iso_str, default):
-                    if not iso_str:
-                        return default
-                    try:
-                        dt = datetime.fromisoformat(iso_str)
-                        # Convert to local timezone if available
-                        if local_tz and dt.tzinfo:
-                            dt = dt.astimezone(local_tz)
-                        return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
-                    except:
-                        return default
-
-                sunrise = iso_to_hour(sun_dict.get("sunrise"), 6.0)
-                sunset = iso_to_hour(sun_dict.get("sunset"), 18.0)
-                solar_noon = iso_to_hour(sun_dict.get("noon"), 12.0)
-                solar_mid = (solar_noon + 12.0) % 24.0  # Opposite of noon
-
-                # Resolve outdoor_normalized via lux_tracker fallback chain
-                outdoor_norm = lux_tracker.get_outdoor_normalized()
-                outdoor_source = lux_tracker.get_outdoor_source()
-                if outdoor_norm is None:
-                    outdoor_norm = 0.0
-                    outdoor_source = "none"
-
-                return SunTimes(
-                    sunrise=sunrise,
-                    sunset=sunset,
-                    solar_noon=solar_noon,
-                    solar_mid=solar_mid,
-                    outdoor_normalized=outdoor_norm,
-                    outdoor_source=outdoor_source,
-                )
-        except Exception as e:
-            logger.debug(f"Error calculating sun times: {e}")
-
-        # Return defaults if calculation fails
+        # Outdoor data (lux/weather) — always fresh, never cached
         outdoor_norm = lux_tracker.get_outdoor_normalized()
-        return SunTimes(
-            outdoor_normalized=outdoor_norm if outdoor_norm is not None else 0.0
-        )
+        outdoor_source = lux_tracker.get_outdoor_source()
+        if outdoor_norm is None:
+            outdoor_norm = 0.0
+            outdoor_source = "none"
+
+        # Cache hit: today's static solar values already resolved
+        cached = self._sun_times_cache.get(date_str)
+        if cached is not None:
+            return SunTimes(
+                sunrise=cached["sunrise"],
+                sunset=cached["sunset"],
+                solar_noon=cached["solar_noon"],
+                solar_mid=cached["solar_mid"],
+                outdoor_normalized=outdoor_norm,
+                outdoor_source=outdoor_source,
+                is_fallback=False,
+            )
+
+        # Resolve lat/lon — instance attrs first, env-var fallback
+        lat = self.latitude
+        lon = self.longitude
+        if not lat:
+            try:
+                lat = float(os.environ.get("HASS_LATITUDE", "") or 0)
+            except (ValueError, TypeError):
+                lat = 0.0
+        if not lon:
+            try:
+                lon = float(os.environ.get("HASS_LONGITUDE", "") or 0)
+            except (ValueError, TypeError):
+                lon = 0.0
+
+        if not (lat and lon):
+            self._warn_sun_fallback_once(
+                "no_latlon",
+                date_str,
+                f"_get_sun_times: lat/lon unavailable. "
+                f"self.latitude={self.latitude!r}, self.longitude={self.longitude!r}, "
+                f"HASS_LATITUDE={os.environ.get('HASS_LATITUDE')!r}, "
+                f"HASS_LONGITUDE={os.environ.get('HASS_LONGITUDE')!r}. "
+                f"Returning fallback — auto sunrise/sunset will not fire.",
+            )
+            return SunTimes(
+                outdoor_normalized=outdoor_norm,
+                outdoor_source=outdoor_source,
+                is_fallback=True,
+            )
+
+        try:
+            sun_dict = calculate_sun_times(lat, lon, date_str, tz=self.timezone)
+
+            local_tz = None
+            if self.timezone:
+                try:
+                    local_tz = ZoneInfo(self.timezone)
+                except Exception:
+                    pass
+
+            def iso_to_hour(iso_str, field):
+                """Parse ISO timestamp to decimal hour. Raises if invalid/missing."""
+                if not iso_str:
+                    raise ValueError(f"{field} missing from sun_dict")
+                dt = datetime.fromisoformat(iso_str)
+                if local_tz and dt.tzinfo:
+                    dt = dt.astimezone(local_tz)
+                return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
+
+            sunrise = iso_to_hour(sun_dict.get("sunrise"), "sunrise")
+            sunset = iso_to_hour(sun_dict.get("sunset"), "sunset")
+            solar_noon = iso_to_hour(sun_dict.get("noon"), "noon")
+            solar_mid = (solar_noon + 12.0) % 24.0
+
+            # Cache successful resolve for the day; evict any prior date entries
+            self._sun_times_cache = {
+                date_str: {
+                    "sunrise": sunrise,
+                    "sunset": sunset,
+                    "solar_noon": solar_noon,
+                    "solar_mid": solar_mid,
+                }
+            }
+            logger.info(
+                f"_get_sun_times: cached for {date_str} — "
+                f"sunrise={sunrise:.2f}, sunset={sunset:.2f} (lat={lat}, lon={lon})"
+            )
+
+            return SunTimes(
+                sunrise=sunrise,
+                sunset=sunset,
+                solar_noon=solar_noon,
+                solar_mid=solar_mid,
+                outdoor_normalized=outdoor_norm,
+                outdoor_source=outdoor_source,
+                is_fallback=False,
+            )
+        except Exception as e:
+            self._warn_sun_fallback_once(
+                "calc_failed",
+                date_str,
+                f"_get_sun_times: calculation failed for lat={lat}/lon={lon} "
+                f"({type(e).__name__}: {e}). "
+                f"Returning fallback — auto sunrise/sunset will not fire.",
+            )
+            return SunTimes(
+                outdoor_normalized=outdoor_norm,
+                outdoor_source=outdoor_source,
+                is_fallback=True,
+            )
 
     # ------------------------------------------------------------------
     # Direct methods for webserver (replaces HA event round-trips)
@@ -5557,16 +5734,23 @@ class HomeAssistantWebSocketClient:
             self.refresh_event.set()
 
     def handle_live_design(self, area_id, active):
-        """Start or stop Live Design for an area. Called by webserver."""
+        """Start or stop Live Design for an area. Called by webserver.
+
+        Multi-area: each broadcasting area is tracked independently in
+        self.live_design_areas, so a Stop on area X never disturbs other
+        areas still broadcasting.
+        """
         if active:
-            self.live_design_area = area_id
+            self.live_design_areas.add(area_id)
             logger.info(
-                f"Live Design started for area: {area_id} — skipping periodic updates"
+                f"Live Design started for area: {area_id} "
+                f"(active areas: {sorted(self.live_design_areas)})"
             )
-        elif self.live_design_area == area_id:
-            self.live_design_area = None
+        elif area_id in self.live_design_areas:
+            self.live_design_areas.discard(area_id)
             logger.info(
-                f"Live Design ended for area: {area_id} — resuming periodic updates"
+                f"Live Design ended for area: {area_id} "
+                f"(remaining: {sorted(self.live_design_areas) or 'none'})"
             )
 
     async def handle_service_event(self, service, area_id, **kwargs):
@@ -5619,8 +5803,6 @@ class HomeAssistantWebSocketClient:
             await self.primitives.circadian_adjust(area_id, target, "webserver")
         elif service == "freeze_toggle":
             await self.primitives.freeze_toggle(area_id, "webserver")
-        elif service == "reset":
-            await self.primitives.reset(area_id, "webserver")
         elif service == "glo_up":
             await self.primitives.glo_up(area_id, "webserver")
         elif service == "glo_down":
@@ -6251,17 +6433,20 @@ class HomeAssistantWebSocketClient:
                 if not circadian_areas:
                     logger.debug("No areas enabled for Circadian Light update")
                 else:
-                    # Skip area being designed in Live Design mode
-                    if (
-                        self.live_design_area
-                        and self.live_design_area in circadian_areas
-                    ):
-                        circadian_areas = [
-                            a for a in circadian_areas if a != self.live_design_area
+                    # Skip any areas currently being designed in Live Design mode.
+                    # Belt-and-suspenders: state.set_is_circadian(False) already
+                    # excludes them upstream via get_circadian_areas_for_update,
+                    # but this guards against a race where the state flip and
+                    # the periodic tick interleave.
+                    if self.live_design_areas:
+                        skipped = [
+                            a for a in circadian_areas if a in self.live_design_areas
                         ]
-                        logger.debug(
-                            f"Skipping Live Design area: {self.live_design_area}"
-                        )
+                        if skipped:
+                            circadian_areas = [
+                                a for a in circadian_areas if a not in self.live_design_areas
+                            ]
+                            logger.debug(f"Skipping Live Design areas: {skipped}")
 
                     trigger_source = (
                         "refresh signal"
@@ -6998,17 +7183,9 @@ class HomeAssistantWebSocketClient:
             elif event_type == "circadian_light_live_design":
                 area_id = event_data.get("area_id")
                 active = event_data.get("active", False)
-                if active:
-                    self.live_design_area = area_id
-                    logger.info(
-                        f"Live Design started for area: {area_id} - skipping periodic updates"
-                    )
-                else:
-                    if self.live_design_area == area_id:
-                        self.live_design_area = None
-                        logger.info(
-                            f"Live Design ended for area: {area_id} - resuming periodic updates"
-                        )
+                # Delegate to handle_live_design so add/remove and logging
+                # behavior stays in one place.
+                self.handle_live_design(area_id, active)
 
             # Handle device registry updates (log only, use Sync button to apply)
             elif event_type == "device_registry_updated":

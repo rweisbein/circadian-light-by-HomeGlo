@@ -41,52 +41,250 @@
       min-height: 100vh;
     }
 
-    /* Page header with back button */
+    /* Page header — 2-row CCT-tinted grid (Ship 1 redesign).
+       Background + text color set per-frame by updateHeaderTint() so the
+       header reads the room's current CCT. */
     .page-header {
-      background: var(--panel);
-      border-bottom: 1px solid var(--line);
-      padding: 12px 16px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
       position: sticky;
       top: 0;
       z-index: 100;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 6px 12px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-rows: auto auto;
+      column-gap: 10px;
+      row-gap: 4px;
+      align-items: center;
+      transition: background 0.12s, color 0.12s;
+    }
+    .page-header > .back-btn {
+      grid-column: 1;
+      grid-row: 1 / span 2;
+      align-self: center;
+    }
+    .page-header > .page-header-title-row {
+      grid-column: 2;
+      grid-row: 1;
+      align-self: center;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex-wrap: wrap;
+    }
+    .page-header > .page-header-meta {
+      grid-column: 3;
+      grid-row: 1;
+      align-self: center;
+      justify-self: end;
+    }
+    .page-header > .page-header-readout-cluster {
+      grid-column: 2 / span 2;
+      grid-row: 2;
+      align-self: center;
+      justify-self: stretch;  /* fill col 2 + col 3 so margin-left: auto on
+                                 the right action group pushes circadian to
+                                 the far right edge of row 2 (per spec —
+                                 "burying" the rare-action toggle). */
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
     }
 
     .back-btn {
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 36px;
-      height: 36px;
+      width: 32px;
+      height: 32px;
       border-radius: 8px;
-      border: 1px solid var(--line);
-      background: var(--card);
-      color: var(--text);
+      border: none;
+      background: transparent;
+      color: inherit;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: background 0.15s;
       flex-shrink: 0;
+      padding: 0;
     }
 
     .back-btn:hover {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: var(--accent);
+      background: rgba(0, 0, 0, 0.18);
     }
 
     .back-btn svg {
-      width: 20px;
-      height: 20px;
+      width: 18px;
+      height: 18px;
     }
 
+    /* Demoted title — chrome label on row 1, not the page's visual headline.
+       The row-2 readout (% · K) is the actual focal element. */
     .page-title {
-      font-size: var(--font-display);
+      font-size: 0.95rem;
       font-weight: 600;
-      flex: 1;
+      color: inherit;
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      margin: 0;
+    }
+
+    /* Status chips that flow next to the title on row 1, wrapping below if
+       many are active simultaneously. Each chip is a button so boost/freeze
+       can cancel via tap. Motion + fade chips render disabled (TODO: wire
+       once finish_fade / cancel_motion primitives land). */
+    .page-header-chips {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      flex-shrink: 1;
+      min-width: 0;
+    }
+    .area-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(0,0,0,0.45);
+      border: 1px solid rgba(255,255,255,0.18);
+      color: inherit;
+      font: inherit;
+      font-size: var(--font-micro);
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      padding: 4px 10px;
+      border-radius: 14px;
+      min-height: 28px;
+      line-height: 1;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s, border-color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .area-chip:hover {
+      background: rgba(0,0,0,0.6);
+      border-color: rgba(255,255,255,0.35);
+    }
+    .area-chip:disabled {
+      cursor: default;
+      opacity: 0.85;
+    }
+    .area-chip:disabled:hover {
+      background: rgba(0,0,0,0.45);
+      border-color: rgba(255,255,255,0.18);
+    }
+    .area-chip-icon {
+      display: inline-flex;
+      align-items: center;
+      line-height: 1;
+    }
+    /* Per-state color treatments; mirror the prior timer-* class scheme. */
+    .area-chip--frozen { color: #63b3ed; border-color: rgba(99,179,237,0.55); }
+    .area-chip--motion { color: #e2e8f0; }
+    .area-chip--boost  { color: #e2e8f0; }
+    .area-chip--fade   { color: #e2e8f0; animation: fade-pulse 2.5s ease-in-out infinite; }
+    .area-chip--warning { color: #e6a817; animation: timer-pulse 1s ease-in-out infinite; }
+    .area-chip-arrow { opacity: 0.7; margin: 0 1px; }
+
+    /* Row 2 readout cluster — state controls left, readout center, dirty
+       reset + circadian-toggle right. The readout is the page's actual
+       headline (largest, boldest element). */
+    .page-header-power,
+    .page-header-freeze,
+    .page-header-circadian {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      background: transparent;
+      border: none;
+      color: inherit;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: background 0.15s, opacity 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .page-header-power:hover,
+    .page-header-freeze:hover,
+    .page-header-circadian:hover { background: rgba(0,0,0,0.18); }
+    .page-header-power svg,
+    .page-header-freeze svg,
+    .page-header-circadian svg { width: 18px; height: 18px; }
+    /* Power active = lights on. Subtle white pill — power state flips
+       50/50 throughout the day so a noticeable active treatment would be
+       visual noise. The pill just confirms the icon is "engaged". */
+    .page-header-power.active { background: rgba(255, 255, 255, 0.12); }
+    .page-header-power.active:hover { background: rgba(255, 255, 255, 0.22); }
+    /* Freeze active = bright cyan icon on a tinted bg pill so the active
+       state stays visible against any header tint (cool CCT bgs were
+       washing out a color-only treatment). Stronger contrast than power
+       since frozen state IS noteworthy. */
+    .page-header-freeze.active {
+      color: #8fcef0;
+      background: rgba(40, 80, 120, 0.55);
+    }
+    .page-header-freeze.active:hover { background: rgba(40, 80, 120, 0.75); }
+    /* Circadian: neutral icon when ON (default — full opacity, color
+       inherits like the back chevron). The "burying" of this rare-action
+       toggle is via right-edge position + absence of an active pill (power
+       + freeze get pills when on; circadian doesn't), NOT via opacity —
+       earlier dim-when-on treatment was reading as "off" because users
+       hardwired bright = on. When OFF, the orange accent + bg pill makes
+       the non-default state loud + obvious. */
+    .page-header-circadian.is-off {
+      color: var(--accent);
+      background: rgba(254,172,96,0.14);
+    }
+    .page-header-circadian.is-off:hover {
+      background: rgba(254,172,96,0.28);
+      color: var(--accent-hover);
+    }
+    /* Right-side action group (reset + circadian) pushed to the far right
+       so the left-side controls + readout flow naturally on the left. */
+    .page-header-actions-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+    }
+
+    .page-header-readout {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.05;
+      white-space: nowrap;
+    }
+
+    /* Master reset (↺) — orange-on-dark so it stands out against any CCT
+       tint. Visible only when the area has overrides applied (dirty). */
+    .page-header-reset {
+      background: rgba(0,0,0,0.45);
+      border: 1px solid rgba(254,172,96,0.45);
+      color: var(--accent);
+      width: 26px;
+      height: 26px;
+      border-radius: 13px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .page-header-reset:hover {
+      background: rgba(254,172,96,0.18);
+      border-color: var(--accent);
+      color: var(--accent-hover);
     }
 
     /* Main content */
@@ -106,20 +304,22 @@
     }
 
     .page-header-meta a {
-      color: var(--accent);
+      color: inherit;
       text-decoration: none;
       font-size: var(--font-display);
       white-space: nowrap;
+      opacity: 0.85;
     }
 
     .page-header-meta a:hover {
       text-decoration: underline;
+      opacity: 1;
     }
 
     .page-header-meta-label {
       font-size: var(--font-micro);
-      color: var(--text);
-      opacity: 0.35;
+      color: inherit;
+      opacity: 0.55;
       white-space: nowrap;
       text-transform: uppercase;
       letter-spacing: 0.08em;
@@ -136,205 +336,40 @@
       opacity: 0.72;
       white-space: nowrap;
       line-height: 1.4;
-      color: var(--accent);
     }
 
-    /* Area state display - with dynamic shading (from modal) */
-    .area-state {
-      --state-bg: var(--panel);
-      --state-fill: 0;
-      background: var(--state-bg);
-      border-radius: 8px;
-      padding: 10px 8px;
-      margin-bottom: 12px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .area-state::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: rgba(255,255,255,0.12);
-      opacity: var(--state-fill);
-      pointer-events: none;
-    }
-
-    .area-state-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .area-state-status-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-top: 6px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .row-slider-section { margin-bottom: 4px; padding: 6px 16px; }
-    .adjusted-schedule-label { font-size: var(--font-muted); color: var(--muted2); text-align: center; padding: 4px 0 0; letter-spacing: 0.02em; }
-    .row-slider-track { height: 10px; position: relative; cursor: pointer; touch-action: none; border-radius: 5px; overflow: visible; }
-    .row-slider-fill { display: none; }
-    .row-slider-thumb { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 30px; height: 16px; border-radius: 8px 8px 5px 5px; background: rgba(255,255,255,0.9); box-shadow: 0 1px 4px rgba(0,0,0,0.4); pointer-events: none; transition: left 0.15s; }
-    .row-slider-track.dragging .row-slider-thumb { transition: none; }
-
-    .area-state-values {
-      font-size: var(--font-hero);
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .area-state-controls {
-      display: flex;
-      gap: 4px;
-      flex-shrink: 0;
-    }
-
-    .area-state-controls-left {
-      display: flex;
-      gap: 4px;
-      flex-shrink: 0;
-      background: rgba(0,0,0,0.5);
-      padding: 4px;
-      border-radius: 10px;
-    }
-
-    .control-cluster {
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-      min-width: 0;
-    }
-    .control-cluster--right {
-      align-items: flex-end;
-    }
-    .control-cluster-label {
-      font-size: var(--font-micro);
-      font-weight: 700;
-      color: rgba(255,255,255,0.78);
-      opacity: 1;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      padding: 0 6px;
-      line-height: 1;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.45);
-    }
-
-    /* Toggle switch styles (from modal) */
-    .toggle-btn {
-      width: 36px;
-      height: 36px;
-      border-radius: 6px;
-      border: 1px solid rgba(255,255,255,0.2);
-      background: rgba(30,30,30,0.9);
-      color: var(--muted);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s;
-      font-size: var(--font-display);
-      -webkit-tap-highlight-color: transparent;
-      outline: none;
-    }
-
-    @media (hover: hover) {
-      .toggle-btn:hover {
-        border-color: rgba(255,255,255,0.4);
-        background: rgba(50,50,50,0.9);
-      }
-      #controls-left .toggle-btn:hover {
-        border-color: var(--accent);
-      }
-    }
-
-    .toggle-btn.active {
-      background: rgba(60,60,60,0.9);
-      color: var(--text);
-      border-color: var(--accent);
-    }
-
-    #controls-left .toggle-btn.active {
-      border-color: var(--accent);
-    }
+    /* Animations used by header chips (boost/freeze/motion/fade). Kept after
+       the area-state tile + timer-status row were removed in the Ship 1
+       redesign — chips reference fade-pulse and timer-pulse. */
     @keyframes fade-pulse { 0%,100% { opacity: 0.9; } 50% { opacity: 0.3; } }
-    .timer-fade { animation: fade-pulse 2.5s ease-in-out infinite; }
-
-    .toggle-btn:disabled {
-      opacity: 0.3;
-      cursor: default;
-      pointer-events: none;
-    }
-
-    .toggle-btn svg {
-      width: 18px;
-      height: 18px;
-    }
-
-    /* Timer status (inline in status row) */
-    .timer-status {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: var(--font-body);
-      margin-left: auto;
-    }
-
-    .timer-status:empty {
-      display: none;
-    }
-
-    .timer-status:not(:empty) {
-      background: rgba(0,0,0,0.45);
-      padding: 2px 8px;
-      border-radius: 10px;
-    }
-
-    .timer-motion {
-      color: #e2e8f0;
-      opacity: 0.9;
-    }
-
-    .timer-boost {
-      color: #e2e8f0;
-      opacity: 0.9;
-      margin-left: auto;
-    }
-
-    .timer-frozen {
-      color: #63b3ed;
-      opacity: 1;
-    }
-
-    .timer-arrow {
-      color: inherit;
-      margin: 0 3px;
-    }
-
-    .timer-warning {
-      color: #e6a817;
-      animation: timer-pulse 1s ease-in-out infinite;
-    }
-
     @keyframes timer-pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.4; }
     }
 
+    /* Legacy row-slider thumb (used by JS in the legacy banner element). */
+    .row-slider-track { height: 10px; position: relative; cursor: pointer; touch-action: none; border-radius: 5px; overflow: visible; }
+    .row-slider-fill { display: none; }
+    .row-slider-thumb { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 30px; height: 16px; border-radius: 8px 8px 5px 5px; background: rgba(255,255,255,0.9); box-shadow: 0 1px 4px rgba(0,0,0,0.4); pointer-events: none; transition: left 0.15s; }
+    .row-slider-track.dragging .row-slider-thumb { transition: none; }
+
+    /* Sliders muted when circadian is off — stay interactive (so the user
+       can still pre-set overrides that take effect when circadian comes
+       back on), dim opacity signals "not active right now". */
+    .curve-controls-wrap.circadian-off-overlay .hslider-row {
+      opacity: 0.5;
+    }
+    /* Stronger mute on color + phase sliders specifically when the room is
+       OFF (power off, but circadian still on). Bright slider stays at full
+       prominence — dragging it is the natural turn-on gesture. Color/phase
+       are informational only when the room is dark, so they get pushed
+       further into the background. */
+    .hslider-row--power-off { opacity: 0.35; }
+
     /* Mini chart container (from modal) */
     #mini-chart {
       width: 100%;
-      height: 280px;
+      height: 120px;
       margin: 4px 0;
       touch-action: pan-x pan-y;
     }
@@ -362,7 +397,7 @@
     .hslider-row {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 4px;
     }
     .hslider-header {
       display: flex;
@@ -522,131 +557,118 @@
       pointer-events: none;
       text-shadow: 0 1px 2px rgba(0,0,0,0.6);
     }
-    /* Chart hero cluster — positioned inside the chart's bottom margin
-       at the active handle's x-position, directly under the wake/bed line end */
+    /* Chart shell pinned at top of #chart-context-wrap (which spans Adjust
+       + Schedule + Tune cards), so the chart stays visible as the user
+       scrolls through any of those cards. Un-sticks once all three are
+       scrolled past (i.e. when Controls section comes into view).
+       Opaque bg + z-index above the cards so the sticky chart obscures
+       card content scrolling underneath. user-select: none — chart +
+       labels aren't text content; without this every tap-and-drag starts
+       a text selection. */
+    #chart-context-wrap { position: relative; }
     #chart-shell {
       position: sticky;
-      top: 56px;
+      top: 80px;  /* below the 2-row page-header */
       z-index: 5;
       background: var(--bg);
-      padding: 16px 0 2px;
-      margin-bottom: 4px;
+      padding: 6px 0 32px;
+      margin: 0 0 8px;
+      -webkit-user-select: none;
+      user-select: none;
     }
-    /* Sun-conditions chip in top-right of chart (intensity % + weather icon).
-       Visible only between sunrise and sunset. */
+    #chart-shell #mini-chart { height: 120px; margin-top: 6px; }
+    /* Sun-intensity chip — sits above the chart at solar noon (clamped to
+       the visible phase window). Borderless, transparent bg so it reads as
+       inline annotation rather than a clickable pill. Visible only when the
+       room has any sun-exposure AND the cursor is between sunrise/sunset. */
     .chart-sun-info {
       position: absolute;
-      top: 8px;
-      right: 12px;
+      top: 12px;
       display: none;
       align-items: center;
       gap: 4px;
-      font-size: var(--font-body);
+      transform: translateX(-50%);
+      font-size: 11px;
       font-weight: 600;
-      color: rgba(245, 230, 200, 0.9);
-      background: rgba(20, 22, 28, 0.55);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      padding: 2px 7px;
-      border-radius: 10px;
+      color: rgba(255, 225, 140, 0.92);
+      background: transparent;
+      border: none;
+      padding: 0;
       z-index: 6;
-      pointer-events: none;
+      cursor: default;
       letter-spacing: 0.02em;
     }
     .chart-sun-info.visible { display: inline-flex; }
-    .chart-sun-info-icon { font-size: var(--font-value); line-height: 1; }
-    /* NOW pill — HTML overlay positioned at the cursor x above the plot.
-       Uses HTML (not a Plotly annotation) so we get rounded corners + crisp
-       weighted font rendering that matches rhythm-design's chip styling. */
-    .chart-now-pill {
+    .chart-sun-info-icon { font-size: 13px; line-height: 1; color: rgba(255, 225, 140, 0.95); }
+    /* Below-axis labels — sunrise/sunset (yellow) + wake/bed (blue), ported
+       from rhythm-design's .solar-label pattern. Sit ~6px below the chart's
+       x-axis; a 1px connector bridges up to the axis line. Hover reveals a
+       time chip in the dark popover style. Hidden until .visible flag is
+       added by positionChartLabels(). */
+    .area-solar-label,
+    .area-phase-label {
       position: absolute;
-      top: 4px;
       transform: translateX(-50%);
-      display: none;
-      padding: 3px 10px;
-      border-radius: 8px;
-      border: 1.5px solid;
-      font-size: 13px;
+      font-size: 11px;
       font-weight: 600;
       white-space: nowrap;
-      pointer-events: none;
-      z-index: 6;
-      letter-spacing: 0.02em;
-    }
-    .chart-now-pill.visible { display: inline-block; }
-    .chart-hero {
-      position: absolute;
-      left: 0;
-      bottom: 6px;
-      transform: translate(-50%, 0);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 2px;
-      pointer-events: none;
       z-index: 4;
-    }
-    .chart-hero-line1,
-    .chart-hero-line2 {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      white-space: nowrap;
-      pointer-events: auto;
-    }
-    .chart-hero-label {
-      font-size: var(--font-body);
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: rgba(220, 220, 220, 0.7);
-    }
-    .chart-hero.phase-wake .chart-hero-label,
-    .chart-hero.phase-wake .chart-hero-time { color: #5cb3ff; }
-    .chart-hero.phase-bed .chart-hero-label,
-    .chart-hero.phase-bed .chart-hero-time { color: #ffe680; }
-    .chart-hero-reset {
-      background: none;
-      border: none;
-      color: rgba(200, 200, 200, 0.65);
-      font-size: var(--font-value);
-      line-height: 1;
-      padding: 2px 4px;
-      cursor: pointer;
-      border-radius: 3px;
-    }
-    .chart-hero-reset:hover {
-      color: #fff;
-      background: rgba(255, 255, 255, 0.08);
-    }
-    .chart-hero-reset.hidden {
+      cursor: default;
+      user-select: none;
+      -webkit-user-select: none;
+      font-variant-numeric: tabular-nums;
       display: none;
     }
-    .chart-hero-time {
-      font-size: var(--font-display);
-      font-weight: 600;
-      color: var(--text);
-      min-width: 60px;
-      text-align: center;
+    /* sunrise/sunset (yellow) sit just below the x-axis with a short
+       connector tick. wake/bed (blue) sit one row LOWER per spec — same
+       visual treatment as rhythm-design's sleep pills, but as a label. */
+    .area-solar-label { bottom: 22px; }
+    .area-phase-label { bottom: 4px; }
+    .area-solar-label.visible,
+    .area-phase-label.visible { display: inline-block; }
+    .area-solar-label { color: rgba(255,225,140,0.92); }
+    .area-phase-label { color: rgba(140, 195, 255, 0.95); }
+    .area-solar-label:hover { color: rgba(255,235,170,1); }
+    .area-phase-label:hover { color: rgba(170, 215, 255, 1); }
+    /* Connector tick from the label up to the chart x-axis line. Height set
+       per-frame by positionChartLabels(). */
+    .area-solar-label::before,
+    .area-phase-label::before {
+      content: '';
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      width: 1px;
+      height: var(--area-label-connector-h, 0px);
+      margin-bottom: 1px;
+      transform: translateX(-50%);
+      pointer-events: none;
     }
-    .chart-hero-step {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      color: rgba(220, 220, 220, 0.85);
-      font-size: var(--font-muted);
-      line-height: 1;
-      padding: 4px 7px;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: opacity 0.15s, background 0.15s;
-    }
-    .chart-hero-step:hover:not(:disabled) {
-      background: rgba(255, 255, 255, 0.12);
+    .area-solar-label::before { background: rgba(255,225,140,0.55); }
+    .area-phase-label::before { background: rgba(140, 195, 255, 0.55); }
+    /* Hover tooltip — time pill above the label. */
+    .area-solar-label::after,
+    .area-phase-label::after {
+      content: attr(data-time);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 3px 7px;
+      background: #3a3a3a;
       color: #fff;
+      font-size: 11px;
+      font-weight: 500;
+      border-radius: 4px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.12s;
+      margin-bottom: 5px;
+      font-variant-numeric: tabular-nums;
     }
-    .chart-hero-step:disabled {
-      opacity: 0.25;
-      cursor: default;
-    }
+    .area-solar-label:hover::after,
+    .area-phase-label:hover::after { opacity: 1; }
     /* Circadian-off overlay */
     .circadian-off-overlay::after {
       content: '';
@@ -770,7 +792,7 @@
     /* Headline variant: always-open card, no chevron, static header */
     .auto-sched-card--headline.is-open .auto-sched-body { max-height: 1600px; }
     .auto-sched-header--static { cursor: default; }
-    .curve-controls-wrap { position: relative; padding: 4px 14px 12px 14px; }
+    .curve-controls-wrap { position: relative; padding: 4px 14px 12px 14px; -webkit-user-select: none; user-select: none; }
     .curve-controls-wrap .adjust-section { margin-bottom: 0; }
 
     /* Unified field row — label left, content right */
@@ -951,11 +973,18 @@
     .ctrl-list-chevron { flex-shrink: 0; color: var(--muted2); font-size: var(--font-value); }
     .ctrl-list-divider { border-top: 1px solid var(--line); margin: 0; }
     /* Recently active pinned strip */
-    .ctrl-recent-section { padding-bottom: 6px; border-bottom: 2px solid var(--line); margin-bottom: 4px; }
-    .ctrl-recent-label { font-size: var(--font-caps); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted2); padding: 8px 14px 4px; }
-    .ctrl-recent-section .ctrl-list-row { border-bottom: 1px solid rgba(255,255,255,0.04); }
-    .ctrl-recent-section .ctrl-list-row:last-child { border-bottom: none; }
-    .ctrl-fresh-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-left: 6px; vertical-align: middle; flex-shrink: 0; }
+    /* Section headers inside the Controls card body. Group rows into
+       "In <area>" + "Reaches <area>" buckets — each header same caps-label
+       treatment that the old Recent strip used. Headers are hidden when
+       their group has zero rows. */
+    .ctrl-section-label { font-size: var(--font-caps); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted2); padding: 10px 14px 4px; }
+    .ctrl-section + .ctrl-section .ctrl-section-label { border-top: 1px solid var(--line); margin-top: 4px; }
+    /* Recency dot — fixed-width slot on the LEFT of every row so all names
+       align regardless of whether a row's dot is currently active.
+       Bright green when just-triggered, fades down to dim green over 1h,
+       disappears after that. */
+    .ctrl-fresh-dot-slot { display: inline-flex; align-items: center; justify-content: center; width: 12px; height: 12px; flex-shrink: 0; }
+    .ctrl-fresh-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .tune-brightness-val { margin-left: auto; font-size: var(--font-display); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; transition: opacity 0.25s; }
     .tune-brightness-card.is-open .tune-brightness-val { opacity: 0; }
     .tune-brightness-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; padding-bottom: 0; }
@@ -1123,121 +1152,84 @@
   <script src="./shared.js"></script>
 </head>
 <body>
-  <!-- Page Header -->
-  <header class="page-header">
+  <!-- Page Header — 2-row CCT-tinted (Ship 1 redesign).
+       Row 1: chevron · entry name + status chips · zone link
+       Row 2: power · % · K readout · reset (when dirty)
+       Background tint follows the area's current CCT (set per-frame by
+       updateHeaderTint(), invoked from updateContent()). -->
+  <header class="page-header" id="page-header">
     <button class="back-btn" onclick="goBack()" title="Back">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <polyline points="15 18 9 12 15 6"/>
       </svg>
     </button>
-    <h1 class="page-title" id="page-title">Loading...</h1>
+    <div class="page-header-title-row">
+      <h1 class="page-title" id="page-title">Loading...</h1>
+      <div class="page-header-chips" id="page-header-chips"></div>
+    </div>
     <div class="page-header-meta" id="page-header-meta">
       <span id="header-meta-rhythm"></span>
-      <span class="page-header-meta-label" id="header-meta-zone"></span>
+    </div>
+    <div class="page-header-readout-cluster">
+      <button type="button" class="page-header-power" id="toggle-power" onclick="powerToggleSmart()" title="Power">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/>
+        </svg>
+      </button>
+      <button type="button" class="page-header-freeze" id="toggle-freeze" onclick="executeAction('freeze_toggle')" title="Freeze">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="2" x2="12" y2="22"/>
+          <line x1="2" y1="12" x2="22" y2="12"/>
+          <line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/>
+          <line x1="18.4" y1="5.6" x2="5.6" y2="18.4"/>
+          <line x1="12" y1="2" x2="9.5" y2="4.5"/><line x1="12" y1="2" x2="14.5" y2="4.5"/>
+          <line x1="22" y1="12" x2="19.5" y2="9.5"/><line x1="22" y1="12" x2="19.5" y2="14.5"/>
+          <line x1="12" y1="22" x2="14.5" y2="19.5"/><line x1="12" y1="22" x2="9.5" y2="19.5"/>
+          <line x1="2" y1="12" x2="4.5" y2="14.5"/><line x1="2" y1="12" x2="4.5" y2="9.5"/>
+        </svg>
+      </button>
+      <span class="page-header-readout" id="page-header-readout">--% &middot; ----K</span>
+      <button type="button" class="page-header-reset" id="page-header-reset" onclick="resetAllOverrides()" title="Reset overrides" style="display:none;">&#x21BA;</button>
+      <div class="page-header-actions-right">
+        <button type="button" class="page-header-circadian" id="toggle-circadian" onclick="toggleCircadian()" title="Circadian Light">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+        </button>
+      </div>
     </div>
   </header>
 
   <main class="main">
 
-    <div class="area-state" id="area-state">
-      <div class="area-state-row">
-        <div class="control-cluster">
-          <span class="control-cluster-label">Mode</span>
-        <div class="area-state-controls-left" id="controls-left">
-          <button class="toggle-btn" id="toggle-circadian" onclick="toggleCircadian()" title="Circadian Light">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="5"/>
-              <line x1="12" y1="1" x2="12" y2="3"/>
-              <line x1="12" y1="21" x2="12" y2="23"/>
-              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-              <line x1="1" y1="12" x2="3" y2="12"/>
-              <line x1="21" y1="12" x2="23" y2="12"/>
-              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-            </svg>
-          </button>
-          <button class="toggle-btn" id="toggle-power" onclick="executeAction('lights_toggle')" title="Power">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/>
-            </svg>
-          </button>
-          <button class="toggle-btn" id="toggle-freeze" onclick="executeAction('freeze_toggle')" title="Freeze">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-                 stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="2" x2="12" y2="22"/>
-              <line x1="2" y1="12" x2="22" y2="12"/>
-              <line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/>
-              <line x1="18.4" y1="5.6" x2="5.6" y2="18.4"/>
-              <line x1="12" y1="2" x2="9.5" y2="4.5"/><line x1="12" y1="2" x2="14.5" y2="4.5"/>
-              <line x1="22" y1="12" x2="19.5" y2="9.5"/><line x1="22" y1="12" x2="19.5" y2="14.5"/>
-              <line x1="12" y1="22" x2="14.5" y2="19.5"/><line x1="12" y1="22" x2="9.5" y2="19.5"/>
-              <line x1="2" y1="12" x2="4.5" y2="14.5"/><line x1="2" y1="12" x2="4.5" y2="9.5"/>
-            </svg>
-          </button>
-          <button class="toggle-btn" id="toggle-boost" onclick="executeAction('boost')" title="Boost">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                 stroke-linecap="round" stroke-linejoin="round">
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-            </svg>
-          </button>
-        </div>
-        </div>
-        <div class="control-cluster control-cluster--right">
-          <span class="control-cluster-label">Adjust</span>
-        <div class="area-state-controls" id="controls-area">
-          <button class="toggle-btn" id="toggle-full-send" onclick="confirmFullSend()" title="Full Send: push to entire Rhythm Zone">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="5 8 12 2 19 8"/>
-              <line x1="4" y1="12" x2="20" y2="12"/>
-              <polyline points="5 16 12 22 19 16"/>
-            </svg>
-          </button>
-          <button class="toggle-btn" id="toggle-glo-up" onclick="executeAction('glo_up')" title="GloUp: send area settings to Rhythm Zone">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="5 13 12 6 19 13"/>
-              <line x1="4" y1="19" x2="20" y2="19"/>
-            </svg>
-          </button>
-          <button class="toggle-btn" id="toggle-glo-down" onclick="executeAction('glo_down')" title="GloDown: pull Rhythm Zone settings to this area">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="4" y1="5" x2="20" y2="5"/>
-              <polyline points="5 11 12 18 19 11"/>
-            </svg>
-          </button>
-          <button class="toggle-btn" id="toggle-glo-reset" onclick="executeAction('glo_reset')" title="Reset: return to rhythm">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-          </button>
-        </div>
-        </div>
-      </div>
-      <div class="area-state-status-row">
-        <div class="area-state-values" id="state-values"></div>
-        <div class="timer-status" id="timer-status"></div>
-      </div>
-    </div>
-
     <!-- Cards Section (curve + auto schedule) -->
-    <div id="auto-sched-section" class="auto-sched-section" style="display:none;">
+    <!-- Chart-context wrapper: chart-shell pins sticky inside this wrapper,
+         so it stays visible as the user scrolls through Adjust → Schedule
+         → Tune. Wrapper closes after the Tune section so chart un-sticks
+         once those cards are scrolled past. -->
+    <div id="chart-context-wrap">
+    <!-- Sticky chart pulled out of the Adjust card body so its sticky scope
+         spans Adjust + Schedule + Tune cards (its direct parent here). -->
     <div id="chart-shell">
       <div id="mini-chart"></div>
-      <div id="chart-now-pill" class="chart-now-pill"></div>
-      <div id="chart-sun-info" class="chart-sun-info">
+      <div id="chart-sun-info" class="chart-sun-info" title="Current sun intensity">
         <span class="chart-sun-info-icon" id="chart-sun-info-icon">&#x2600;</span>
         <span id="chart-sun-info-pct">&mdash;</span>
       </div>
-      <div id="chart-hero" class="chart-hero" style="display:none;">
-        <div class="chart-hero-line1">
-          <span class="chart-hero-label" id="chart-hero-label">Wake</span>
-          <button class="chart-hero-reset hidden" id="reset-phase" onclick="executeAction('reset_phase')" title="Reset wake/bed time">&#x21BA;</button>
-        </div>
-        <div class="chart-hero-line2">
-          <button class="chart-hero-step" id="chart-step-back" type="button" title="Earlier" onclick="chartHeroStep('back')">&#x25C0;</button>
-          <span class="chart-hero-time" id="chart-hero-time">—</span>
-          <button class="chart-hero-step" id="chart-step-fwd" type="button" title="Later" onclick="chartHeroStep('fwd')">&#x25B6;</button>
-        </div>
-      </div>
+      <div class="area-solar-label" id="area-sunrise-label" data-time="">sunrise</div>
+      <div class="area-solar-label" id="area-sunset-label" data-time="">sunset</div>
+      <div class="area-phase-label" id="area-phase-label" data-time="">wake</div>
     </div>
+    <div id="auto-sched-section" class="auto-sched-section" style="display:none;">
     <div class="auto-sched-card auto-sched-card--headline is-open" id="chart-card">
       <div class="auto-sched-header" onclick="toggleChartCard()">
         <span class="auto-sched-chevron">&#x203A;</span>
@@ -1246,6 +1238,9 @@
       </div>
       <div class="auto-sched-body" id="chart-body">
         <div id="circadian-content-wrap" class="curve-controls-wrap">
+          <!-- Chart-shell moved up to #chart-context-wrap so it can stay
+               sticky across Adjust + Schedule + Tune cards. Adjust card
+               body now starts directly with the sliders. -->
           <div class="adjust-section">
             <div class="hslider-row">
               <div class="hslider-header">
@@ -1266,6 +1261,22 @@
                 <button class="hslider-reset hidden" id="reset-color" onclick="executeAction('reset_color_override')" title="Reset color">&#x21BA;</button>
               </div>
               <div class="slider-track" data-mode="color">
+                <div class="slider-track-bg"></div>
+                <div class="slider-thumb-ghost"></div>
+                <div class="slider-thumb"></div>
+              </div>
+            </div>
+            <!-- Phase-time slider (Wake when in ascend, Bed when in descend).
+                 Auto-flips at the phase boundary. Constrained to phase bounds
+                 with the existing narrowed-boundary buffer formula
+                 (computePhaseSafeOffset). Drag-end calls set_phase_time. -->
+            <div class="hslider-row">
+              <div class="hslider-header">
+                <span class="hslider-label" id="slider-phase-label">Wake</span>
+                <span class="hslider-value" id="slider-hero-phase">—</span>
+                <button class="hslider-reset hidden" id="reset-phase" onclick="executeAction('reset_phase')" title="Reset wake/bed time">&#x21BA;</button>
+              </div>
+              <div class="slider-track" data-mode="phase">
                 <div class="slider-track-bg"></div>
                 <div class="slider-thumb-ghost"></div>
                 <div class="slider-thumb"></div>
@@ -1302,7 +1313,7 @@
     <div class="auto-sched-card auto-sched-card--auto" id="auto-outer-card">
       <div class="auto-sched-header" onclick="toggleAutoOuter(event)">
         <span class="auto-sched-chevron" id="auto-outer-chevron">&#x203A;</span>
-        <span class="auto-sched-title">Auto</span>
+        <span class="auto-sched-title">Schedule</span>
         <span class="auto-outer-next" id="auto-outer-next"></span>
       </div>
       <div class="auto-sched-body" id="auto-outer-body">
@@ -1501,6 +1512,7 @@
       <div class="tune-card tune-lights-card" id="tune-lights-card" style="display:none;"></div>
       <div class="tune-save-status" id="tune-save-status">Saved</div>
     </div>
+    </div><!-- end #chart-context-wrap -->
   </main>
 
   <script>
@@ -1534,7 +1546,10 @@
     // Circadian Curve Calculation (from areas.html modal)
     // ============================================================
 
-    const SPEED_TO_SLOPE = [0, 0.4, 0.6, 0.8, 1.0, 1.3, 1.7, 2.3, 3.0, 4.0, 5.5];
+    // Slopes chosen so 5%→95% transition width = 2*ln(19)/k hours lands on:
+    // 10h, 7.5h, 5.5h, 4h, 3h, 2.25h, 1.5h, 1h, 30min, 15min, 5min, 2min.
+    // MUST stay in sync with brain.py SPEED_TO_SLOPE.
+    const SPEED_TO_SLOPE = [0, 0.5889, 0.7852, 1.0708, 1.4722, 1.9630, 2.6173, 3.9260, 5.8890, 11.778, 23.556, 70.668, 176.67];
 
     function logistic(x, midpoint, slope, y0, y1) {
       try {
@@ -1833,8 +1848,8 @@
       let tDescend = cfg.descend_start;
       if (tDescend <= tAscend) tDescend += 24;
 
-      const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.wake_speed))];
-      const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.bed_speed))];
+      const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.wake_speed))];
+      const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.bed_speed))];
       const bMin = cfg.min_brightness / 100;
       const bMax = cfg.max_brightness / 100;
 
@@ -1907,8 +1922,8 @@
       let tDescend = cfg.descend_start;
       if (tDescend <= tAscend) tDescend += 24;
 
-      const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.wake_speed))];
-      const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.bed_speed))];
+      const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.wake_speed))];
+      const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.bed_speed))];
       const bMin = cfg.min_brightness / 100;
       const bMax = cfg.max_brightness / 100;
       const cLow = cfg.min_color_temp;
@@ -2001,7 +2016,7 @@
     }
 
     // Backend-matching sun angle factor (mirrors lux_tracker._compute_elev_factor).
-    // Uses per-hour sun elevation with saturation/ramp settings from cachedSunTimes.
+    // smoothstep over raw^0.75 — tangent-flat at both 0 and 1.
     function computeSunBrightAngleAt(hour, sunTimes) {
       if (!sunTimes) return 0;
       const lat = cachedConfig?.latitude ?? 35.0;
@@ -2010,25 +2025,44 @@
       if (elev <= 0) return 0;
       const maxElev = sunTimes.maxSummerElevation ?? 78.0;
       const sat = sunTimes.sunSaturation ?? 40;
-      const ramp = sunTimes.sunSaturationRamp ?? 'squared';
       const threshold = maxElev * sat / 100.0;
       if (threshold <= 0) return 1.0;
       const raw = Math.min(1.0, elev / threshold);
-      return ramp === 'squared' ? raw * raw : raw;
+      const x = Math.pow(raw, 0.75);
+      return x * x * (3 - 2 * x);
     }
 
-    // Bulb output = room target × projected sun_bright_factor at hour.
-    // Anchor "now" to backend's live sun_bright_factor; shape across day via sun angle.
+    // Bulb output = room target × sun_dim_factor at this hour. Ports
+    // rhythm-design.html's sunDimFactor approach (rhythm-design:3719) so
+    // the chart's curve shape matches between rhythm + area, and stays
+    // stable regardless of where "now" is (post-sunset still shows the
+    // morning's sun-dimming gap, not just a flat curve). Earlier code
+    // anchored on the live sun_bright_factor at NOW — collapsed to flat
+    // any time the sun was down. New formula computes per-hour from solar
+    // math + current cloud cover + brightness_sensitivity directly.
+    //
+    // Tradeoff: the dot-at-NOW value won't match actual bulb emission to
+    // the percent (rhythm doesn't include natural_light_exposure either),
+    // but the curve shape is consistent across pages + time of day.
     function calcBulbBrightnessAt(hour, sunTimes, currentHour, roomPct) {
       if (!sunTimes) return roomPct;
-      const sbfNow = sunTimes.sunBrightFactorNow ?? 1.0;
-      if (sbfNow >= 0.99) return roomPct;   // no dimming now → bulbs = room
-      const angleNow = computeSunBrightAngleAt(currentHour, sunTimes);
-      if (angleNow < 0.01) return roomPct;  // night now → can't calibrate
-      const angleH = computeSunBrightAngleAt(hour, sunTimes);
-      const dimmingNow = 1.0 - sbfNow;
-      const dimmingH = dimmingNow * (angleH / angleNow);
-      const factor = Math.max(0, 1.0 - dimmingH);
+      const briSens = sunTimes.briSens ?? 0;
+      const exposure = sunTimes.naturalLightExposure ?? 0;
+      const conditionMult = sunTimes.conditionMultiplier ?? 0;
+      // Any of {sensitivity, exposure, cloud cover} = 0 → no dimming.
+      // Per-room exposure is the difference between rhythm's formula (which
+      // doesn't include it) and the area page (where it matters): an
+      // interior room with exposure=0 should show NO sun-dimming gap, even
+      // if its sensitivity is non-zero. A sun-room with exposure=2.0 shows
+      // proportionally stronger dimming.
+      if (briSens <= 0 || exposure <= 0 || conditionMult <= 0) return roomPct;
+      const lat = cachedConfig?.latitude ?? 35.0;
+      const lon = cachedConfig?.longitude ?? -78.6;
+      const elev = getSunElevationAtHour(hour, lat, lon);
+      if (elev <= 0) return roomPct;  // sun below horizon → no dimming
+      const angleNormCond = elevationToOutdoorNorm(elev, conditionMult);
+      const dim = angleNormCond * briSens * exposure;
+      const factor = Math.max(0, Math.min(1, 1 - dim));
       return roomPct * factor;
     }
 
@@ -2040,21 +2074,42 @@
       const bulbPct = [];
       const cct = [];
 
+      // Flat override (Ship 2 chart): apply both brightness and color
+      // overrides uniformly across the whole day instead of decaying from
+      // set_at to the phase boundary. Visualizes "what the curve would look
+      // like if this setting applied all day" — easier to read than the
+      // previous live-decay model which produced a sharp NOW cliff. The
+      // actual lights still apply forward-only on the server; this is a
+      // chart-only what-if rendering.
+      const flatBriOverride = state?.brightness_override ?? 0;
+      // Color flat: compute the natural CCT (no override) via a state with
+      // both override fields nulled, then add the override delta directly
+      // on top. Going through `calcMiniColor` with the override+null-set-at
+      // path routes through `applySolarRule` which only adds the override
+      // additively when sliderColor=true (i.e. set_at is non-null) — so the
+      // simplest way to apply it flatly is to re-add it ourselves here.
+      const colorOv = state?.color_override ?? 0;
+      const noColorOvState = state ? { ...state, color_override: null, color_override_set_at: null } : state;
+
       for (let i = 0; i < numSamples; i++) {
         const h = xAnchor + (i / numSamples) * 24;
         const hMod = ((h % 24) + 24) % 24;
         hours.push(h);
-        // Pure room target (no override) — drives the dotted natural-light line
-        // and is the basis for the sun-dimming reduction.
+        // Pure room target (natural circadian curve, no override, no sun dimming).
         const pureRoom = calcMiniBrightness(hMod, cfg, state, currentHour, { skipOverride: true }) * 100;
-        brightnessPct.push(pureRoom);
-        // Bulb output = pure_room × sun_factor + override (decayed). Override is
-        // added in bulb-space, not pre-sun, so the override doesn't get squished
-        // by sun_bright_factor — matching backend's set_position accounting.
+        // Sun-dimming reference dotted line: pureRoom + flat brightness
+        // override. Same override the solid bulb curve gets, just without the
+        // sun-dimming reduction. Gap between dotted and solid = sun-dimming
+        // amount only — so dragging brightness slider down moves BOTH lines
+        // down by the same delta and the gap stays equal to the sun-dimming.
+        brightnessPct.push(Math.max(0, Math.min(100, pureRoom + flatBriOverride)));
+        // Bulb output = pure_room × sun_factor + flat override delta. Override
+        // is added in bulb-space, not pre-sun, so it doesn't get squished by
+        // sun_bright_factor — matching backend's set_position accounting.
         const bulbNatural = calcBulbBrightnessAt(hMod, sunTimes, currentHour, pureRoom);
-        const overridePct = calcOverrideDecay(hMod, cfg, state) * 100;
-        bulbPct.push(Math.max(0, Math.min(100, bulbNatural + overridePct)));
-        cct.push(calcMiniColor(hMod, cfg, state, sunTimes, currentHour));
+        bulbPct.push(Math.max(0, Math.min(100, bulbNatural + flatBriOverride)));
+        const naturalCct = calcMiniColor(hMod, cfg, noColorOvState, sunTimes, currentHour);
+        cct.push(naturalCct + colorOv);
       }
 
       return { hours, brightnessPct, bulbPct, cct };
@@ -2091,119 +2146,17 @@
       return remMin > 0 ? `${hr}h ${remMin}m` : `${hr}h`;
     }
 
-    // Drag state for chart midpoint handle
-    let _chartDrag = {
-      active: false,
-      dragHour: null,
-      phaseMin: null,
-      phaseMax: null,
-      phaseSlopeSigned: null,
-      nowHour: null,
-      cursorInAscend: null,
-      initialized: false,
-    };
+    // Stub kept for back-compat: chart drag was retired in Ship 2 (chart is
+    // now read-only — wake/bed time is changed via the dedicated phase
+    // slider in the Adjust card body). Code paths that read `_chartDrag.active`
+    // still exist but never see `active=true` since nothing flips it.
+    const _chartDrag = { active: false, dragHour: null, cursorInAscend: null };
 
-    // Expose active-phase geometry for drag handlers to read/clamp on move
+    // Active-phase geometry stashed by renderMiniChart for updateChartNowPill
+    // (positions the cursor pill at the cursor x-pixel inside chart-shell).
     let _chartGeom = { activeMidHour: null, phaseMin: null, phaseMax: null, phaseSlopeSigned: null, nowHour: null, cursorInAscend: null };
 
-    // NOW pill data, populated by renderMiniChart and consumed by updateChartNowPill
-    // after the chart renders (HTML overlay positioning needs the rendered _fullLayout).
-    let _chartNowPillData = null;
-
-    function setupChartDragHandlers() {
-      const chartDiv = document.getElementById('mini-chart');
-      if (!chartDiv || _chartDrag.initialized) return;
-      _chartDrag.initialized = true;
-
-      function pixelToDataX(clientX) {
-        const fl = chartDiv._fullLayout;
-        if (!fl || !fl.xaxis) return null;
-        const rect = chartDiv.getBoundingClientRect();
-        const relX = clientX - rect.left - fl.xaxis._offset;
-        if (relX < 0 || relX > fl.xaxis._length) return null;
-        const xAnchor = _chartGeom.xAnchor ?? 0;
-        return xAnchor + (relX / fl.xaxis._length) * 24;
-      }
-      function dataXToClientPixel(dataX) {
-        const fl = chartDiv._fullLayout;
-        if (!fl || !fl.xaxis) return null;
-        const rect = chartDiv.getBoundingClientRect();
-        const xAnchor = _chartGeom.xAnchor ?? 0;
-        return rect.left + fl.xaxis._offset + ((dataX - xAnchor) / 24) * fl.xaxis._length;
-      }
-
-      const HANDLE_HIT_PX = 18;
-      function isNearHandle(clientX) {
-        if (_chartGeom.activeMidHour == null) return false;
-        const handlePx = dataXToClientPixel(_chartGeom.activeMidHour);
-        if (handlePx == null) return false;
-        return Math.abs(clientX - handlePx) <= HANDLE_HIT_PX;
-      }
-
-      function onDown(e) {
-        if (!isNearHandle(e.clientX)) return;
-        e.preventDefault();
-        try { chartDiv.setPointerCapture(e.pointerId); } catch (err) {}
-        _chartDrag.active = true;
-        _chartDrag.dragHour = _chartGeom.activeMidHour;
-        _chartDrag.phaseMin = _chartGeom.phaseMin;
-        _chartDrag.phaseMax = _chartGeom.phaseMax;
-        _chartDrag.phaseSlopeSigned = _chartGeom.phaseSlopeSigned;
-        _chartDrag.nowHour = _chartGeom.nowHour;
-        _chartDrag.cursorInAscend = _chartGeom.cursorInAscend;
-        chartDiv.classList.add('dragging');
-        chartDiv.classList.remove('handle-hover');
-      }
-      function onMove(e) {
-        if (_chartDrag.active) {
-          e.preventDefault();
-          const dataX = pixelToDataX(e.clientX);
-          if (dataX == null) return;
-          const phaseMid = (_chartDrag.phaseMin + _chartDrag.phaseMax) / 2;
-          let dragX = dataX;
-          if (Math.abs(dragX + 24 - phaseMid) < Math.abs(dragX - phaseMid)) dragX += 24;
-          if (Math.abs(dragX - 24 - phaseMid) < Math.abs(dragX - phaseMid)) dragX -= 24;
-          dragX = Math.max(_chartDrag.phaseMin + 0.05, Math.min(_chartDrag.phaseMax - 0.05, dragX));
-          _chartDrag.dragHour = ((dragX % 24) + 24) % 24;
-          if (selectedArea) renderMiniChartForArea(selectedArea.area_id);
-          return;
-        }
-        // Not dragging — toggle hover class for cursor feedback near the handle
-        chartDiv.classList.toggle('handle-hover', isNearHandle(e.clientX));
-      }
-      function onUp(e) {
-        if (!_chartDrag.active) return;
-        e.preventDefault();
-        try { chartDiv.releasePointerCapture(e.pointerId); } catch (err) {}
-        chartDiv.classList.remove('dragging');
-        const targetTime = _chartDrag.dragHour;
-        _chartDrag.active = false;
-        executeSetPhaseTime(targetTime);
-      }
-      function onLeave() {
-        if (!_chartDrag.active) chartDiv.classList.remove('handle-hover');
-      }
-
-      chartDiv.addEventListener('pointerdown', onDown);
-      chartDiv.addEventListener('pointermove', onMove);
-      chartDiv.addEventListener('pointerup', onUp);
-      chartDiv.addEventListener('pointercancel', onUp);
-      chartDiv.addEventListener('pointerleave', onLeave);
-
-      // Re-align the chart-hero cluster whenever the chart resizes
-      // (responsive: true on Plotly means the plot stretches with the
-      // container, but our overlay needs a recompute).
-      if (window.ResizeObserver) {
-        const ro = new ResizeObserver(() => {
-          if (!selectedArea) return;
-          const ctx = getSliderCfgAndState();
-          if (!ctx) return;
-          const phaseCtx = buildPhaseCtx(ctx.cfg, ctx.areaState, ctx.currentHour);
-          updateChartHero(phaseCtx, ctx.cfg, ctx.areaState);
-        });
-        ro.observe(chartDiv);
-      }
-    }
+    // NOW pill stash retired in Ship 2 — header readout carries this now.
 
     function renderMiniChart(cfg, state, sunTimes, currentHour, isActive, adjustedTimes, markerOverride) {
       if (!cfg || !sunTimes) return;
@@ -2214,7 +2167,26 @@
       // reflects the live slider position.
       const areaLive = (selectedArea && areaStatus) ? (areaStatus[selectedArea.area_id] || {}) : {};
       const sbfNow = state.live_sbf ?? areaLive.sun_bright_factor ?? sunTimes.sunBrightFactorNow ?? 1.0;
-      const curveSunTimes = Object.assign({}, sunTimes, { sunBrightFactorNow: sbfNow });
+      // Stash brightness_sensitivity on the sunTimes copy so calcBulbBrightnessAt
+      // can read it. Prefer live tuneState (unsaved Tune edits) over saved
+      // status — same priority as sbfNow above. This drives the per-hour
+      // sun-dimming projection (rhythm-design:3719 formula).
+      const briSens = (tuneState?.initialized && tuneState.brightnessSensitivity != null)
+        ? tuneState.brightnessSensitivity
+        : (areaLive.brightness_sensitivity ?? 0);
+      // natural_light_exposure: live tuneState (Sun-exposure slider preview)
+      // wins over saved status. Defaults to 0 if missing — don't project
+      // dimming we can't ground in real config.
+      const naturalLightExposure =
+        (tuneState?.initialized && typeof SOLAR_STEPS !== 'undefined'
+          && SOLAR_STEPS[tuneState.solarStep])
+          ? SOLAR_STEPS[tuneState.solarStep].exposure
+          : (areaLive.natural_light_exposure ?? 0);
+      const curveSunTimes = Object.assign({}, sunTimes, {
+        sunBrightFactorNow: sbfNow,
+        briSens,
+        naturalLightExposure,
+      });
 
       // Always anchor at ascend_start so the full day reads left-to-right
       // starting at the morning inflection regardless of current phase.
@@ -2248,6 +2220,10 @@
       const hasDivergence = maxDivergence > 1.0;
 
       const traces = [];
+      // Declare shapes + annotations early so any trace-emit block (the
+      // sun-dimming label, the wake/bed lines, etc.) can push into them.
+      const shapes = [];
+      const annotations = [];
 
       // Color-gradient BULB curve (filled + line segments) — what bulbs output after sun dimming
       const step = 2;
@@ -2276,10 +2252,47 @@
         });
       }
 
-      // Natural-light target curve — only drawn where bulb/natural diverge (>=1%).
-      // Uses null breaks so the dotted line disappears before sunrise / after sunset
-      // and at any other point where the two curves coincide.
-      if (hasDivergence) {
+      // Two dotted-line modes — only one renders at a time:
+      //   1. Drag ghost: pre-drag bulb curve, shown while a slider is being
+      //      dragged so the user can compare before/after.
+      //   2. Sun-dimming reference: natural-light target (pre-sun-dimming),
+      //      shown when bulb output is being reduced by sun dimming. Mirrors
+      //      rhythm-details' "sun dimming" treatment — the gap between solid
+      //      bulb curve and dotted reference visualizes how much the sun is
+      //      cutting into the rhythm.
+      const dragGhostActive = !!(window._chartDragGhostCurve
+        && Array.isArray(window._chartDragGhostCurve.bulbPct)
+        && window._chartDragGhostCurve.bulbPct.length === hours.length);
+      if (dragGhostActive) {
+        // Drag ghost as a solid line (not dotted) — visually distinct from
+        // the sun-dimming dotted reference, and reads as a "previous state"
+        // without the dashed treatment that the dotted line owns.
+        traces.push({
+          type: 'scatter', mode: 'lines',
+          x: hours, y: window._chartDragGhostCurve.bulbPct,
+          line: { width: 1.5, color: 'rgba(220, 220, 220, 0.45)' },
+          hoverinfo: 'skip', showlegend: false,
+        });
+      } else if (hasDivergence) {
+        // Compute peak divergence + first-divergent-sample WITHIN the
+        // visible phase window only — earlier `maxDivergence` was scanned
+        // across the full 24h `hours` array, so a tiny sun-dimming spike
+        // in the morning could trigger the label even when the visible
+        // afternoon window had no perceptible gap. Threshold bumped to
+        // ≥15% so we only show the label when there's a meaningful gap
+        // for the user to actually see.
+        const visStart = curInAscend ? tAscAnchor : tDescAnchor;
+        const visEnd = curInAscend ? tDescAnchor : tAscAnchor + 24;
+        let visMaxDiv = 0;
+        let firstDivIdx = -1;
+        for (let i = 0; i < hours.length; i++) {
+          if (hours[i] < visStart || hours[i] > visEnd) continue;
+          const d = brightnessPct[i] - bulbPct[i];
+          if (d > visMaxDiv) visMaxDiv = d;
+          if (firstDivIdx < 0 && d >= 1.0) firstDivIdx = i;
+        }
+        // Mask the natural curve to null where it's identical to the bulb
+        // curve so the dotted line breaks naturally at sunrise/sunset.
         const maskedNatural = hours.map((h, i) =>
           (brightnessPct[i] - bulbPct[i]) >= 1.0 ? brightnessPct[i] : null
         );
@@ -2288,8 +2301,22 @@
           x: hours, y: maskedNatural,
           line: { width: 1.5, color: 'rgba(220, 220, 220, 0.55)', dash: 'dot' },
           connectgaps: false,
-          hoverinfo: 'skip', showlegend: false
+          hoverinfo: 'skip', showlegend: false,
         });
+        // "sun dimming" label only when the peak gap WITHIN the visible
+        // window is ≥15%. Anchored at the leading edge of dimming (first
+        // divergent sample), at the gap midpoint there — keeps the label
+        // clear of the cursor + wake/bed line which tend to sit near peak.
+        if (firstDivIdx >= 0 && visMaxDiv >= 15.0) {
+          const divX = hours[firstDivIdx];
+          const divY = (brightnessPct[firstDivIdx] + bulbPct[firstDivIdx]) / 2;
+          annotations.push({
+            x: divX, y: divY, xref: 'x', yref: 'y',
+            text: 'sun dimming', showarrow: false, xshift: 4,
+            xanchor: 'left',
+            font: { size: 10, color: 'rgba(220, 220, 220, 0.6)' },
+          });
+        }
       }
 
       // Hover trace — CCT-colored tooltips showing time, bulb brightness, color.
@@ -2346,9 +2373,8 @@
         if (Number.isFinite(markerOverride.cct)) markerCCT = markerOverride.cct;
       }
 
-      // Shapes and annotations
-      const shapes = [];
-      const annotations = [];
+      // (shapes + annotations declared earlier so the sun-dimming label
+      //  block can push into them.)
 
       // Wake/bed vertical lines
       const wakeTime = shiftIntoWindow(cfg.wake_time);
@@ -2379,103 +2405,43 @@
       // Convert curve y (0–100) to paper y (chart range 0–110, plus paper offset)
       const yToPaper = (y) => Math.max(0, Math.min(0.91, (y / 110) * 0.91));
 
-      // Wake/bed vertical lines — only the ACTIVE phase renders; inactive phase markers
-      // dropped per UX direction (focus on next-up bed or wake, plus NOW).
+      // Wake/bed line is normally NOT drawn inside the plot — the below-
+      // axis label's connector tick (rendered by positionChartLabels) is
+      // enough to mark the time. Only when the user is actively dragging
+      // the phase slider does the line extend up through the chart, so
+      // they can see how the shift bends the curve at every y. Once they
+      // release, the line collapses back to just the connector tick.
       const vLineTop = 0.91;  // ≈ y=100 in data coords (range 0-110)
-      const wakeColor = 'rgba(92, 179, 255, 0.78)';
-      const wakeWidth = 2.5;
-      const bedColor = 'rgba(255, 230, 128, 0.78)';
-      const bedWidth = 2.5;
-      const wakeTopPaper = vLineTop;
-      const bedTopPaper = vLineTop;
-      // Daily (default) wake/bed lines — muted phase color when shifted so the
-      // user can see the gap between daily and adjusted.
-      const wakeDailyLine = hasAdjWake
-        ? { color: 'rgba(92, 179, 255, 0.28)', width: 1.25 }
-        : { color: wakeColor, width: wakeWidth };
-      const bedDailyLine = hasAdjBed
-        ? { color: 'rgba(255, 230, 128, 0.28)', width: 1.25 }
-        : { color: bedColor, width: bedWidth };
-      if (wakeIsActive) {
-        shapes.push({
-          type: 'line', xref: 'x', yref: 'paper',
-          x0: wakeTime, x1: wakeTime, y0: -0.29, y1: wakeTopPaper,
-          line: wakeDailyLine
-        });
-      }
-      if (bedIsActive) {
-        shapes.push({
-          type: 'line', xref: 'x', yref: 'paper',
-          x0: bedTime, x1: bedTime, y0: -0.29, y1: bedTopPaper,
-          line: bedDailyLine
-        });
+      const wakeColor = 'rgba(92, 179, 255, 0.55)';
+      const bedColor = 'rgba(111, 169, 255, 0.55)';
+      const phaseTrack = document.querySelector('.slider-track[data-mode="phase"]');
+      const phaseDragging = !!(phaseTrack && phaseTrack.classList.contains('dragging'));
+      if (phaseDragging) {
+        if (wakeIsActive) {
+          const wakeX = hasAdjWake ? shiftIntoWindow(adjustedTimes.wake) : wakeTime;
+          shapes.push({
+            type: 'line', xref: 'x', yref: 'paper', layer: 'below',
+            x0: wakeX, x1: wakeX, y0: 0, y1: vLineTop,
+            line: { color: wakeColor, width: 1.5 },
+          });
+        }
+        if (bedIsActive) {
+          const bedX = hasAdjBed ? shiftIntoWindow(adjustedTimes.bed) : bedTime;
+          shapes.push({
+            type: 'line', xref: 'x', yref: 'paper', layer: 'below',
+            x0: bedX, x1: bedX, y0: 0, y1: vLineTop,
+            line: { color: bedColor, width: 1.5 },
+          });
+        }
       }
 
-      // Adjusted wake/bed vertical lines (solid, colored) when midpoint is shifted,
-      // and a faint phase-colored band between daily and adjusted so the shift
-      // reads visually. Only renders for the ACTIVE phase (inactive-phase markers are dropped).
-      if (hasAdjWake && wakeIsActive) {
-        const adjWake = shiftIntoWindow(adjustedTimes.wake);
-        const adjWakeTop = vLineTop;
-        const bandX0 = Math.min(wakeTime, adjWake);
-        const bandX1 = Math.max(wakeTime, adjWake);
-        shapes.push({
-          type: 'rect', xref: 'x', yref: 'paper',
-          x0: bandX0, x1: bandX1, y0: -0.29, y1: Math.max(wakeTopPaper, adjWakeTop),
-          fillcolor: 'rgba(92, 179, 255, 0.14)',
-          line: { width: 0 }, layer: 'below'
-        });
-        shapes.push({
-          type: 'line', xref: 'x', yref: 'paper',
-          x0: adjWake, x1: adjWake, y0: -0.29, y1: adjWakeTop,
-          line: { color: wakeColor, width: wakeWidth }
-        });
-      }
-      if (hasAdjBed && bedIsActive) {
-        const adjBed = shiftIntoWindow(adjustedTimes.bed);
-        const adjBedTop = vLineTop;
-        const bandX0 = Math.min(bedTime, adjBed);
-        const bandX1 = Math.max(bedTime, adjBed);
-        shapes.push({
-          type: 'rect', xref: 'x', yref: 'paper',
-          x0: bandX0, x1: bandX1, y0: -0.29, y1: Math.max(bedTopPaper, adjBedTop),
-          fillcolor: 'rgba(255, 230, 128, 0.14)',
-          line: { width: 0 }, layer: 'below'
-        });
-        shapes.push({
-          type: 'line', xref: 'x', yref: 'paper',
-          x0: adjBed, x1: adjBed, y0: -0.29, y1: adjBedTop,
-          line: { color: bedColor, width: bedWidth }
-        });
-      }
-
-      // Phase wash — faint colored fill across the active half so the active phase reads
-      const activePhaseLeft = wakeIsActive ? tAscendGeom_ : tDescendGeom_;
-      const activePhaseRight = wakeIsActive ? tDescendGeom_ : (tAscendGeom_ + 24);
-      const washColor = wakeIsActive ? 'rgba(92, 179, 255, 0.045)' : 'rgba(255, 230, 128, 0.045)';
-      shapes.push({
-        type: 'rect', xref: 'x', yref: 'paper',
-        x0: activePhaseLeft, x1: activePhaseRight, y0: 0, y1: vLineTop,
-        fillcolor: washColor, line: { width: 0 }, layer: 'below'
-      });
-
-      // Inactive-phase mute — dark overlay recedes the inactive half (including the
-      // bulb-curve trace beneath) so the active phase reads as primary. y1 stops short
-      // of the plot top so the moon image (y=0.91..1.05) stays bright.
-      const inactiveLeft = wakeIsActive ? tDescendGeom_ : tAscendGeom_;
-      const inactiveRight = wakeIsActive ? (tAscendGeom_ + 24) : tDescendGeom_;
-      shapes.push({
-        type: 'rect', xref: 'x', yref: 'paper',
-        x0: inactiveLeft, x1: inactiveRight, y0: 0, y1: 0.88,
-        fillcolor: 'rgba(8, 10, 14, 0.55)', line: { width: 0 }, layer: 'above'
-      });
 
       // Active-phase geometry + draggable handle
       const tAscendGeom = cfg.ascend_start;
       let tDescendGeom = cfg.descend_start;
       if (tDescendGeom <= tAscendGeom) tDescendGeom += 24;
-      const kAscendGeom = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.wake_speed))];
-      const kDescendGeom = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.bed_speed))];
+      const kAscendGeom = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.wake_speed))];
+      const kDescendGeom = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.bed_speed))];
       const cursorH48Geom = currentHour < tAscendGeom ? currentHour + 24 : currentHour;
       const cursorInAscendGeom = cursorH48Geom >= tAscendGeom && cursorH48Geom < tDescendGeom;
 
@@ -2519,9 +2485,27 @@
         return bulbPct[bulbPct.length - 1];
       })();
 
-      // Handle hover: show time + drag affordance (visual delta band replaces delta text)
+      // Wake/bed handle dot retired in Ship 2 — chart is read-only; the
+      // wake/bed slider in the Adjust card body owns phase-time editing.
       const defaultMidHour = cursorInAscendGeom ? wakeTime : bedTime;
       const isHandleShifted = cursorInAscendGeom ? hasAdjWake : hasAdjBed;
+
+      // Helper: interpolate bulb-curve y at any hour along the sample grid.
+      // Used by the NOW dot below.
+      const bulbYAt = (hr) => {
+        for (let i = 1; i < hours.length; i++) {
+          if (hours[i] >= hr) {
+            const span = hours[i] - hours[i - 1];
+            const t = span > 0 ? (hr - hours[i - 1]) / span : 0;
+            return bulbPct[i - 1] + t * (bulbPct[i] - bulbPct[i - 1]);
+          }
+        }
+        return bulbPct[bulbPct.length - 1];
+      };
+
+      // (handle marker + daily-hover pseudo-marker dropped; vertical line +
+      //  below-axis label carry the visual; no on-curve dot needed.)
+      /* RETIRED:
       const handleLabel = (cursorInAscendGeom ? 'wake' : 'bed') + ' \u00B7 ' + formatHourLabel(activeMidHour)
         + '<br><span style="font-size:10px; opacity:0.7;">drag to shift</span>';
       traces.push({
@@ -2571,29 +2555,15 @@
           showlegend: false,
         });
       }
+      */ // end RETIRED handle marker block
 
       // NOW dot — sits on the bulb curve at the current cursor position so
       // the NOW anchor gets the same on-curve callout as wake/bed. Styled
       // in the NOW pill's cyan to tie the dot + pill + cursor line together.
+      // Legacy cyan NOW dot trace removed \u2014 the CCT-tinted dot drawn below
+      // (with white outline when lights on) is the cursor; this older one
+      // was duplicating it and carrying a redundant `% \u00B7 K` tooltip.
       const cursorHourForDot = shiftIntoWindow(currentHour);
-      traces.push({
-        type: 'scatter', mode: 'markers',
-        x: [cursorHourForDot], y: [bulbYAt(cursorHourForDot)],
-        marker: {
-          size: 16, color: 'rgba(140, 210, 255, 0.95)', symbol: 'circle',
-          line: { width: 2, color: '#0a0a0a' },
-        },
-        cliponaxis: false,
-        hovertext: 'now \u00B7 ' + formatHourLabel(currentHour)
-          + ' \u00B7 ' + Math.round(markerBri) + '% \u00B7 ' + Math.round(markerCCT) + 'K',
-        hoverinfo: 'text',
-        hoverlabel: {
-          bgcolor: colorWithAlpha(cctToRGB(markerCCT), 0.92),
-          bordercolor: colorWithAlpha(cctToRGB(markerCCT), 0.65),
-          font: { color: readableTextColor(cctToRGB(markerCCT)), size: 13 }
-        },
-        showlegend: false,
-      });
 
       const sunrise = sunTimes.sunrise;
       const sunset = sunTimes.sunset;
@@ -2603,31 +2573,17 @@
       const effectiveWake = hasAdjWake ? shiftIntoWindow(adjustedTimes.wake) : wakeTime;
       const effectiveBed = hasAdjBed ? shiftIntoWindow(adjustedTimes.bed) : bedTime;
 
-      // Sunrise / sunset markers — simple rayed sun + crescent moon.
+      // Sunrise/sunset above-axis sun + moon images dropped in Ship 2 polish —
+      // labels move below the x-axis as HTML overlays (mirroring rhythm-design's
+      // .solar-label treatment).
       const cursorHour = shiftIntoWindow(currentHour);
-      const svgSunrise = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-        + '<circle cx="12" cy="12" r="5" fill="rgb(244,201,107)"/>'
-        + '<g stroke="rgb(244,201,107)" stroke-width="1.6" stroke-linecap="round">'
-        + '<line x1="12" y1="1.5" x2="12" y2="4"/>'
-        + '<line x1="12" y1="20" x2="12" y2="22.5"/>'
-        + '<line x1="1.5" y1="12" x2="4" y2="12"/>'
-        + '<line x1="20" y1="12" x2="22.5" y2="12"/>'
-        + '<line x1="4.4" y1="4.4" x2="6.2" y2="6.2"/>'
-        + '<line x1="17.8" y1="17.8" x2="19.6" y2="19.6"/>'
-        + '<line x1="4.4" y1="19.6" x2="6.2" y2="17.8"/>'
-        + '<line x1="17.8" y1="6.2" x2="19.6" y2="4.4"/>'
-        + '</g>'
-        + '</svg>';
       const images = [];
+      // Sunrise/sunset hover targets — invisible markers along the x-axis at
+      // sunrise/sunset hours so users can see the time chip on hover.
+      // Above-axis sun + moon images and SVG icons replaced by HTML
+      // .area-solar-label overlays positioned below the x-axis (see
+      // positionChartLabels). Hover targets retained for chart tooltips.
       if (Number.isFinite(sunrise)) {
-        images.push({
-          source: 'data:image/svg+xml;utf8,' + encodeURIComponent(svgSunrise),
-          xref: 'x', yref: 'paper',
-          x: sunriseX, y: 1.04,
-          sizex: 1.0, sizey: 0.16,
-          xanchor: 'center', yanchor: 'bottom',
-          layer: 'above'
-        });
         traces.push({
           type: 'scatter', mode: 'markers',
           x: [sunriseX], y: [100],
@@ -2636,25 +2592,7 @@
           hoverinfo: 'text', showlegend: false, cliponaxis: false
         });
       }
-      // Crescent moon: outer disc masked by an offset disc at the same cy so
-      // the crescent is vertically symmetric (earlier offset-cy geometry gave
-      // a thin-top / fat-bottom blob that read as "clipped").
-      const svgSunset = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-        + '<defs><mask id="cresmask">'
-        + '<rect width="24" height="24" fill="white"/>'
-        + '<circle cx="15" cy="12" r="9" fill="black"/>'
-        + '</mask></defs>'
-        + '<circle cx="10" cy="12" r="9" fill="rgb(230,225,195)" mask="url(#cresmask)"/>'
-        + '</svg>';
       if (Number.isFinite(sunset)) {
-        images.push({
-          source: 'data:image/svg+xml;utf8,' + encodeURIComponent(svgSunset),
-          xref: 'x', yref: 'paper',
-          x: sunsetX, y: 1.04,
-          sizex: 1.0, sizey: 0.16,
-          xanchor: 'center', yanchor: 'bottom',
-          layer: 'above'
-        });
         traces.push({
           type: 'scatter', mode: 'markers',
           x: [sunsetX], y: [100],
@@ -2664,14 +2602,10 @@
         });
       }
 
-      // Cursor vertical line — dashed, tinted to match NOW pill so line + chip read as one
+      // Cursor: NOW dot only, no dashed vertical line (Ship 2 chart simplification).
       const isFrozen = state && state.frozen_at != null;
-      const cursorLineColor = isFrozen
-        ? 'rgba(99, 179, 237, 0.7)'
-        : colorWithAlpha(cctToRGB(markerCCT), 0.7);
-      const cursorLineStyle = { color: cursorLineColor, width: 1.25, dash: '3px,3px' };
 
-      // Compute where the bulb curve is at cursorHour so the line can start there
+      // Compute where the bulb curve is at cursorHour so the dot lands on the curve
       const cursorBulbY = (() => {
         for (let i = 1; i < hours.length; i++) {
           if (hours[i] >= cursorHour) {
@@ -2683,86 +2617,107 @@
         return bulbPct[bulbPct.length - 1];
       })();
 
-      // Line runs from just above the bulb dot up to the pill's bottom edge
-      // — no longer extends down through the plot to the x-axis.
+      // NOW dot stays CCT-tinted regardless of frozen state — the freeze
+      // status is signaled by the header freeze icon (active styling).
+      // Earlier code recolored the dot blue when frozen, which masked the
+      // current bulb color and was redundant chrome.
+      const nowDotFill = tintColorByBrightness(cctToRGB(markerCCT), Math.round(markerBri));
+      // White outline (2px) when lights are on — matches rhythm-design's NOW
+      // dot styling so the cursor reads as the same focal element across both
+      // pages. Falls back to near-black when the room is off (or circadian
+      // off) since white-on-dark would over-emphasize a non-active state.
+      // Outline: white when room is on (matches rhythm-design styling),
+      // near-black when off so the dot doesn't over-emphasize an inactive
+      // state. `state` here doesn't carry is_on — that lives on
+      // selectedArea — so read it from there. Circadian-off also drops
+      // back to the muted black outline since the room isn't being driven.
+      const liveAreaForDot = (selectedArea && areaStatus) ? (areaStatus[selectedArea.area_id] || {}) : {};
+      const isOnForDot = liveAreaForDot.is_on === true && liveAreaForDot.is_circadian !== false;
+      const nowDotBorder = isOnForDot ? '#fff' : '#0a0a0a';
+
+      // NOW vertical line — most-prominent vertical element on the chart.
+      // CCT-tinted to match the cursor dot + page-header readout, so the
+      // dot + line + header all read as one continuous "current moment"
+      // cluster. Two segments with a y-gap around the dot so the line
+      // doesn't overdraw it. Solid line, width 1.5, layer above so it
+      // sits over the wake/bed line during phase drag.
+      const nowLineColor = colorWithAlpha(cctToRGB(markerCCT), 0.85);
+      const nowLineStyle = { color: nowLineColor, width: 1.5 };
       const cursorDotPaperY = cursorBulbY / 110;
+      const dotGap = 0.05;  // ~5% of plot height above/below the dot
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
-        x0: cursorHour, x1: cursorHour, y0: cursorDotPaperY + 0.04, y1: 1.24,
-        line: cursorLineStyle, layer: 'above'
+        x0: cursorHour, x1: cursorHour,
+        y0: 0, y1: Math.max(0, cursorDotPaperY - dotGap),
+        line: nowLineStyle, layer: 'above',
+      });
+      shapes.push({
+        type: 'line', xref: 'x', yref: 'paper',
+        x0: cursorHour, x1: cursorHour,
+        y0: Math.min(vLineTop, cursorDotPaperY + dotGap), y1: vLineTop,
+        line: nowLineStyle, layer: 'above',
       });
 
-      const nowDotFill = isFrozen
-        ? 'rgba(120, 190, 240, 0.95)'
-        : tintColorByBrightness(cctToRGB(markerCCT), Math.round(markerBri));
-      // Black border matches the bed/wake handle marker for visual consistency
-      // — both anchor markers now read as the same kind of focal point.
-      const nowDotBorder = '#0a0a0a';
       traces.push({
         type: 'scatter', mode: 'markers',
         x: [cursorHour], y: [cursorBulbY],
         marker: { size: 16, color: nowDotFill, symbol: 'circle', line: { width: 2, color: nowDotBorder } },
-        cliponaxis: false, hoverinfo: 'skip', showlegend: false
+        cliponaxis: false,
+        hovertext: 'now · ' + formatHourLabel(currentHour),
+        hoverinfo: 'text',
+        hoverlabel: {
+          bgcolor: 'rgba(40, 40, 40, 0.95)',
+          bordercolor: 'rgba(255, 255, 255, 0.2)',
+          font: { color: '#fff', size: 12 },
+        },
+        showlegend: false,
       });
+      // (Earlier "now" text annotation above the dot dropped — redundant
+      // with the hover tooltip and added visual noise to the chart.)
 
       // Stash NOW pill data for the HTML overlay (positioned after Plotly render).
       // HTML overlay path used instead of a Plotly annotation so we get crisp
       // rounded corners (Plotly annotations don't natively support border-radius)
-      // and proper font-weight rendering.
-      const cursorTimeStr = formatHourLabel(cursorHour);
-      const nowBriPct = Math.round(markerBri);
-      const nowK = Math.round(markerCCT);
-      // Drop the "NOW" prefix in real-time mode (it's redundant with the time
-      // value — if the chart is live, the time IS now). Keep "FROZEN" prefix
-      // when frozen since the time then refers to the freeze moment, not now.
-      const pillText = isFrozen
-        ? `FROZEN   ${cursorTimeStr} · ${nowBriPct}% · ${nowK}K`
-        : `${cursorTimeStr} · ${nowBriPct}% · ${nowK}K`;
-      let pillColor, pillBg, pillBorder;
-      if (isFrozen) {
-        pillColor = 'rgba(120, 190, 240, 0.95)';
-        pillBg = 'rgba(40, 60, 90, 0.85)';
-        pillBorder = 'rgba(99, 179, 237, 0.85)';
-      } else {
-        const tintedBg = tintColorByBrightness(cctToRGB(markerCCT), nowBriPct);
-        pillBg = tintedBg;
-        pillBorder = colorWithAlpha(cctToRGB(markerCCT), 0.85);
-        pillColor = readableTextColor(tintedBg);
-      }
-      _chartNowPillData = { cursorHour, text: pillText, color: pillColor, bg: pillBg, border: pillBorder };
+      // NOW chart pill retired in Ship 2 — the % · K readout in the
+      // page-header carries this info now, including during slider drag (the
+      // drag handler updates the header readout in real time). The chart
+      // surfaces "now" via the dot + tiny `now` annotation only.
 
-      // Curve label — "sun contribution" anchors at peak divergence when the
-      // two curves are meaningfully apart. The bulb curve is the main graph,
-      // so leaving it unlabeled reads cleanly; only the dotted natural-light
-      // reference line needs naming.
-      if (hasDivergence) {
-        const divX = hours[maxDivergenceIdx];
-        const divRoomY = brightnessPct[maxDivergenceIdx];
-        annotations.push({
-          x: divX, y: divRoomY, xref: 'x', yref: 'y',
-          text: 'sun contribution', showarrow: false, yshift: 10,
-          font: { size: 9, color: 'rgba(220, 220, 220, 0.7)' }
-        });
-      }
+      // "sun contribution" annotation dropped in Ship 2 simplification —
+      // dotted natural-light line stays but is unlabeled.
 
+      // Active-phase visible range (Ship 2 chart simplification): show only
+      // the half of the day the cursor is currently in. Ascend phase →
+      // [ascend_start, descend_start]; descend phase → [descend_start,
+      // ascend_start+24]. Curves still computed across full 24h; xaxis.range
+      // just clips what the user sees.
+      const phaseVisStart = curInAscend ? tAscAnchor : tDescAnchor;
+      const phaseVisEnd = curInAscend ? tDescAnchor : tAscAnchor + 24;
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        margin: { t: 50, r: 12, l: 32, b: 86 },
+        // Margins tightened in Ship 2: top down from 50 (which held the old
+        // sun + moon icons above the chart) to 22 (just enough for the
+        // sun-intensity chip). Bottom from 86 to 28 (was sized for the old
+        // chart-hero overlay; below-axis labels live OUTSIDE the plot area
+        // in chart-shell padding now, so the plot doesn't need that space).
+        margin: { t: 22, r: 12, l: 36, b: 28 },
         hovermode: 'closest',
         xaxis: (() => {
           const tickvals = [];
           const ticktext = [];
-          // Skip the trailing tick (xAnchor+24 == xAnchor, duplicate label)
-          for (let i = 0; i < 8; i++) {
-            const t = xAnchor + i * 3;
+          // Tick every 3h within the visible phase window.
+          const phaseSpan = phaseVisEnd - phaseVisStart;
+          const tickStep = 3;
+          const firstTick = Math.ceil(phaseVisStart / tickStep) * tickStep;
+          for (let t = firstTick; t <= phaseVisEnd; t += tickStep) {
             tickvals.push(t);
             ticktext.push(formatHourLabel(t));
           }
           return {
-            range: [xAnchor, xEnd],
+            range: [phaseVisStart, phaseVisEnd],
             fixedrange: true,
-            dtick: 3,
+            dtick: tickStep,
             tickvals,
             ticktext,
             gridcolor: 'rgba(80,100,130,0.22)',
@@ -2780,7 +2735,7 @@
           title: '',
           showticklabels: true,
           tickvals: [50, 100],
-          ticktext: ['50', '100']
+          ticktext: ['50%', '100%']
         },
         shapes,
         annotations,
@@ -2794,46 +2749,77 @@
         responsive: true,
         scrollZoom: false
       });
-      setupChartDragHandlers();
-      // Re-position the hero cluster against the freshly-rendered chart.
+      // Stash sunrise/sunset/wake/bed positions for the HTML overlay labels.
       try {
-        const phaseCtx = buildPhaseCtx(cfg, state, currentHour);
-        updateChartHero(phaseCtx, cfg, state);
+        // Phase label position tracks the adjusted time when shifted — so
+        // dragging the bed/wake slider moves the line AND the label together.
+        const phaseHour = cursorInAscendGeom
+          ? (hasAdjWake ? shiftIntoWindow(adjustedTimes.wake) : wakeTime)
+          : (hasAdjBed ? shiftIntoWindow(adjustedTimes.bed)  : bedTime);
+        const phaseTimeRaw = cursorInAscendGeom
+          ? (hasAdjWake ? adjustedTimes.wake : cfg.wake_time)
+          : (hasAdjBed  ? adjustedTimes.bed  : cfg.bed_time);
+        positionChartLabels({
+          sunrise: Number.isFinite(sunrise) ? sunriseX : null,
+          sunset: Number.isFinite(sunset) ? sunsetX : null,
+          phaseHour,
+          phaseLabel: cursorInAscendGeom ? 'wake' : 'bed',
+          phaseTime: phaseTimeRaw,
+          phaseVisStart, phaseVisEnd,
+          sunriseRaw: sunrise, sunsetRaw: sunset,
+        });
       } catch (e) {}
-      try { updateChartNowPill(); } catch (e) {}
     }
 
-    // Position the HTML NOW-pill overlay at the cursor's x-pixel inside chart-shell.
-    // Mirrors updateChartHero's positioning math; data is staged on _chartNowPillData
-    // by renderMiniChart so this runs cleanly after Plotly.react.
-    function updateChartNowPill() {
-      const pill = document.getElementById('chart-now-pill');
-      if (!pill) return;
-      const data = _chartNowPillData;
-      if (!data) { pill.classList.remove('visible'); return; }
+    // Position the four below-axis HTML overlay labels (sunrise, sunset,
+    // wake/bed) at their corresponding x-pixels inside chart-shell, with a
+    // dynamic connector bar bridging up to the chart x-axis line. Hide any
+    // label whose anchor falls outside the active phase visible window.
+    function positionChartLabels(opts) {
+      const shellEl = document.getElementById('chart-shell');
       const chartDiv = document.getElementById('mini-chart');
-      const shell = document.getElementById('chart-shell');
-      const fl = chartDiv && chartDiv._fullLayout;
-      if (!fl || !fl.xaxis || !shell) { pill.classList.remove('visible'); return; }
-      const xAnchor = _chartGeom.xAnchor ?? 0;
-      let visHour = data.cursorHour;
-      while (visHour < xAnchor) visHour += 24;
-      while (visHour > xAnchor + 24) visHour -= 24;
-      const chartOffsetInShell = chartDiv.getBoundingClientRect().left - shell.getBoundingClientRect().left;
-      let px = chartOffsetInShell + fl.xaxis._offset + ((visHour - xAnchor) / 24) * fl.xaxis._length;
-      pill.textContent = data.text;
-      pill.style.color = data.color;
-      pill.style.background = data.bg;
-      pill.style.borderColor = data.border;
-      pill.classList.add('visible');
-      // Clamp to chart-shell edges so the pill never spills off.
-      const shellWidth = shell.offsetWidth;
-      const pillWidth = pill.offsetWidth || 160;
-      const minLeft = Math.max(4, pillWidth / 2);
-      const maxLeft = Math.max(minLeft, shellWidth - pillWidth / 2 - 4);
-      px = Math.max(minLeft, Math.min(maxLeft, px));
-      pill.style.left = px + 'px';
+      if (!shellEl || !chartDiv) return;
+      const fl = chartDiv._fullLayout;
+      if (!fl || !fl.xaxis || !fl.yaxis) return;
+      const chartLeftInShell = chartDiv.getBoundingClientRect().left - shellEl.getBoundingClientRect().left;
+      const xOffset = fl.xaxis._offset;
+      const xLength = fl.xaxis._length;
+      const xRange = fl.xaxis.range;
+      const visSpan = (xRange && xRange.length === 2) ? (xRange[1] - xRange[0]) : 24;
+      const xStart = (xRange && xRange.length === 2) ? xRange[0] : 0;
+      const dataXToShellPx = (h) => chartLeftInShell + xOffset + ((h - xStart) / visSpan) * xLength;
+      // Connector height = chart-shell-bottom (label is 4px from bottom) up
+      // to the x-axis line. mirrors rhythm-design's solar-connector math.
+      const axisFromShellBottom = shellEl.offsetHeight - chartDiv.offsetTop - fl.yaxis._offset - fl.yaxis._length;
+      const labelTopGap = 4; // matches `.area-solar-label { bottom: 4px }`
+      const connectorH = Math.max(0, axisFromShellBottom - labelTopGap - 14 /* approx label height */);
+
+      const inWindow = (h) => h != null && h >= xRange[0] && h <= xRange[1];
+      // Connector should bridge from the TOP of each label up to (but not
+      // past) the chart's x-axis. Per-label `bottom` differs (solar 22, phase
+      // 4), so we read it from CSS rather than hardcoding — keeps the line
+      // landing exactly on the axis instead of overshooting into the chart.
+      const placeLabel = (el, h, time, suffixText) => {
+        if (!el) return;
+        if (!inWindow(h)) { el.classList.remove('visible'); return; }
+        const px = dataXToShellPx(h);
+        el.style.left = px + 'px';
+        const elBottom = parseFloat(getComputedStyle(el).bottom) || 0;
+        const elHeight = el.offsetHeight || 14;
+        const connH = Math.max(0, axisFromShellBottom - elBottom - elHeight);
+        el.style.setProperty('--area-label-connector-h', connH + 'px');
+        if (time != null) el.dataset.time = formatHourLabel(time);
+        if (suffixText) el.textContent = suffixText;
+        el.classList.add('visible');
+      };
+      placeLabel(document.getElementById('area-sunrise-label'), opts.sunrise, opts.sunriseRaw, 'sunrise');
+      placeLabel(document.getElementById('area-sunset-label'),  opts.sunset,  opts.sunsetRaw,  'sunset');
+      placeLabel(document.getElementById('area-phase-label'),   opts.phaseHour, opts.phaseTime, opts.phaseLabel);
     }
+
+    // updateChartNowPill retired in Ship 2 — chart NOW pill removed (was
+    // duplicating the page-header readout). The cursor on the chart is now
+    // just the dot + tiny "now" annotation.
 
     // ============================================================
     // Slider Functions (from areas.html modal)
@@ -2911,13 +2897,20 @@
 
       const phaseCtx = buildPhaseCtx(cfg, areaState, currentHour);
 
+      // When the room is OFF (lights off), the bright slider thumb falls
+      // to 0% — reflects the bulb's actual output. Color + bed sliders get
+      // a stronger mute (extra dim) since they're informational only when
+      // the room is dark. Sliders stay interactive: dragging brightness
+      // up sets a starting brightness for the next turn-on.
+      const isRoomOff = selectedArea && selectedArea.is_on === false;
+
       document.querySelectorAll('.slider-track').forEach(track => {
         if (track.classList.contains('dragging')) return;
         const mode = track.dataset.mode;
         let pct, thumbBri, thumbCCT;
         if (mode === 'brightness') {
-          pct = briFrac;
-          thumbBri = areaState.actual_brightness ?? currentBri;
+          pct = isRoomOff ? 0 : briFrac;
+          thumbBri = isRoomOff ? 0 : (areaState.actual_brightness ?? currentBri);
           thumbCCT = currentCCT;
         } else if (mode === 'color') {
           pct = cctFrac;
@@ -2933,15 +2926,35 @@
         }
         (track.querySelector('.slider-track-bg') || track).style.background = buildTrackGradient(mode, cfg, currentBri, currentCCT, effRange, phaseCtx);
         applyOneSlider(track, pct, thumbBri, thumbCCT, mode);
+        // Stronger mute on color + phase sliders when room is off; bright
+        // stays at full visual prominence so the user can drag it to turn
+        // the room on at a desired brightness.
+        const row = track.closest('.hslider-row');
+        if (row) {
+          row.classList.toggle('hslider-row--power-off', !!isRoomOff && mode !== 'brightness');
+        }
       });
 
       const heroBri = document.getElementById('slider-hero-brightness');
-      const briDisp = Math.round(areaState.actual_brightness ?? currentBri);
+      // When the room is off, the slider thumb sits at 0% (set above); the
+      // hero label should match — earlier code displayed the last-on value
+      // (e.g. "84%") next to a thumb at 0%, which read inverted. Showing
+      // 0% here pairs the thumb position with the readout the user sees.
+      const briDisp = isRoomOff ? 0 : Math.round(areaState.actual_brightness ?? currentBri);
       if (heroBri) heroBri.textContent = briDisp + '%';
 
       const heroColor = document.getElementById('slider-hero-color');
       const kDisp = Math.round(effectiveCCT);
       if (heroColor) heroColor.textContent = kDisp + 'K';
+
+      // Phase slider: label flips Wake↔Bed at the phase boundary, value
+      // shows the active phase target time (live-replaced during drag).
+      const heroPhase = document.getElementById('slider-hero-phase');
+      const phaseLabelEl = document.getElementById('slider-phase-label');
+      if (phaseCtx) {
+        if (phaseLabelEl) phaseLabelEl.textContent = phaseCtx.cursorInAscend ? 'Wake' : 'Bed';
+        if (heroPhase) heroPhase.textContent = formatPhaseTime(phaseCtx.currentTargetTime);
+      }
 
       // Collapsed Adjust card header mirror — live brightness + kelvin
       const adjHeader = document.getElementById('adjust-outer-next');
@@ -2952,129 +2965,24 @@
           + '<span style="color:' + kColor + '">' + kDisp + 'K</span>';
       }
 
-      updateChartHero(phaseCtx, cfg, areaState);
-
-      // Toggle reset buttons visibility based on override/mid state
+      // Toggle reset buttons visibility based on override/mid state.
+      // The phase reset surfaces when the wake/bed midpoint has been shifted.
       const rBri = document.getElementById('reset-brightness');
       if (rBri) rBri.classList.toggle('hidden', areaState.brightness_override == null);
       const rCol = document.getElementById('reset-color');
       if (rCol) rCol.classList.toggle('hidden', areaState.color_override == null);
-    }
-
-    // Step-size heuristic: inverse-logistic derivative at the midpoint gives
-    // delta_y = (k/4) * delta_t, so a brightness-vector step of 0.10 maps to
-    function updateChartHero(phaseCtx, cfg, areaState) {
-      const hero = document.getElementById('chart-hero');
-      if (!hero) return;
-      if (!phaseCtx || !cfg) { hero.style.display = 'none'; return; }
-      const labelEl = document.getElementById('chart-hero-label');
-      const timeEl = document.getElementById('chart-hero-time');
-      const backBtn = document.getElementById('chart-step-back');
-      const fwdBtn = document.getElementById('chart-step-fwd');
-      const resetBtn = document.getElementById('reset-phase');
-      const chartDiv = document.getElementById('mini-chart');
-      const shell = document.getElementById('chart-shell');
-
-      if (labelEl) labelEl.textContent = phaseCtx.cursorInAscend ? 'Wake' : 'Bed';
-      // Show the live drag hour in the time label if the user is actively
-      // dragging the chart handle; otherwise show the server-truth target.
-      const isChartDragging = _chartDrag.active && _chartDrag.dragHour != null;
-      const displayTime = isChartDragging ? _chartDrag.dragHour : phaseCtx.currentTargetTime;
-      if (timeEl) timeEl.textContent = formatPhaseTime(displayTime);
-      hero.classList.toggle('phase-wake', !!phaseCtx.cursorInAscend);
-      hero.classList.toggle('phase-bed', !phaseCtx.cursorInAscend);
-
-      const isShifted = areaState && (areaState.brightness_mid != null || areaState.color_mid != null);
-      if (resetBtn) resetBtn.classList.toggle('hidden', !isShifted);
-
-      const span = phaseCtx.phaseMax - phaseCtx.phaseMin;
-      // Suppress stepping near narrowed-boundary to avoid curve-shape artifacts.
-      const atMin = phaseCtx.currentTargetPct <= 3;
-      const atMax = phaseCtx.currentTargetPct >= 97;
-      if (backBtn) backBtn.disabled = atMin;
-      if (fwdBtn) fwdBtn.disabled = atMax;
-
-      // Position the hero at the active handle's x-pixel inside chart-shell.
-      // Prefer the live drag position if the chart handle is actively dragging,
-      // otherwise fall back to _chartGeom.activeMidHour (set by the last render).
-      const fl = chartDiv && chartDiv._fullLayout;
-      if (!fl || !fl.xaxis || !shell) { hero.style.display = 'none'; return; }
-      const xAnchor = _chartGeom.xAnchor ?? 0;
-      let activeMid = isChartDragging ? _chartDrag.dragHour : _chartGeom.activeMidHour;
-      if (activeMid == null) {
-        activeMid = phaseCtx.phaseMin + span * phaseCtx.currentTargetPct / 100;
-      }
-      // Map into the visible [xAnchor, xAnchor+24] range by adding/subtracting 24.
-      let activeMidVis = activeMid;
-      while (activeMidVis < xAnchor) activeMidVis += 24;
-      while (activeMidVis > xAnchor + 24) activeMidVis -= 24;
-      const chartOffsetInShell = chartDiv.getBoundingClientRect().left - shell.getBoundingClientRect().left;
-      let px = chartOffsetInShell + fl.xaxis._offset + ((activeMidVis - xAnchor) / 24) * fl.xaxis._length;
-      // Clamp to plot edges so the hero never spills off the chart.
-      const shellWidth = shell.offsetWidth;
-      const heroWidth = hero.offsetWidth || 120;
-      const minLeft = Math.max(4, heroWidth / 2);
-      const maxLeft = Math.max(minLeft, shellWidth - heroWidth / 2 - 4);
-      px = Math.max(minLeft, Math.min(maxLeft, px));
-      hero.style.left = px + 'px';
-      hero.style.display = '';
-    }
-
-    // Maps hero arrow buttons to step primitives. In wake phase, earlier (◀)
-    // means brighter now → step_up; in bed phase, earlier (◀) means dimmer
-    // now → step_down. The primitive handles step size, bounce-at-limit,
-    // sun-dimming hints, and midpoint shifting on the server.
-    //
-    // Plateau fallback: when current brightness is already at the top/bottom
-    // of the curve, step_up/step_down can't move the midpoint further (no
-    // brightness room to take a step). Backend returns at_limit=true; we then
-    // fall through to a direct time shift of ±cfg.step_fallback_minutes (default
-    // 30 min) so the user can keep nudging the handle along the time axis.
-    async function chartHeroStep(direction) {
-      if (!selectedArea) return;
-      const ctx = getSliderCfgAndState();
-      if (!ctx) return;
-      const { cfg, areaState, currentHour } = ctx;
-      const phaseCtx = buildPhaseCtx(cfg, areaState, currentHour);
-      if (!phaseCtx) return;
-      const isBack = direction === 'back';
-      const action = (isBack === phaseCtx.cursorInAscend) ? 'step_up' : 'step_down';
-      const areaId = selectedArea.area_id;
-      try {
-        const response = await fetch(basePath + '/api/area/action', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ area_id: areaId, action })
-        });
-        if (!response.ok) return;
-        const result = await response.json();
-        if (result.at_limit) {
-          const mins = cfg.step_fallback_minutes || 30;
-          const deltaHours = (isBack ? -1 : 1) * (mins / 60);
-          const span = phaseCtx.phaseMax - phaseCtx.phaseMin;
-          const curH48 = phaseCtx.phaseMin + span * phaseCtx.currentTargetPct / 100;
-          let newH48 = curH48 + deltaHours;
-          newH48 = Math.max(phaseCtx.phaseMin + 0.01, Math.min(phaseCtx.phaseMax - 0.01, newH48));
-          const newTime24 = ((newH48 % 24) + 24) % 24;
-          await executeSetPhaseTime(newTime24);
-          return;
-        }
-        setTimeout(async () => {
-          try {
-            const res = await fetch(basePath + `/api/area-status?area_id=${encodeURIComponent(areaId)}`);
-            if (res.ok) {
-              const singleStatus = await res.json();
-              Object.assign(areaStatus, singleStatus);
-            }
-            updateContent();
-            renderMiniChartForArea(areaId);
-            updateAllSliders();
-          } catch (err) {}
-        }, 500);
-      } catch (err) {
-        console.error('chartHeroStep error:', err);
+      const rPhase = document.getElementById('reset-phase');
+      if (rPhase) {
+        const phaseDirty = areaState.brightness_mid != null || areaState.color_mid != null;
+        rPhase.classList.toggle('hidden', !phaseDirty);
       }
     }
+
+    // updateChartHero + chartHeroStep retired in Ship 2 — the chart-hero
+    // overlay (WAKE / 6:45a / ◀▶) was removed and the wake/bed slider in the
+    // Adjust card body now covers phase-time editing. Slider drag posts
+    // directly to set_phase_time via executeSetPhaseTime; reset uses the
+    // .hslider-reset button next to the slider value.
 
     // How far the shifted midpoint will be pushed from the user's target time,
     // given the zone's brightness/slope config. Used to narrow the phase slider
@@ -3088,7 +2996,7 @@
         : (cfg.bed_brightness || 50);
       if (brightnessPct === 50) return { minOffset: 0, maxOffset: 0 };
       const speed = cursorInAscend ? cfg.wake_speed : cfg.bed_speed;
-      const slopeMag = SPEED_TO_SLOPE[Math.max(1, Math.min(10, speed))];
+      const slopeMag = SPEED_TO_SLOPE[Math.max(1, Math.min(12, speed))];
       if (!(slopeMag > 0)) return { minOffset: 0, maxOffset: 0 };
       const bMin = (cfg.min_brightness || 2) / 100;
       const bMax = (cfg.max_brightness || 100) / 100;
@@ -3362,20 +3270,32 @@
         // (skip calcMiniBrightness — its liftMidpointToPhase wraps misbehave at edges).
         const n = 10;
         const { currentHour, phaseMin, phaseMax, cursorInAscend } = phaseCtx;
-        const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.wake_speed))];
-        const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.bed_speed))];
+        const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.wake_speed))];
+        const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.bed_speed))];
         const slopeSigned = cursorInAscend ? kAscend : -kDescend;
         const bMinNorm = bMin / 100, bMaxNorm = bMax / 100;
         const now48 = currentHour < cfg.ascend_start ? currentHour + 24 : currentHour;
+        // Pull active overrides off the live area state so the gradient
+        // shows the actual colors/brightnesses the lights would hit at NOW
+        // for each candidate phase-time. Without this, dialing color
+        // override warmer left the gradient unchanged — confusing because
+        // moving the slider would land on a position whose gradient stop
+        // didn't match the bulb's real output.
+        const liveStatus = (selectedArea && areaStatus) ? (areaStatus[selectedArea.area_id] || {}) : {};
+        const briOv = liveStatus.brightness_override ?? 0;
+        const colorOv = liveStatus.color_override ?? 0;
         for (let i = 0; i <= n; i++) {
           const frac = i / n;
           const candidateTargetH48 = phaseMin + (phaseMax - phaseMin) * frac;
           const shiftedMid = computeCandidateShiftedMid(candidateTargetH48, cfg, cursorInAscend);
           const briNorm = bMinNorm + (bMaxNorm - bMinNorm) / (1 + Math.exp(-slopeSigned * (now48 - shiftedMid)));
-          const b = Math.max(0, Math.min(100, briNorm * 100));
+          let b = Math.max(0, Math.min(100, briNorm * 100 + briOv));
           // Color follows same midpoint: normalized 0..1 logistic, mapped to [cMin, cMax]
           const ct = 1 / (1 + Math.exp(-slopeSigned * (now48 - shiftedMid)));
-          const k = cMin + (cMax - cMin) * ct;
+          let k = cMin + (cMax - cMin) * ct + colorOv;
+          // Clamp K to a perceptually-sensible range so the gradient
+          // doesn't flatten when overrides push past min/max.
+          k = Math.max(1000, Math.min(10000, k));
           const color = tintColorByBrightness(cctToRGB(k), b);
           stops.push(color + ' ' + Math.round(frac * 100) + '%');
         }
@@ -3398,8 +3318,8 @@
     }
 
     function computeCandidateShiftedMid(targetH48, cfg, inAscend) {
-      const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.wake_speed))];
-      const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.bed_speed))];
+      const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.wake_speed))];
+      const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.bed_speed))];
       const bMinNorm = cfg.min_brightness / 100;
       const bMaxNorm = cfg.max_brightness / 100;
       const briPct = inAscend ? cfg.wake_brightness : cfg.bed_brightness;
@@ -3451,6 +3371,40 @@
             const borderColor = thumb.style.borderColor;
             if (borderColor) ghost.style.borderColor = borderColor;
           }
+          // Snapshot the current bulb curve as a "before" reference for the
+          // chart drag ghost. renderMiniChart picks up window._chartDragGhostCurve
+          // and renders it as a dotted line for the duration of the drag.
+          // Cleared on pointerup so the ghost vanishes the moment the user
+          // commits the new value. Applies to all three sliders (brightness,
+          // color, phase) — for phase, the ghost shows the original wake/bed
+          // shape so the user can see how the time shift bends the curve.
+          if (mode === 'brightness' || mode === 'color' || mode === 'phase') {
+            const ctx = getSliderCfgAndState();
+            if (ctx) {
+              try {
+                // Build a curveSunTimes the same way renderMiniChart does
+                // (with briSens + naturalLightExposure stashed) so the ghost
+                // snapshot includes sun-dimming. Passing raw cachedSunTimes
+                // would skip dimming entirely — calcBulbBrightnessAt bails
+                // out when those fields are missing — making the ghost
+                // visually flat where the live curve dips.
+                const liveStatus = areaStatus[selectedArea?.area_id] || {};
+                const _briSens = (tuneState?.initialized && tuneState.brightnessSensitivity != null)
+                  ? tuneState.brightnessSensitivity
+                  : (liveStatus.brightness_sensitivity ?? 0);
+                const _exposure = (tuneState?.initialized && typeof SOLAR_STEPS !== 'undefined'
+                  && SOLAR_STEPS[tuneState.solarStep])
+                  ? SOLAR_STEPS[tuneState.solarStep].exposure
+                  : (liveStatus.natural_light_exposure ?? 0);
+                const ghostSunTimes = Object.assign({}, cachedSunTimes, {
+                  briSens: _briSens,
+                  naturalLightExposure: _exposure,
+                });
+                const snap = calcMiniCurveData(ctx.cfg, ctx.areaState, ghostSunTimes, ctx.currentHour, ctx.cfg.ascend_start);
+                window._chartDragGhostCurve = { bulbPct: snap.bulbPct };
+              } catch (_) { window._chartDragGhostCurve = null; }
+            }
+          }
           track.classList.add('dragging');
           track.setPointerCapture(e.pointerId);
           lastPos = getPositionFromPointer(track, e);
@@ -3466,14 +3420,45 @@
           if (!track.classList.contains('dragging')) return;
           e.preventDefault();
           track.classList.remove('dragging');
-          sliderInteracting = false;
-          if (lastPos === null) return;
+          // Drag ghost disappears the instant the user commits a value.
+          window._chartDragGhostCurve = null;
+          // Re-render once WITHOUT the ghost but WITH the dragged values.
+          // Using areaState here would snap the curve back to the pre-drag
+          // shape until the post-drop status fetch lands (~500ms later),
+          // which the user saw as a brief flicker. The stashed preview state
+          // carries the dragged override → chart stays put.
+          const lp = window._lastDragPreview;
+          if (lp) {
+            try {
+              renderMiniChart(lp.cfg, lp.state, lp.sunTimes, lp.currentHour, lp.isActive, lp.adjustedTimes ?? null, lp.markerOverride);
+            } catch (_) {}
+            window._lastDragPreview = null;
+          } else if (selectedArea) {
+            renderMiniChartForArea(selectedArea.area_id);
+          }
+          // Keep sliderInteracting=true through the post-drop window so the
+          // periodic 3s refresh doesn't fire with stale state and snap the
+          // thumb back to the pre-drop value before the server's set_position
+          // result lands. executeSetPosition / executeSetPhaseTime each clear
+          // it ~700ms later, after their fresh-status fetch completes.
+          if (lastPos === null) { sliderInteracting = false; return; }
           if (mode === 'phase') {
             const ctx = getSliderCfgAndState();
             const phaseCtx = ctx ? buildPhaseCtx(ctx.cfg, ctx.areaState, ctx.currentHour) : null;
             const targetTime = pctToPhaseTargetTime(lastPos, phaseCtx);
             if (targetTime != null) executeSetPhaseTime(targetTime);
+            else sliderInteracting = false;
           } else {
+            // Brightness drag while the room is OFF doubles as the turn-on
+            // gesture: dragging the slider up implies "turn on at this
+            // brightness". Toggle lights first, then set position so the
+            // override lands on top of the just-on state. Only kicks in
+            // when bri slider lifts off 0% (color/phase aren't turn-on
+            // gestures, and 0%-to-0% drags shouldn't toggle).
+            const wasOff = selectedArea && selectedArea.is_on === false;
+            if (mode === 'brightness' && wasOff && lastPos > 0) {
+              executeAction('lights_toggle');
+            }
             executeSetPosition(Math.round(lastPos), mode);
           }
         }
@@ -3542,8 +3527,8 @@
         if (!phaseCtx) return;
         const targetH48 = phaseCtx.phaseMin + (phaseCtx.phaseMax - phaseCtx.phaseMin) * position / 100;
         const shiftedMid = computeCandidateShiftedMid(targetH48, cfg, phaseCtx.cursorInAscend);
-        const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.wake_speed))];
-        const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, cfg.bed_speed))];
+        const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.wake_speed))];
+        const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, cfg.bed_speed))];
         const slopeSigned = phaseCtx.cursorInAscend ? kAscend : -kDescend;
         const bMinNorm = bMin / 100, bMaxNorm = bMax / 100;
         const now48 = currentHour < cfg.ascend_start ? currentHour + 24 : currentHour;
@@ -3556,6 +3541,25 @@
         const heroPhase = document.getElementById('slider-hero-phase');
         if (heroPhase) heroPhase.textContent = formatPhaseTime(targetTime24);
 
+        // Live-update Bright/Color hero readouts AND the page-header readout
+        // so they track the curve shift during phase drag — same treatment
+        // brightness/color drag got. Without this, dragging bed earlier shifts
+        // the curve visually but the displayed `% · K` stay frozen.
+        const phHeroBri = document.getElementById('slider-hero-brightness');
+        if (phHeroBri) phHeroBri.textContent = Math.round(previewBri) + '%';
+        const phHeroColor = document.getElementById('slider-hero-color');
+        if (phHeroColor) phHeroColor.textContent = Math.round(previewCCT) + 'K';
+        const phHeaderReadout = document.getElementById('page-header-readout');
+        if (phHeaderReadout) {
+          phHeaderReadout.textContent = `${Math.round(previewBri)}% · ${Math.round(previewCCT)}K`;
+        }
+        const phHeaderEl = document.getElementById('page-header');
+        if (phHeaderEl) {
+          const phTinted = tintColorByBrightness(cctToRGB(previewCCT), Math.round(previewBri));
+          phHeaderEl.style.background = phTinted;
+          phHeaderEl.style.color = readableTextColor(phTinted);
+        }
+
         // Live-sync the chart: shift the curve using the previewed midpoint
         // and move the wake/bed vertical line to the dragged target.
         if (selectedArea) {
@@ -3565,6 +3569,13 @@
           const adjustedTimes = {
             wake: phaseCtx.cursorInAscend ? targetTime24 : null,
             bed: phaseCtx.cursorInAscend ? null : targetTime24,
+          };
+          // Stash so onUp can re-render without the ghost using the dragged
+          // state (avoids snap-back to areaState during the post-drop window).
+          window._lastDragPreview = {
+            cfg, state: previewAreaState, sunTimes: cachedSunTimes, currentHour, isActive,
+            adjustedTimes,
+            markerOverride: { bri: previewBri, cct: previewCCT },
           };
           renderMiniChart(cfg, previewAreaState, cachedSunTimes, currentHour, isActive, adjustedTimes, { bri: previewBri, cct: previewCCT });
         }
@@ -3588,15 +3599,39 @@
       (track.querySelector('.slider-track-bg') || track).style.background = buildTrackGradient(dragMode, cfg, previewBri, previewCCT, effRange, phaseCtx);
       applyOneSlider(track, pct, previewBri, previewCCT, dragMode);
 
-      // Live-update the hero readouts as the user drags so the displayed value
-      // tracks the thumb in real time. Without this, "78%" / "2910K" stay frozen
-      // until pointerup triggers a state refresh.
+      // Live-update the hero readouts AND the page-header `% · K` readout as
+      // the user drags so both displayed values track the thumb in real time.
+      // Without this, "78%" / "2910K" stay frozen until pointerup triggers a
+      // state refresh, and the header readout stays at the pre-drag value.
+      const headerReadout = document.getElementById('page-header-readout');
+      const headerEl = document.getElementById('page-header');
       if (dragMode === 'brightness') {
         const heroBri = document.getElementById('slider-hero-brightness');
         if (heroBri) heroBri.textContent = Math.round(previewBri) + '%';
+        if (headerReadout) {
+          const k = Math.round(previewCCT);
+          headerReadout.textContent = `${Math.round(previewBri)}% · ${k}K`;
+        }
+        // Also live-tint the header background so dragging brightness
+        // visibly affects the header tint (matches the tint pipeline that
+        // runs on every status refresh via updateHeaderTint).
+        if (headerEl) {
+          const tinted = tintColorByBrightness(cctToRGB(previewCCT), Math.round(previewBri));
+          headerEl.style.background = tinted;
+          headerEl.style.color = readableTextColor(tinted);
+        }
       } else if (dragMode === 'color') {
         const heroColor = document.getElementById('slider-hero-color');
         if (heroColor) heroColor.textContent = Math.round(previewCCT) + 'K';
+        if (headerReadout) {
+          const k = Math.round(previewCCT);
+          headerReadout.textContent = `${Math.round(previewBri)}% · ${k}K`;
+        }
+        if (headerEl) {
+          const tinted = tintColorByBrightness(cctToRGB(previewCCT), Math.round(previewBri));
+          headerEl.style.background = tinted;
+          headerEl.style.color = readableTextColor(tinted);
+        }
       }
 
       // Build a preview state that injects the new override as if it were just
@@ -3620,7 +3655,15 @@
           const sbfNow = previewState.live_sbf
             ?? (areaStatus[selectedArea.area_id]?.sun_bright_factor)
             ?? cachedSunTimes.sunBrightFactorNow ?? 1.0;
-          const previewSunTimes = Object.assign({}, cachedSunTimes, { sunBrightFactorNow: sbfNow });
+          const briSens = (tuneState?.initialized && tuneState.brightnessSensitivity != null)
+            ? tuneState.brightnessSensitivity
+            : (areaStatus[selectedArea.area_id]?.brightness_sensitivity ?? 0);
+          const naturalLightExposure =
+            (tuneState?.initialized && typeof SOLAR_STEPS !== 'undefined'
+              && SOLAR_STEPS[tuneState.solarStep])
+              ? SOLAR_STEPS[tuneState.solarStep].exposure
+              : (areaStatus[selectedArea.area_id]?.natural_light_exposure ?? 0);
+          const previewSunTimes = Object.assign({}, cachedSunTimes, { sunBrightFactorNow: sbfNow, briSens, naturalLightExposure });
           const pureBulbAtNow = calcBulbBrightnessAt(currentHour, previewSunTimes, currentHour, pureRoomAtNow);
           previewState.brightness_override = previewBri - pureBulbAtNow;
           previewState.brightness_override_set_at = currentHour;
@@ -3630,6 +3673,14 @@
           previewState.color_override = previewCCT - pureCCTAtNow;
           previewState.color_override_set_at = currentHour;
         }
+        // Stash the last preview state so onUp can re-render WITHOUT the
+        // ghost but WITH the dragged values, instead of re-rendering from
+        // areaState (which still carries the pre-drag values until the 500ms
+        // status fetch lands). Avoids the snap-back flicker the user reported.
+        window._lastDragPreview = {
+          cfg, state: previewState, sunTimes: cachedSunTimes, currentHour, isActive,
+          markerOverride: { bri: previewBri, cct: previewCCT },
+        };
         renderMiniChart(cfg, previewState, cachedSunTimes, currentHour, isActive, null, { bri: previewBri, cct: previewCCT });
       }
     }
@@ -3710,7 +3761,6 @@
             const actualNorm = firstStatus.outdoor_normalized ?? firstStatus.sun_factor ?? 0;
             cachedSunTimes.outdoorNormalized = actualNorm;
             cachedSunTimes.sunSaturation = firstStatus.sun_saturation ?? 40;
-            cachedSunTimes.sunSaturationRamp = firstStatus.sun_saturation_ramp ?? 'squared';
             cachedSunTimes.maxSummerElevation = firstStatus.max_summer_elevation ?? 78.0;
             cachedSunTimes.sunBrightFactorNow = firstStatus.sun_bright_factor ?? 1.0;
             // Derive condition multiplier from current reading vs clear-sky at current hour
@@ -3766,10 +3816,6 @@
 
       document.getElementById('page-title').textContent = area.name;
 
-      // Show area controls
-      document.getElementById('controls-left').style.display = 'flex';
-      document.getElementById('controls-area').style.display = 'flex';
-
       updateContent();
       // Fetch slider preview points for gradient
       fetchSliderPreview(areaId).then(() => updateAllSliders());
@@ -3808,7 +3854,6 @@
                 const actualNorm = ls0.outdoor_normalized ?? ls0.sun_factor ?? 0;
                 cachedSunTimes.outdoorNormalized = actualNorm;
                 cachedSunTimes.sunSaturation = ls0.sun_saturation ?? 40;
-                cachedSunTimes.sunSaturationRamp = ls0.sun_saturation_ramp ?? 'squared';
                 cachedSunTimes.maxSummerElevation = ls0.max_summer_elevation ?? 78.0;
                 cachedSunTimes.sunBrightFactorNow = ls0.sun_bright_factor ?? 1.0;
                 const now = new Date();
@@ -3923,123 +3968,181 @@
         fade_direction: status.fade_direction || null
       });
 
-      // Header shading based on CCT and brightness
-      const stateEl = document.getElementById('area-state');
-      if (selectedArea.is_circadian === false) {
-        // Circadian off: very muted neutral — don't imply off or a specific color
-        stateEl.style.setProperty('--state-bg', '#1a1a1a');
-        stateEl.style.setProperty('--state-fill', selectedArea.is_on ? '0.08' : '0');
-      } else if (selectedArea.is_on) {
-        const cctColor = cctToRGB(selectedArea.kelvin);
-        const tintedColor = tintColorByBrightness(cctColor, selectedArea.actual_brightness);
-        stateEl.style.setProperty('--state-bg', tintedColor);
-        stateEl.style.setProperty('--state-fill', (selectedArea.actual_brightness / 100).toFixed(3));
-      } else {
-        stateEl.style.setProperty('--state-bg', 'var(--panel)');
-        stateEl.style.setProperty('--state-fill', '0');
-      }
+      // CCT-tint the page-header background per current room state, plus
+      // refresh the row-2 readout (% · K) and the dirty-reset visibility.
+      updateHeaderTint();
+      updateHeaderResetVisibility();
 
-      // Values display
-      const valuesEl = document.getElementById('state-values');
-      if (selectedArea.is_on) {
-        const cctColor = cctToRGB(selectedArea.kelvin);
-        const tintedColor = tintColorByBrightness(cctColor, selectedArea.actual_brightness);
-        valuesEl.style.color = readableTextColor(tintedColor);
-      } else {
-        valuesEl.style.color = 'var(--muted)';
-      }
-      valuesEl.textContent = ''; // Brightness and color now shown on slider heroes
-
-      // Header meta: zone link + "Rhythm zone" label
-      const metaZone = document.getElementById('header-meta-zone');
+      // Header meta — just the zone link now (the "Rhythm Zone" caps label was
+      // dropped as redundant chrome). color: inherit so it tracks the
+      // readableTextColor that updateHeaderTint sets on .page-header.
       const metaRhythm = document.getElementById('header-meta-rhythm');
       const areaZoneName = selectedArea.zone_name;
       if (areaZoneName) {
         metaRhythm.innerHTML = `<a href="${basePath}/zone/${encodeURIComponent(areaZoneName)}?back=area/${encodeURIComponent(selectedArea.area_id)}">${areaZoneName}</a>`;
         metaRhythm.style.display = '';
-        metaZone.innerHTML = '<span class="zone-type-chip">Rhythm Zone</span>';
-        metaZone.style.display = '';
       } else {
         metaRhythm.innerHTML = '';
         metaRhythm.style.display = 'none';
-        metaZone.innerHTML = '';
-        metaZone.style.display = 'none';
       }
 
-      // Update toggle button states
+      // Power, freeze, circadian — three header row 2 toggles. Power active
+      // when lights are on (no special styling — readout shows 0% when off).
+      // Freeze active when frozen (cyan tint via .active). Circadian uses
+      // the inverse — `.is-off` flag flips it from de-emphasized (default)
+      // to full-prominence (the noteworthy state).
       const powerBtn = document.getElementById('toggle-power');
-      const freezeBtn = document.getElementById('toggle-freeze');
-      const boostBtn = document.getElementById('toggle-boost');
-
       if (powerBtn) powerBtn.classList.toggle('active', selectedArea.is_on);
+
+      const freezeBtn = document.getElementById('toggle-freeze');
       if (freezeBtn) freezeBtn.classList.toggle('active', selectedArea.frozen);
-      if (boostBtn) boostBtn.classList.toggle('active', selectedArea.boosted);
 
-
-      // Dynamic tooltips with zone/rhythm names
-      const zoneName = selectedArea.zone_name;
-      const fullSendBtn = document.getElementById('toggle-full-send');
-      const gloUpBtn = document.getElementById('toggle-glo-up');
-      const gloDownBtn = document.getElementById('toggle-glo-down');
-      const gloResetBtn = document.getElementById('toggle-glo-reset');
-      if (fullSendBtn) fullSendBtn.title = `Full Send --> to all areas in '${zoneName || 'Rhythm Zone'}'`;
-      if (gloUpBtn) gloUpBtn.title = `GloUp: send to '${zoneName || 'Rhythm Zone'}'`;
-      if (gloDownBtn) gloDownBtn.title = `GloDown: pull from '${zoneName || 'Rhythm Zone'}'`;
-      if (gloResetBtn) gloResetBtn.title = `Reset Glo --> '${zoneName || 'zone'}'`;
-
-      // Circadian-off overlay + header toggle
+      // Circadian-off overlay (greys chart + sliders, surfaces "Enable"
+      // button on the chart card) + header circadian icon prominence.
       const wrap = document.getElementById('circadian-content-wrap');
       const enableBtn = document.getElementById('enable-circadian-btn');
       const circToggle = document.getElementById('toggle-circadian');
-      const rightBtns = document.querySelectorAll('#controls-area .toggle-btn');
       if (wrap && enableBtn) {
         if (selectedArea.is_circadian === false) {
           wrap.classList.add('circadian-off-overlay');
           enableBtn.style.display = 'flex';
-          if (freezeBtn) freezeBtn.disabled = true;
-          if (boostBtn) boostBtn.disabled = true;
-          rightBtns.forEach(btn => btn.disabled = true);
         } else {
           wrap.classList.remove('circadian-off-overlay');
           enableBtn.style.display = 'none';
-          if (freezeBtn) freezeBtn.disabled = false;
-          if (boostBtn) boostBtn.disabled = false;
-          rightBtns.forEach(btn => btn.disabled = false);
         }
       }
       if (circToggle) {
-        circToggle.classList.toggle('active', selectedArea.is_circadian);
-        circToggle.title = selectedArea.is_circadian ? 'Circadian Light: active' : 'Circadian Light: off';
+        circToggle.classList.toggle('is-off', selectedArea.is_circadian === false);
+        circToggle.title = selectedArea.is_circadian === false
+          ? 'Turn on Circadian Light'
+          : 'Turn off Circadian Light; frees lights for other apps';
       }
 
       updateTimerStatus();
     }
 
+    // Power button wrapper — when circadian is off, tapping power should
+    // do BOTH: re-enable circadian first, then toggle lights. Reflects
+    // user intent: "power on" while circadian-off almost always means
+    // "wake up the addon AND the lights". executeAction's optimistic UI
+    // already updates the power icon immediately on the lights_toggle
+    // call, so the user sees the response without waiting on circadian_on.
+    async function powerToggleSmart() {
+      if (!selectedArea) return;
+      if (selectedArea.is_circadian === false) {
+        await executeAction('circadian_on');
+      }
+      await executeAction('lights_toggle');
+    }
 
+    // CCT-tint the page-header to reflect the area's current bulb color.
+    // Mirrors rhythm-design.html positionOverlays(): tinted bg + readable text
+    // color flow inheriting through .page-title, .page-header-meta a, chips,
+    // power icon, and back button. When the room is off or circadian-disabled,
+    // fall back to the neutral panel color so the header doesn't lie about
+    // current state.
+    function updateHeaderTint() {
+      const headerEl = document.getElementById('page-header');
+      const readoutEl = document.getElementById('page-header-readout');
+      if (!headerEl || !selectedArea) return;
+      // actual_brightness reflects what the bulb WOULD emit at current
+      // settings — it doesn't drop to 0 when the room is off (the bulb's
+      // power state is is_on). Force brightness to 0 for both the tint
+      // and the readout when off so the header darkens and 0% shows.
+      const effectiveBri = selectedArea.is_on
+        ? (selectedArea.actual_brightness ?? 0)
+        : 0;
+      // Match home-page area-card treatment (areas.html getRowStyle): tint
+      // with CCT only when on; when off (or circadian off), fall back to
+      // var(--card) — same near-black the area cards use, so the two
+      // surfaces stay visually consistent.
+      let bg, color;
+      if (selectedArea.is_on && selectedArea.is_circadian !== false) {
+        const cctColor = cctToRGB(selectedArea.kelvin);
+        const tintedColor = tintColorByBrightness(cctColor, effectiveBri);
+        bg = tintedColor;
+        color = readableTextColor(tintedColor);
+      } else {
+        bg = 'var(--card)';
+        color = 'var(--text)';
+      }
+      headerEl.style.background = bg;
+      headerEl.style.color = color;
+      // Readout always shows current K — color stays informative when off,
+      // brightness reads 0% as the off indicator. Power button has no
+      // on/off styling; the % readout IS the off indicator.
+      if (readoutEl) {
+        const k = Math.round(selectedArea.kelvin ?? 0);
+        readoutEl.textContent = `${Math.round(effectiveBri)}% · ${k}K`;
+      }
+    }
+
+    // Show the master reset (↺) button only when the area has any override
+    // applied — brightness, color, or phase-time. Three independent reset
+    // primitives exist server-side; this commit calls them sequentially.
+    // Replace with a single reset_all_overrides primitive in the backend
+    // follow-up commit.
+    function updateHeaderResetVisibility() {
+      const btn = document.getElementById('page-header-reset');
+      if (!btn || !selectedArea) return;
+      const status = areaStatus[selectedArea.area_id] || {};
+      const dirty = status.brightness_override != null
+        || status.color_override != null
+        || status.brightness_mid != null
+        || status.color_mid != null;
+      btn.style.display = dirty ? '' : 'none';
+    }
+
+    // Sequential 3-call reset (brightness override, color override, phase
+    // time). Wired to the master ↺ button. Future: collapse into a single
+    // primitive (see project_area_redesign_2026_05.md backend follow-up).
+    async function resetAllOverrides() {
+      if (!selectedArea) return;
+      try {
+        await executeAction('reset_brightness_override');
+        await executeAction('reset_color_override');
+        await executeAction('reset_phase');
+      } catch (e) { console.error('resetAllOverrides failed', e); }
+    }
+
+
+    // Render header status chips (boost / freeze / motion / fade) into
+    // page-header-chips. Each chip is a button so users can tap to cancel
+    // the active state. Boost + freeze cancellations wire to existing
+    // services; motion + fade are disabled until backend follow-up adds
+    // cancel_motion / finish_fade primitives.
     function updateTimerStatus() {
-      const el = document.getElementById('timer-status');
+      const el = document.getElementById('page-header-chips');
+      if (!el) return;
       if (!selectedArea) {
         el.innerHTML = '';
         return;
       }
 
       const parts = [];
-
-      if (selectedArea) {
+      {
         const hasMotion = selectedArea.motion_expires_at && selectedArea.motion_expires_at !== 'forever';
         const hasBoostedMotion = selectedArea.boosted && selectedArea.is_motion_coupled;
-        const warnClass = selectedArea.motion_warning_active ? ' timer-warning' : '';
+        const warnClass = selectedArea.motion_warning_active ? ' area-chip--warning' : '';
+        const motionTitle = 'Motion timer (cancel: TODO — needs cancel_motion primitive)';
 
         if (hasMotion && hasBoostedMotion) {
           const remaining = formatCountdown(selectedArea.motion_expires_at);
           if (remaining) {
-            parts.push(`<span class="timer-motion${warnClass}">+${selectedArea.boost_brightness}%: ${remaining}<span class="timer-arrow">→</span>off</span>`);
+            parts.push(
+              `<button type="button" class="area-chip area-chip--motion${warnClass}" disabled title="${motionTitle}">`
+              + `+${selectedArea.boost_brightness}%: ${remaining}`
+              + `<span class="area-chip-arrow">→</span>off</button>`
+            );
           }
         } else {
           if (hasMotion) {
             const remaining = formatCountdown(selectedArea.motion_expires_at);
             if (remaining) {
-              parts.push(`<span class="timer-motion${warnClass}">${remaining}<span class="timer-arrow">→</span>off</span>`);
+              parts.push(
+                `<button type="button" class="area-chip area-chip--motion${warnClass}" disabled title="${motionTitle}">`
+                + `${remaining}<span class="area-chip-arrow">→</span>off</button>`
+              );
             }
           }
 
@@ -4051,7 +4154,7 @@
               if (selectedArea.motion_expires_at) {
                 const remaining = formatCountdown(selectedArea.motion_expires_at);
                 if (remaining) {
-                  text += ` · ${remaining}<span class="timer-arrow">→</span>circadian`;
+                  text += ` · ${remaining}<span class="area-chip-arrow">→</span>circadian`;
                 } else {
                   text += ' · ending';
                 }
@@ -4062,10 +4165,14 @@
               const remaining = formatCountdown(selectedArea.boost_expires_at);
               if (remaining) {
                 const outcome = selectedArea.boost_started_from_off ? 'off' : 'circadian';
-                text += ` · ${remaining}<span class="timer-arrow">→</span>${outcome}`;
+                text += ` · ${remaining}<span class="area-chip-arrow">→</span>${outcome}`;
               }
             }
-            parts.push(`<span class="timer-boost">Boost: ${text}</span>`);
+            parts.push(
+              `<button type="button" class="area-chip area-chip--boost"`
+              + ` onclick="executeAction('boost')" title="Cancel boost">`
+              + `Boost: ${text}</button>`
+            );
           }
         }
 
@@ -4079,12 +4186,16 @@
             const s = remaining % 60;
             countdown = m > 0 ? `${m}m ${s}s` : `${s}s`;
           }
-          parts.push(`<span class="timer-fade">\u23F0 ${fadeIcon} ${target} ${countdown}</span>`);
+          parts.push(
+            `<button type="button" class="area-chip area-chip--fade" disabled`
+            + ` title="Fade in progress (cancel: TODO \u2014 needs finish_fade primitive)">`
+            + `\u23F0 ${fadeIcon} ${target} ${countdown}</button>`
+          );
         }
 
-        if (selectedArea.frozen) {
-          parts.push(`<span class="timer-frozen">❄</span>`);
-        }
+        // Frozen state now surfaces via the page-header freeze icon (cyan
+        // .active styling) — chip retired to avoid duplication with the
+        // always-visible header control.
       }
 
       el.innerHTML = parts.join('');
@@ -4113,12 +4224,12 @@
       return '\u2600';
     }
 
-    // Updates the chart's top-right sun-info chip. Visible only between sunrise
-    // and sunset (approximate — uses cachedSunTimes.sunrise / .sunset hours).
-    // Also suppressed when sun isn't a factor in this area's curve: sun_exposure
-    // is 0 (area gets no daylight) or brightness_sensitivity is 0 (rhythm sun
-    // response disabled). Reads live tuneState first so unsaved Tune edits
-    // hide/show the chip immediately.
+    // Updates the sun-intensity chip above the chart. Visible only when the
+    // room has sun-exposure > 0 AND the cursor is between sunrise/sunset.
+    // Position: solar noon if it falls inside the active phase window;
+    // otherwise clamp to whichever phase edge is closer to solar noon (so the
+    // chip lands at the brightest visible time). Sun glyph only — the % does
+    // the cloudiness signaling without needing a weather icon.
     function updateChartSunInfo(currentHour, sunTimes, status) {
       const el = document.getElementById('chart-sun-info');
       if (!el) return;
@@ -4140,34 +4251,30 @@
       if (!isDay) { el.classList.remove('visible'); return; }
       const norm = sunTimes?.outdoorNormalized ?? 0;
       const pct = Math.round(norm * 100);
-      const condMult = sunTimes?.conditionMultiplier ?? null;
-      const weather = status?.weather_condition ?? null;
       const iconEl = document.getElementById('chart-sun-info-icon');
       const pctEl = document.getElementById('chart-sun-info-pct');
-      if (iconEl) iconEl.textContent = chartConditionIcon(weather, condMult);
+      if (iconEl) iconEl.textContent = '☀';  // sun glyph; % conveys cloudiness
       if (pctEl) pctEl.textContent = pct + '%';
       el.classList.add('visible');
-      // Position the chip at solar noon (midpoint between sunrise & sunset),
-      // vertically aligned with the sun/moon icon row above the plot top
-      // (~10% of plot height above the 100% line, sitting in the t margin).
       const chartDiv = document.getElementById('mini-chart');
       const shell = document.getElementById('chart-shell');
       const fl = chartDiv && chartDiv._fullLayout;
       if (fl && fl.xaxis && fl.yaxis && shell) {
-        const xAnchor = _chartGeom.xAnchor ?? 0;
+        const xRange = fl.xaxis.range;  // [phaseVisStart, phaseVisEnd]
+        const xStart = xRange[0], xEnd = xRange[1];
+        const xLen = fl.xaxis._length;
+        // Solar noon — try the natural noon position first; if it falls
+        // outside the visible phase window, clamp to the nearest visible
+        // edge (so chip sits at the brightest time of what's shown).
         const noonHour = (sunrise + sunset) / 2;
         let visNoon = noonHour;
-        while (visNoon < xAnchor) visNoon += 24;
-        while (visNoon > xAnchor + 24) visNoon -= 24;
+        while (visNoon < xStart - 12) visNoon += 24;
+        while (visNoon > xEnd + 12) visNoon -= 24;
+        const clampedNoon = Math.max(xStart, Math.min(xEnd, visNoon));
         const chartLeftInShell = chartDiv.getBoundingClientRect().left - shell.getBoundingClientRect().left;
-        const chartTopInShell = chartDiv.getBoundingClientRect().top - shell.getBoundingClientRect().top;
-        const px = chartLeftInShell + fl.xaxis._offset + ((visNoon - xAnchor) / 24) * fl.xaxis._length;
-        // y_paper = 1.10 → 10% of plot height ABOVE 100% line, in the t-margin band
-        // shared with sun/moon icons → chartTop + yOffset − 0.10 * yLength.
-        const py = chartTopInShell + fl.yaxis._offset - 0.10 * fl.yaxis._length - el.offsetHeight / 2;
-        el.style.left = (px - el.offsetWidth / 2) + 'px';
+        const px = chartLeftInShell + fl.xaxis._offset + ((clampedNoon - xStart) / (xEnd - xStart)) * xLen;
+        el.style.left = px + 'px';
         el.style.right = 'auto';
-        el.style.top = py + 'px';
       }
     }
 
@@ -4239,52 +4346,15 @@
       }
 
       const isActive = (status.is_on || false) && (status.is_circadian !== false);
-      const isDragActive = _chartDrag.active && selectedArea?.area_id === areaId;
+      // Chart drag retired in Ship 2 — adjusted times come straight from
+      // server status now. Live phase-slider drag is handled by the existing
+      // slider drag pipeline (no chart-side live-sync needed).
       const adjustedTimes = {
-        wake: isDragActive && _chartDrag.cursorInAscend
-          ? _chartDrag.dragHour
-          : (status.adjusted_wake_time ?? null),
-        bed: isDragActive && !_chartDrag.cursorInAscend
-          ? _chartDrag.dragHour
-          : (status.adjusted_bed_time ?? null),
+        wake: status.adjusted_wake_time ?? null,
+        bed: status.adjusted_bed_time ?? null,
       };
-      if (isDragActive) {
-        const tAscendCfg = cfg.ascend_start;
-        let tDescendCfg = cfg.descend_start;
-        if (tDescendCfg <= tAscendCfg) tDescendCfg += 24;
-        const dragH48 = _chartDrag.dragHour < tAscendCfg ? _chartDrag.dragHour + 24 : _chartDrag.dragHour;
-        const shiftedMid = computeCandidateShiftedMid(dragH48, cfg, _chartDrag.cursorInAscend) % 24;
-        areaState.brightness_mid = shiftedMid;
-        areaState.color_mid = shiftedMid;
-      }
       renderMiniChart(cfg, areaState, cachedSunTimes, currentHour, isActive, adjustedTimes);
       updateChartSunInfo(currentHour, cachedSunTimes, status);
-
-      if (isDragActive) {
-        const newBri = calcMiniBrightness(currentHour, cfg, areaState, currentHour) * 100;
-        const newCCT = calcMiniColor(currentHour, cfg, areaState, cachedSunTimes, currentHour);
-        const heroBri = document.getElementById('slider-hero-brightness');
-        if (heroBri) heroBri.textContent = Math.round(newBri) + '%';
-        const heroColor = document.getElementById('slider-hero-color');
-        if (heroColor) heroColor.textContent = Math.round(newCCT) + 'K';
-
-        // Live-sync the phase slider thumb + hero to the chart drag position.
-        const sliderTrack = document.querySelector('.slider-track[data-mode="phase"]');
-        if (sliderTrack && !sliderTrack.classList.contains('dragging')) {
-          const phaseCtx = buildPhaseCtx(cfg, areaState, currentHour);
-          if (phaseCtx) {
-            const span = phaseCtx.phaseMax - phaseCtx.phaseMin;
-            if (span > 0) {
-              const tAscendCfg = cfg.ascend_start;
-              const dragH48 = _chartDrag.dragHour < tAscendCfg ? _chartDrag.dragHour + 24 : _chartDrag.dragHour;
-              const pct = Math.max(0, Math.min(100, (dragH48 - phaseCtx.phaseMin) / span * 100));
-              applyOneSlider(sliderTrack, pct, newBri, newCCT, 'phase');
-              const heroPhase = document.getElementById('slider-hero-phase');
-              if (heroPhase) heroPhase.textContent = formatPhaseTime(_chartDrag.dragHour);
-            }
-          }
-        }
-      }
     }
 
 
@@ -4295,28 +4365,6 @@
       if (!selectedArea) return;
       const action = selectedArea.is_circadian ? 'circadian_off' : 'circadian_on';
       executeAction(action);
-    }
-
-    async function confirmFullSend() {
-      if (!selectedArea) return;
-      const zoneName = selectedArea.zone_name;
-      if (!zoneName) { alert('This area is not in a Rhythm Zone.'); return; }
-
-      if (cachedConfig?.confirm_zone_pushes) {
-        const bri = Math.round(selectedArea.brightness);
-        const kelvin = Math.round(selectedArea.kelvin);
-        const affectedAreas = areas.filter(a => {
-          const s = areaStatus[a.area_id] || {};
-          if (s.zone_name !== zoneName || !s.is_on) return false;
-          return Math.round(s.brightness || 0) !== bri || Math.round(s.kelvin || 4000) !== kelvin;
-        });
-        if (affectedAreas.length > 0) {
-          const areaList = affectedAreas.map(a => a.name).join('\n');
-          const msg = `Full Send ${bri}% / ${kelvin}K to "${zoneName}"? These areas will adjust:\n\n${areaList}`;
-          if (!confirm(msg)) return;
-        }
-      }
-      executeAction('full_send');
     }
 
     async function executeAction(action) {
@@ -4459,11 +4507,16 @@
               updateAllSliders();
             } catch (err) {
               console.error('Error refreshing after set_phase_time:', err);
+            } finally {
+              sliderInteracting = false;
             }
           }, 300);
+        } else {
+          sliderInteracting = false;
         }
       } catch (err) {
         console.error('Error executing set_phase_time:', err);
+        sliderInteracting = false;
       }
     }
 
@@ -4509,11 +4562,16 @@
               updateAllSliders();
             } catch (err) {
               console.error('Error refreshing after set_position:', err);
+            } finally {
+              sliderInteracting = false;
             }
           }, 500);
+        } else {
+          sliderInteracting = false;
         }
       } catch (err) {
         console.error('Error executing set_position:', err);
+        sliderInteracting = false;
       }
     }
     // ---- Tune Section ----
@@ -5835,86 +5893,99 @@
       });
     }
 
-    // Returns controls active in the last 5 minutes, most-recent first.
-    function getRecentControls() {
-      if (!areaControls) return [];
-      const cutoff = Date.now() - 5 * 60 * 1000;
-      const tagged = [];
-      for (const c of areaControls) {
-        const ts = c && c.last_action && c.last_action.timestamp;
-        if (!ts) continue;
-        const t = Date.parse(ts);
-        if (isNaN(t) || t < cutoff) continue;
-        tagged.push({ ctrl: c, t });
-      }
-      tagged.sort((a, b) => b.t - a.t);
-      return tagged;
-    }
-
-    // Green at <=1m, fading to grey by 5m.
+    // Recency dot color — bright green at 0–1m, fades to a dim green by 1h
+    // (no grey transition; user wanted "less bright" not "different hue").
+    // Returns null when the timestamp is older than 1h or absent — caller
+    // renders an empty slot in that case so row alignment stays stable.
+    const FRESHNESS_WINDOW_MIN = 60;
     function freshnessDotColor(timestampMs) {
-      const ageSec = (Date.now() - timestampMs) / 1000;
-      if (ageSec <= 60) return 'rgb(80, 220, 140)';
-      const t = Math.min(1, (ageSec - 60) / 240);
-      const r = Math.round(80 + (140 - 80) * t);
-      const g = Math.round(220 + (140 - 220) * t);
-      return `rgb(${r}, ${g}, 140)`;
+      if (timestampMs == null) return null;
+      const ageMin = (Date.now() - timestampMs) / 60000;
+      if (ageMin >= FRESHNESS_WINDOW_MIN) return null;
+      if (ageMin <= 1) return 'rgba(80, 220, 140, 1)';
+      const t = (ageMin - 1) / (FRESHNESS_WINDOW_MIN - 1);
+      // Linear fade alpha 1.0 → 0.30 — same green hue throughout, just dimmer.
+      const alpha = 1 - t * 0.7;
+      return `rgba(80, 220, 140, ${alpha.toFixed(2)})`;
     }
 
-    function renderRecentControlsStrip() {
-      const recent = getRecentControls();
-      if (recent.length === 0) return '';
+    function controlLastActionMs(ctrl) {
+      const ts = ctrl && ctrl.last_action && ctrl.last_action.timestamp;
+      if (!ts) return null;
+      const t = Date.parse(ts);
+      return isNaN(t) ? null : t;
+    }
+
+    // Renders one row, with a fixed-width dot slot on the LEFT so names
+    // align across rows regardless of whether the dot is currently active.
+    function renderControlRow(ctrl) {
+      const icon = controlCategoryIcon(ctrl.category);
+      const impact = controlImpactLabel(ctrl);
+      const pausedBadge = ctrl.inactive ? '<span class="ctrl-paused-badge">paused</span>' : '';
+      const encodedId = encodeURIComponent(ctrl.id);
       const areaId = selectedArea ? encodeURIComponent(selectedArea.area_id) : '';
-      let html = '<div class="ctrl-recent-section">';
-      html += '<div class="ctrl-recent-label">Recent</div>';
-      for (const { ctrl, t } of recent) {
-        const icon = controlCategoryIcon(ctrl.category);
-        const impact = controlImpactLabel(ctrl);
-        const pausedBadge = ctrl.inactive ? '<span class="ctrl-paused-badge">paused</span>' : '';
-        const encodedId = encodeURIComponent(ctrl.id);
-        const dotColor = freshnessDotColor(t);
-        html += `<div class="ctrl-list-row" onclick="window.location.href='${basePath}/control/${encodedId}?from=area&id=${areaId}'">`;
-        html += `<span class="ctrl-list-icon">${icon}</span>`;
-        html += `<span class="ctrl-list-info"><span class="ctrl-list-name">${ctrl.name}<span class="ctrl-fresh-dot" style="background:${dotColor};"></span>${pausedBadge}</span></span>`;
-        html += `<span class="ctrl-list-impact">${impact}</span>`;
-        html += `<span class="ctrl-list-chevron">&#x203A;</span>`;
-        html += `</div>`;
+      const dotColor = freshnessDotColor(controlLastActionMs(ctrl));
+      const dotHtml = dotColor
+        ? `<span class="ctrl-fresh-dot" style="background:${dotColor};"></span>`
+        : '';
+      let row = `<div class="ctrl-list-row" onclick="window.location.href='${basePath}/control/${encodedId}?from=area&id=${areaId}'">`;
+      row += `<span class="ctrl-list-icon">${icon}</span>`;
+      row += `<span class="ctrl-fresh-dot-slot">${dotHtml}</span>`;
+      row += `<span class="ctrl-list-info"><span class="ctrl-list-name">${ctrl.name}${pausedBadge}</span></span>`;
+      row += `<span class="ctrl-list-impact">${impact}</span>`;
+      row += `<span class="ctrl-list-chevron">&#x203A;</span>`;
+      row += `</div>`;
+      return row;
+    }
+
+    // Re-render the controls list every 60s so the freshness dots fade out
+    // smoothly (bright → dim → gone) without waiting for a full status
+    // refresh. No-op when the controls card hasn't been rendered yet.
+    let _controlsRefreshTimer = null;
+    function ensureControlsRefreshTimer() {
+      if (_controlsRefreshTimer) return;
+      _controlsRefreshTimer = setInterval(() => {
+        const container = document.getElementById('ctrl-list-container');
+        if (container && areaControls && areaControls.length) {
+          container.innerHTML = renderAreaControlsBody();
+        }
+      }, 60000);
+    }
+
+    function renderAreaControlsBody() {
+      if (!areaControls || areaControls.length === 0) return '';
+      const currentAreaId = selectedArea ? selectedArea.area_id : '';
+      const sorted = sortAreaControls(areaControls);
+      const inGroup = sorted.filter(c => c.area_id === currentAreaId);
+      const reachGroup = sorted.filter(c => c.area_id !== currentAreaId);
+      const areaLabel = (selectedArea && selectedArea.name) ? selectedArea.name : 'this area';
+      // Section headers only appear when there's something to differentiate
+      // between (i.e. both groups populated). When only one group has rows,
+      // it's just "the controls" — the card title already names that. Avoids
+      // a redundant "In SunOffice" header above all controls when no
+      // outside-area control targets this room.
+      const showHeaders = inGroup.length > 0 && reachGroup.length > 0;
+      const sections = [];
+      if (inGroup.length) {
+        let html = '<div class="ctrl-section">';
+        if (showHeaders) html += `<div class="ctrl-section-label">In ${areaLabel}</div>`;
+        for (const ctrl of inGroup) html += renderControlRow(ctrl);
+        html += '</div>';
+        sections.push(html);
       }
-      html += '</div>';
-      return html;
-    }
-
-    function refreshRecentControlsStrip() {
-      const container = document.getElementById('ctrl-recent-container');
-      if (!container) return;
-      container.innerHTML = renderRecentControlsStrip();
-    }
-
-    let _recentControlsTimer = null;
-    function ensureRecentControlsTimer() {
-      if (_recentControlsTimer) return;
-      _recentControlsTimer = setInterval(refreshRecentControlsStrip, 30000);
+      if (reachGroup.length) {
+        let html = '<div class="ctrl-section">';
+        if (showHeaders) html += `<div class="ctrl-section-label">Reaches ${areaLabel}</div>`;
+        for (const ctrl of reachGroup) html += renderControlRow(ctrl);
+        html += '</div>';
+        sections.push(html);
+      }
+      return sections.join('');
     }
 
     function renderAreaControlsList() {
-      if (!areaControls || areaControls.length === 0) return '';
-      const sorted = sortAreaControls(areaControls);
-      let html = `<div id="ctrl-recent-container">${renderRecentControlsStrip()}</div>`;
-      for (const ctrl of sorted) {
-        const icon = controlCategoryIcon(ctrl.category);
-        const impact = controlImpactLabel(ctrl);
-        const pausedBadge = ctrl.inactive ? '<span class="ctrl-paused-badge">paused</span>' : '';
-        const encodedId = encodeURIComponent(ctrl.id);
-        const areaId = selectedArea ? encodeURIComponent(selectedArea.area_id) : '';
-        html += `<div class="ctrl-list-row" onclick="window.location.href='${basePath}/control/${encodedId}?from=area&id=${areaId}'">`;
-        html += `<span class="ctrl-list-icon">${icon}</span>`;
-        html += `<span class="ctrl-list-info"><span class="ctrl-list-name">${ctrl.name}${pausedBadge}</span></span>`;
-        html += `<span class="ctrl-list-impact">${impact}</span>`;
-        html += `<span class="ctrl-list-chevron">&#x203A;</span>`;
-        html += `</div>`;
-      }
-      ensureRecentControlsTimer();
-      return html;
+      ensureControlsRefreshTimer();
+      return `<div id="ctrl-list-container">${renderAreaControlsBody()}</div>`;
     }
 
     function toggleBrightnessBody() {
@@ -6538,7 +6609,7 @@
       const text = daySuffix ? core + ' ' + daySuffix : core;
       return {
         enabled: true,
-        html: `<a href="#" data-auto-hit="${type}" onclick="event.preventDefault(); event.stopPropagation(); focusAutoSub('${type}');">${label} ${text}</a>`
+        html: `<a href="#" data-auto-hit="${type}" onclick="event.preventDefault(); event.stopPropagation(); focusAutoSub('${type}');">${label} @ ${text}</a>`
       };
     }
 

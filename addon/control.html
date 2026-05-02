@@ -46,29 +46,30 @@
       z-index: 100;
     }
 
+    /* Ghost chevron — matches area.html / rhythm-design.html treatment. */
     .back-btn {
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 36px;
-      height: 36px;
+      width: 32px;
+      height: 32px;
       border-radius: 8px;
-      border: 1px solid var(--line);
-      background: var(--card);
-      color: var(--text);
+      border: none;
+      background: transparent;
+      color: inherit;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: background 0.15s;
       flex-shrink: 0;
+      padding: 0;
     }
 
     .back-btn:hover {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: var(--accent);
+      background: rgba(0, 0, 0, 0.18);
     }
 
     .back-btn svg {
-      width: 20px;
-      height: 20px;
+      width: 18px;
+      height: 18px;
     }
 
     .page-header-icon {
