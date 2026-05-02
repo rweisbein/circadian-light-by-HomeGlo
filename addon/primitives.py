@@ -4287,6 +4287,17 @@ class CircadianLightPrimitives:
         raw_cfg = glozone.load_config_from_files()
         ct_threshold = raw_cfg.get("two_step_ct_threshold", 200)
         bri_delta_threshold = raw_cfg.get("two_step_bri_threshold", 15)
+        # CT brightness compensation config — used in phase 1 to preserve
+        # perceived brightness while CT shifts. Without this, phase 1 holds
+        # a raw % at the new (warmer) CT, which the eye reads as a brief
+        # dim moment because warm-CT bulbs put out fewer perceived lumens at
+        # the same %. Compensating brings phase 1's raw bri up so the bulb's
+        # output is perceptually consistent with the pre-shift state.
+        ct_comp_enabled = raw_cfg.get("ct_comp_enabled", False)
+        ct_comp_begin = raw_cfg.get("ct_comp_begin", 1650)
+        ct_comp_end = raw_cfg.get("ct_comp_end", 2250)
+        ct_comp_factor = raw_cfg.get("ct_comp_factor", 1.7)
+        from pipeline import apply_ct_compensation
 
         handled_set: Set[Tuple[str, str]] = set()  # (area_id, purpose_norm)
         batch_commands = []  # list of command dicts
@@ -4358,8 +4369,25 @@ class CircadianLightPrimitives:
                                 needs_2step = True
                                 brightening = bri > shared_bri
                                 if brightening:
-                                    # Phase 1: color at low bri, Phase 2: target bri + color
-                                    phase1_bri = max(1, min(shared_bri, bri))
+                                    # Phase 1: new color at a CT-compensated brightness,
+                                    # Phase 2: target bri + color.
+                                    # Run shared_bri through CT compensation at the NEW
+                                    # CT so phase 1's bulb output is perceptually
+                                    # consistent with the pre-shift state. Without this,
+                                    # phase 1 sends raw shared_bri at the new (warmer)
+                                    # CT — bulbs naturally emit fewer perceived lumens at
+                                    # warmer CT, so the user reads it as a brief dim
+                                    # moment before phase 2 brightens. Clamped to ≤ bri
+                                    # so phase 1 never overshoots the final target.
+                                    phase1_bri = apply_ct_compensation(
+                                        shared_bri,
+                                        ct,
+                                        enabled=ct_comp_enabled,
+                                        begin=ct_comp_begin,
+                                        end=ct_comp_end,
+                                        factor=ct_comp_factor,
+                                    )
+                                    phase1_bri = max(1, min(phase1_bri, bri))
                                     phase1_data = (phase1_bri, True)
                                     phase2_data = (bri, True)
                                 else:
@@ -4447,32 +4475,45 @@ class CircadianLightPrimitives:
         if wave1:
             await asyncio.gather(*wave1)
 
-        # Wave 2: phase 2 for 2-step (after delay)
+        # Wave 2: phase 2 for 2-step (after delay).
+        # Spawned as a fire-and-forget background task so the dispatch is
+        # detached from the calling task tree. Without this, when the user
+        # releases the held switch button, _stop_hold_repeat cancels the
+        # hold-repeat task; the cancellation propagates down through
+        # _coalesced_execute → _execute_switch_action → here, killing the
+        # in-flight asyncio.sleep before phase 2 fires. Lights then sit at
+        # phase 1 (the dim CT-shifted state) until the next periodic tick
+        # ~30s later picks them up. Detaching ensures phase 2 always lands.
         if two_step_cmds:
-            await asyncio.sleep(delay * 2)
-
-            wave2 = []
-            for cmd in two_step_cmds:
-                p2_bri, p2_color = cmd["phase2_data"]
-                xy = CircadianLight.color_temperature_to_xy(cmd["ct"])
-                sdata = {"transition": transition}
-                if p2_bri is not None:
-                    sdata["brightness_pct"] = p2_bri
-                if p2_color:
-                    if cmd["cap"] == "color":
-                        sdata["xy_color"] = list(xy)
-                    elif cmd["cap"] == "ct":
-                        sdata["color_temp_kelvin"] = max(2000, cmd["ct"])
-                logger.info(
-                    f"Batch {cmd['purpose_norm']} {cmd['cap']}: {cmd['entity_id']}, "
-                    f"phase 2, transition={transition}s"
-                )
-                wave2.append(
-                    self.client.call_service(
-                        "light", "turn_on", sdata, {"entity_id": cmd["entity_id"]}
-                    )
-                )
-            await asyncio.gather(*wave2)
+            async def _fire_phase2():
+                try:
+                    await asyncio.sleep(delay * 2)
+                    wave2 = []
+                    for cmd in two_step_cmds:
+                        p2_bri, p2_color = cmd["phase2_data"]
+                        xy = CircadianLight.color_temperature_to_xy(cmd["ct"])
+                        sdata = {"transition": transition}
+                        if p2_bri is not None:
+                            sdata["brightness_pct"] = p2_bri
+                        if p2_color:
+                            if cmd["cap"] == "color":
+                                sdata["xy_color"] = list(xy)
+                            elif cmd["cap"] == "ct":
+                                sdata["color_temp_kelvin"] = max(2000, cmd["ct"])
+                        logger.info(
+                            f"Batch {cmd['purpose_norm']} {cmd['cap']}: {cmd['entity_id']}, "
+                            f"phase 2, transition={transition}s"
+                        )
+                        wave2.append(
+                            self.client.call_service(
+                                "light", "turn_on", sdata, {"entity_id": cmd["entity_id"]}
+                            )
+                        )
+                    if wave2:
+                        await asyncio.gather(*wave2)
+                except Exception as e:
+                    logger.error(f"Batch 2-step phase 2 dispatch failed: {e}", exc_info=True)
+            asyncio.create_task(_fire_phase2())
 
         # Update state for handled areas
         for area_id, purpose_norms in handled_filters.items():
