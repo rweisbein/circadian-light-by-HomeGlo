@@ -5803,8 +5803,6 @@ class HomeAssistantWebSocketClient:
             await self.primitives.circadian_adjust(area_id, target, "webserver")
         elif service == "freeze_toggle":
             await self.primitives.freeze_toggle(area_id, "webserver")
-        elif service == "reset":
-            await self.primitives.reset(area_id, "webserver")
         elif service == "glo_up":
             await self.primitives.glo_up(area_id, "webserver")
         elif service == "glo_down":

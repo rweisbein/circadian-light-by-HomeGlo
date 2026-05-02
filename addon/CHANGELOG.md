@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.251
+- **Removed dead `elif service == "reset"` branch from `main.py:5806`.** It called `self.primitives.reset(area_id, ...)` which doesn't exist — would have `AttributeError`'d if anything ever sent `action: "reset"`. Nothing did (frontend uses the three separate `reset_brightness_override` / `reset_color_override` / `reset_phase` calls), so the branch was dormant; deleted to remove the loaded gun. When `reset_all_overrides` primitive lands as part of the parked spec follow-ups, this branch can come back wired correctly.
+
 ## 1.2.250
 - **Slider drag ghost on the area chart now includes sun-dimming.** The pre-drag snapshot was passing raw `cachedSunTimes` into `calcMiniCurveData` — without `briSens` + `naturalLightExposure` stashed, `calcBulbBrightnessAt` bailed out per sample and the ghost rendered as a flat curve where the live (sun-dimmed) curve dipped. Now the ghost snapshot uses the same `curveSunTimes` shape `renderMiniChart` builds (live `tuneState` priority for both fields, falling back to saved status), so the dotted "before" line matches the solid "now" line's shape including the sun-dim trough.
 - **Rhythm details — wake/bed drag ghost now aligns with the live pill.** Ghost wrapper `bottom: 14px → 4px` (matches `.phase-handle`'s bottom) so the dashed pill sits at the same y as the original (was floating ~10px above). Ghost width was hard-coded at 76px while the live pill auto-grows past that for longer time strings (e.g. "WAKE 6:45a" → ~90px wide), so the dashed ghost looked narrower; on dragstart we now snapshot the live pill's `getBoundingClientRect().width` into the ghost so the two are visually 1:1.
