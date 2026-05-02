@@ -467,6 +467,33 @@ def compute_override_decay(
     return max(0.0, min(1.0, remaining / total))
 
 
+def compute_sun_cooling_strength(
+    state: "AreaState",
+    config: "Config",
+    hour: float,
+    weekday: Optional[int] = None,
+) -> float:
+    """Sun-cooling strength scaled down by how far below the natural curve a
+    user has stepped (via brightness_mid). 1.0 = full sun-cooling effect; as
+    `stepped_bri` drops toward `min_brightness`, scales to 0.0 so the curve's
+    natural warmth comes through and warming can overcome the day's cooling.
+    Used by the runtime pipeline (pipeline.py) and by the home-page zone
+    header rendering (webserver.py:get_zone_states) so the two stay in sync.
+    """
+    if state.brightness_mid is None:
+        return 1.0
+    natural_bri = CircadianLight.calculate_brightness_at_hour(
+        hour, config, AreaState(is_circadian=True, is_on=True), weekday=weekday
+    )
+    stepped_bri = CircadianLight.calculate_brightness_at_hour(
+        hour, config, state, weekday=weekday
+    )
+    if stepped_bri >= natural_bri or natural_bri <= config.min_brightness:
+        return 1.0
+    step_below = (natural_bri - stepped_bri) / (natural_bri - config.min_brightness)
+    return max(0.0, min(1.0, 1.0 - step_below))
+
+
 def apply_light_filter_pipeline(
     base_brightness: int,
     min_brightness: int,

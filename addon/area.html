@@ -155,9 +155,9 @@
       font-size: var(--font-micro);
       font-weight: 600;
       letter-spacing: 0.02em;
-      padding: 4px 10px;
-      border-radius: 14px;
-      min-height: 28px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      min-height: 20px;
       line-height: 1;
       cursor: pointer;
       white-space: nowrap;
@@ -2197,10 +2197,13 @@
       const diffMs = expires - now;
       if (diffMs <= 0) return null;
       const totalSec = Math.floor(diffMs / 1000);
+      // Below a minute: show seconds. At/above a minute: drop seconds entirely
+      // (chip in the page header has limited horizontal space, and seconds
+      // ticking inside a minutes-scale countdown adds visual noise without
+      // useful precision). At/above an hour: show hours + minutes.
       if (totalSec < 60) return `${totalSec}s`;
       const min = Math.floor(totalSec / 60);
-      const sec = totalSec % 60;
-      if (min < 60) return sec > 0 ? `${min}m ${sec}s` : `${min}m`;
+      if (min < 60) return `${min}m`;
       const hr = Math.floor(min / 60);
       const remMin = min % 60;
       return remMin > 0 ? `${hr}h ${remMin}m` : `${hr}h`;
