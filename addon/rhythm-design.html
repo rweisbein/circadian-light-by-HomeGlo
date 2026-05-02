@@ -499,27 +499,7 @@ input[type=range]::-moz-range-thumb {
 
 /* Chart Section */
 .chart-wrapper { position: relative; margin-bottom: 8px; }
-#chart { height: 200px; touch-action: pan-x pan-y; }
-/* Time hover label - above x-axis, shows time with phase color */
-.time-hover-label {
-  position: absolute;
-  bottom: 70px;
-  padding: 4px 9px;
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.3);
-  background: rgba(5,5,5,0.88);
-  color: #fff;
-  font-size: var(--font-body);
-  font-weight: 600;
-  pointer-events: none;
-  transform: translateX(-50%);
-  opacity: 0;
-  transition: opacity 0.12s ease, left 0.08s ease;
-  white-space: nowrap;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.35);
-  z-index: 100;
-}
-
+#chart { height: 120px; touch-action: pan-x pan-y; }
 /* Chart shell — vertical zones:
    cct-banner   → edge-to-edge CCT-tinted controller (the banner IS the cursor)
    sun-strip    → outdoor sun-intensity chip floats above chart at solar-noon x
@@ -549,7 +529,13 @@ input[type=range]::-moz-range-thumb {
      chip + month label live. Was 24px when the cct-banner sat above this gap
      (separating chip from the banner color); now banner is gone, so a tighter
      14px is enough breathing room for the ~14px chip. */
-  height: 160px;
+  /* Shrunk 200→160 in v1.2.216, 160→120 in v1.2.254 to match area-details.
+     Overlay placement (sunrise/sunset labels, wake/bed pills, connectors,
+     sun-intensity chip, cursor line) is computed per-frame from
+     axisFromShellBottom and yaxis._offset, so they auto-adapt to the new
+     chart height without needing manual tuning. Padding-bottom on
+     #chart-shell stays at 60 — that's the rows for solar labels + pills. */
+  height: 120px;
   margin-top: 14px;
   touch-action: none;
   cursor: pointer;
@@ -843,26 +829,6 @@ input[type=range]::-moz-range-thumb {
   background: rgba(255,225,140,0.55);
   pointer-events: none;
 }
-.solar-label::after {
-  content: attr(data-time);
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 3px 7px;
-  background: #3a3a3a;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 500;
-  border-radius: 4px;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.12s;
-  margin-bottom: 5px;
-  font-variant-numeric: tabular-nums;
-}
-.solar-label:hover::after { opacity: 1; }
 
 /* Sun intensity chip — floats in the card-color gap BETWEEN the cct-banner
    bottom and the chart canvas top, anchored at solar-noon x. Yellow icon +
@@ -1913,7 +1879,6 @@ input[type=range]::-moz-range-thumb {
         </div>
 
         <div id="chart"></div>
-        <div class="time-hover-label" id="time-hover-label"></div>
 
         <!-- Solar band: sunrise / sunset (sun-cluster yellow) -->
         <div class="solar-label" id="sunrise-label" data-time="">sunrise</div>
@@ -2933,12 +2898,24 @@ function elevationToOutdoorNorm(elevDeg, conditionMultiplier) {
 }
 
 function getSelectedDateISO() {
-  // Month slider drives sunrise/sunset modeling — anchor to the 15th of the
-  // selected month so users see a representative day for that month.
+  // Month slider drives sunrise/sunset modeling — anchor to today's
+  // day-of-month within the selected month. Two reasons:
+  //   1. For the current month, this matches what area-details shows
+  //      (which uses today's actual date), so sunrise/sunset agree across
+  //      pages instead of being ~14 days off.
+  //   2. Flipping from one month to another keeps the day-of-month fixed,
+  //      so the seasonal jump between adjacent months is a clean ~30-day
+  //      step rather than "today vs the 15th" of differing magnitudes.
+  // Clamp the day to the selected month's last day (e.g. today=31st,
+  // selected=April → use April 30; without the clamp JS Date rolls into
+  // May 1 and the chart silently shifts a month).
   const now = new Date();
   const monthIdx = (chartState && Number.isInteger(chartState.monthIdx))
     ? chartState.monthIdx : now.getMonth();
-  const target = new Date(now.getFullYear(), monthIdx, 15);
+  const year = now.getFullYear();
+  const lastDay = new Date(year, monthIdx + 1, 0).getDate();
+  const day = Math.min(now.getDate(), lastDay);
+  const target = new Date(year, monthIdx, day);
   return target.toISOString().split('T')[0];
 }
 
@@ -3806,10 +3783,13 @@ function renderChart() {
   }
 
   // Hover trace - CCT colored background (bulb output, matches visible curve)
+  // Includes the time as a leading segment so the user gets one
+  // self-describing chip instead of needing the separate blue time chip.
   const hoverDetails = brightnessPct.map((v, i) => {
     const pct = Math.round(v);
     const kelvin = Math.round(cct[i]);
-    return `${pct}% \u2022 ${kelvin}K`;
+    const t = fmtTime(wrapHour(hours[i]));
+    return `${t} \u00b7 ${pct}% \u2022 ${kelvin}K`;
   });
   const hoverBgColors = cct.map(k => colorWithAlpha(cctToRGB(k), 0.92));
   const hoverTextColors = cct.map(k => readableTextColor(cctToRGB(k)));
@@ -3848,9 +3828,15 @@ function renderChart() {
   const tFor = h => visHour(h, xA);
   const wakeActive = chartState.wakeDragActive || chartState.wakeHovering;
   const bedActive = chartState.bedDragActive || chartState.bedHovering;
+  // Resolve through alt-day timing so the ambient wake/bed lines match the
+  // pill positions (which we now also resolve through resolveEffectiveTiming).
+  // Without this the line on alt days lands at the primary time while the
+  // pill lands at the alt time — visible disagreement (user-reported).
+  const _todayWdLines = getTodayPyWeekday();
+  const _effLines = resolveEffectiveTiming(config.bed_time, _todayWdLines, _todayWdLines);
   const shapes = [];
   {
-    const wt = chartState.wakeDragVal != null ? chartState.wakeDragVal : config.wake_time;
+    const wt = chartState.wakeDragVal != null ? chartState.wakeDragVal : _effLines.wake;
     shapes.push({ type: 'line', xref: 'x', yref: 'paper', layer: 'below',
       x0: tFor(wt), x1: tFor(wt), y0: 0, y1: 1,
       line: {
@@ -3859,7 +3845,7 @@ function renderChart() {
       } });
   }
   {
-    const bt = chartState.bedDragVal != null ? chartState.bedDragVal : config.bed_time;
+    const bt = chartState.bedDragVal != null ? chartState.bedDragVal : _effLines.bed;
     shapes.push({ type: 'line', xref: 'x', yref: 'paper', layer: 'below',
       x0: tFor(bt), x1: tFor(bt), y0: 0, y1: 1,
       line: {
@@ -3945,9 +3931,6 @@ function initChartInteractivity() {
   const chart = document.getElementById('chart');
   if (!chart || chart._interactivityInitialized) return;
 
-  const chartShell = document.getElementById('chart-shell');
-  const hoverLabel = document.getElementById('time-hover-label');
-
   // Helper to get plot area (Plotly creates this after rendering)
   const getPlotArea = () => {
     // Try multiple selectors for Plotly's plot area
@@ -3955,47 +3938,6 @@ function initChartInteractivity() {
            chart.querySelector('.plot-container .plot') ||
            chart.querySelector('.nsewdrag');
   };
-
-  // Mouse move for time hover label at top
-  chart.addEventListener('mousemove', (ev) => {
-    const plotArea = getPlotArea();
-    if (!plotArea) return;
-
-    const rect = plotArea.getBoundingClientRect();
-    const inside = ev.clientX >= rect.left && ev.clientX <= rect.right &&
-                   ev.clientY >= rect.top && ev.clientY <= rect.bottom;
-
-    if (!inside) {
-      hoverLabel.style.opacity = '0';
-      return;
-    }
-
-    const layout = chart._fullLayout;
-    const xRange = layout?.xaxis?.range || [0, 24];
-    const ratio = (ev.clientX - rect.left) / rect.width;
-    const xVal = xRange[0] + ratio * (xRange[1] - xRange[0]);
-    const shellRect = (chartShell || chart).getBoundingClientRect();
-
-    hoverLabel.textContent = fmtTime(xVal);
-    hoverLabel.style.left = `${ev.clientX - shellRect.left}px`;
-
-    // Color based on phase
-    const tAscend = config.ascend_start;
-    let tDescend = config.descend_start;
-    if (tDescend <= tAscend) tDescend += 24;
-    let h = xVal;
-    if (h < tAscend) h += 24;
-    const inAscend = h < tDescend;
-    const chipColor = inAscend ? ASCEND_COLORS.hoverBg : DESCEND_COLORS.hoverBg;
-
-    hoverLabel.style.background = chipColor;
-    hoverLabel.style.color = readableTextColor(chipColor);
-    hoverLabel.style.opacity = '1';
-  }, true);  // Use capture phase
-
-  chart.addEventListener('mouseleave', () => {
-    hoverLabel.style.opacity = '0';
-  }, true);
 
   // Click for cursor placement - always interactive
   chart.addEventListener('click', (ev) => {
@@ -4099,21 +4041,26 @@ function applyCursor() {
   const xA = chartState.ascendStart;
   const cursorFrameX = visHour(cursorHour, xA);
 
-  // Add cursor line with gap around the point
+  // Add cursor line with gap around the point. Top capped at y=100 (not
+  // GRAPH_Y_MAX/yaxis-range top) so the line lands flush with the 100%
+  // gridline instead of poking into the headroom above it.
+  const CURSOR_Y_TOP = 100;
   if (cursorPoint) {
     const gap = 3;
     const lowerEnd = Math.max(0, cursorPoint.y - gap);
-    const upperStart = Math.min(GRAPH_Y_MAX, cursorPoint.y + gap);
+    const upperStart = Math.min(CURSOR_Y_TOP, cursorPoint.y + gap);
 
     shapes.push({ type: 'line', xref: 'x', yref: 'y',
       x0: cursorFrameX, x1: cursorFrameX, y0: 0, y1: lowerEnd,
       line: cursorLineStyle, layer: 'above' });
-    shapes.push({ type: 'line', xref: 'x', yref: 'y',
-      x0: cursorFrameX, x1: cursorFrameX, y0: upperStart, y1: GRAPH_Y_MAX,
-      line: cursorLineStyle, layer: 'above' });
+    if (upperStart < CURSOR_Y_TOP) {
+      shapes.push({ type: 'line', xref: 'x', yref: 'y',
+        x0: cursorFrameX, x1: cursorFrameX, y0: upperStart, y1: CURSOR_Y_TOP,
+        line: cursorLineStyle, layer: 'above' });
+    }
   } else {
-    shapes.push({ type: 'line', xref: 'x', yref: 'paper',
-      x0: cursorFrameX, x1: cursorFrameX, y0: 0, y1: 1,
+    shapes.push({ type: 'line', xref: 'x', yref: 'y',
+      x0: cursorFrameX, x1: cursorFrameX, y0: 0, y1: CURSOR_Y_TOP,
       line: cursorLineStyle, layer: 'above' });
   }
 
@@ -4437,10 +4384,12 @@ function positionOverlays() {
     if (wh) wh.style.setProperty('--phase-connector-h', phaseConnectorH + 'px');
     if (bh) bh.style.setProperty('--phase-connector-h', phaseConnectorH + 'px');
   }
-  const setSolar = (el, h) => {
+  const setSolar = (el, h, word) => {
     if (!el || !Number.isFinite(h)) return;
     el.style.left = xToPx(h) + 'px';
-    el.dataset.time = formatHour(h);
+    const t = formatHour(h);
+    el.dataset.time = t;
+    el.textContent = word + ' ' + t;
     if (axisFromShellBottom != null) {
       // solar-label bottom: 40; label height ~14px → label top at 54 from
       // chart-shell bottom. Connector starts at label top + 1px margin = 55,
@@ -4450,8 +4399,8 @@ function positionOverlays() {
       el.style.setProperty('--solar-connector-h', solarConnectorH + 'px');
     }
   };
-  setSolar(sunriseEl, sr);
-  setSolar(sunsetEl, ss);
+  setSolar(sunriseEl, sr, 'sunrise');
+  setSolar(sunsetEl, ss, 'sunset');
 
   // Sun intensity chip + popover — live in the card-color gap above the chart
   // canvas, at solar-noon x. Centered vertically in chart-shell's top margin
@@ -4459,6 +4408,9 @@ function positionOverlays() {
   // the dark plot area). Popover hangs just below into the chart.
   // Note: pre-v1.2.215 the gap was banner-bottom → chart-top; now that the
   // banner has been lifted up to .page-header the gap is simply 0 → chart-top.
+  // (area.html anchors at NOW instead — it's a focused single-area view; the
+  // rhythm chart shows the full day so solar noon reads as "today's intensity"
+  // rather than a forecast, AND keeps the chip clear of the cursor crosshair.)
   const chip = document.getElementById('outdoor-chip');
   const pop = document.getElementById('outdoor-popover');
   const chartElForChip = document.getElementById('chart');
@@ -4490,9 +4442,15 @@ function positionOverlays() {
   // by CSS (top: 100% + 4px, right: 8px). No JS positioning needed.
 
   // Wake/Bed handles — working drag value (until commit/reset) takes priority
-  // over saved time, so the pill stays where the user dragged it.
-  const wakeT = chartState.wakeDragVal != null ? chartState.wakeDragVal : config.wake_time;
-  const bedT = chartState.bedDragVal != null ? chartState.bedDragVal : config.bed_time;
+  // over saved time, so the pill stays where the user dragged it. Otherwise
+  // resolve through alt-day timing so the handle shows TODAY's effective
+  // wake/bed (not the primary), matching what the chart curve actually draws.
+  // Without this, on an alt day the curve uses the alt time but the pill
+  // shows the primary time → ~30 min visual disagreement (user-reported).
+  const _todayWd = getTodayPyWeekday();
+  const _eff = resolveEffectiveTiming(config.bed_time, _todayWd, _todayWd);
+  const wakeT = chartState.wakeDragVal != null ? chartState.wakeDragVal : _eff.wake;
+  const bedT = chartState.bedDragVal != null ? chartState.bedDragVal : _eff.bed;
   const wakeHandle = document.getElementById('wake-handle');
   const bedHandle = document.getElementById('bed-handle');
   if (wakeHandle) {
