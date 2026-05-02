@@ -646,29 +646,6 @@
     }
     .area-solar-label::before { background: rgba(255,225,140,0.55); }
     .area-phase-label::before { background: rgba(140, 195, 255, 0.55); }
-    /* Hover tooltip — time pill above the label. */
-    .area-solar-label::after,
-    .area-phase-label::after {
-      content: attr(data-time);
-      position: absolute;
-      bottom: 100%;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 3px 7px;
-      background: #3a3a3a;
-      color: #fff;
-      font-size: 11px;
-      font-weight: 500;
-      border-radius: 4px;
-      white-space: nowrap;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.12s;
-      margin-bottom: 5px;
-      font-variant-numeric: tabular-nums;
-    }
-    .area-solar-label:hover::after,
-    .area-phase-label:hover::after { opacity: 1; }
     /* Circadian-off overlay */
     .circadian-off-overlay::after {
       content: '';
@@ -1230,8 +1207,8 @@
       <div class="area-phase-label" id="area-phase-label" data-time="">wake</div>
     </div>
     <div id="auto-sched-section" class="auto-sched-section" style="display:none;">
-    <div class="auto-sched-card auto-sched-card--headline is-open" id="chart-card">
-      <div class="auto-sched-header" onclick="toggleChartCard()">
+    <div class="auto-sched-card auto-sched-card--headline is-open" id="adjust-card">
+      <div class="auto-sched-header" onclick="toggleAdjustCard()">
         <span class="auto-sched-chevron">&#x203A;</span>
         <span class="auto-sched-title">Adjust</span>
         <span class="adjust-outer-next" id="adjust-outer-next"></span>
@@ -1310,8 +1287,8 @@
       <div class="tune-brightness-body" id="tune-controls-body">
       </div>
     </div>
-    <div class="auto-sched-card auto-sched-card--auto" id="auto-outer-card">
-      <div class="auto-sched-header" onclick="toggleAutoOuter(event)">
+    <div class="auto-sched-card auto-sched-card--auto" id="schedule-card">
+      <div class="auto-sched-header" onclick="toggleSchedule(event)">
         <span class="auto-sched-chevron" id="auto-outer-chevron">&#x203A;</span>
         <span class="auto-sched-title">Schedule</span>
         <span class="auto-outer-next" id="auto-outer-next"></span>
@@ -1528,9 +1505,84 @@
     // 'focused': force target card open, rest collapsed, no persistence
     const _pageParams = new URLSearchParams(window.location.search);
     const _pageFrom = _pageParams.get('from');
-    const _pageFocus = _pageParams.get('focus');
+    let _pageFocus = _pageParams.get('focus');
+    // Backward-compat alias: pre-Ship-2 the Adjust card was the "chart"
+    // card, and deep links used ?focus=chart. Keep the old token working
+    // by aliasing to the new `adjust` value.
+    if (_pageFocus === 'chart') _pageFocus = 'adjust';
     const _pageMode = (!_pageFrom && !_pageFocus) ? 'home' : 'focused';
     const _persistCards = _pageMode === 'home';
+
+    // ============================================================
+    // Card-state persistence (home mode)
+    // ============================================================
+    // Per-card open/collapsed state lives in localStorage so the page
+    // restores how you left it. Two extra concerns layered on top:
+    //   1. Migration — pre-Ship-2 keys were `chart_collapsed` (Adjust) and
+    //      `auto_collapsed` (Schedule); rename to current vocabulary on
+    //      first load after upgrade so users don't lose their preference.
+    //   2. Freshness — if it's been > 15 min since the user last toggled
+    //      anything, treat the next visit as "fresh" and reset to the
+    //      default layout (Adjust open, all others collapsed). Mirrors the
+    //      pattern used by the main controls list page so the area-details
+    //      doesn't get stuck in an unusual layout from a previous session.
+    const _AREA_CARDS_TS_KEY = 'area_cards_ts';
+    const _AREA_CARDS_TTL_MS = 15 * 60 * 1000;
+    const _AREA_CARD_KEYS = [
+      'adjust_collapsed', 'schedule_collapsed', 'tune_collapsed',
+      'tune_adj_open', 'tune_individual_open', 'tune_controls_expanded',
+      'lights_collapsed',
+    ];
+
+    // One-time rename. Run BEFORE the freshness check so a user upgrading
+    // mid-session doesn't get nuked by a stale-but-still-valid old key.
+    function _migrateAreaCardKeys() {
+      if (!_persistCards) return;
+      const move = (oldK, newK) => {
+        const v = localStorage.getItem(oldK);
+        if (v == null) return;
+        if (localStorage.getItem(newK) == null) localStorage.setItem(newK, v);
+        localStorage.removeItem(oldK);
+      };
+      move('chart_collapsed', 'adjust_collapsed');
+      move('auto_collapsed', 'schedule_collapsed');
+    }
+
+    // If the timestamp is missing or older than TTL, reset to defaults
+    // (Adjust open, others collapsed). Sub-group expanders inside Tune are
+    // cleared too so they fall back to their per-card default.
+    function _resetAreaCardsIfStale() {
+      if (!_persistCards) return;
+      const tsRaw = localStorage.getItem(_AREA_CARDS_TS_KEY);
+      const ts = tsRaw ? parseInt(tsRaw, 10) : 0;
+      const now = Date.now();
+      if (ts && (now - ts) <= _AREA_CARDS_TTL_MS) return;
+      // Stale (or first visit) — write the default layout explicitly so
+      // the per-card init reads consistent values regardless of prior state.
+      localStorage.setItem('adjust_collapsed', 'false');
+      localStorage.setItem('schedule_collapsed', 'true');
+      localStorage.setItem('tune_collapsed', 'true');
+      localStorage.setItem('lights_collapsed', 'true');
+      localStorage.removeItem('tune_adj_open');
+      localStorage.removeItem('tune_individual_open');
+      localStorage.removeItem('tune_controls_expanded');
+      localStorage.setItem(_AREA_CARDS_TS_KEY, String(now));
+    }
+
+    // Single setter for the card keys: writes the value AND refreshes the
+    // freshness timestamp so the 15-min window resets on every interaction.
+    function _setAreaCard(key, value) {
+      if (!_persistCards) return;
+      localStorage.setItem(key, value);
+      localStorage.setItem(_AREA_CARDS_TS_KEY, String(Date.now()));
+    }
+    function _removeAreaCard(key) {
+      if (!_persistCards) return;
+      localStorage.removeItem(key);
+      localStorage.setItem(_AREA_CARDS_TS_KEY, String(Date.now()));
+    }
+    _migrateAreaCardKeys();
+    _resetAreaCardsIfStale();
     let cachedConfig = null;
     let cachedSunTimes = null;
     let cachedGlozones = {};
@@ -1636,12 +1688,20 @@
       return Math.max(0, Math.asin(sinElev) * 180 / Math.PI);
     }
 
-    function elevationToOutdoorNorm(elevDeg) {
+    function elevationToOutdoorNorm(elevDeg, conditionMultiplier) {
+      // conditionMultiplier scales the clear-sky model down to actual sky
+      // conditions (1.0 = clear, 0.2 = heavy clouds, 0 = night). Chart was
+      // ignoring this arg — calcBulbBrightnessAt passed it but the signature
+      // didn't accept it, so the chart computed sun-dim as if every day was
+      // clear-sky and over-dimmed the bulb curve. Fix: accept it and multiply.
       if (elevDeg <= 0) return 0;
+      const cm = (conditionMultiplier == null) ? 1.0 : Math.max(0, Math.min(1, conditionMultiplier));
+      if (cm <= 0) return 0;
       const FULL_SUN_INTENSITY = 8.4;
       const clearSkyLux = 120000 * Math.sin(elevDeg * Math.PI / 180);
       if (clearSkyLux <= 300) return 0;
-      return Math.min(1.0, Math.log2(clearSkyLux / 300) / FULL_SUN_INTENSITY);
+      const angleNorm = Math.min(1.0, Math.log2(clearSkyLux / 300) / FULL_SUN_INTENSITY);
+      return angleNorm * cm;
     }
 
     function getSunTimes(lat, lon, forDate) {
@@ -2226,7 +2286,16 @@
       const annotations = [];
 
       // Color-gradient BULB curve (filled + line segments) — what bulbs output after sun dimming
-      const step = 2;
+      // Step controls bar width (each bar is `step` × (24h / numSamples) hours wide).
+      // Area-details only renders one phase, so a fixed step=2 (12-min bars) appears
+      // visibly stepped on a 9h ascend (45 bars across the visible window) while the
+      // rhythm-design chart at step=2 over 24h looks smooth (120 visible bars).
+      // Scale step to the visible-phase span so visible-bar count stays roughly
+      // constant regardless of phase length.
+      const visibleSpan = curInAscend
+        ? (tDescAnchor - tAscAnchor)
+        : (xEnd - tDescAnchor);
+      const step = Math.max(1, Math.round(visibleSpan / 12));
       for (let i = step; i < hours.length; i += step) {
         const color = cctToRGB(cct[i]);
         const fillColor = colorWithAlpha(color, 0.5);
@@ -2274,23 +2343,28 @@
           hoverinfo: 'skip', showlegend: false,
         });
       } else if (hasDivergence) {
-        // Compute peak divergence + first-divergent-sample WITHIN the
-        // visible phase window only — earlier `maxDivergence` was scanned
-        // across the full 24h `hours` array, so a tiny sun-dimming spike
-        // in the morning could trigger the label even when the visible
-        // afternoon window had no perceptible gap. Threshold bumped to
-        // ≥15% so we only show the label when there's a meaningful gap
-        // for the user to actually see.
+        // Anchor the label at the PEAK divergence sample within the
+        // visible phase window — that's where the sun is dimming the
+        // most, which is the most meaningful spot for the label to live.
+        // Earlier we anchored at the leading edge of dimming to dodge
+        // the cursor, but in morning that put the label right at the
+        // wake line (since dimming starts at sunrise). Peak puts it
+        // deeper into the day where the gap is thickest. Display
+        // threshold (peak ≥15%) hides the label when the day's
+        // dimming isn't substantial.
         const visStart = curInAscend ? tAscAnchor : tDescAnchor;
         const visEnd = curInAscend ? tDescAnchor : tAscAnchor + 24;
         let visMaxDiv = 0;
-        let firstDivIdx = -1;
+        let peakDivIdx = -1;
         for (let i = 0; i < hours.length; i++) {
           if (hours[i] < visStart || hours[i] > visEnd) continue;
           const d = brightnessPct[i] - bulbPct[i];
-          if (d > visMaxDiv) visMaxDiv = d;
-          if (firstDivIdx < 0 && d >= 1.0) firstDivIdx = i;
+          if (d > visMaxDiv) {
+            visMaxDiv = d;
+            peakDivIdx = i;
+          }
         }
+        const firstDivIdx = peakDivIdx;
         // Mask the natural curve to null where it's identical to the bulb
         // curve so the dotted line breaks naturally at sunrise/sunset.
         const maskedNatural = hours.map((h, i) =>
@@ -2310,10 +2384,20 @@
         if (firstDivIdx >= 0 && visMaxDiv >= 15.0) {
           const divX = hours[firstDivIdx];
           const divY = (brightnessPct[firstDivIdx] + bulbPct[firstDivIdx]) / 2;
+          // Pick xanchor based on which half of the visible window the
+          // anchor sits in: in the left half, extend the label RIGHT
+          // (xanchor: 'left'); in the right half, extend LEFT (xanchor:
+          // 'right'). Without this, peak divergence near solar noon
+          // (which lands at the right edge of the morning ascend window
+          // and the left edge of the afternoon descend window) clips the
+          // label off-canvas. xshift sign matches anchor direction.
+          const visMid = (visStart + visEnd) / 2;
+          const anchorRight = divX > visMid;
           annotations.push({
             x: divX, y: divY, xref: 'x', yref: 'y',
-            text: 'sun dimming', showarrow: false, xshift: 4,
-            xanchor: 'left',
+            text: 'sun dimming', showarrow: false,
+            xshift: anchorRight ? -4 : 4,
+            xanchor: anchorRight ? 'right' : 'left',
             font: { size: 10, color: 'rgba(220, 220, 220, 0.6)' },
           });
         }
@@ -2407,16 +2491,22 @@
 
       // Wake/bed line is normally NOT drawn inside the plot — the below-
       // axis label's connector tick (rendered by positionChartLabels) is
-      // enough to mark the time. Only when the user is actively dragging
-      // the phase slider does the line extend up through the chart, so
-      // they can see how the shift bends the curve at every y. Once they
-      // release, the line collapses back to just the connector tick.
+      // enough to mark the time. Two cases bring the line into the plot:
+      //   1. Phase-slider drag — line extends so the user can see how the
+      //      shift bends the curve at every y.
+      //   2. Hover on the wake/bed label — mirrors rhythm-design's wake/bed
+      //      hover so the user gets a precise vertical reference into the
+      //      chart without having to drag.
+      // Once the trigger ends (release / pointerleave), the line collapses
+      // back to just the connector tick.
       const vLineTop = 0.91;  // ≈ y=100 in data coords (range 0-110)
       const wakeColor = 'rgba(92, 179, 255, 0.55)';
       const bedColor = 'rgba(111, 169, 255, 0.55)';
+      const solarColor = 'rgba(255, 225, 140, 0.55)';
       const phaseTrack = document.querySelector('.slider-track[data-mode="phase"]');
       const phaseDragging = !!(phaseTrack && phaseTrack.classList.contains('dragging'));
-      if (phaseDragging) {
+      const phaseLabelHovered = !!window._areaPhaseLabelHover;
+      if (phaseDragging || phaseLabelHovered) {
         if (wakeIsActive) {
           const wakeX = hasAdjWake ? shiftIntoWindow(adjustedTimes.wake) : wakeTime;
           shapes.push({
@@ -2431,6 +2521,30 @@
             type: 'line', xref: 'x', yref: 'paper', layer: 'below',
             x0: bedX, x1: bedX, y0: 0, y1: vLineTop,
             line: { color: bedColor, width: 1.5 },
+          });
+        }
+      }
+      // Sunrise / sunset hover → extend yellow vertical line up through the
+      // plot so the user can read the curve value at the solar transition.
+      // Same trigger pattern as wake/bed (pointerenter on the below-axis
+      // label, set in positionChartLabels).
+      if (window._areaSunriseLabelHover && Number.isFinite(sunTimes?.sunrise)) {
+        const x = shiftIntoWindow(sunTimes.sunrise);
+        if (x >= xAnchor && x <= xEnd) {
+          shapes.push({
+            type: 'line', xref: 'x', yref: 'paper', layer: 'below',
+            x0: x, x1: x, y0: 0, y1: vLineTop,
+            line: { color: solarColor, width: 1.5 },
+          });
+        }
+      }
+      if (window._areaSunsetLabelHover && Number.isFinite(sunTimes?.sunset)) {
+        const x = shiftIntoWindow(sunTimes.sunset);
+        if (x >= xAnchor && x <= xEnd) {
+          shapes.push({
+            type: 'line', xref: 'x', yref: 'paper', layer: 'below',
+            x0: x, x1: x, y0: 0, y1: vLineTop,
+            line: { color: solarColor, width: 1.5 },
           });
         }
       }
@@ -2644,7 +2758,12 @@
       const nowLineColor = colorWithAlpha(cctToRGB(markerCCT), 0.85);
       const nowLineStyle = { color: nowLineColor, width: 1.5 };
       const cursorDotPaperY = cursorBulbY / 110;
-      const dotGap = 0.05;  // ~5% of plot height above/below the dot
+      // Dot is `size: 16` (px diameter). Plot canvas is ~86px tall (chart
+      // height 120 minus margins t=10,b=24), so the dot's radius spans
+      // ~0.093 paper units. Old gap of 0.05 was smaller than the radius,
+      // so the line visibly cut through the upper + lower halves of the
+      // circle. Bumped to 0.12 for clearance + a hair of breathing room.
+      const dotGap = 0.12;
       shapes.push({
         type: 'line', xref: 'x', yref: 'paper',
         x0: cursorHour, x1: cursorHour,
@@ -2812,9 +2931,37 @@
         if (suffixText) el.textContent = suffixText;
         el.classList.add('visible');
       };
-      placeLabel(document.getElementById('area-sunrise-label'), opts.sunrise, opts.sunriseRaw, 'sunrise');
-      placeLabel(document.getElementById('area-sunset-label'),  opts.sunset,  opts.sunsetRaw,  'sunset');
-      placeLabel(document.getElementById('area-phase-label'),   opts.phaseHour, opts.phaseTime, opts.phaseLabel);
+      const sunriseTxt = opts.sunriseRaw != null ? 'sunrise ' + formatHourLabel(opts.sunriseRaw) : 'sunrise';
+      const sunsetTxt  = opts.sunsetRaw  != null ? 'sunset '  + formatHourLabel(opts.sunsetRaw)  : 'sunset';
+      const phaseTxt   = (opts.phaseLabel && opts.phaseTime != null)
+        ? opts.phaseLabel + ' ' + formatHourLabel(opts.phaseTime)
+        : opts.phaseLabel;
+      placeLabel(document.getElementById('area-sunrise-label'), opts.sunrise, opts.sunriseRaw, sunriseTxt);
+      placeLabel(document.getElementById('area-sunset-label'),  opts.sunset,  opts.sunsetRaw,  sunsetTxt);
+      placeLabel(document.getElementById('area-phase-label'),   opts.phaseHour, opts.phaseTime, phaseTxt);
+
+      // Wake/bed + sunrise/sunset hover → extend the vertical line up through
+      // the chart so the user gets a precise reference at any y, mirroring
+      // rhythm-design. One-shot wire (idempotent via _hoverInit flags). Touch
+      // is excluded — touch users see the wake/bed line only during phase-
+      // slider drag, and sunrise/sunset never extend on touch.
+      const _wireHover = (id, flag) => {
+        const el = document.getElementById(id);
+        if (!el || el._hoverInit) return;
+        el._hoverInit = true;
+        el.addEventListener('pointerenter', (e) => {
+          if (e.pointerType === 'touch') return;
+          window[flag] = true;
+          if (selectedArea) renderMiniChartForArea(selectedArea.area_id);
+        });
+        el.addEventListener('pointerleave', () => {
+          window[flag] = false;
+          if (selectedArea) renderMiniChartForArea(selectedArea.area_id);
+        });
+      };
+      _wireHover('area-phase-label',   '_areaPhaseLabelHover');
+      _wireHover('area-sunrise-label', '_areaSunriseLabelHover');
+      _wireHover('area-sunset-label',  '_areaSunsetLabelHover');
     }
 
     // updateChartNowPill retired in Ship 2 — chart NOW pill removed (was
@@ -3701,11 +3848,28 @@
       const selectedAreaId = data.selectedAreaId;
       cachedConfig = data.config;
 
-      // Compute sun times client-side from config lat/lon
+      // Compute sun times client-side from config lat/lon as a synchronous
+      // fallback, then immediately replace sunrise/sunset/noon/midnight with
+      // the backend astral-lib values via /api/sun_times. The JS NOAA calc
+      // and astral disagree by ~1-2 min; rhythm-design uses the API value
+      // (and backend uses astral to drive lighting), so area-details should
+      // too — otherwise the same axis label disagrees across pages.
       if (cachedConfig) {
         const lat = cachedConfig.latitude || 35.0;
         const lon = cachedConfig.longitude || -78.6;
         cachedSunTimes = getSunTimes(lat, lon);
+        try {
+          const today = new Date();
+          const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+          const r = await fetch(basePath + `/api/sun_times?date=${dateStr}`);
+          if (r.ok) {
+            const d = await r.json();
+            if (Number.isFinite(d.sunrise_hour)) cachedSunTimes.sunrise = d.sunrise_hour;
+            if (Number.isFinite(d.sunset_hour))  cachedSunTimes.sunset  = d.sunset_hour;
+            if (Number.isFinite(d.noon_hour))    cachedSunTimes.solarNoon = d.noon_hour;
+            if (Number.isFinite(d.midnight_hour)) cachedSunTimes.solarMid = d.midnight_hour;
+          }
+        } catch (_) { /* keep JS fallback */ }
       }
 
       // Fetch initial data
@@ -3721,8 +3885,8 @@
       // Start refresh intervals
       startRefresh();
       initSliderHandlers();
-      initChartCardState();
-      initAutoOuterState();
+      initAdjustCardState();
+      initScheduleState();
       initAutoHideSliders();
       handleDeepLink();
 
@@ -4263,16 +4427,18 @@
         const xRange = fl.xaxis.range;  // [phaseVisStart, phaseVisEnd]
         const xStart = xRange[0], xEnd = xRange[1];
         const xLen = fl.xaxis._length;
-        // Solar noon — try the natural noon position first; if it falls
-        // outside the visible phase window, clamp to the nearest visible
-        // edge (so chip sits at the brightest time of what's shown).
-        const noonHour = (sunrise + sunset) / 2;
-        let visNoon = noonHour;
-        while (visNoon < xStart - 12) visNoon += 24;
-        while (visNoon > xEnd + 12) visNoon -= 24;
-        const clampedNoon = Math.max(xStart, Math.min(xEnd, visNoon));
+        // Anchor at NOW (currentHour), not solar noon. The chip's value
+        // is the CURRENT outdoor sun intensity (`outdoor_normalized`), so
+        // anchoring at noon made it read as a forecast for later in the
+        // day. Anchoring at NOW makes it read as "right now's reading,"
+        // which is what the value actually is. Lift into the visible
+        // window the same way other overlays do (visHour wrap).
+        let visNow = currentHour;
+        while (visNow < xStart - 12) visNow += 24;
+        while (visNow > xEnd + 12) visNow -= 24;
+        const clampedNow = Math.max(xStart, Math.min(xEnd, visNow));
         const chartLeftInShell = chartDiv.getBoundingClientRect().left - shell.getBoundingClientRect().left;
-        const px = chartLeftInShell + fl.xaxis._offset + ((clampedNoon - xStart) / (xEnd - xStart)) * xLen;
+        const px = chartLeftInShell + fl.xaxis._offset + ((clampedNow - xStart) / (xEnd - xStart)) * xLen;
         el.style.left = px + 'px';
         el.style.right = 'auto';
       }
@@ -5992,7 +6158,7 @@
       const card = document.querySelector('.tune-brightness-card');
       if (!card) return;
       const isOpen = card.classList.toggle('is-open');
-      if (_persistCards) localStorage.setItem('tune_collapsed', isOpen ? 'false' : 'true');
+      _setAreaCard('tune_collapsed', isOpen ? 'false' : 'true');
     }
 
     function toggleAdjustmentDetails(event) {
@@ -6003,7 +6169,7 @@
       const isHidden = details.style.display === 'none';
       details.style.display = isHidden ? '' : 'none';
       if (chevron) chevron.style.transform = isHidden ? 'rotate(90deg)' : '';
-      if (_persistCards) localStorage.setItem('tune_adj_open', isHidden ? 'true' : 'false');
+      _setAreaCard('tune_adj_open', isHidden ? 'true' : 'false');
     }
 
     function toggleIndividualSection(event) {
@@ -6014,7 +6180,7 @@
       const isHidden = body.style.display === 'none';
       body.style.display = isHidden ? '' : 'none';
       if (chevron) chevron.style.transform = isHidden ? 'rotate(90deg)' : '';
-      if (_persistCards) localStorage.setItem('tune_individual_open', isHidden ? 'true' : 'false');
+      _setAreaCard('tune_individual_open', isHidden ? 'true' : 'false');
     }
 
     function updateActivityVisibility(_vals) {
@@ -6025,14 +6191,14 @@
       const card = document.querySelector('.tune-controls-card');
       if (!card) return;
       card.classList.toggle('is-open');
-      if (_persistCards) localStorage.setItem('tune_controls_expanded', card.classList.contains('is-open') ? 'true' : 'false');
+      _setAreaCard('tune_controls_expanded', card.classList.contains('is-open') ? 'true' : 'false');
     }
 
     function toggleLightsBody() {
       const card = document.querySelector('.tune-lights-card');
       if (!card) return;
       const isOpen = card.classList.toggle('is-open');
-      if (_persistCards) localStorage.setItem('lights_collapsed', isOpen ? 'false' : 'true');
+      _setAreaCard('lights_collapsed', isOpen ? 'false' : 'true');
     }
 
     // ============================================================
@@ -6043,12 +6209,12 @@
       off: { source: 'sunset',  offset: 0, days: [0,1,2,3,4,5,6], days1: [], days2: [], snapshot: null },
     };
 
-    function toggleChartCard() {
-      const card = document.getElementById('chart-card');
+    function toggleAdjustCard() {
+      const card = document.getElementById('adjust-card');
       if (!card) return;
       card.classList.toggle('is-open');
       const isOpen = card.classList.contains('is-open');
-      if (_persistCards) localStorage.setItem('chart_collapsed', isOpen ? 'false' : 'true');
+      _setAreaCard('adjust_collapsed', isOpen ? 'false' : 'true');
       // Trigger chart resize when opening (Plotly needs this)
       if (isOpen) {
         setTimeout(() => {
@@ -6058,36 +6224,39 @@
       }
     }
 
-    function initChartCardState() {
-      const card = document.getElementById('chart-card');
+    function initAdjustCardState() {
+      const card = document.getElementById('adjust-card');
       if (!card) return;
-      // Deep-linked elsewhere → collapse curve so target stays near top
-      if (_pageFocus && _pageFocus !== 'chart') {
+      // Deep-linked elsewhere → collapse so target stays near top.
+      if (_pageFocus && _pageFocus !== 'adjust') {
         card.classList.remove('is-open');
         return;
       }
       if (_persistCards) {
-        const stored = localStorage.getItem('chart_collapsed');
+        const stored = localStorage.getItem('adjust_collapsed');
         if (stored === 'true') card.classList.remove('is-open');
         else card.classList.add('is-open');
       }
     }
 
-    function initAutoOuterState() {
-      const card = document.getElementById('auto-outer-card');
+    function initScheduleState() {
+      const card = document.getElementById('schedule-card');
       if (!card) return;
-      // Deep-linked to an auto subsection → always open outer (focusAutoSub will run)
-      if (_pageFocus === 'auto_on' || _pageFocus === 'auto_off') {
+      // Deep-linked to an auto-on / auto-off subsection (orange-border
+      // highlight) → always open the outer Schedule card so focusAutoSub
+      // can run. Both legacy ?focus=auto_on / auto_off and the future
+      // ?focus=schedule open the card.
+      if (_pageFocus === 'auto_on' || _pageFocus === 'auto_off' || _pageFocus === 'schedule') {
         card.classList.add('is-open');
         return;
       }
-      // Deep-linked elsewhere → collapsed
+      // Deep-linked elsewhere → collapsed.
       if (_pageFocus) {
         card.classList.remove('is-open');
         return;
       }
       if (_persistCards) {
-        const stored = localStorage.getItem('auto_collapsed');
+        const stored = localStorage.getItem('schedule_collapsed');
         if (stored === 'true') card.classList.remove('is-open');
         else card.classList.add('is-open');
       }
@@ -6125,10 +6294,10 @@
       }, 500);
     }
 
-    async function toggleAutoOuter(event) {
+    async function toggleSchedule(event) {
       // Don't toggle when click originated on a hit-zone anchor inside the merged header.
       if (event && event.target && event.target.closest('a[data-auto-hit]')) return;
-      const card = document.getElementById('auto-outer-card');
+      const card = document.getElementById('schedule-card');
       if (!card) return;
       const wasOpen = card.classList.contains('is-open');
       // Auto-save on collapse if either sub is dirty.
@@ -6139,7 +6308,7 @@
       }
       card.classList.toggle('is-open');
       const isOpen = card.classList.contains('is-open');
-      if (_persistCards) localStorage.setItem('auto_collapsed', isOpen ? 'false' : 'true');
+      _setAreaCard('schedule_collapsed', isOpen ? 'false' : 'true');
       updateAutoHeaderText('on');
       updateAutoHeaderText('off');
       updateAutoOverrideIndicator('on');
@@ -6150,7 +6319,7 @@
     // and flash its orange focus outline. Shared by merged-header hit zones and
     // the ?focus=auto_on|auto_off deep link.
     function focusAutoSub(type) {
-      const outer = document.getElementById('auto-outer-card');
+      const outer = document.getElementById('schedule-card');
       const sub = document.getElementById('auto-' + type + '-card');
       if (!outer || !sub) return;
       outer.classList.add('is-open');

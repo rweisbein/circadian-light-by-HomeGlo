@@ -1884,13 +1884,19 @@
 
     function homeStepUp(areaId) {
       const mode = cachedConfig?.home_buttons_mode || 'step';
-      const action = mode === 'bright' ? 'bright_up' : mode === 'color' ? 'color_up' : 'step_up';
+      const action = mode === 'bright' ? 'bright_up'
+                   : mode === 'color' ? 'color_up'
+                   : mode === 'zone'  ? 'glo_up'
+                   : 'step_up';
       rowAction(areaId, action);
     }
 
     function homeStepDown(areaId) {
       const mode = cachedConfig?.home_buttons_mode || 'step';
-      const action = mode === 'bright' ? 'bright_down' : mode === 'color' ? 'color_down' : 'step_down';
+      const action = mode === 'bright' ? 'bright_down'
+                   : mode === 'color' ? 'color_down'
+                   : mode === 'zone'  ? 'glo_down'
+                   : 'step_down';
       rowAction(areaId, action);
     }
 
