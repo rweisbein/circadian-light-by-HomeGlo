@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.261
+- **Home-page motion countdown breathes slower (1.4s → 2.5s).** Motion is a passive "auto-off pending" state, not a fresh action — a calmer breath reads as ambient rather than urgent. Other status flashes (fade, boost, warning) keep the 1.4s pace.
+
 ## 1.2.260
 - **Zone-actions mode adds a "push zone state to all areas" button to the zone header.** When `home_buttons_mode === 'zone'` (Settings → App → Up/down buttons → Zone actions), each zone header on the home page renders a new button to the LEFT of the existing reset button. Clicking it dispatches `glozone_down` (push the zone's runtime state down to every area in the zone), going through the same `confirm_zone_pushes` confirmation gate the dot-button uses. Hidden in the other three button modes so it doesn't add chrome for users who aren't on the zone-actions workflow. Icon is a fresh double-down chevron (24×24 viewBox, stroke 3, rounded caps) styled to match the area-row down chevron family — same look, but doubled to signal "zone-wide" vs "single area".
 

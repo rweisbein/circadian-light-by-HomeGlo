@@ -295,7 +295,10 @@
     /* Timer styles (shared with homepage) */
     .timer-motion {
       color: #e2e8f0;
-      animation: timer-motion-flash 1.4s ease-in-out infinite;
+      /* Slower than the other status flashes (fade/boost at 1.4s) — motion is
+         a passive "auto-off pending" state, not a fresh action, so a calmer
+         breath reads as ambient rather than urgent. */
+      animation: timer-motion-flash 2.5s ease-in-out infinite;
     }
 
     .timer-boost {
