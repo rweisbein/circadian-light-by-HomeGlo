@@ -31,6 +31,7 @@ from brain import (
     calculate_curve_position,
     calculate_filter_multiplier,
     calculate_natural_light_factor,
+    compute_sun_cooling_strength,
 )
 
 
@@ -141,26 +142,13 @@ def compute(ctx: PipelineContext) -> PipelineResult:
         xy = ctx.precomputed_xy or CircadianLight.color_temperature_to_xy(kelvin)
         phase = "precomputed"
     else:
-        # Compute from scratch (periodic tick / step / toggle paths)
-        # sun_cooling_strength: 0-1 modifier on sun cooling effect.
-        # 1.0 = full sun cooling; decreases as user steps below natural curve
-        # (allows curve's natural warmth to come through when user dims).
-        sun_cooling_strength = 1.0
-        if ctx.area_state.brightness_mid is not None:
-            natural_bri = CircadianLight.calculate_brightness_at_hour(
-                ctx.hour, ctx.config,
-                AreaState(is_circadian=True, is_on=True),
-                weekday=ctx.weekday,
-            )
-            stepped_bri = CircadianLight.calculate_brightness_at_hour(
-                ctx.hour, ctx.config, ctx.area_state,
-                weekday=ctx.weekday,
-            )
-            if stepped_bri < natural_bri and natural_bri > ctx.config.min_brightness:
-                step_below = (natural_bri - stepped_bri) / (
-                    natural_bri - ctx.config.min_brightness
-                )
-                sun_cooling_strength = max(0.0, 1.0 - step_below)
+        # Compute from scratch (periodic tick / step / toggle paths).
+        # Sun-cooling-strength shared with webserver.get_zone_states via the
+        # `compute_sun_cooling_strength` helper so home-page zone-header tint
+        # and runtime bulb output stay in sync.
+        sun_cooling_strength = compute_sun_cooling_strength(
+            ctx.area_state, ctx.config, ctx.hour, weekday=ctx.weekday
+        )
 
         result = CircadianLight.calculate_lighting(
             ctx.hour,

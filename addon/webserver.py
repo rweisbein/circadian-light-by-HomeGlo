@@ -1649,6 +1649,7 @@ class LightDesignerServer:
                 AreaState,
                 SunTimes,
                 compute_daylight_fade_weight,
+                compute_sun_cooling_strength,
                 DEFAULT_DAYLIGHT_FADE,
             )
 
@@ -1693,7 +1694,13 @@ class LightDesignerServer:
                     f"[ZoneStates] Zone '{zone_name}' brain_config: wake={brain_config.wake_time}, bed={brain_config.bed_time}, min_bri={brain_config.min_brightness}, max_bri={brain_config.max_brightness}, warm_night={brain_config.warm_night_enabled}"
                 )
 
-                # Build AreaState from zone runtime state
+                # Build AreaState from zone runtime state. Forward the FULL
+                # override set so the header reflects what `glo_up` pushed
+                # from an area — historically this only forwarded
+                # color_override (no brightness_override, no _set_at fields),
+                # so an area's brightness override and the time-decay anchor
+                # for color_override were both silently dropped from the
+                # header render.
                 area_state = AreaState(
                     is_circadian=True,
                     is_on=True,
@@ -1701,6 +1708,13 @@ class LightDesignerServer:
                     color_mid=runtime_state.get("color_mid"),
                     frozen_at=runtime_state.get("frozen_at"),
                     color_override=runtime_state.get("color_override"),
+                    brightness_override=runtime_state.get("brightness_override"),
+                    brightness_override_set_at=runtime_state.get(
+                        "brightness_override_set_at"
+                    ),
+                    color_override_set_at=runtime_state.get(
+                        "color_override_set_at"
+                    ),
                 )
                 logger.debug(
                     f"[ZoneStates] Zone '{zone_name}' area_state: brightness_mid={area_state.brightness_mid}, color_mid={area_state.color_mid}, frozen_at={area_state.frozen_at}"
@@ -1710,8 +1724,21 @@ class LightDesignerServer:
                 calc_hour = (
                     area_state.frozen_at if area_state.frozen_at is not None else hour
                 )
+                # Same sun-cooling-strength derivation as the runtime pipeline
+                # (pipeline.py) — without this, the zone header would always
+                # render with full sun-cooling and ignore the warming-overcomes-
+                # cooling effect that fires when brightness_mid is set below
+                # the natural curve. Shared via brain.compute_sun_cooling_strength
+                # so the two paths can't drift.
+                sun_cooling_strength = compute_sun_cooling_strength(
+                    area_state, brain_config, calc_hour
+                )
                 result = CircadianLight.calculate_lighting(
-                    calc_hour, brain_config, area_state, sun_times=sun_times
+                    calc_hour,
+                    brain_config,
+                    area_state,
+                    sun_times=sun_times,
+                    sun_cooling_strength=sun_cooling_strength,
                 )
 
                 # Compute brightness fade weight for this zone

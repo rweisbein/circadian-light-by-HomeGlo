@@ -196,7 +196,7 @@
       color: var(--muted);
     }
 
-    .timer-fade { color: #e2e8f0; animation: timer-motion-flash 2s ease-in-out infinite alternate; }
+    .timer-fade { color: #e2e8f0; animation: timer-motion-flash 1.4s ease-in-out infinite; }
 
     /* Status badges */
     .status-badge {
@@ -295,7 +295,10 @@
     /* Timer styles (shared with homepage) */
     .timer-motion {
       color: #e2e8f0;
-      animation: timer-motion-flash 2s ease-in-out infinite alternate;
+      /* Slower than the other status flashes (fade/boost at 1.4s) — motion is
+         a passive "auto-off pending" state, not a fresh action, so a calmer
+         breath reads as ambient rather than urgent. */
+      animation: timer-motion-flash 2.5s ease-in-out infinite;
     }
 
     .timer-boost {
@@ -303,7 +306,7 @@
       opacity: 0.9;
     }
     .timer-boost-flash {
-      animation: timer-motion-flash 2s ease-in-out infinite alternate;
+      animation: timer-motion-flash 1.4s ease-in-out infinite;
     }
 
     .timer-frozen {
@@ -325,14 +328,19 @@
       animation: timer-warning-pulse 1s ease-in-out infinite;
     }
 
+    /* Symmetric breath — fully visible at 0%/100%, ~35% at midpoint, smooth
+       ease-in-out across a 1.4s period. Mirrors `try-it-icon-pulse` in
+       rhythm-design.html so home-page status flashes feel like the same
+       family as the broadcast icon. The previous 0→1 alternate animation
+       hit fully invisible at the trough and read as a hard blink. */
     @keyframes timer-motion-flash {
-      0% { opacity: 0; }
-      100% { opacity: 1; }
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.35; }
     }
 
     @keyframes timer-warning-pulse {
       0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
+      50% { opacity: 0.35; }
     }
 
     /* Area row - div-based for proper shading like modal header */
@@ -725,7 +733,9 @@
     }
 
     @media (min-width: 768px) {
-      .zone-group {
+      .zone-group,
+      .home-toolbar,
+      .edit-toolbar {
         max-width: 720px;
       }
     }
@@ -1884,13 +1894,19 @@
 
     function homeStepUp(areaId) {
       const mode = cachedConfig?.home_buttons_mode || 'step';
-      const action = mode === 'bright' ? 'bright_up' : mode === 'color' ? 'color_up' : 'step_up';
+      const action = mode === 'bright' ? 'bright_up'
+                   : mode === 'color' ? 'color_up'
+                   : mode === 'zone'  ? 'glo_up'
+                   : 'step_up';
       rowAction(areaId, action);
     }
 
     function homeStepDown(areaId) {
       const mode = cachedConfig?.home_buttons_mode || 'step';
-      const action = mode === 'bright' ? 'bright_down' : mode === 'color' ? 'color_down' : 'step_down';
+      const action = mode === 'bright' ? 'bright_down'
+                   : mode === 'color' ? 'color_down'
+                   : mode === 'zone'  ? 'glo_down'
+                   : 'step_down';
       rowAction(areaId, action);
     }
 
@@ -2413,8 +2429,11 @@
       // Rhythm Zone Reset icon: rewind arrow
       const glozoneResetIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>`;
 
-      // Rhythm Zone Down icon: double-down chevron
-      const glozoneDownIcon = `<svg viewBox="0 0 16 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:14px;"><polyline points="3 5 8 10 13 5"/><polyline points="3 11 8 16 13 11"/></svg>`;
+      // Rhythm Zone Down icon: double-down chevron, styled to match the
+      // area-row down icon (24×24 viewBox, stroke 3, rounded caps) so the
+      // zone-header version reads as the same family as the per-area button
+      // — just doubled to signal "zone-wide" rather than "single area".
+      const glozoneDownIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 5 12 12 19 5"/><polyline points="5 13 12 20 19 13"/></svg>`;
 
       // Build toolbar HTML
       const homeName = cachedConfig?.home_name || 'Your home';
@@ -2429,7 +2448,7 @@
         `;
       } else {
         html = `
-          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+          <div class="home-toolbar" style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
             <span class="home-name-heading">${homeName || ''}</span>
             <button class="view-toggle ${viewMode === 'onoff' ? 'active' : ''}" data-view-toggle title="Group by on/off state">On</button>
             <span style="flex: 1;"></span>
@@ -2563,6 +2582,7 @@
               </div>
               ${zoneFrozenIndicator}
               <div class="row-controls">
+                ${cachedConfig?.home_buttons_mode === 'zone' ? `<button class="row-btn" onclick="event.stopPropagation(); glozoneDown('${escapedZoneName}')" title="Push rhythm zone state to all areas">${glozoneDownIcon}</button>` : ''}
                 <button class="row-btn" onclick="event.stopPropagation(); glozoneResetFull('${escapedZoneName}')" title="Reset all areas in rhythm zone">${glozoneResetIcon}</button>
               </div>
             </div>
