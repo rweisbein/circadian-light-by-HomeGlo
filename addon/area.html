@@ -557,20 +557,22 @@
       pointer-events: none;
       text-shadow: 0 1px 2px rgba(0,0,0,0.6);
     }
-    /* Chart shell — lives inside the Adjust card body in Ship 2. No longer
-       sticky; scrolls with the page. Positioned relative so absolutely-
-       positioned children (NOW pill, sun-info chip, solar/phase labels)
-       anchor correctly. Bottom padding holds the two below-axis label
-       rows (sunrise/sunset just below axis, wake/bed one row lower).
-       Tightened bottom + margin so the Bright slider sits closer to the
-       chart without crowding the wake/bed label.
-       user-select: none — chart + labels aren't text content; without
-       this every tap-and-drag on the chart starts a text selection,
-       leaving blue swatches on sunset/bed labels and the chart edges. */
+    /* Chart shell pinned at top of #chart-context-wrap (which spans Adjust
+       + Schedule + Tune cards), so the chart stays visible as the user
+       scrolls through any of those cards. Un-sticks once all three are
+       scrolled past (i.e. when Controls section comes into view).
+       Opaque bg + z-index above the cards so the sticky chart obscures
+       card content scrolling underneath. user-select: none — chart +
+       labels aren't text content; without this every tap-and-drag starts
+       a text selection. */
+    #chart-context-wrap { position: relative; }
     #chart-shell {
-      position: relative;
-      padding: 4px 0 32px;
-      margin-bottom: 0;
+      position: sticky;
+      top: 80px;  /* below the 2-row page-header */
+      z-index: 5;
+      background: var(--bg);
+      padding: 6px 0 32px;
+      margin: 0 0 8px;
       -webkit-user-select: none;
       user-select: none;
     }
@@ -1210,6 +1212,23 @@
   <main class="main">
 
     <!-- Cards Section (curve + auto schedule) -->
+    <!-- Chart-context wrapper: chart-shell pins sticky inside this wrapper,
+         so it stays visible as the user scrolls through Adjust → Schedule
+         → Tune. Wrapper closes after the Tune section so chart un-sticks
+         once those cards are scrolled past. -->
+    <div id="chart-context-wrap">
+    <!-- Sticky chart pulled out of the Adjust card body so its sticky scope
+         spans Adjust + Schedule + Tune cards (its direct parent here). -->
+    <div id="chart-shell">
+      <div id="mini-chart"></div>
+      <div id="chart-sun-info" class="chart-sun-info" title="Current sun intensity">
+        <span class="chart-sun-info-icon" id="chart-sun-info-icon">&#x2600;</span>
+        <span id="chart-sun-info-pct">&mdash;</span>
+      </div>
+      <div class="area-solar-label" id="area-sunrise-label" data-time="">sunrise</div>
+      <div class="area-solar-label" id="area-sunset-label" data-time="">sunset</div>
+      <div class="area-phase-label" id="area-phase-label" data-time="">wake</div>
+    </div>
     <div id="auto-sched-section" class="auto-sched-section" style="display:none;">
     <div class="auto-sched-card auto-sched-card--headline is-open" id="chart-card">
       <div class="auto-sched-header" onclick="toggleChartCard()">
@@ -1219,26 +1238,9 @@
       </div>
       <div class="auto-sched-body" id="chart-body">
         <div id="circadian-content-wrap" class="curve-controls-wrap">
-          <!-- Mode toggles relocated to header row 2 (circadian + freeze).
-               Adjust card body now starts directly with the chart. -->
-
-          <!-- Chart relocated into the Adjust card body in Ship 2. Read-only:
-               cursor is "now" (live ticking, not user-controllable). Single
-               active phase only — see renderMiniChart for the windowing. -->
-          <div id="chart-shell">
-            <div id="mini-chart"></div>
-            <div id="chart-sun-info" class="chart-sun-info" title="Current sun intensity">
-              <span class="chart-sun-info-icon" id="chart-sun-info-icon">&#x2600;</span>
-              <span id="chart-sun-info-pct">&mdash;</span>
-            </div>
-            <!-- Below-axis labels (Ship 2 polish) — yellow sunrise/sunset and
-                 blue wake/bed, mirroring rhythm-design's .solar-label pattern.
-                 Positioned per-frame by positionChartLabels() against
-                 _fullLayout.xaxis offsets. Hidden until shown via .visible. -->
-            <div class="area-solar-label" id="area-sunrise-label" data-time="">sunrise</div>
-            <div class="area-solar-label" id="area-sunset-label" data-time="">sunset</div>
-            <div class="area-phase-label" id="area-phase-label" data-time="">wake</div>
-          </div>
+          <!-- Chart-shell moved up to #chart-context-wrap so it can stay
+               sticky across Adjust + Schedule + Tune cards. Adjust card
+               body now starts directly with the sliders. -->
           <div class="adjust-section">
             <div class="hslider-row">
               <div class="hslider-header">
@@ -1510,6 +1512,7 @@
       <div class="tune-card tune-lights-card" id="tune-lights-card" style="display:none;"></div>
       <div class="tune-save-status" id="tune-save-status">Saved</div>
     </div>
+    </div><!-- end #chart-context-wrap -->
   </main>
 
   <script>
@@ -2029,18 +2032,37 @@
       return x * x * (3 - 2 * x);
     }
 
-    // Bulb output = room target × projected sun_bright_factor at hour.
-    // Anchor "now" to backend's live sun_bright_factor; shape across day via sun angle.
+    // Bulb output = room target × sun_dim_factor at this hour. Ports
+    // rhythm-design.html's sunDimFactor approach (rhythm-design:3719) so
+    // the chart's curve shape matches between rhythm + area, and stays
+    // stable regardless of where "now" is (post-sunset still shows the
+    // morning's sun-dimming gap, not just a flat curve). Earlier code
+    // anchored on the live sun_bright_factor at NOW — collapsed to flat
+    // any time the sun was down. New formula computes per-hour from solar
+    // math + current cloud cover + brightness_sensitivity directly.
+    //
+    // Tradeoff: the dot-at-NOW value won't match actual bulb emission to
+    // the percent (rhythm doesn't include natural_light_exposure either),
+    // but the curve shape is consistent across pages + time of day.
     function calcBulbBrightnessAt(hour, sunTimes, currentHour, roomPct) {
       if (!sunTimes) return roomPct;
-      const sbfNow = sunTimes.sunBrightFactorNow ?? 1.0;
-      if (sbfNow >= 0.99) return roomPct;   // no dimming now → bulbs = room
-      const angleNow = computeSunBrightAngleAt(currentHour, sunTimes);
-      if (angleNow < 0.01) return roomPct;  // night now → can't calibrate
-      const angleH = computeSunBrightAngleAt(hour, sunTimes);
-      const dimmingNow = 1.0 - sbfNow;
-      const dimmingH = dimmingNow * (angleH / angleNow);
-      const factor = Math.max(0, 1.0 - dimmingH);
+      const briSens = sunTimes.briSens ?? 0;
+      const exposure = sunTimes.naturalLightExposure ?? 0;
+      const conditionMult = sunTimes.conditionMultiplier ?? 0;
+      // Any of {sensitivity, exposure, cloud cover} = 0 → no dimming.
+      // Per-room exposure is the difference between rhythm's formula (which
+      // doesn't include it) and the area page (where it matters): an
+      // interior room with exposure=0 should show NO sun-dimming gap, even
+      // if its sensitivity is non-zero. A sun-room with exposure=2.0 shows
+      // proportionally stronger dimming.
+      if (briSens <= 0 || exposure <= 0 || conditionMult <= 0) return roomPct;
+      const lat = cachedConfig?.latitude ?? 35.0;
+      const lon = cachedConfig?.longitude ?? -78.6;
+      const elev = getSunElevationAtHour(hour, lat, lon);
+      if (elev <= 0) return roomPct;  // sun below horizon → no dimming
+      const angleNormCond = elevationToOutdoorNorm(elev, conditionMult);
+      const dim = angleNormCond * briSens * exposure;
+      const factor = Math.max(0, Math.min(1, 1 - dim));
       return roomPct * factor;
     }
 
@@ -2145,7 +2167,26 @@
       // reflects the live slider position.
       const areaLive = (selectedArea && areaStatus) ? (areaStatus[selectedArea.area_id] || {}) : {};
       const sbfNow = state.live_sbf ?? areaLive.sun_bright_factor ?? sunTimes.sunBrightFactorNow ?? 1.0;
-      const curveSunTimes = Object.assign({}, sunTimes, { sunBrightFactorNow: sbfNow });
+      // Stash brightness_sensitivity on the sunTimes copy so calcBulbBrightnessAt
+      // can read it. Prefer live tuneState (unsaved Tune edits) over saved
+      // status — same priority as sbfNow above. This drives the per-hour
+      // sun-dimming projection (rhythm-design:3719 formula).
+      const briSens = (tuneState?.initialized && tuneState.brightnessSensitivity != null)
+        ? tuneState.brightnessSensitivity
+        : (areaLive.brightness_sensitivity ?? 0);
+      // natural_light_exposure: live tuneState (Sun-exposure slider preview)
+      // wins over saved status. Defaults to 0 if missing — don't project
+      // dimming we can't ground in real config.
+      const naturalLightExposure =
+        (tuneState?.initialized && typeof SOLAR_STEPS !== 'undefined'
+          && SOLAR_STEPS[tuneState.solarStep])
+          ? SOLAR_STEPS[tuneState.solarStep].exposure
+          : (areaLive.natural_light_exposure ?? 0);
+      const curveSunTimes = Object.assign({}, sunTimes, {
+        sunBrightFactorNow: sbfNow,
+        briSens,
+        naturalLightExposure,
+      });
 
       // Always anchor at ascend_start so the full day reads left-to-right
       // starting at the morning inflection regardless of current phase.
@@ -2895,7 +2936,11 @@
       });
 
       const heroBri = document.getElementById('slider-hero-brightness');
-      const briDisp = Math.round(areaState.actual_brightness ?? currentBri);
+      // When the room is off, the slider thumb sits at 0% (set above); the
+      // hero label should match — earlier code displayed the last-on value
+      // (e.g. "84%") next to a thumb at 0%, which read inverted. Showing
+      // 0% here pairs the thumb position with the readout the user sees.
+      const briDisp = isRoomOff ? 0 : Math.round(areaState.actual_brightness ?? currentBri);
       if (heroBri) heroBri.textContent = briDisp + '%';
 
       const heroColor = document.getElementById('slider-hero-color');
@@ -3337,7 +3382,25 @@
             const ctx = getSliderCfgAndState();
             if (ctx) {
               try {
-                const snap = calcMiniCurveData(ctx.cfg, ctx.areaState, cachedSunTimes, ctx.currentHour, ctx.cfg.ascend_start);
+                // Build a curveSunTimes the same way renderMiniChart does
+                // (with briSens + naturalLightExposure stashed) so the ghost
+                // snapshot includes sun-dimming. Passing raw cachedSunTimes
+                // would skip dimming entirely — calcBulbBrightnessAt bails
+                // out when those fields are missing — making the ghost
+                // visually flat where the live curve dips.
+                const liveStatus = areaStatus[selectedArea?.area_id] || {};
+                const _briSens = (tuneState?.initialized && tuneState.brightnessSensitivity != null)
+                  ? tuneState.brightnessSensitivity
+                  : (liveStatus.brightness_sensitivity ?? 0);
+                const _exposure = (tuneState?.initialized && typeof SOLAR_STEPS !== 'undefined'
+                  && SOLAR_STEPS[tuneState.solarStep])
+                  ? SOLAR_STEPS[tuneState.solarStep].exposure
+                  : (liveStatus.natural_light_exposure ?? 0);
+                const ghostSunTimes = Object.assign({}, cachedSunTimes, {
+                  briSens: _briSens,
+                  naturalLightExposure: _exposure,
+                });
+                const snap = calcMiniCurveData(ctx.cfg, ctx.areaState, ghostSunTimes, ctx.currentHour, ctx.cfg.ascend_start);
                 window._chartDragGhostCurve = { bulbPct: snap.bulbPct };
               } catch (_) { window._chartDragGhostCurve = null; }
             }
@@ -3386,6 +3449,16 @@
             if (targetTime != null) executeSetPhaseTime(targetTime);
             else sliderInteracting = false;
           } else {
+            // Brightness drag while the room is OFF doubles as the turn-on
+            // gesture: dragging the slider up implies "turn on at this
+            // brightness". Toggle lights first, then set position so the
+            // override lands on top of the just-on state. Only kicks in
+            // when bri slider lifts off 0% (color/phase aren't turn-on
+            // gestures, and 0%-to-0% drags shouldn't toggle).
+            const wasOff = selectedArea && selectedArea.is_on === false;
+            if (mode === 'brightness' && wasOff && lastPos > 0) {
+              executeAction('lights_toggle');
+            }
             executeSetPosition(Math.round(lastPos), mode);
           }
         }
@@ -3582,7 +3655,15 @@
           const sbfNow = previewState.live_sbf
             ?? (areaStatus[selectedArea.area_id]?.sun_bright_factor)
             ?? cachedSunTimes.sunBrightFactorNow ?? 1.0;
-          const previewSunTimes = Object.assign({}, cachedSunTimes, { sunBrightFactorNow: sbfNow });
+          const briSens = (tuneState?.initialized && tuneState.brightnessSensitivity != null)
+            ? tuneState.brightnessSensitivity
+            : (areaStatus[selectedArea.area_id]?.brightness_sensitivity ?? 0);
+          const naturalLightExposure =
+            (tuneState?.initialized && typeof SOLAR_STEPS !== 'undefined'
+              && SOLAR_STEPS[tuneState.solarStep])
+              ? SOLAR_STEPS[tuneState.solarStep].exposure
+              : (areaStatus[selectedArea.area_id]?.natural_light_exposure ?? 0);
+          const previewSunTimes = Object.assign({}, cachedSunTimes, { sunBrightFactorNow: sbfNow, briSens, naturalLightExposure });
           const pureBulbAtNow = calcBulbBrightnessAt(currentHour, previewSunTimes, currentHour, pureRoomAtNow);
           previewState.brightness_override = previewBri - pureBulbAtNow;
           previewState.brightness_override_set_at = currentHour;

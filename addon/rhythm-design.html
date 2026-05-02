@@ -1033,22 +1033,30 @@ input[type=range]::-moz-range-thumb {
 }
 .phase-time { font-variant-numeric: tabular-nums; }
 
-/* Ghost pill at saved x while dragging */
+/* Ghost pill at saved x while dragging — outer wrapper aligned with
+   .phase-handle so the dashed pill lands at the same y the live pill
+   would sit at (was bottom: 14px → 10px above the handle's bottom: 4px,
+   which made the ghost float visibly above the original). */
 .phase-ghost {
   position: absolute;
-  bottom: 14px;
+  bottom: 4px;
   transform: translateX(-50%);
   padding: 6px 4px;
   pointer-events: none;
   z-index: 4;
   display: none;
 }
+/* Match the live .phase-pill dimensions exactly: same min-width, height,
+   border-radius. Width auto-grows to a runtime override that mirrors the
+   actual rendered live pill's width (set in setupHandleDrag on dragstart),
+   so the ghost reads as a faded duplicate, not a smaller cousin. */
 .phase-ghost-pill {
-  width: 76px;
+  min-width: 76px;
   height: 22px;
   border-radius: 11px 11px 8px 8px;
   border: 1.5px dashed;
   background: transparent;
+  box-sizing: border-box;
 }
 .phase-ghost.for-wake .phase-ghost-pill { border-color: rgba(92,179,255,0.55); }
 .phase-ghost.for-bed .phase-ghost-pill { border-color: rgba(111,169,255,0.55); }
@@ -4560,6 +4568,16 @@ function setupHandleDrag(elId, kind) {
     chartState[kind + 'DragActive'] = true;
     if (kind === 'wake') chartState.wakeDragVal = config.wake_time;
     else chartState.bedDragVal = config.bed_time;
+    // Snapshot the live pill's rendered width into the ghost so the ghost
+    // reads as a 1:1 dashed duplicate. Without this, the ghost defaults to
+    // its 76px min-width while the live pill expands to fit "WAKE 6:45a"
+    // (~90px) — ghost looks narrower than the original.
+    const pill = el.querySelector('.phase-pill');
+    const ghostPill = document.querySelector(`.phase-ghost.for-${kind} .phase-ghost-pill`);
+    if (pill && ghostPill) {
+      const w = pill.getBoundingClientRect().width;
+      if (w > 0) ghostPill.style.width = w + 'px';
+    }
     try { el.setPointerCapture(e.pointerId); } catch {}
   });
   el.addEventListener('pointermove', (e) => { if (dragging) moveTo(e.clientX); });

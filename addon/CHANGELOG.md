@@ -1,5 +1,22 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.250
+- **Slider drag ghost on the area chart now includes sun-dimming.** The pre-drag snapshot was passing raw `cachedSunTimes` into `calcMiniCurveData` — without `briSens` + `naturalLightExposure` stashed, `calcBulbBrightnessAt` bailed out per sample and the ghost rendered as a flat curve where the live (sun-dimmed) curve dipped. Now the ghost snapshot uses the same `curveSunTimes` shape `renderMiniChart` builds (live `tuneState` priority for both fields, falling back to saved status), so the dotted "before" line matches the solid "now" line's shape including the sun-dim trough.
+- **Rhythm details — wake/bed drag ghost now aligns with the live pill.** Ghost wrapper `bottom: 14px → 4px` (matches `.phase-handle`'s bottom) so the dashed pill sits at the same y as the original (was floating ~10px above). Ghost width was hard-coded at 76px while the live pill auto-grows past that for longer time strings (e.g. "WAKE 6:45a" → ~90px wide), so the dashed ghost looked narrower; on dragstart we now snapshot the live pill's `getBoundingClientRect().width` into the ghost so the two are visually 1:1.
+- **Sun-dimming projection re-anchored on per-hour solar math.** Previously `calcBulbBrightnessAt` calibrated the day's dimming amplitude from the LIVE `sun_bright_factor` at "now" — so once the cursor was past sunset (or any moment with `sbfNow ≥ 0.99`), the function bailed out and returned `roomPct` unchanged for every hour, including the morning hours when the sun WAS up. Net: the sun-dimming dotted line + label vanished post-sunset even though there had been real dimming earlier in the day.
+- New per-hour formula (modeled on rhythm-design.html's `sunDimFactor` at line 3719, extended to factor in per-room exposure): `dim = elevationToOutdoorNorm(sun_elevation, conditionMultiplier) * brightness_sensitivity * natural_light_exposure`, then `factor = max(0, 1 - dim)`. Independent of "now" — works whether cursor is at noon, sunset, or 3am.
+- **`natural_light_exposure` is the per-room piece rhythm doesn't carry but area must:** the user has rooms ranging from 0.0 (interior, no windows) to 2.0 (sunroom). Multiplying by exposure means an interior room shows no sun-dimming gap (since 0 × anything = 0, factor = 1, bulbs = pure room curve), while a sunroom shows proportionally stronger dimming. `briSens` and `naturalLightExposure` both stashed on `curveSunTimes` so `calcBulbBrightnessAt` can read them; live `tuneState` values (Tune card sliders mid-edit) win over saved status, matching the existing `sbfNow` priority pattern.
+- This intentionally diverges from rhythm-design where exposure isn't part of the formula — rhythm is a global / zone-level view of the curve shape, area is per-room.
+
+
+
+## 1.2.249
+- **Bright slider hero label reads `0%` when the room is off.** Earlier the thumb fell to 0% (v1.2.242) but the label stayed at the last-on value (e.g. `84%`) — thumb-vs-label inversion. Now both read 0% when off.
+- **Bright slider drag from 0% while off acts as a turn-on gesture.** Releasing the slider above 0% on an off room: lights toggle on, then the dragged position lands as the brightness override. Single drag = "turn on at this brightness", no separate power-tap needed. Color and phase sliders unaffected — they're not turn-on gestures.
+
+## 1.2.248
+- **Chart sticky across Adjust + Schedule + Tune cards.** Pulled `#chart-shell` out of the Adjust card body and placed it as the first child of a new `#chart-context-wrap` div that wraps Adjust + Schedule + Tune sections. `position: sticky; top: 80px` (below the 2-row page-header) with an opaque bg + z-index above cards. As the user scrolls through any of those three cards, the chart stays pinned at the top so it remains a visible reference while tweaking sliders below it. Once Controls (the next card down) comes into view, the chart un-sticks naturally — its sticky parent has scrolled out. Adjust card body now starts directly with the sliders.
+
 ## 1.2.247
 - **Adjust card body now `user-select: none`.** Tap-and-drag on the chart, the sunset/bed labels, the sun-intensity chip, or the slider rows was kicking off text selection — leaving blue selection swatches across the card. None of this content is meant to be selectable as text. Applied to `#chart-shell` (chart + labels + chip) and `.curve-controls-wrap` (the entire Adjust card body), with the `-webkit-` prefix for older Safari.
 
