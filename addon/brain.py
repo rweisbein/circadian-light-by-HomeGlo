@@ -62,8 +62,11 @@ DEFAULT_BED_TIME = 22.0
 DEFAULT_WAKE_SPEED = 8
 DEFAULT_BED_SPEED = 6
 
-# Speed-to-slope mapping (index 0-10, where 0 is unused)
-SPEED_TO_SLOPE = [0.0, 0.4, 0.6, 0.8, 1.0, 1.3, 1.7, 2.3, 3.0, 4.0, 5.5]
+# Speed-to-slope mapping (index 0-12, where 0 is unused). Slopes chosen so the
+# 5%→95% logistic transition width = 2*ln(19)/k hours lands on user-friendly
+# durations: 1=10h, 2=7.5h, 3=5.5h, 4=4h, 5=3h, 6=2.25h, 7=1.5h, 8=1h,
+# 9=30min, 10=15min, 11=5min, 12=2min. Last two are still "demo speeds".
+SPEED_TO_SLOPE = [0.0, 0.5889, 0.7852, 1.0708, 1.4722, 1.9630, 2.6173, 3.9260, 5.8890, 11.778, 23.556, 70.668, 176.67]
 
 # Natural light / outdoor intensity constants
 FULL_SUN_INTENSITY = 8.4  # log2(100000 / 300) — used for lux normalization
@@ -188,6 +191,7 @@ class SunTimes:
     solar_mid: float = 0.0  # Hour (0-24), midnight opposite of noon
     outdoor_normalized: float = 0.0  # 0-1 from lux sensor or angle estimate
     outdoor_source: str = "none"  # Diagnostics: "lux", "weather", "angle", "none"
+    is_fallback: bool = False  # True when sunrise/sunset are defaults, not real solar values
 
     @property
     def sun_factor(self) -> float:
@@ -780,8 +784,8 @@ class CircadianLight:
 
         in_ascend = t_ascend <= h48 < t_descend
 
-        k_ascend = SPEED_TO_SLOPE[max(1, min(10, config.wake_speed))]
-        k_descend = SPEED_TO_SLOPE[max(1, min(10, config.bed_speed))]
+        k_ascend = SPEED_TO_SLOPE[max(1, min(12, config.wake_speed))]
+        k_descend = SPEED_TO_SLOPE[max(1, min(12, config.bed_speed))]
         slope = k_ascend if in_ascend else -k_descend
 
         return in_ascend, h48, t_ascend, t_descend, slope
@@ -2052,8 +2056,17 @@ def calculate_dimming_step(
     }
 
 
-def calculate_sun_times(lat: float, lon: float, date_str: str = None) -> Dict[str, Any]:
-    """Calculate sun times for a location."""
+def calculate_sun_times(
+    lat: float, lon: float, date_str: str = None, tz: str = None
+) -> Dict[str, Any]:
+    """Calculate sun times for a location.
+
+    tz: IANA timezone (e.g. "America/New_York"). Without it astral defaults to
+    UTC, which triggers a date-wrap bug for certain lat/lon/date combos where
+    the local sunset crosses midnight UTC — astral raises "Unable to find a
+    sunset time on the date specified". Passing local tz makes astral compute
+    the date in the right frame and dodges the bug.
+    """
     from datetime import datetime
     from zoneinfo import ZoneInfo
     from astral import LocationInfo
@@ -2064,8 +2077,18 @@ def calculate_sun_times(lat: float, lon: float, date_str: str = None) -> Dict[st
     else:
         date = datetime.now().date()
 
+    tzinfo = None
+    if tz:
+        try:
+            tzinfo = ZoneInfo(tz)
+        except Exception:
+            tzinfo = None
+
     loc = LocationInfo(latitude=lat, longitude=lon)
-    solar = sun(loc.observer, date=date)
+    if tzinfo is not None:
+        solar = sun(loc.observer, date=date, tzinfo=tzinfo)
+    else:
+        solar = sun(loc.observer, date=date)
 
     return {
         "sunrise": solar["sunrise"].isoformat() if solar.get("sunrise") else None,

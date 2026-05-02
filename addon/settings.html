@@ -1047,9 +1047,9 @@
       </div>
     </div>
 
-    <!-- Location Section -->
+    <!-- Sun Section -->
     <div class="settings-section">
-      <div class="section-header">Location</div>
+      <div class="section-header">Sun</div>
       <div class="section-content">
         <div class="location-section" id="location-section">
           <div class="location-row">
@@ -1088,18 +1088,14 @@
           </div>
         </div>
 
-        <div class="form-row" style="margin-top: 12px;">
+        <div class="form-row" style="border-top:1px solid var(--line);margin-top:12px;padding-top:12px;">
           <label class="form-label">
             Sun saturation
-            <span class="info-icon">i<span class="info-tooltip">At what percentage of peak sun elevation does outdoor brightness reach 100%? Lower values mean full brightness is reached earlier in the morning and lasts later in the afternoon. At 25%, once the sun reaches 25% of its peak elevation, the angle factor is fully saturated.</span></span>
+            <span class="info-icon">i<span class="info-tooltip">At what percentage of peak sun elevation does outdoor brightness reach 100%? Lower values mean full brightness is reached earlier in the morning and lasts later in the afternoon. At 25%, once the sun reaches 25% of its peak elevation, the angle factor is fully saturated. Affects both sun dimming (brightness) and sun cooling (color).</span></span>
           </label>
           <div class="form-control">
             <input type="number" class="form-input" id="sun-saturation" min="1" max="100" step="5" value="40" style="width: 80px;">
             <span class="form-hint">% of peak elevation</span>
-            <select class="form-input" id="sun-saturation-ramp" style="width: 100px; margin-left: 8px;">
-              <option value="linear">Linear</option>
-              <option value="squared" selected>Squared</option>
-            </select>
           </div>
         </div>
       </div>
@@ -1147,6 +1143,31 @@
                 <option value="step">Circadian</option>
                 <option value="bright">Brightness</option>
                 <option value="color">Color</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:12px;">
+          <div style="font-size:0.8rem;color:var(--muted);margin-bottom:8px;font-weight:600;">Rhythm chart</div>
+
+          <div class="form-row">
+            <label class="form-label">
+              Cursor step
+              <span class="info-icon">i<span class="info-tooltip">How much the &larr; / &rarr; buttons on the rhythm-zone chart cursor advance the cursor each tap. Smaller values let you fine-tune what lights look like at a specific moment; larger values let you skim through the day faster.</span></span>
+            </label>
+            <div class="form-control">
+              <select class="form-input" id="rhythm-cursor-step-min" style="width: 100px;">
+                <option value="1">1 min</option>
+                <option value="2">2 min</option>
+                <option value="3">3 min</option>
+                <option value="4">4 min</option>
+                <option value="5" selected>5 min</option>
+                <option value="10">10 min</option>
+                <option value="12">12 min</option>
+                <option value="15">15 min</option>
+                <option value="30">30 min</option>
+                <option value="60">60 min</option>
               </select>
             </div>
           </div>
@@ -1205,6 +1226,7 @@
           document.getElementById('confirm-zone-pushes').checked = config.confirm_zone_pushes ?? true;
           document.getElementById('home-slider-mode').value = config.home_slider_mode ?? 'brightness';
           document.getElementById('home-buttons-mode').value = config.home_buttons_mode ?? 'step';
+          document.getElementById('rhythm-cursor-step-min').value = String(config.rhythm_cursor_step_min ?? 5);
           document.getElementById('circadian-refresh').value = config.circadian_refresh ?? 20;
           const refreshDefault = config.circadian_refresh ?? 20;
           document.getElementById('periodic-transition-day').value = config.periodic_transition_day ?? 1;
@@ -1292,7 +1314,6 @@
           updateCtCompState();
           updateLocationSection(config);
           document.getElementById('sun-saturation').value = config.sun_saturation ?? 40;
-          document.getElementById('sun-saturation-ramp').value = config.sun_saturation_ramp ?? 'squared';
         }
       } catch (err) {
         console.error('Error loading settings:', err);
@@ -1318,6 +1339,7 @@
         confirm_zone_pushes: document.getElementById('confirm-zone-pushes').checked,
         home_slider_mode: document.getElementById('home-slider-mode').value,
         home_buttons_mode: document.getElementById('home-buttons-mode').value,
+        rhythm_cursor_step_min: parseInt(document.getElementById('rhythm-cursor-step-min').value, 10),
         circadian_refresh: parseInt(document.getElementById('circadian-refresh').value) || 20,
         periodic_transition_day: parseInt(document.getElementById('periodic-transition-day').value) || 1,
         periodic_transition_night: parseInt(document.getElementById('periodic-transition-night').value) || 1,
@@ -1345,8 +1367,7 @@
         ct_comp_begin: parseInt(document.getElementById('ct-comp-begin').value) || 1650,
         ct_comp_end: parseInt(document.getElementById('ct-comp-end').value) || 2250,
         ct_comp_factor: parseFloat(document.getElementById('ct-comp-factor').value) || 1.7,
-        sun_saturation: parseInt(document.getElementById('sun-saturation').value) || 40,
-        sun_saturation_ramp: document.getElementById('sun-saturation-ramp').value || 'squared'
+        sun_saturation: parseInt(document.getElementById('sun-saturation').value) || 40
       };
 
       try {
@@ -1628,6 +1649,7 @@
     document.getElementById('confirm-zone-pushes').addEventListener('change', saveSettings);
     document.getElementById('home-slider-mode').addEventListener('change', saveSettings);
     document.getElementById('home-buttons-mode').addEventListener('change', saveSettings);
+    document.getElementById('rhythm-cursor-step-min').addEventListener('change', saveSettings);
     document.getElementById('circadian-refresh').addEventListener('blur', saveSettings);
     document.getElementById('periodic-transition-day').addEventListener('blur', saveSettings);
     document.getElementById('periodic-transition-night').addEventListener('blur', saveSettings);
@@ -1688,7 +1710,6 @@
     document.getElementById('ct-comp-factor').addEventListener('blur', saveSettings);
 
     document.getElementById('sun-saturation').addEventListener('blur', saveSettings);
-    document.getElementById('sun-saturation-ramp').addEventListener('change', saveSettings);
 
     // Location functions
     function updateLocationSection(config) {

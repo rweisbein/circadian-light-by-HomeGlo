@@ -23,6 +23,11 @@
   --ascend-border: rgba(120, 185, 245, 0.5);
   --descend: rgba(255, 220, 100, 0.12);
   --descend-border: rgba(255, 230, 128, 0.45);
+  --wake: #5cb3ff;
+  --wake-ink: #082544;
+  --bed: #6fa9ff;
+  --bed-ink: #08234a;
+  --live: #ff8a3a;
   --font-hero: 1.4rem;
   --font-display: 1.1rem;
   --font-card-title: 0.95rem;
@@ -47,13 +52,7 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 .rhythm-card-val { margin-left: auto; font-size: var(--font-value); color: var(--muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
 .rhythm-card-val b { font-weight: 700; font-size: var(--font-card-title); color: var(--text); }
 
-/* Sleep card header: collapsed shows window time; expanded shows the pattern dropdown */
-.rhythm-sleep-title-expanded { display: none; }
-.rhythm-card.is-open .rhythm-sleep-title-collapsed { display: none; }
-.rhythm-card.is-open .rhythm-sleep-title-expanded { display: inline; }
-.rhythm-sleep-pattern-val { display: none; }
-.rhythm-card.is-open #rhythm-sleep-val { display: none; }
-.rhythm-card.is-open .rhythm-sleep-pattern-val { display: inline-flex; align-items: center; }
+/* Sleep card header: title stays "Sleep" always; pattern picker lives in body */
 .rhythm-pattern-inline-select {
   background: transparent;
   border: none;
@@ -88,6 +87,48 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 .rhythm-sleep-summary-time { font-size: var(--font-card-title); font-weight: 700; color: var(--text); }
 .rhythm-sleep-summary-bri { font-size: var(--font-body); color: var(--muted); }
 
+/* Drag-preview dirty bar — surfaces in the Sleep card header when the user
+   drags a wake/bed pill on the chart. Drag = preview only; this bar is the
+   explicit save affordance ("you've moved it but your home schedule is
+   unchanged"). Save commits to today's group; revert clears the drag. */
+.sleep-dirty-bar {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 12px 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(254,172,96,0.10);
+  border: 1px solid rgba(254,172,96,0.45);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.sleep-dirty-bar.is-dirty { display: flex; }
+.sleep-dirty-bar-label { color: var(--muted); text-transform: uppercase; font-size: 10px; letter-spacing: 0.06em; }
+.sleep-dirty-bar-from { color: var(--muted2); text-decoration: line-through; }
+.sleep-dirty-bar-arrow { color: var(--muted2); font-size: 11px; }
+.sleep-dirty-bar-to { color: var(--accent); font-weight: 700; }
+.sleep-dirty-bar-spacer { flex: 1; }
+.sleep-dirty-bar button {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.sleep-dirty-bar button:hover { background: rgba(255,255,255,0.06); color: var(--text); border-color: var(--muted); }
+.sleep-dirty-bar .sleep-dirty-save {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+}
+.sleep-dirty-bar .sleep-dirty-save:hover { opacity: 0.9; background: var(--accent); color: #000; }
+
 /* Color temp header rule labels */
 .rhythm-ct-rules { font-size: var(--font-muted); color: var(--muted2); margin-left: 8px; }
 
@@ -111,28 +152,92 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 .container { max-width: 1200px; margin: 0 auto; padding: 10px; }
 
 /* Page Header */
+/* Merged page-header: 2-row grid that splits chrome from rhythm state.
+   Row 1 (chrome, smaller): back btn — rhythm-name — Preview icon.
+   Row 2 (state, bigger):   readout + reset (left) ......... time arrows (right).
+   Background tint is set per-frame by positionOverlays() to follow cursor CCT.
+   Row 2 anchors readout left and arrows right (no centering) — readout is the
+   headline and grows freely without colliding with arrows on the opposite end.
+   NOT sticky — the chart card is the one that pins (see #chart-section). */
 .page-header {
+  position: relative;
   background: var(--panel);
   border-bottom: 1px solid var(--line);
-  padding: 8px 12px;
+  padding: 6px 12px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  row-gap: 4px;
+  align-items: center;
+  transition: background 0.12s, color 0.12s;
+  /* Above .section-block (z-index: 50) so the Preview popover, anchored
+     just below the header on the right, renders ABOVE the sticky chart card
+     instead of sliding under it. */
+  z-index: 60;
+}
+.page-header .back-btn {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+.page-header .rhythm-name-group {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+}
+.page-header .try-it-btn {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: center;
+  justify-self: end;
+}
+.page-header .cct-banner-readout-cluster {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: start;
+  align-self: center;
+}
+.page-header .cct-banner-arrows {
+  grid-column: 3;
+  grid-row: 2;
+  justify-self: end;
+  align-self: center;
+}
+/* Try-it popover anchors below the merged header on the right (under the
+   Preview pill). CSS-positioned relative to .page-header so positionOverlays()
+   doesn't need to compute top. */
+.page-header .try-it-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 8px;
+  left: auto;
+}
+/* Rhythm-name group — row 1 chrome label. Demoted in size since the cursor
+   readout on row 2 is the page's actual headline; the name is identification,
+   not the visual anchor. */
+.rhythm-name-group {
   display: flex;
   align-items: center;
-  gap: 8px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
+  line-height: 1;
+  flex: 1;
+  min-width: 0;
 }
 .rhythm-name-input {
-  font-size: var(--font-display);
+  font-size: 0.95rem;
   font-weight: 600;
   background: transparent;
   border: none;
-  color: var(--text);
-  padding: 2px 0;
+  /* Inherit page-header's dynamic readableTextColor so the name reads with the
+     same contrast treatment as the % · K readout — dark on warm tints, light
+     on cool tints. Hardcoding var(--text) made the name wash out at warm
+     mid-day amber tints. */
+  color: inherit;
+  padding: 1px 0;
   width: auto;
   min-width: 80px;
   max-width: 300px;
-  flex: 1;
+  line-height: 1.2;
 }
 .rhythm-name-input:focus {
   outline: none;
@@ -247,14 +352,15 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 .sleep-time-group .day-indicator.today::after {
   content: '';
   position: absolute;
-  bottom: -5px;
+  bottom: 3px;
   left: 50%;
   transform: translateX(-50%);
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--accent);
+  width: 12px;
+  height: 1.5px;
+  border-radius: 1px;
+  background: var(--muted);
 }
+.sleep-time-group .day-indicator.today.active::after { background: #000; }
 .sleep-time-group.no-alt .alt-block {
   display: none;
 }
@@ -296,9 +402,10 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
   padding-top: 10px;
   padding-bottom: 4px;
 }
-/* Warm night + cool day share one label column across all 7 rows */
+/* Warm night + cool day share one label column across all rows.
+   Width holds Start/End/Fade short labels AND "Sun impact" + reset pill on one line. */
 .color-rule-stack-body .reveal-group > .tune-control-row {
-  grid-template-columns: 110px 1fr;
+  grid-template-columns: 140px 1fr;
   gap: 0 12px;
 }
 .color-rule-stack-body .reveal-group > .tune-control-row .tune-control-impact {
@@ -312,8 +419,9 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 /* Narrow brightness-card gradient to match .tune-control-row horizontal padding (16px L, 14px R) */
 #rhythm-brightness-body > .ct-gradient-wrap { margin-left: 16px; margin-right: 14px; }
 
-/* Brightness "Sun response" sub-section: divider above for equal weight; label + value inline left-aligned */
+/* Brightness "Sun impact" sub-section: divider above for equal weight; label + value inline left-aligned */
 .bri-sub-section { margin-top: 18px; padding-top: 6px; border-top: 1px solid var(--line); }
+
 .bri-sub-section .tune-control-row {
   grid-template-columns: max-content 1fr;
   gap: 0 12px;
@@ -323,17 +431,25 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
   min-width: 0;
 }
 
-/* Section block (chart) */
+/* Section block (chart). Sticky-pinned at top:0 so the chart stays visible
+   while the user scrolls the form fields below; the page-header itself does
+   NOT stick (it scrolls away normally). */
 .section-block {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 10px 16px 8px;
+  padding: 10px 6px 8px;
   margin-bottom: 16px;
   position: sticky;
-  top: 49px;
+  top: 0;
   z-index: 50;
 }
+/* Chart section: zero padding so the CCT banner spans the card edge-to-edge.
+   `overflow: visible` so the Experience popover (and any other floating
+   overlay anchored inside) can extend past the card's bottom edge into the
+   cards below — it's a transient floating UI, not chart content. */
+#chart-section { padding: 0; overflow: visible; }
+#chart-section .chart-wrapper { margin-bottom: 0; }
 
 /* Sliders — custom minimal styling for regular sliders */
 input[type=range] {
@@ -383,97 +499,7 @@ input[type=range]::-moz-range-thumb {
 
 /* Chart Section */
 .chart-wrapper { position: relative; margin-bottom: 8px; }
-#chart { height: 240px; touch-action: pan-x pan-y; }
-.chart-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 2px 0 4px;
-}
-.chart-date-control {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  max-width: 300px;
-}
-.chart-date-display {
-  font-size: var(--font-body);
-  color: var(--text);
-  transition: color 0.15s;
-  min-width: 50px;
-  font-weight: 600;
-}
-.chart-date-display.is-offset { color: var(--accent); cursor: pointer; }
-.chart-date-display.is-offset:hover { text-decoration: underline; }
-.chart-date-control input[type=range] {
-  flex: 1;
-}
-.modeled-conditions {
-  display: flex;
-  align-items: center;
-}
-.modeled-conditions select {
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid var(--line);
-  background: var(--panel2);
-  color: var(--text);
-  font-size: var(--font-body);
-}
-.chart-below-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin-top: 2px;
-}
-.time-nav-group {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-.time-nav-divider {
-  width: 1px;
-  height: 16px;
-  background: rgba(255,255,255,0.15);
-  margin: 0 2px;
-}
-.time-nav-btn {
-  --btn-bg: rgba(255,255,255,0.06);
-  --btn-text: #fff;
-  --btn-fill: 0;
-  --btn-fill-opacity: 0;
-  background: var(--btn-bg);
-  border: 1px solid rgba(255,255,255,0.2);
-  color: var(--btn-text);
-  font-size: var(--font-muted);
-  padding: 8px 12px;
-  border-radius: 999px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.15s;
-  position: relative;
-  overflow: hidden;
-}
-.time-nav-btn::after {
-  content: '';
-  position: absolute;
-  inset: 2px;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.18);
-  opacity: var(--btn-fill-opacity);
-  pointer-events: none;
-}
-.time-nav-btn:hover {
-  border-color: rgba(255,255,255,0.4);
-}
-
-/* Schedule toggles in chart toolbar */
-.chart-schedule-toggles { display: flex; gap: 10px; align-items: center; font-size: var(--font-body); color: var(--muted); }
-.schedule-toggle { display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none; }
-.schedule-toggle input[type=checkbox] { width: 13px; height: 13px; accent-color: var(--muted2); }
-
+#chart { height: 200px; touch-action: pan-x pan-y; }
 /* Time hover label - above x-axis, shows time with phase color */
 .time-hover-label {
   position: absolute;
@@ -494,24 +520,653 @@ input[type=range]::-moz-range-thumb {
   z-index: 100;
 }
 
-/* Cursor callout - shows values at cursor position */
-.graph-cursor-callout {
-  position: absolute;
-  bottom: 10px;
-  padding: 4px 10px;
-  border-radius: 8px;
-  border: 1.5px solid #fdfdfd;
-  background: rgba(10,10,10,0.85);
-  color: #fff;
-  font-size: var(--font-body);
-  font-weight: 600;
-  pointer-events: none;
-  transform: translateX(-50%);
-  opacity: 0;
-  transition: opacity 0.12s ease, left 0.08s ease;
-  white-space: nowrap;
-  z-index: 100;
+/* Chart shell — vertical zones:
+   cct-banner   → edge-to-edge CCT-tinted controller (the banner IS the cursor)
+   sun-strip    → outdoor sun-intensity chip floats above chart at solar-noon x
+   chart body   → curve + cursor
+   below chart  → sunrise/sunset HTML labels + wake/bed pill handles */
+#chart-shell {
+  position: relative;
+  background: var(--card);
+  border-radius: 10px;
+  /* Bottom padding holds two stacked rows: solar-labels (sunrise/sunset, ~14px
+     tall) sit just below the chart's x-tick row; wake/bed pills (~34px tall)
+     sit below the solar labels. Sized to keep both clear of the chart's
+     in-canvas tick label band. v1.2.216 shrunk this to 45 along with the chart
+     height (200→160), but at 45 the solar labels overlapped the tick labels.
+     v1.2.217 bumped back to 60 (was 70 pre-shrink) — preserves the original
+     vertical relationships (chart-bottom → solar 20px gap → pill 2px gap)
+     while still clawing back 10px from pre-shrink. */
+  padding: 0 0 60px;
+  overflow: visible;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
 }
+#chart-shell #chart {
+  width: 100%;
+  /* margin-top opens the strip above the chart canvas where the sun-intensity
+     chip + month label live. Was 24px when the cct-banner sat above this gap
+     (separating chip from the banner color); now banner is gone, so a tighter
+     14px is enough breathing room for the ~14px chip. */
+  height: 160px;
+  margin-top: 14px;
+  touch-action: none;
+  cursor: pointer;
+}
+
+/* Cursor line extender — DISABLED. Used to bridge banner-bottom → chart-top
+   inside chart-shell when the cct-banner lived inside the chart card. After
+   the banner moved up to the page-header (v1.2.215), there's no banner inside
+   chart-shell to bridge to; the page-header is sticky-pinned at viewport top
+   and separated from the chart card by the container's top padding, so a
+   visual continuation isn't really achievable here. Kept in DOM as a no-op. */
+.cursor-extender { display: none !important; }
+
+/* Banner-derived elements (now hosted directly inside .page-header — no .cct-banner
+   wrapper anymore). The header itself carries the CCT tint set per-frame by
+   positionOverlays(). */
+.cct-banner-readout-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.cct-banner-readout {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+/* Master reset (↺) — orange-on-dark so it stands out against the CCT-tinted
+   banner regardless of tint. Mirrors the home page power button's
+   dark-bg + accent-color treatment. Only visible when the chart view is
+   "dirty" (see updateBannerResetVisibility), so when present it's
+   actionable and the orange flags it as such. */
+.cct-banner-reset {
+  background: rgba(0,0,0,0.45);
+  border: 1px solid rgba(254,172,96,0.45);
+  color: var(--accent);
+  width: 26px;
+  height: 26px;
+  border-radius: 13px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  opacity: 1;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.cct-banner-reset:hover {
+  background: rgba(254,172,96,0.18);
+  border-color: var(--accent);
+  color: var(--accent-hover);
+}
+.cct-banner-arrows {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  line-height: 1;
+}
+.cct-banner-arrows button {
+  background: rgba(0,0,0,0.22);
+  border: none;
+  color: inherit;
+  height: 22px;
+  width: 26px;
+  padding: 0;
+  border-radius: 11px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  opacity: 0.9;
+  transition: opacity 0.15s, background 0.15s;
+}
+.cct-banner-arrows button:hover:not(:disabled) { opacity: 1; background: rgba(0,0,0,0.36); }
+.cct-banner-arrows button:disabled { opacity: 0.4; cursor: default; }
+.cct-banner-time {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  min-width: 56px;
+  text-align: center;
+  opacity: 0.95;
+}
+/* Preview button — idle is a quiet ghost icon (no border, no fill) so it reads
+   as a less-prominent action than the time arrows on row 2. Live state turns
+   into a fully-boxed accent button (dark bg, accent border, glow + pulse) —
+   the box appearing IS part of the "now I'm doing something" signal.
+   Icon color inherits from the page-header (readableTextColor — black on warm
+   tints, white on cool tints) so it stays legible against any cursor CCT. */
+.try-it-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-family: inherit;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 10;
+  border-radius: 8px;
+  transition: background 0.15s, color 0.15s;
+}
+.try-it-btn:hover {
+  background: rgba(0,0,0,0.18);
+}
+.try-it-btn svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  opacity: 0.75;
+}
+.try-it-btn:hover svg { opacity: 1; }
+.try-it-label { display: none; }
+.try-it-btn.is-live svg {
+  animation: try-it-icon-pulse 1.4s ease-in-out infinite;
+  opacity: 1;
+}
+@keyframes try-it-icon-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+/* Live state — dark container so the accent-orange ink reads cleanly even when
+   the cct-banner background tint is also warm (mid-day → orange-on-orange would
+   otherwise wash out). Border + glow stay accent-tinted as the actionable
+   signal. */
+.try-it-btn.is-live {
+  color: var(--accent);
+  border: 1px solid rgba(254,172,96,0.6);
+  background: rgba(0,0,0,0.6);
+  border-radius: 10px;
+  animation: try-it-glow 2s ease-in-out infinite;
+}
+.try-it-btn.is-live svg {
+  opacity: 1;
+  color: var(--accent);
+}
+@keyframes try-it-glow {
+  0%, 100% { box-shadow: 0 0 6px rgba(254,172,96,0.25); }
+  50% { box-shadow: 0 0 14px rgba(254,172,96,0.45); }
+}
+.try-it-popover {
+  position: absolute;
+  /* Anchored under the Experience pill (far-left of cct-banner), not far-right.
+     Top set per-frame in positionOverlays() to clear the live cct-banner
+     bottom + small gap, regardless of banner content height. */
+  left: 8px;
+  min-width: 220px;
+  max-width: 280px;
+  background: #2a2a2a;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  padding: 10px 12px;
+  display: none;
+  z-index: 20;
+}
+.try-it-popover.open { display: block; }
+.try-it-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--font-body);
+  color: var(--muted);
+  margin-bottom: 6px;
+  min-height: 22px;
+}
+.try-it-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.01em;
+}
+.try-it-counter { font-size: 0.8rem; margin-left: auto; }
+.try-it-area-list {
+  max-height: 260px;
+  overflow-y: auto;
+  margin: 6px 0 8px;
+  padding-right: 2px;
+}
+/* Zone header inside the area list — small muted caption that visually groups
+   the areas underneath, matching the home page (areas.html) zone-grouped
+   layout. `.not-first` adds a divider gap between zone groups. */
+.try-it-zone-header {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted2);
+  padding: 4px 4px 2px;
+}
+.try-it-zone-header.not-first {
+  margin-top: 6px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  padding-top: 8px;
+}
+.try-it-area-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  font-size: var(--font-body);
+  color: var(--text);
+  cursor: pointer;
+  border-radius: 6px;
+}
+.try-it-area-row:hover { background: rgba(255,255,255,0.05); }
+.try-it-area-row input[type=checkbox] {
+  margin: 0;
+  cursor: pointer;
+}
+.try-it-area-row.is-disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+.try-it-area-row.is-disabled:hover { background: transparent; }
+.try-it-popover-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.try-it-popover-footer button {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.try-it-popover-footer button:hover { background: rgba(255,255,255,0.12); }
+.try-it-stop-btn { color: var(--accent) !important; border-color: rgba(254,172,96,0.5) !important; }
+.try-it-done-btn { background: rgba(254,172,96,0.18) !important; border-color: rgba(254,172,96,0.5) !important; }
+
+/* Solar band — HTML overlays in the chart-shell bottom margin, BELOW the
+   Plotly x-tick labels (3a/6a/...) which hang at the bottom of the chart div.
+   Sun-cluster yellow (sunrise/sunset/sun-intensity) ties them visually to the
+   sun-arc above. Sized + tinted to match the sun-intensity chip so all three
+   sun-cluster elements read at equal prominence. A short connector line above
+   each label bridges up to the x-axis (added in positionOverlays). */
+.solar-label {
+  position: absolute;
+  /* 20px below chart-bottom (chart-shell padding-bottom 60 - 40 = 20),
+     matching the v1.2.214 spacing relationship. v1.2.216 left this at 50
+     when padding-bottom shrank to 45, which pushed the label INTO the
+     chart's bottom 24px tick-label band — the user reported sunrise/sunset
+     "hitting" the time ticks. */
+  bottom: 40px;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,225,140,0.92);
+  cursor: default;
+  white-space: nowrap;
+  z-index: 4;
+  user-select: none;
+  -webkit-user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+.solar-label:hover { color: rgba(255,235,170,1); }
+/* Sun-tinted connector from the label up through the x-tick label area to
+   the chart x-axis. Height set per-frame in positionOverlays() against
+   _fullLayout.yaxis._offset/_length so it lands exactly on the axis line. */
+.solar-label::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  width: 1px;
+  height: var(--solar-connector-h, 0px);
+  margin-bottom: 1px;
+  transform: translateX(-50%);
+  background: rgba(255,225,140,0.55);
+  pointer-events: none;
+}
+.solar-label::after {
+  content: attr(data-time);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 7px;
+  background: #3a3a3a;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s;
+  margin-bottom: 5px;
+  font-variant-numeric: tabular-nums;
+}
+.solar-label:hover::after { opacity: 1; }
+
+/* Sun intensity chip — floats in the card-color gap BETWEEN the cct-banner
+   bottom and the chart canvas top, anchored at solar-noon x. Yellow icon +
+   percent only. The lighter card-color background (vs the dark chart canvas
+   below) visually separates the chip from the "sun dimming" annotation
+   inside the chart, so the chip reads as a header for the chart rather than
+   a value of that annotation. Top is set per-frame in positionOverlays
+   from bannerBottom so it tracks any banner height changes. Tap → opens
+   popover with prominent "Sun intensity" header (no inline label needed). */
+.outdoor-chip {
+  position: absolute;
+  transform: translateX(-50%);
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,225,140,0.92);
+  cursor: pointer;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+.outdoor-chip:hover { color: rgba(255,235,170,1); background: transparent; }
+.outdoor-chip-icon { font-size: 13px; line-height: 1; color: rgba(255,225,140,0.95); }
+.outdoor-popover {
+  position: absolute;
+  transform: translateX(-50%);
+  background: rgba(24, 26, 32, 0.98);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 8px;
+  padding: 6px;
+  min-width: 220px;
+  max-height: 232px;
+  overflow-y: auto;
+  z-index: 20;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+  display: none;
+}
+.outdoor-popover.open { display: block; }
+.outdoor-popover-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  color: var(--text);
+  padding: 6px 8px 10px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 6px;
+}
+.outdoor-popover .src-row {
+  display: flex;
+  gap: 4px;
+  padding: 4px 4px 8px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+}
+.outdoor-popover .src-btn {
+  flex: 1;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  padding: 6px;
+  border-radius: 5px;
+  font-size: 11px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.outdoor-popover .src-btn.active {
+  background: rgba(255, 215, 100, 0.15);
+  color: rgba(245, 230, 200, 0.95);
+  border-color: rgba(255, 215, 100, 0.5);
+}
+.outdoor-popover .opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border-radius: 5px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text);
+}
+.outdoor-popover .opt:hover { background: rgba(255,255,255,0.05); }
+.outdoor-popover .opt.selected { background: rgba(255,255,255,0.07); font-weight: 600; }
+.outdoor-popover .opt-icon { font-size: 14px; width: 18px; text-align: center; }
+.outdoor-popover .opt-pct {
+  margin-left: auto;
+  color: var(--muted2);
+  font-variant-numeric: tabular-nums;
+}
+.outdoor-popover.src-current .opt {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* Wake/Bed pill drag handles in bottom margin */
+.phase-handle {
+  position: absolute;
+  /* Pill base hugs the chart-shell's bottom edge (small 4px breathing room
+     from the card border). Pill height ~34 puts the pill TOP at ~38, leaving
+     ~2px gap below the solar-label bottom (40) — same tight spacing as
+     v1.2.214 (handle bottom 14, solar bottom 50). */
+  bottom: 4px;
+  transform: translateX(-50%);
+  cursor: grab;
+  user-select: none;
+  z-index: 5;
+  touch-action: none;
+  padding: 6px 4px;
+}
+.phase-handle.dragging { cursor: grabbing; }
+/* Thin connector line from pill up through the x-tick label area to the
+   chart x-axis. Height set per-frame in positionOverlays() against Plotly's
+   _fullLayout.yaxis._offset/_length so it lands exactly ON the axis line
+   (not below the tick labels, which is where a static height would stop). */
+.phase-handle::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% - 6px);
+  left: 50%;
+  width: 1.5px;
+  height: var(--phase-connector-h, 28px);
+  transform: translateX(-50%);
+  pointer-events: none;
+  opacity: 0.45;
+  transition: opacity 0.15s;
+}
+.phase-handle.phase-wake::before { background: #5cb3ff; }
+.phase-handle.phase-bed::before { background: #6fa9ff; }
+.phase-handle:hover::before,
+.phase-handle.dragging::before { opacity: 0.75; }
+.phase-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 4px 10px;
+  min-width: 76px;
+  height: 22px;
+  border-radius: 11px 11px 8px 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  transition: transform 0.1s, box-shadow 0.15s;
+  white-space: nowrap;
+  justify-content: center;
+}
+.phase-wake .phase-pill { background: var(--wake); color: var(--wake-ink); }
+.phase-bed .phase-pill { background: var(--bed); color: var(--bed-ink); }
+.phase-handle:hover .phase-pill,
+.phase-handle.dragging .phase-pill {
+  transform: scale(1.06);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+}
+.phase-name {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.7;
+}
+.phase-time { font-variant-numeric: tabular-nums; }
+
+/* Ghost pill at saved x while dragging — outer wrapper aligned with
+   .phase-handle so the dashed pill lands at the same y the live pill
+   would sit at (was bottom: 14px → 10px above the handle's bottom: 4px,
+   which made the ghost float visibly above the original). */
+.phase-ghost {
+  position: absolute;
+  bottom: 4px;
+  transform: translateX(-50%);
+  padding: 6px 4px;
+  pointer-events: none;
+  z-index: 4;
+  display: none;
+}
+/* Match the live .phase-pill dimensions exactly: same min-width, height,
+   border-radius. Width auto-grows to a runtime override that mirrors the
+   actual rendered live pill's width (set in setupHandleDrag on dragstart),
+   so the ghost reads as a faded duplicate, not a smaller cousin. */
+.phase-ghost-pill {
+  min-width: 76px;
+  height: 22px;
+  border-radius: 11px 11px 8px 8px;
+  border: 1.5px dashed;
+  background: transparent;
+  box-sizing: border-box;
+}
+.phase-ghost.for-wake .phase-ghost-pill { border-color: rgba(92,179,255,0.55); }
+.phase-ghost.for-bed .phase-ghost-pill { border-color: rgba(111,169,255,0.55); }
+
+/* Save popover */
+.save-popover {
+  position: absolute;
+  bottom: 36px;
+  transform: translateX(-50%);
+  background: rgba(24, 26, 32, 0.98);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 8px;
+  padding: 8px;
+  min-width: 240px;
+  z-index: 30;
+  box-shadow: 0 -6px 20px rgba(0,0,0,0.6);
+  display: none;
+}
+.save-popover.open { display: block; }
+.save-popover-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted2);
+  padding: 4px 6px 8px;
+}
+.save-popover-title strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.save-opt {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text);
+  padding: 8px 10px;
+  border-radius: 5px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.save-opt:hover { background: rgba(255,255,255,0.06); }
+.save-opt.is-today {
+  border-left: 2px solid var(--wake);
+  padding-left: 8px;
+}
+.save-opt-sub {
+  font-size: 11px;
+  color: var(--muted2);
+  display: block;
+  margin-top: 2px;
+}
+
+/* Month label — quiet caption in the card-color gap ABOVE the chart canvas
+   (same band as the sun-intensity chip, but pinned far-right while the chip
+   floats at solar-noon). Bottom corners of chart-shell are off-limits because
+   wake/bed pills can land anywhere along the bottom edge depending on the
+   user's schedule. Top of the chart's gap band is the only spot guaranteed
+   clear. v1.2.217 moved this from far-left to far-right because the left edge
+   collided with the y-axis "100%" tick label; the right edge is clear (no
+   right-side y-axis labels). Top is set per-frame in positionOverlays(). */
+.month-label {
+  position: absolute;
+  right: 8px;
+  left: auto;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  cursor: pointer;
+  z-index: 6;
+  user-select: none;
+  -webkit-user-select: none;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+.month-label:hover {
+  color: var(--text);
+  background: rgba(255,255,255,0.05);
+}
+.month-popover {
+  position: absolute;
+  /* top set per-frame in positionOverlays() to track cct-banner bottom +
+     month-label height + small gap, so the popover opens just below the
+     "april" caption regardless of banner content height. v1.2.217 flipped
+     to right-aligned to match the label's new far-right position. */
+  right: 8px;
+  left: auto;
+  background: rgba(24, 26, 32, 0.98);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 8px;
+  padding: 10px 12px 8px;
+  min-width: 220px;
+  z-index: 30;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+  display: none;
+}
+.month-popover.open { display: block; }
+.month-popover-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted2);
+  margin-bottom: 6px;
+}
+.month-popover input[type=range] { width: 100%; }
 
 /* Interactive color gradient (ported from tune.html + handle additions) */
 /* Color gradient layout: cursor above, gradient, ticks, labels+K below */
@@ -537,6 +1192,13 @@ input[type=range]::-moz-range-thumb {
 .ct-layers { margin-top: 2px; }
 .ct-axis { position: relative; height: 15px; }
 .ct-axis-label { position: absolute; transform: translateX(-50%); font-size: var(--font-caps); white-space: nowrap; }
+.ct-axis-label .ct-label-sub { display: inline; }
+@media (max-width: 600px) {
+  .ct-axis-ref { height: 30px; }
+  .ct-axis-ref .ct-axis-label { white-space: normal; line-height: 1.05; text-align: center; }
+  .ct-axis-ref .ct-axis-label .ct-label-colon { display: none; }
+  .ct-axis-ref .ct-axis-label .ct-label-sub { display: block; }
+}
 .ct-axis-tick .ct-axis-label { color: var(--muted2); }
 /* Ref labels: prominent, interactive look */
 .ct-axis-ref .ct-axis-label { color: var(--text); font-weight: 600; font-size: var(--font-body); }
@@ -810,111 +1472,6 @@ input[type=range]::-moz-range-thumb {
   font-weight: 600;
 }
 
-/* Live Design Controls */
-/* Live Design CTA row */
-.live-design-controls {
-  display: flex;
-  align-items: center;
-  padding: 4px 0;
-  margin-bottom: 10px;
-  gap: 10px;
-}
-.live-design-cta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--font-card-title);
-  font-weight: 600;
-  color: var(--text);
-  white-space: nowrap;
-}
-.live-design-cta svg {
-  width: 18px;
-  height: 18px;
-  opacity: 0.7;
-}
-.live-design-controls.is-live .live-design-cta svg {
-  opacity: 1;
-  color: var(--accent);
-}
-.live-design-controls select {
-  padding: 6px 10px;
-  border-radius: 20px;
-  border: 1px solid rgba(255,255,255,0.25);
-  background: rgba(255,255,255,0.06);
-  color: #fff;
-  min-width: 140px;
-  font-size: var(--font-body);
-}
-.live-design-controls select:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-.live-design-controls.is-live select {
-  border-color: rgba(254,172,96,0.5);
-  background: rgba(254,172,96,0.08);
-}
-.live-design-link {
-  font-size: var(--font-body);
-  color: var(--muted);
-  cursor: pointer;
-  text-decoration: none;
-  background: none;
-  border: none;
-  padding: 0;
-  font-family: inherit;
-}
-.live-design-link:hover { color: var(--text); text-decoration: underline; }
-.live-design-status {
-  font-size: var(--font-body);
-  color: var(--muted);
-  margin-left: 2px;
-}
-.live-design-status.active {
-  color: var(--accent);
-}
-@keyframes live-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
-}
-.live-design-status.live-blink {
-  animation: live-pulse 1.8s ease-in-out infinite;
-}
-
-/* Floating LIVE badge on chart */
-.live-fab {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  display: none;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 10px 4px 8px;
-  border-radius: 20px;
-  background: rgba(254,172,96,0.15);
-  border: 1px solid rgba(254,172,96,0.4);
-  color: var(--accent);
-  font-size: var(--font-caps);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  z-index: 10;
-  pointer-events: none;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-}
-.live-fab svg {
-  width: 10px;
-  height: 10px;
-}
-@keyframes fab-glow {
-  0%, 100% { box-shadow: 0 0 6px rgba(254,172,96,0.3); }
-  50% { box-shadow: 0 0 14px rgba(254,172,96,0.5); }
-}
-.live-fab.is-active {
-  display: flex;
-  animation: fab-glow 2s ease-in-out infinite;
-}
 
 /* Rhythm Zone Management Styles */
 .glozone-section {
@@ -1222,7 +1779,9 @@ input[type=range]::-moz-range-thumb {
   color: #fff;
 }
 
-/* Back-button page header */
+/* Back-button page header — ghost chevron (matches area.html). Tracks
+   page-header's readableTextColor via color: inherit so the chevron
+   reads against any CCT-tinted bg. */
 .back-btn {
   display: flex;
   align-items: center;
@@ -1230,16 +1789,16 @@ input[type=range]::-moz-range-thumb {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  border: 1px solid var(--line);
-  background: var(--card);
-  color: var(--text);
+  border: none;
+  background: transparent;
+  color: inherit;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.15s;
   flex-shrink: 0;
+  padding: 0;
 }
 .back-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: var(--accent);
+  background: rgba(0, 0, 0, 0.18);
 }
 .back-btn svg {
   width: 18px;
@@ -1286,104 +1845,109 @@ input[type=range]::-moz-range-thumb {
 </style>
 </head>
 <body>
-<!-- Page Header -->
-<header class="page-header">
+<!-- Page Header — merged: navigation chrome (back btn + rhythm name + zone chip)
+     on the left, the former cct-banner controller (% · K readout, ← time →
+     arrows, Experience pill) on the right. Background tint follows cursor CCT
+     (set per-frame by positionOverlays()). -->
+<header class="page-header" id="page-header">
   <button class="back-btn" onclick="goBack()" title="Back">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <polyline points="15 18 9 12 15 6"/>
     </svg>
   </button>
-  <span style="color: var(--muted); font-size: var(--font-value); font-weight: 500;">Rhythm zone:</span>
-  <input type="text" class="rhythm-name-input" id="rhythm-name" value="Daily Rhythm 1" placeholder="Zone name">
+  <div class="rhythm-name-group">
+    <input type="text" class="rhythm-name-input" id="rhythm-name" value="Daily Rhythm 1" placeholder="Zone name">
+  </div>
+  <div class="cct-banner-readout-cluster">
+    <span class="cct-banner-readout" id="cct-banner-readout">--% &middot; ----K</span>
+    <button type="button" class="cct-banner-reset" id="cct-banner-reset" title="Reset chart view">&#x21BA;</button>
+  </div>
+  <div class="cct-banner-arrows">
+    <button type="button" id="cct-banner-prev" title="Step back">&#x2190;</button>
+    <span class="cct-banner-time" id="cct-banner-time">--:--</span>
+    <button type="button" id="cct-banner-next" title="Step forward">&#x2192;</button>
+  </div>
+  <button type="button" class="try-it-btn" id="try-it-btn" aria-haspopup="true" aria-expanded="false" title="Preview" aria-label="Preview">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/></svg>
+    <span class="try-it-label" id="try-it-label">Preview</span>
+  </button>
+  <div class="try-it-popover" id="try-it-popover" role="dialog" aria-hidden="true">
+    <div class="try-it-popover-header">
+      <span class="try-it-title">Broadcast</span>
+      <span class="try-it-counter" id="try-it-counter">0 / 3</span>
+    </div>
+    <div class="try-it-area-list" id="try-it-area-list"></div>
+    <div class="try-it-popover-footer">
+      <button type="button" class="try-it-stop-btn" id="try-it-stop-btn" style="display:none;">Stop</button>
+      <button type="button" class="try-it-done-btn" id="try-it-done-btn">Go</button>
+    </div>
+  </div>
 </header>
 
 <div class="container">
   <div id="save-status"></div>
 
-  <!-- Live Design Controls -->
-  <div class="live-design-controls" id="live-design-controls">
-    <span class="live-design-cta">
-      Live Design
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/></svg>
-    </span>
-    <select id="live-area-select">
-      <option value="">Select area</option>
-    </select>
-    <a href="#" class="live-design-link" id="live-design-toggle" style="display: none;">Stop</a>
-    <span class="live-design-status" id="live-design-status"></span>
-  </div>
-
   <!-- Chart -->
   <div class="section-block" id="chart-section">
-    <div class="chart-toolbar" style="flex-wrap: wrap;">
-      <div class="chart-date-control" style="width: 100%;">
-        <span class="chart-date-display" id="chart-date-display">Today</span>
-        <input type="range" id="chart-date-slider" min="0" max="364" value="0">
-      </div>
-      <div style="display:flex;align-items:center;width:100%;">
-        <div class="chart-schedule-toggles" id="chart-schedule-toggles" style="display:none;">
-          <label class="schedule-toggle" id="chart-wake-secondary-toggle">
-            <input type="checkbox" id="chart-wake-secondary"> wake 2
-          </label>
-          <label class="schedule-toggle" id="chart-bed-secondary-toggle">
-            <input type="checkbox" id="chart-bed-secondary"> bed 2
-          </label>
-        </div>
-        <div class="modeled-conditions" style="margin-left:auto;">
-          <select id="modeled-conditions" title="Preview how weather affects the color curve" style="width: 130px;">
-            <option value="current" selected>Current</option>
-            <option value="1.0">Sunny (100%)</option>
-            <option value="0.6">Partly cloudy (60%)</option>
-            <option value="0.3">Cloudy (30%)</option>
-            <option value="0.2">Rainy / Snowy (20%)</option>
-            <option value="0.15">Fog (15%)</option>
-            <option value="0.1">Pouring / Hail (10%)</option>
-            <option value="0.08">Lightning (8%)</option>
-            <option value="0">Dark (0%)</option>
-          </select>
-        </div>
-      </div>
-    </div>
     <div class="chart-wrapper">
-      <div id="chart"></div>
-      <div class="time-hover-label" id="time-hover-label"></div>
-      <div class="graph-cursor-callout" id="cursor-callout"></div>
-      <div class="live-fab" id="live-fab">
-        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>
-        Live
+      <div id="chart-shell">
+        <!-- Banner contents (Experience pill, % · K readout, ← time → arrows)
+             and the try-it-popover were moved up into .page-header in v1.2.215.
+             chart-shell now starts directly with the chart-relative overlays. -->
+
+        <!-- Month label — quiet caption in chart-shell bottom-left (replaces
+             the v1.2.205 banner chip). Tap opens the slider popover. -->
+        <div class="month-label" id="month-label">april</div>
+        <div class="month-popover" id="month-popover">
+          <input type="range" class="month-slider" id="month-slider" min="0" max="11" value="3">
+        </div>
+
+        <!-- Sun intensity chip — floats above chart at solar-noon x ("sun
+             shining over the graph"). Tap → opens popover. -->
+        <div class="outdoor-chip" id="outdoor-chip">
+          <span class="outdoor-chip-icon" id="outdoor-icon">&#9728;</span>
+          <span id="outdoor-pct">100%</span>
+        </div>
+        <div class="outdoor-popover" id="outdoor-popover">
+          <!-- Populated by buildOutdoorPopover() from /api/outdoor-status -->
+        </div>
+
+        <div id="chart"></div>
+        <div class="time-hover-label" id="time-hover-label"></div>
+
+        <!-- Solar band: sunrise / sunset (sun-cluster yellow) -->
+        <div class="solar-label" id="sunrise-label" data-time="">sunrise</div>
+        <div class="solar-label" id="sunset-label" data-time="">sunset</div>
+
+        <!-- Wake/bed handles. Drag = preview only; Sleep card surfaces dirty. -->
+        <div class="phase-ghost for-wake"><div class="phase-ghost-pill"></div></div>
+        <div class="phase-handle phase-wake" id="wake-handle">
+          <div class="phase-pill">
+            <span class="phase-name">wake</span>
+            <span class="phase-time">7:00a</span>
+          </div>
+        </div>
+
+        <div class="phase-ghost for-bed"><div class="phase-ghost-pill"></div></div>
+        <div class="phase-handle phase-bed" id="bed-handle">
+          <div class="phase-pill">
+            <span class="phase-name">bed</span>
+            <span class="phase-time">10:00p</span>
+          </div>
+        </div>
+
+        <div class="save-popover" id="save-popover"></div>
+
       </div>
     </div>
 
-    <div class="chart-below-row">
-      <div class="time-nav-group">
-        <button class="time-nav-btn" id="cursor-time-minus-30" title="-30 minutes">-30 min</button>
-        <button class="time-nav-btn" id="cursor-time-minus" title="-5 minutes">-5 min</button>
-        <button class="time-nav-btn" id="cursor-time-plus" title="+5 minutes">+5 min</button>
-        <button class="time-nav-btn" id="cursor-time-plus-30" title="+30 minutes">+30 min</button>
-      </div>
-      <div class="time-nav-divider"></div>
-      <button class="time-nav-btn" id="cursor-time-now" title="Jump to current time">Now</button>
-    </div>
   </div>
 
   <div class="rhythm-card" id="rhythm-sleep-card">
     <div class="rhythm-card-header" onclick="toggleRhythmCard('rhythm-sleep-card', 'rhythm_sleep_expanded')">
       <span class="rhythm-card-chevron" id="rhythm-sleep-chevron">&#x203A;</span>
-      <span class="rhythm-card-title">
-        <span class="rhythm-sleep-title-collapsed">Sleep</span>
-        <span class="rhythm-sleep-title-expanded">Sleep pattern:</span>
-      </span>
+      <span class="rhythm-card-title">Sleep</span>
       <span class="rhythm-card-val" id="rhythm-sleep-val">9:00p &ndash; 7:00a</span>
-      <span class="rhythm-sleep-pattern-val" id="rhythm-sleep-pattern-val">
-        <select id="activity-preset" class="rhythm-pattern-inline-select" onclick="event.stopPropagation()">
-          <option value="young">Young Child</option>
-          <option value="adult" selected>Adult</option>
-          <option value="nightowl">Night Owl</option>
-          <option value="duskbat">Dusk Bat</option>
-          <option value="shiftearly">Shift Early</option>
-          <option value="shiftlate">Shift Late</option>
-        </select>
-      </span>
       <div class="rhythm-sleep-summary" id="rhythm-sleep-summary" style="display:none">
         <div class="rhythm-sleep-summary-row">
           <span class="rhythm-sleep-summary-label">wake</span>
@@ -1398,6 +1962,30 @@ input[type=range]::-moz-range-thumb {
       </div>
     </div>
     <div class="rhythm-card-body" id="rhythm-sleep-body">
+      <!-- Drag-preview dirty bar — surfaces when wake/bed pill is dragged on
+           the chart. Drag = preview only; Save commits to today's group. -->
+      <div class="sleep-dirty-bar" id="sleep-dirty-bar">
+        <span class="sleep-dirty-bar-label" id="sleep-dirty-bar-kind">Wake</span>
+        <span class="sleep-dirty-bar-from" id="sleep-dirty-bar-from">7:00a</span>
+        <span class="sleep-dirty-bar-arrow">&#x2192;</span>
+        <span class="sleep-dirty-bar-to" id="sleep-dirty-bar-to">7:30a</span>
+        <span class="sleep-dirty-bar-spacer"></span>
+        <button type="button" id="sleep-dirty-revert">Revert</button>
+        <button type="button" class="sleep-dirty-save" id="sleep-dirty-save">Save</button>
+      </div>
+      <div class="sub-section" id="pattern-sub-section">
+        <div class="sub-section-header">
+          <span class="sub-section-title">Pattern</span>
+          <select id="activity-preset" class="rhythm-pattern-inline-select" onclick="event.stopPropagation()" style="margin-left:8px;">
+            <option value="young">Young Child</option>
+            <option value="adult" selected>Adult</option>
+            <option value="nightowl">Night Owl</option>
+            <option value="duskbat">Dusk Bat</option>
+            <option value="shiftearly">Shift Early</option>
+            <option value="shiftlate">Shift Late</option>
+          </select>
+        </div>
+      </div>
       <div class="sub-section" id="wake-sub-section">
         <div class="sub-section-header">
           <span class="sub-section-title">Wake</span>
@@ -1455,10 +2043,10 @@ input[type=range]::-moz-range-thumb {
                 <span class="tune-control-label">Speed</span>
                 <span class="tune-control-reset" id="reset-wake-speed" data-default="6">reset</span>
               </span>
-              <span class="tune-control-impact" id="wake-speed-display">Crisp (6)</span>
+              <span class="tune-control-impact" id="wake-speed-display">Crisp · ~3.5 hr</span>
             </div>
             <div class="tune-slider-row">
-              <input type="range" id="wake-speed" min="1" max="10" step="1" value="6">
+              <input type="range" id="wake-speed" min="1" max="12" step="1" value="6">
             </div>
           </div>
         </div>
@@ -1521,10 +2109,10 @@ input[type=range]::-moz-range-thumb {
                 <span class="tune-control-label">Speed</span>
                 <span class="tune-control-reset" id="reset-bed-speed" data-default="6">reset</span>
               </span>
-              <span class="tune-control-impact" id="bed-speed-display">Smooth (4)</span>
+              <span class="tune-control-impact" id="bed-speed-display">Smooth · ~5.9 hr</span>
             </div>
             <div class="tune-slider-row">
-              <input type="range" id="bed-speed" min="1" max="10" step="1" value="4">
+              <input type="range" id="bed-speed" min="1" max="12" step="1" value="4">
             </div>
           </div>
         </div>
@@ -1535,6 +2123,49 @@ input[type=range]::-moz-range-thumb {
       <input type="range" id="descend-start" min="0" max="36" step="0.5" value="12" style="display:none">
       <div class="section-actions" id="sleep-section-actions">
         <button class="section-cancel-btn" onclick="cancelSleepChanges()">Cancel</button>
+        <button class="section-save-btn" onclick="saveZoneSettings()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Brightness -->
+  <div class="rhythm-card" id="rhythm-brightness-card">
+    <div class="rhythm-card-header" onclick="toggleRhythmCard('rhythm-brightness-card', 'rhythm_brightness_expanded')">
+      <span class="rhythm-card-chevron">&#x203A;</span>
+      <span class="rhythm-card-title">Brightness</span>
+      <span class="rhythm-card-val" id="rhythm-brightness-val">1 – 100%</span>
+    </div>
+    <div class="rhythm-card-body" id="rhythm-brightness-body">
+      <div id="rhythm-bri-gradient-container" class="ct-gradient-wrap"></div>
+      <input type="hidden" id="brightness-min" value="1">
+      <input type="hidden" id="brightness-max" value="100">
+      <div class="bri-sub-section">
+        <div class="color-rule-stack" data-color-row="brightness-sensitivity">
+          <div class="color-rule-stack-label">
+            <label class="color-rule-label">Sun dimming</label>
+            <div class="color-rule-controls">
+              <div class="color-rule-toggle"><input type="checkbox" id="brightness-sensitivity-enabled" checked></div>
+              <span class="info-icon" data-tooltip="brightness-sensitivity-info">i<span class="info-tooltip" id="brightness-sensitivity-info">How aggressively brightness pulls back when sun is high. Higher = more dimming on bright sunny days.</span></span>
+            </div>
+          </div>
+          <div class="color-rule-stack-body" id="brightness-sensitivity-body">
+            <div class="reveal-group brightness-sensitivity-group">
+              <div class="tune-control-row">
+                <span class="tune-control-left">
+                  <span class="tune-control-label">Sun impact</span>
+                  <span class="tune-control-reset" id="reset-brightness-sensitivity" data-default="5">reset</span>
+                </span>
+                <span class="tune-control-impact" id="brightness-sensitivity-text">1.00: standard</span>
+              </div>
+              <div class="tune-slider-row">
+                <input type="range" id="brightness-sensitivity" min="0" max="8" step="1" value="5">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="section-actions" id="brightness-section-actions">
+        <button class="section-cancel-btn" onclick="cancelBrightnessChanges()">Cancel</button>
         <button class="section-save-btn" onclick="saveZoneSettings()">Save</button>
       </div>
     </div>
@@ -1657,7 +2288,7 @@ input[type=range]::-moz-range-thumb {
             <div class="reveal-group">
               <div class="tune-control-row">
                 <span class="tune-control-left">
-                  <span class="tune-control-label">Sun response</span>
+                  <span class="tune-control-label">Sun impact</span>
                   <span class="tune-control-reset" id="reset-color-sensitivity" data-default="5">reset</span>
                 </span>
                 <span class="tune-control-impact" id="color-sensitivity-text">1.00: standard</span>
@@ -1676,37 +2307,6 @@ input[type=range]::-moz-range-thumb {
     </div>
   </div>
 
-  <!-- Brightness -->
-  <div class="rhythm-card" id="rhythm-brightness-card">
-    <div class="rhythm-card-header" onclick="toggleRhythmCard('rhythm-brightness-card', 'rhythm_brightness_expanded')">
-      <span class="rhythm-card-chevron">&#x203A;</span>
-      <span class="rhythm-card-title">Brightness</span>
-      <span class="rhythm-card-val" id="rhythm-brightness-val">1 – 100%</span>
-    </div>
-    <div class="rhythm-card-body" id="rhythm-brightness-body">
-      <div id="rhythm-bri-gradient-container" class="ct-gradient-wrap"></div>
-      <input type="hidden" id="brightness-min" value="1">
-      <input type="hidden" id="brightness-max" value="100">
-      <div class="bri-sub-section">
-        <div class="reveal-group brightness-sensitivity-group">
-          <div class="tune-control-row">
-            <span class="tune-control-left">
-              <label class="color-rule-label">Sun response<span class="info-icon" data-tooltip="brightness-sensitivity-info">i<span class="info-tooltip" id="brightness-sensitivity-info">How aggressively brightness pulls back when sun is high. Higher = more dimming on bright sunny days.</span></span></label>
-              <span class="tune-control-reset" id="reset-brightness-sensitivity" data-default="5">reset</span>
-            </span>
-            <span class="tune-control-impact" id="brightness-sensitivity-text">1.00: standard</span>
-          </div>
-          <div class="tune-slider-row">
-            <input type="range" id="brightness-sensitivity" min="0" max="8" step="1" value="5">
-          </div>
-        </div>
-      </div>
-      <div class="section-actions" id="brightness-section-actions">
-        <button class="section-cancel-btn" onclick="cancelBrightnessChanges()">Cancel</button>
-        <button class="section-save-btn" onclick="saveZoneSettings()">Save</button>
-      </div>
-    </div>
-  </div>
 </div>
 
 <script src="./shared.js"></script>
@@ -1716,10 +2316,38 @@ input[type=range]::-moz-range-thumb {
 // ============================================================
 
 const GRAPH_Y_MAX = 125;
-const SPEED_LABELS = ['', 'Calm', 'Gentle', 'Soft', 'Smooth', 'Balanced', 'Crisp', 'Fast', 'Snappy', 'Quick', 'Sharp'];
-const SPEED_TO_SLOPE = [0, 0.4, 0.6, 0.8, 1.0, 1.3, 1.7, 2.3, 3.0, 4.0, 5.5];
+const SPEED_LABELS = ['', 'Calm', 'Gentle', 'Soft', 'Smooth', 'Balanced', 'Crisp', 'Fast', 'Snappy', 'Quick', 'Sharp', 'Flash', 'Instant'];
+// Slopes (k) chosen so the 5%→95% logistic transition width = 2*ln(19)/k hours
+// lands on user-friendly target durations:
+//   1=10h, 2=7.5h, 3=5.5h, 4=4h, 5=3h, 6=2.25h, 7=1.5h, 8=1h,
+//   9=30min, 10=15min, 11=5min, 12=2min
+const SPEED_TO_SLOPE = [0, 0.5889, 0.7852, 1.0708, 1.4722, 1.9630, 2.6173, 3.9260, 5.8890, 11.778, 23.556, 70.668, 176.67];
 
-// Colors matching llm_access.html
+// Render compact, "user-friendly" duration text: "~10 hr", "~7.5 hr", "~2.25 hr",
+// "~4 hr" (no ".0"), "~30 min". Used in the wake/bed Speed slider readout so
+// users know how long the transition actually takes at each speed level.
+function speedTransitionLabel(speedIdx) {
+  const k = SPEED_TO_SLOPE[Math.max(1, Math.min(12, speedIdx))];
+  if (!k || k <= 0) return '';
+  const hours = 5.889 / k;  // 2 * ln(19) / k
+  const minutes = hours * 60;
+  if (minutes < 60) return `~${Math.round(minutes)} min`;
+  // toFixed(2) then strip trailing zeros: 4.00→"4", 7.50→"7.5", 2.25→"2.25"
+  const formatted = hours.toFixed(2).replace(/\.?0+$/, '');
+  return `~${formatted} hr`;
+}
+// Idle (no active drag): "Snappy · ~2 hr" — word + time, no level number.
+function formatSpeedReadoutIdle(speedIdx) {
+  return `${SPEED_LABELS[speedIdx]} · ${speedTransitionLabel(speedIdx)}`;
+}
+// Active drag: "8 · Snappy · ~2 hr" — level shown so user can navigate the slider.
+function formatSpeedReadoutActive(speedIdx) {
+  return `${speedIdx} · ${SPEED_LABELS[speedIdx]} · ${speedTransitionLabel(speedIdx)}`;
+}
+
+// Phase tinting on chart. Sleep cluster (wake = ascend, bed = descend) reads
+// as one cool family; deeper blue on the descend side to differentiate from
+// ascend's sky blue while keeping both in the cool/sleep palette.
 const ASCEND_COLORS = {
   shade: 'rgba(120,190,255,0.35)',
   text: '#5cb3ff',
@@ -1728,11 +2356,11 @@ const ASCEND_COLORS = {
   hoverBg: '#7fc7ff'
 };
 const DESCEND_COLORS = {
-  shade: 'rgba(255,220,100,0.12)',
-  text: '#ffe680',
-  boundary: 'rgba(255,230,128,0.85)',
-  axis: 'rgba(255,230,128,0.7)',
-  hoverBg: '#ffe680'
+  shade: 'rgba(111,169,255,0.18)',
+  text: '#6fa9ff',
+  boundary: 'rgba(111,169,255,0.85)',
+  axis: 'rgba(111,169,255,0.75)',
+  hoverBg: '#6fa9ff'
 };
 
 // Activity Presets
@@ -1768,9 +2396,21 @@ function findClosestSensitivityStep(value) {
   return closest;
 }
 
-// Chart schedule toggles — pick which wake/bed timing the chart displays
-let chartWakeMode = 'primary';
-let chartBedMode = 'primary';
+// Chart drag/anchor state (replaces removed chart-date / variant toggles)
+let chartState = {
+  ascendStart: 3.0,
+  monthIdx: new Date().getMonth(),
+  wakeDragActive: false,
+  bedDragActive: false,
+  wakeDragVal: null,    // working wake time during drag (0-24)
+  bedDragVal: null,     // working bed time during drag (0-24)
+  wakeHovering: false,  // pointer over wake pill (no drag) — show preview cursor
+  bedHovering: false,
+  sunriseHovering: false,  // pointer over sunrise label — draw chart-spanning yellow line
+  sunsetHovering: false,
+  outdoorSrc: 'current',  // 'current' or 'manual'
+  outdoorPctManual: 100,  // user-picked manual condition %
+};
 
 // State
 let config = {
@@ -1784,6 +2424,8 @@ let config = {
   max_color_temp: 3600,
   min_brightness: 1,
   max_brightness: 100,
+  brightness_sensitivity: 1.0,
+  brightness_sensitivity_enabled: true,
   max_dim_steps: 10,  // home-wide setting, read from config
   warm_night_enabled: true,
   warm_night_mode: 'all',
@@ -1809,7 +2451,7 @@ let configSnapshot = {};
 
 const SLEEP_FIELDS = ['wake_time', 'bed_time', 'wake_speed', 'bed_speed', 'wake_brightness', 'bed_brightness', 'ascend_start', 'descend_start', 'activity_preset', 'wake_alt_time', 'wake_alt_days', 'bed_alt_time', 'bed_alt_days', '_wake_alt_time_last', '_bed_alt_time_last'];
 const COLOR_FIELDS = ['min_color_temp', 'max_color_temp', 'warm_night_enabled', 'warm_night_mode', 'warm_night_target', 'warm_night_start', 'warm_night_end', 'warm_night_fade', 'daylight_enabled', 'daylight_cct', 'daylight_start', 'daylight_end', 'daylight_fade', 'color_sensitivity'];
-const BRIGHTNESS_FIELDS = ['min_brightness', 'max_brightness', 'brightness_sensitivity'];
+const BRIGHTNESS_FIELDS = ['min_brightness', 'max_brightness', 'brightness_sensitivity', 'brightness_sensitivity_enabled'];
 
 function takeConfigSnapshot() {
   configSnapshot = JSON.parse(JSON.stringify(config));
@@ -1838,6 +2480,8 @@ let _liveConditionMult = null;
 let _liveCondition = null;
 let _liveSource = null;
 let _outdoorParams = {};
+let _outdoorGroups = [];  // weather_groups from /api/outdoor-status (label/key/multiplier)
+let cursorStepMin = 5;    // ←/→ step amount for the cursor chip arrows (Settings → App → Rhythm chart)
 
 // Cursor state — always present, initialized to current time
 const _nowInit = new Date();
@@ -1847,8 +2491,11 @@ let graphData = null;
 
 // Live Design state
 let liveDesignEnabled = false;
-let liveDesignAreaId = null;
-let liveDesignFirstApply = false;  // Use longer transition on first apply after entering
+let liveDesignAreaIds = [];               // Array of area_ids currently being broadcast to (max 3)
+let liveDesignAreas = [];                 // Cached list of {area_id, name} from /api/areas
+let liveDesignZones = [];                 // Same areas grouped by glozone: [{name, areas:[...]}]
+let liveDesignFirstApply = false;         // Use longer transition on first apply after entering
+const TRY_IT_MAX = 3;                     // Zigbee-friendly cap on simultaneous broadcast targets
 
 // ============================================================
 // Solar Calculation Helpers
@@ -1990,12 +2637,11 @@ function applySolarRuleAtHour(baseCCT, hour) {
   // Cool day color blend (intensity-based)
   let dayShift = 0;
   if (config.daylight_enabled !== false) {
-    const condDropdown = document.getElementById('modeled-conditions')?.value ?? '1.0';
     let conditionMult;
-    if (condDropdown === 'current') {
+    if (chartState.outdoorSrc === 'current') {
       conditionMult = _liveConditionMult ?? 1.0;
     } else {
-      conditionMult = parseFloat(condDropdown) || 1.0;
+      conditionMult = (chartState.outdoorPctManual / 100) || 0;
     }
     const dateStr = getSelectedDateISO();
     const elev = getSunElevationAtHour(hour, config.latitude, config.longitude, dateStr);
@@ -2028,10 +2674,8 @@ function applySolarRuleAtHour(baseCCT, hour) {
  * Get Python weekday (0=Mon..6=Sun) for the chart date slider.
  */
 function getChartWeekday() {
-  const slider = document.getElementById('chart-date-slider');
-  const dayOffset = slider ? parseInt(slider.value) : 0;
-  const target = new Date(new Date().getFullYear(), 0, 1 + dayOffset);
-  return (target.getDay() + 6) % 7;  // JS getDay (0=Sun) → Python weekday (0=Mon)
+  // Chart always reflects today's actual weekday (variant viewing dropped).
+  return (new Date().getDay() + 6) % 7;  // JS getDay (0=Sun) → Python weekday (0=Mon)
 }
 
 /**
@@ -2041,25 +2685,21 @@ function resolveEffectiveTiming(hour, weekday, wakeWeekdayOverride) {
   let wake = config.wake_time;
   let bed = config.bed_time;
 
-  // Chart schedule toggles override weekday-based logic
-  if (chartWakeMode === 'alt' && config.wake_alt_time != null) {
-    wake = config.wake_alt_time;
-  } else if (chartWakeMode === 'primary') {
-    // use primary (default)
+  // Drag working-copy overrides stored timing until commit/reset, so the
+  // curve previews the new schedule on the chart while the Sleep accordion
+  // continues to show the saved value.
+  if (chartState.wakeDragVal != null) {
+    wake = chartState.wakeDragVal;
   } else {
-    // Weekday-based fallback
     const wakeWd = wakeWeekdayOverride != null ? wakeWeekdayOverride : weekday;
     if (config.wake_alt_time != null && (config.wake_alt_days || []).includes(wakeWd)) {
       wake = config.wake_alt_time;
     }
   }
 
-  if (chartBedMode === 'alt' && config.bed_alt_time != null) {
-    bed = config.bed_alt_time;
-  } else if (chartBedMode === 'primary') {
-    // use primary (default)
+  if (chartState.bedDragVal != null) {
+    bed = chartState.bedDragVal;
   } else {
-    // Weekday-based fallback
     let bedWeekday = weekday;
     if (hour < config.ascend_start) {
       bedWeekday = (weekday + 6) % 7;  // yesterday
@@ -2110,8 +2750,8 @@ function getValuesAtTime(hour) {
   const phase = inAscend ? 'Ascend' : 'Descend';
 
   // Slopes - clamp speed to valid range 1-10 (matches brain.py)
-  const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.wake_speed))];
-  const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.bed_speed))];
+  const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, config.wake_speed))];
+  const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, config.bed_speed))];
 
   // Config bounds (only use these, no runtime overrides)
   const bMin = config.min_brightness / 100;
@@ -2285,19 +2925,20 @@ function elevationToOutdoorNorm(elevDeg, conditionMultiplier) {
   if (elevDeg <= 0 || conditionMultiplier <= 0) return 0;
   const maxElev = _outdoorParams.maxSummerElevation || 78;
   const satPct = _outdoorParams.sunSaturation || 25;
-  const ramp = _outdoorParams.sunSaturationRamp || 'linear';
   const threshold = maxElev * satPct / 100;
   if (threshold <= 0) return conditionMultiplier;
-  let raw = Math.min(1.0, elevDeg / threshold);
-  if (ramp === 'squared') raw = raw * raw;
-  return raw * conditionMultiplier;
+  const raw = Math.min(1.0, elevDeg / threshold);
+  const x = Math.pow(raw, 0.75);
+  return x * x * (3 - 2 * x) * conditionMultiplier;
 }
 
 function getSelectedDateISO() {
-  const slider = document.getElementById('chart-date-slider');
-  const dayOffset = slider ? parseInt(slider.value) : 0;
+  // Month slider drives sunrise/sunset modeling — anchor to the 15th of the
+  // selected month so users see a representative day for that month.
   const now = new Date();
-  const target = new Date(now.getFullYear(), 0, 1 + dayOffset);
+  const monthIdx = (chartState && Number.isInteger(chartState.monthIdx))
+    ? chartState.monthIdx : now.getMonth();
+  const target = new Date(now.getFullYear(), monthIdx, 15);
   return target.toISOString().split('T')[0];
 }
 
@@ -2450,11 +3091,11 @@ function renderColorGradient() {
   let refHtml = '';
   refHtml += '<span class="ct-axis-label ct-draggable" data-handle="warmest" style="' + refStyle(ctPct(minK)) + '">warmest</span>';
   if (warmEnabled) {
-    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="night-max" style="' + refStyle(ctPct(warmTarget)) + '">coolest: night</span>';
+    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="night-max" style="' + refStyle(ctPct(warmTarget)) + '">coolest<span class="ct-label-colon">: </span><span class="ct-label-sub">night</span></span>';
   }
   if (dayEnabled) {
-    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-base" style="' + refStyle(ctPct(maxK)) + '">coolest: no-sun</span>';
-    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-day" style="' + refStyle(ctPct(dayCct)) + '">coolest: sunny</span>';
+    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-base" style="' + refStyle(ctPct(maxK)) + '">coolest<span class="ct-label-colon">: </span><span class="ct-label-sub">no-sun</span></span>';
+    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-day" style="' + refStyle(ctPct(dayCct)) + '">coolest<span class="ct-label-colon">: </span><span class="ct-label-sub">sunny</span></span>';
   } else {
     refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-base" style="' + refStyle(ctPct(maxK)) + '">coolest</span>';
   }
@@ -2748,11 +3389,13 @@ function applyBriHandleValue(handleName, val) {
   updateRangeDisplays();
 }
 
-// Apply solar color rules to CCT curve (batch version for chart rendering)
+// Apply solar color rules to CCT curve (batch version for chart rendering).
+// hoursArray may be chart-frame coords (>=24 in the second half of a sliding
+// window); applySolarRuleAtHour expects wall-clock so wrap before passing.
 function adjustCCTForSolarRules(cctArray, hoursArray, sunrise, sunset) {
   if (!config.warm_night_enabled && !config.daylight_cct) return;
   for (let i = 0; i < cctArray.length; i++) {
-    cctArray[i] = applySolarRuleAtHour(cctArray[i], hoursArray[i]);
+    cctArray[i] = applySolarRuleAtHour(cctArray[i], wrapHour(hoursArray[i]));
   }
 }
 
@@ -2776,6 +3419,27 @@ function formatHour(h) {
 
 function fmtTime(h) {
   return formatHour(h);
+}
+
+// Parse a typed time string. Accepts "7:27a", "7:27am", "7:27 AM", "19:27",
+// "7" (assumes :00). Returns hours as float [0,24) or null on bad input.
+function parseTimeString(str) {
+  if (!str) return null;
+  const s = String(str).trim().toLowerCase().replace(/\s+/g, '');
+  const m = s.match(/^(\d{1,2})(?::(\d{1,2}))?\s*(a|p|am|pm)?$/);
+  if (!m) return null;
+  let hr = parseInt(m[1], 10);
+  const min = m[2] != null ? parseInt(m[2], 10) : 0;
+  const period = m[3];
+  if (isNaN(hr) || isNaN(min) || min < 0 || min > 59) return null;
+  if (period) {
+    if (hr < 1 || hr > 12) return null;
+    if (period.startsWith('p') && hr !== 12) hr += 12;
+    else if (period.startsWith('a') && hr === 12) hr = 0;
+  } else {
+    if (hr < 0 || hr > 23) return null;
+  }
+  return hr + min / 60;
 }
 
 function logistic(x, midpoint, slope, y0, y1) {
@@ -2819,8 +3483,8 @@ function calculateBrightnessAtHour(hour) {
   let bedMid = timing.bed;
 
   // Clamp speed to valid range 1-10 (matches brain.py)
-  const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.wake_speed))];
-  const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.bed_speed))];
+  const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, config.wake_speed))];
+  const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, config.bed_speed))];
 
   // Config bounds
   const bMin = config.min_brightness / 100;
@@ -2903,8 +3567,8 @@ function calculateColorAtHour(hour, applySolar = true) {
   let colorBedMid = timing.bed;
 
   // Clamp speed to valid range 1-10 (matches brain.py)
-  const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.wake_speed))];
-  const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(10, config.bed_speed))];
+  const kAscend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, config.wake_speed))];
+  const kDescend = SPEED_TO_SLOPE[Math.max(1, Math.min(12, config.bed_speed))];
 
   // Config bounds
   const cLow = config.min_color_temp;
@@ -2992,17 +3656,20 @@ function getPhaseAtHour(hour) {
  * Generate curve data for chart rendering.
  * Uses the core calculation functions to ensure consistency.
  */
-function calculateCurveData() {
+function calculateCurveData(xAnchor) {
   const tAscend = config.ascend_start;
   let tDescend = config.descend_start;
   if (tDescend <= tAscend) tDescend += 24;
 
-  const hours = Array.from({ length: 480 }, (_, i) => (i * 3) / 60);
+  // hours are chart-frame coordinates [xA, xA+24); calc functions take
+  // wall-clock 0-24, so wrap before computing.
+  const xA = xAnchor != null ? xAnchor : 0;
+  const N = 480;
+  const hours = Array.from({ length: N }, (_, i) => xA + (i * 24) / (N - 1));
 
-  // Use core calculation functions for each data point
-  const brightness = hours.map(h => calculateBrightnessAtHour(h));
-  const cct = hours.map(h => calculateColorAtHour(h, false));  // Solar rules applied separately in renderChart
-  const phase = hours.map(h => getPhaseAtHour(h));
+  const brightness = hours.map(h => calculateBrightnessAtHour(wrapHour(h)));
+  const cct = hours.map(h => calculateColorAtHour(wrapHour(h), false));
+  const phase = hours.map(h => getPhaseAtHour(wrapHour(h)));
 
   return { hours, brightness, cct, phase, tAscend, tDescend };
 }
@@ -3037,22 +3704,51 @@ function renderChart() {
   sunTimes = { sunrise, sunset, solarNoon, solarMid };
   updateSolarImpacts();
 
-  const data = calculateCurveData();
+  const xA = chartState.ascendStart;
+  const xE = xA + 24;
 
-  // Apply solar color rules to CCT
+  const data = calculateCurveData(xA);
+
+  // Apply solar color rules to CCT (frame-coord hours wrapped inside)
   adjustCCTForSolarRules(data.cct, data.hours, sunrise, sunset);
 
-  const { hours, brightness, cct, phase, tAscend, tDescend } = data;
-  const brightnessPct = brightness.map(v => v * 100);
+  // Sun-dim reference dotted line: bulb output = room target × sun_bright_factor.
+  // sun_bright_factor = max(0, 1 - sun_angle_norm × outdoor_mult × brightness_sensitivity).
+  // Driven by month (sun angle), outdoor chip (conditionMult), and brightness_sensitivity.
+  const conditionMult = chartState.outdoorSrc === 'current'
+    ? (_liveConditionMult ?? 1.0)
+    : ((chartState.outdoorPctManual ?? 100) / 100);
+  const briSens = config.brightness_sensitivity ?? 1.0;
+  const showDottedTarget = conditionMult > 0
+                            && briSens > 0
+                            && config.brightness_sensitivity_enabled !== false;
+  const targetCct = data.hours.map(h => calculateColorAtHour(wrapHour(h), false));
+  const _dotDateStr = getSelectedDateISO();
+  const sunDimFactor = (h) => {
+    const elev = getSunElevationAtHour(wrapHour(h), config.latitude, config.longitude, _dotDateStr);
+    const angleNormCond = elevationToOutdoorNorm(elev, conditionMult);
+    const dim = angleNormCond * briSens;
+    return Math.max(0, Math.min(1, 1 - dim));
+  };
+  // Expose for applyCursor / positionOverlays so cursor + NOW pill match the
+  // visible (sun-dimmed) bulb-output curve, not the room-target curve.
+  chartState.sunDimFactor = showDottedTarget ? sunDimFactor : (() => 1.0);
 
-  // Store graph data for cursor functions (include brightnessPct for 0-100 scale)
-  graphData = { ...data, brightnessPct };
-  const samplesPerHour = hours.length / 24;
+  const { hours, brightness, cct, phase, tAscend, tDescend } = data;
+  const roomTargetPct = brightness.map(v => v * 100);
+  const brightnessPct = roomTargetPct.map((v, i) => v * chartState.sunDimFactor(hours[i]));
+
+  // Store graph data for cursor functions (brightnessPct = visible bulb output)
+  graphData = { ...data, brightnessPct, roomTargetPct };
 
   // Build traces
   const traces = [];
 
-  // Color-gradient brightness curve (filled + line segments)
+  // Color-gradient brightness curve (filled + line segments). Fill alpha
+  // matches line color so the area under the curve is color-honest. Solid =
+  // brightnessPct (sun-dimmed bulb output) — what the lights actually emit
+  // and what Live Design broadcasts. The dotted overlay above shows the
+  // un-dimmed calculated target so the gap = "what the sun is doing for me."
   const step = 2;
   for (let i = step; i < hours.length; i += step) {
     const color = cctToRGB(cct[i]);
@@ -3062,47 +3758,65 @@ function renderChart() {
     const y0 = brightnessPct[i - step];
     const y1 = brightnessPct[i];
 
-    // Filled area under curve
     traces.push({
-      type: 'scatter',
-      mode: 'lines',
-      x: [x0, x1, x1, x0],
-      y: [y0, y1, 0, 0],
-      fill: 'toself',
-      line: { width: 0 },
+      type: 'scatter', mode: 'lines',
+      x: [x0, x1, x1, x0], y: [y0, y1, 0, 0],
+      fill: 'toself', line: { width: 0 },
       fillcolor: fillColor,
-      hoverinfo: 'skip',
-      showlegend: false
+      hoverinfo: 'skip', showlegend: false,
     });
-
-    // Colored line segment
     traces.push({
-      type: 'scatter',
-      mode: 'lines',
-      x: [x0, x1],
-      y: [y0, y1],
+      type: 'scatter', mode: 'lines',
+      x: [x0, x1], y: [y0, y1],
       line: { width: 3, color },
-      hoverinfo: 'skip',
-      showlegend: false
+      hoverinfo: 'skip', showlegend: false,
     });
   }
 
-  // Hover trace - CCT colored background, shows phase, no time
+  // Dotted reference line = room target (un-dimmed brightness). Sits ABOVE
+  // the visible bulb-output curve during daylight; the gap = how much the sun
+  // is doing the bulb's job. Only drawn in segments where the gap is real.
+  let sunContribAnchor = null;  // {x, y} for the "sun contribution" label
+  if (showDottedTarget) {
+    const GAP_THRESHOLD = 0.75;
+    const dx = []; const dy = [];
+    let maxGap = 0;
+    let maxGapIdx = -1;
+    for (let i = 0; i < hours.length; i++) {
+      const gap = roomTargetPct[i] - brightnessPct[i];
+      if (gap > GAP_THRESHOLD) {
+        dx.push(hours[i]); dy.push(roomTargetPct[i]);
+        if (gap > maxGap) { maxGap = gap; maxGapIdx = i; }
+      } else if (dx.length && dx[dx.length - 1] !== null) {
+        dx.push(null); dy.push(null);  // segment break
+      }
+    }
+    if (dx.some(v => v !== null)) {
+      traces.push({
+        type: 'scatter', mode: 'lines',
+        x: dx, y: dy,
+        line: { width: 1.2, color: 'rgba(220,220,220,0.42)', dash: 'dot' },
+        connectgaps: false,
+        hoverinfo: 'skip', showlegend: false,
+      });
+      if (maxGapIdx >= 0) {
+        sunContribAnchor = { x: hours[maxGapIdx], y: roomTargetPct[maxGapIdx] };
+      }
+    }
+  }
+
+  // Hover trace - CCT colored background (bulb output, matches visible curve)
   const hoverDetails = brightnessPct.map((v, i) => {
     const pct = Math.round(v);
     const kelvin = Math.round(cct[i]);
-    return `${pct}% • ${kelvin}K`;
+    return `${pct}% \u2022 ${kelvin}K`;
   });
-
   const hoverBgColors = cct.map(k => colorWithAlpha(cctToRGB(k), 0.92));
   const hoverTextColors = cct.map(k => readableTextColor(cctToRGB(k)));
   const hoverBorderColors = cct.map(k => colorWithAlpha(cctToRGB(k), 0.65));
-
   traces.push({
-    type: 'scatter',
-    mode: 'lines',
-    x: hours,
-    y: brightnessPct,
+    type: 'scatter', mode: 'lines',
+    x: hours, y: brightnessPct,
     line: { width: 0 },
     showlegend: false,
     text: hoverDetails,
@@ -3110,154 +3824,95 @@ function renderChart() {
     hoverlabel: {
       bgcolor: hoverBgColors,
       bordercolor: hoverBorderColors,
-      font: { color: hoverTextColors, size: 13 }
-    }
-  });
-
-  // Legend placeholder for Circadian Light
-  traces.push({
-    type: 'scatter',
-    mode: 'lines',
-    x: [null],
-    y: [null],
-    line: { width: 3, color: '#fff' },
-    name: 'Circadian Light',
-    hoverinfo: 'skip',
-    showlegend: true
+      font: { color: hoverTextColors, size: 13 },
+    },
   });
 
   // Cursor point marker trace (CCT-colored ball at cursor position)
   traces.push({
-    x: [null],
-    y: [null],
+    x: [null], y: [null],
     mode: 'markers',
     marker: { size: 14, color: '#fff', line: { width: 2, color: '#fff' } },
-    hoverinfo: 'skip',
-    showlegend: false,
-    name: 'cursor-point'
+    hoverinfo: 'skip', showlegend: false,
+    name: 'cursor-point',
   });
   window.cursorTraceIndex = traces.length - 1;
 
-  // Shapes and annotations
+  // Vertical wake/bed preview lines — ALWAYS visible as ambient context
+  // (whisper-quiet width + opacity); brighten + thicken on hover/drag so the
+  // interaction still feels distinct. The CCT-tinted "circle on the curve"
+  // marker was dropped — it just duplicated the pill's x-position without
+  // adding readable info. Yellow sunrise/sunset lines render only on hover
+  // (no always-visible state — would compete with the wake/bed ambient lines).
+  // The cursor line is independent and managed by applyCursor().
+  const tFor = h => visHour(h, xA);
+  const wakeActive = chartState.wakeDragActive || chartState.wakeHovering;
+  const bedActive = chartState.bedDragActive || chartState.bedHovering;
   const shapes = [];
-  const annotations = [];
-
-  const ascendStart = wrap24(config.ascend_start);
-  const descendStart = wrap24(config.descend_start);
-
-  // Below-axis annotation positions (tiered: x-ticks → phase → solar → cursor)
-  const phaseLabelLineY = -0.12;
-  const phaseLabelY = -0.24;
-  const solarLabelLineY = -0.26;
-  const solarLabelY = -0.33;
-  const cursorExtendY = -0.38;
-
-  // X-axis labels (from top to bottom):
-  // 1. Time labels (handled by xaxis ticktext at y=0)
-  // 2. Phase labels (ascend starts, wake, descend starts, bed)
-  // 3. Solar labels (sunrise, sunset, etc.), muted grey
-
-  // Phase labels with vertical lines — phase-aware timing for alt days
-  const chartWeekday = getChartWeekday();
-  // Determine current phase to resolve correct day for wake vs bed lines
-  const nowH = typeof cursorHour !== 'undefined' && cursorHour !== null
-    ? cursorHour : new Date().getHours() + new Date().getMinutes() / 60;
-  const h48c = nowH < ascendStart ? nowH + 24 : nowH;
-  const dStart48 = descendStart <= ascendStart ? descendStart + 24 : descendStart;
-  const chartInAscend = h48c >= ascendStart && h48c < dStart48;
-  // During ascend: wake=today, bed=today
-  // During descend: wake=tomorrow, bed=today (or yesterday if post-midnight)
-  let wakeWeekday, bedWeekday;
-  if (chartInAscend) {
-    wakeWeekday = chartWeekday;
-    bedWeekday = chartWeekday;
-  } else {
-    wakeWeekday = nowH < ascendStart ? chartWeekday : (chartWeekday + 1) % 7;
-    bedWeekday = nowH < ascendStart ? (chartWeekday + 6) % 7 : chartWeekday;
+  {
+    const wt = chartState.wakeDragVal != null ? chartState.wakeDragVal : config.wake_time;
+    shapes.push({ type: 'line', xref: 'x', yref: 'paper', layer: 'below',
+      x0: tFor(wt), x1: tFor(wt), y0: 0, y1: 1,
+      line: {
+        color: wakeActive ? 'rgba(92,179,255,0.55)' : 'rgba(92,179,255,0.30)',
+        width: wakeActive ? 1.5 : 1,
+      } });
   }
-  const wakeTiming = resolveEffectiveTiming(nowH, wakeWeekday);
-  const bedTiming = resolveEffectiveTiming(nowH, bedWeekday);
-  const phaseLabels = [
-    { label: 'wake', x: wrap24(wakeTiming.wake), color: ASCEND_COLORS.text, lineColor: ASCEND_COLORS.axis },
-    { label: 'bed', x: wrap24(bedTiming.bed), color: DESCEND_COLORS.text, lineColor: DESCEND_COLORS.axis }
-  ];
-
-  phaseLabels.forEach(marker => {
-    // Vertical line from label up through the graph
-    shapes.push({
-      type: 'line', xref: 'x', yref: 'paper',
-      x0: marker.x, x1: marker.x,
-      y0: phaseLabelLineY,
-      y1: 1,
-      line: { color: marker.lineColor, width: 1, dash: 'dot' }
-    });
-    const hoverBg = marker.color === ASCEND_COLORS.text ? ASCEND_COLORS.hoverBg : DESCEND_COLORS.hoverBg;
+  {
+    const bt = chartState.bedDragVal != null ? chartState.bedDragVal : config.bed_time;
+    shapes.push({ type: 'line', xref: 'x', yref: 'paper', layer: 'below',
+      x0: tFor(bt), x1: tFor(bt), y0: 0, y1: 1,
+      line: {
+        color: bedActive ? 'rgba(111,169,255,0.55)' : 'rgba(111,169,255,0.30)',
+        width: bedActive ? 1.5 : 1,
+      } });
+  }
+  if (chartState.sunriseHovering && Number.isFinite(sunTimes.sunrise)) {
+    shapes.push({ type: 'line', xref: 'x', yref: 'paper', layer: 'below',
+      x0: tFor(sunTimes.sunrise), x1: tFor(sunTimes.sunrise), y0: 0, y1: 1,
+      line: { color: 'rgba(255,225,140,0.55)', width: 1.5 } });
+  }
+  if (chartState.sunsetHovering && Number.isFinite(sunTimes.sunset)) {
+    shapes.push({ type: 'line', xref: 'x', yref: 'paper', layer: 'below',
+      x0: tFor(sunTimes.sunset), x1: tFor(sunTimes.sunset), y0: 0, y1: 1,
+      line: { color: 'rgba(255,225,140,0.55)', width: 1.5 } });
+  }
+  const annotations = [];
+  if (sunContribAnchor) {
     annotations.push({
-      x: marker.x, y: phaseLabelY, xref: 'x', yref: 'paper',
-      text: marker.label,
-      showarrow: false,
-      font: { size: 11, color: marker.color },
-      hovertext: fmtTime(marker.x),
-      hoverlabel: {
-        bgcolor: hoverBg,
-        bordercolor: hoverBg,
-        font: { color: readableTextColor(hoverBg), size: 12 }
-      }
+      x: sunContribAnchor.x, y: sunContribAnchor.y, xref: 'x', yref: 'y',
+      text: 'sun dimming', showarrow: false, yshift: -10,
+      font: { size: 10, color: 'rgba(220, 220, 220, 0.5)' },
     });
-  });
-
-  // Solar labels - all same muted grey color, lower position
-  const solarLabelColor = 'rgba(215,215,215,0.8)';
-  const solarLineColor = 'rgba(200,200,200,0.35)';
-  const solarLabels = [
-    { label: 'sunrise', x: wrap24(sunrise) },
-    { label: 'sunset', x: wrap24(sunset) }
-  ];
-
-  const solarHoverBg = '#3a3a3a';
-  solarLabels.forEach(marker => {
-    if (!Number.isFinite(marker.x)) return;
-    shapes.push({
-      type: 'line', xref: 'x', yref: 'paper',
-      x0: marker.x, x1: marker.x,
-      y0: solarLabelLineY,
-      y1: 0,
-      line: { color: solarLineColor, width: 1, dash: 'dot' }
-    });
-    annotations.push({
-      x: marker.x, y: solarLabelY, xref: 'x', yref: 'paper',
-      text: marker.label,
-      showarrow: false,
-      font: { size: 10, color: solarLabelColor },
-      hovertext: fmtTime(marker.x),
-      hoverlabel: {
-        bgcolor: solarHoverBg,
-        bordercolor: solarHoverBg,
-        font: { color: '#fff', size: 12 }
-      }
-    });
-  });
+  }
 
   // Store base shapes/annotations for cursor updates
   window.baseShapes = shapes.slice();
   window.baseAnnotations = annotations.slice();
 
+  // Tick generation: 8 ticks at xA + i*3 for i in 0..7 (skip trailing dup)
+  const tickvals = [];
+  const ticktext = [];
+  for (let i = 0; i < 8; i++) {
+    const t = xA + i * 3;
+    tickvals.push(t);
+    ticktext.push(fmtHourShort(t));
+  }
+
   const layout = {
     paper_bgcolor: '#0a0a0a',
     plot_bgcolor: '#0a0a0a',
-    margin: { t: 10, r: 40, l: 36, b: 90 },
+    margin: { t: 10, r: 40, l: 50, b: 24 },
     showlegend: false,
     hovermode: 'closest',
     xaxis: {
-      range: [0, 24],
+      range: [xA, xE],
       fixedrange: true,
-      dtick: 3,
-      tickvals: [0, 3, 6, 9, 12, 15, 18, 21, 24],
-      ticktext: ['12a', '3a', '6a', '9a', '12p', '3p', '6p', '9p', '12a'],
+      tickvals, ticktext,
       gridcolor: 'rgba(80,100,130,0.22)',
       tickfont: { color: '#c8c8c8' },
       ticklen: 4,
-      tickcolor: 'rgba(160,190,220,0.2)'
+      tickcolor: 'rgba(160,190,220,0.2)',
     },
     yaxis: {
       range: [0, 105],
@@ -3266,33 +3921,17 @@ function renderChart() {
       tickvals: [0, 50, 100],
       ticktext: ['0%', '50%', '100%'],
       tickfont: { color: '#c8c8c8' },
-      ticklen: 4
+      ticklen: 4,
     },
     shapes,
-    annotations
+    annotations,
   };
 
-  Plotly.react('chart', traces, layout, { displayModeBar: false, doubleClick: false, scrollZoom: false }).then(() => {
+  Plotly.react('chart', traces, layout, { displayModeBar: false, doubleClick: false, scrollZoom: false, responsive: true }).then(() => {
     initChartInteractivity();
     applyCursor();
+    positionOverlays();
   });
-
-  // Update date display — "Today" when on today, tappable date when offset
-  const dateDisplay = document.getElementById('chart-date-display');
-  if (dateDisplay) {
-    const slider = document.getElementById('chart-date-slider');
-    const now = new Date();
-    const todayOffset = Math.floor((now - new Date(now.getFullYear(), 0, 1)) / 86400000);
-    const isToday = slider && parseInt(slider.value) === todayOffset;
-    if (isToday) {
-      dateDisplay.textContent = 'Today';
-      dateDisplay.classList.remove('is-offset');
-    } else {
-      const d = new Date(dateStr + 'T12:00:00');
-      dateDisplay.textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      dateDisplay.classList.add('is-offset');
-    }
-  }
 
   // Update color gradient (including temp ceiling/floor)
   renderColorGradient();
@@ -3306,7 +3945,7 @@ function initChartInteractivity() {
   const chart = document.getElementById('chart');
   if (!chart || chart._interactivityInitialized) return;
 
-  const chartWrapper = document.querySelector('.chart-wrapper');
+  const chartShell = document.getElementById('chart-shell');
   const hoverLabel = document.getElementById('time-hover-label');
 
   // Helper to get plot area (Plotly creates this after rendering)
@@ -3335,10 +3974,10 @@ function initChartInteractivity() {
     const xRange = layout?.xaxis?.range || [0, 24];
     const ratio = (ev.clientX - rect.left) / rect.width;
     const xVal = xRange[0] + ratio * (xRange[1] - xRange[0]);
-    const wrapperRect = chartWrapper.getBoundingClientRect();
+    const shellRect = (chartShell || chart).getBoundingClientRect();
 
     hoverLabel.textContent = fmtTime(xVal);
-    hoverLabel.style.left = `${ev.clientX - wrapperRect.left}px`;
+    hoverLabel.style.left = `${ev.clientX - shellRect.left}px`;
 
     // Color based on phase
     const tAscend = config.ascend_start;
@@ -3374,20 +4013,63 @@ function initChartInteractivity() {
 
     const layout = chart._fullLayout;
     const xRange = layout?.xaxis?.range || [0, 24];
-    const ratio = (ev.clientX - rect.left) / rect.width;
-    const xVal = xRange[0] + ratio * (xRange[1] - xRange[0]);
+    const ratio = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+    // Clamp strictly inside [xRange[0], xRange[1]) so the right edge doesn't
+    // wrap onto the left edge (wrapHour(xA+24) == xA visually = far left).
+    const xVal = Math.min(xRange[1] - 0.001,
+                          xRange[0] + ratio * (xRange[1] - xRange[0]));
 
     cursorTrackingNow = false;
-    cursorHour = xVal;
+    cursorHour = wrapHour(xVal);  // chart x is frame-coord, cursorHour stays 0-24
     applyCursor();
   }, true);  // Use capture phase
+
+  // Pointer-based cursor scrub (drag) — area-details parity. Pointer events
+  // beat mouse + touch separately and integrate cleanly with setPointerCapture.
+  let cursorDragging = false;
+  const cursorMoveTo = (clientX) => {
+    const layout = chart._fullLayout;
+    if (!layout) return;
+    const xa = layout.xaxis;
+    const localX = clientX - chart.getBoundingClientRect().left - xa._offset;
+    const ratio = Math.max(0, Math.min(1, localX / xa._length));
+    // Clamp strictly inside [xa.range[0], xa.range[1]) so the right edge
+    // doesn't wrap onto the left edge.
+    const xVal = Math.min(xa.range[1] - 0.001,
+                          xa.range[0] + ratio * (xa.range[1] - xa.range[0]));
+    cursorTrackingNow = false;
+    cursorHour = wrapHour(xVal);
+    applyCursor();
+  };
+  chart.addEventListener('pointerdown', (ev) => {
+    // Don't intercept handle drags
+    if (ev.target.closest('.phase-handle')
+        || ev.target.closest('.outdoor-chip') || ev.target.closest('.outdoor-popover')
+        || ev.target.closest('.save-popover')) return;
+    const plotArea = getPlotArea();
+    if (!plotArea) return;
+    const r = plotArea.getBoundingClientRect();
+    if (ev.clientX < r.left || ev.clientX > r.right
+        || ev.clientY < r.top || ev.clientY > r.bottom) return;
+    cursorDragging = true;
+    cursorMoveTo(ev.clientX);
+    try { chart.setPointerCapture(ev.pointerId); } catch {}
+  });
+  chart.addEventListener('pointermove', (ev) => {
+    if (cursorDragging) cursorMoveTo(ev.clientX);
+  });
+  const cursorEnd = (ev) => {
+    cursorDragging = false;
+    try { chart.releasePointerCapture(ev.pointerId); } catch {}
+  };
+  chart.addEventListener('pointerup', cursorEnd);
+  chart.addEventListener('pointercancel', cursorEnd);
 
   chart._interactivityInitialized = true;
 }
 
 function applyCursor() {
   const chart = document.getElementById('chart');
-  const cursorCallout = document.getElementById('cursor-callout');
   const traceIdx = typeof window.cursorTraceIndex === 'number' ? window.cursorTraceIndex : null;
 
   if (!chart || !window.baseShapes) return;
@@ -3398,17 +4080,24 @@ function applyCursor() {
   // Get cursor point data using core calculation functions (exact values, no interpolation)
   let cursorPoint = null;
   if (config) {
+    const dim = chartState.sunDimFactor ? chartState.sunDimFactor(cursorHour) : 1.0;
     cursorPoint = {
       x: cursorHour,
-      y: calculateBrightnessAtHour(cursorHour) * 100,  // Convert 0-1 to 0-100
+      y: calculateBrightnessAtHour(cursorHour) * dim * 100,  // Sun-dimmed bulb output
       cct: calculateColorAtHour(cursorHour, true),     // With solar rules
-      phase: getPhaseAtHour(cursorHour)
+      phase: getPhaseAtHour(cursorHour),
     };
   }
 
-  // Cursor line style - dotted white
-  const cursorLineStyle = { color: '#fdfdfd', width: 2, dash: 'dot' };
-  const cursorLabelY = -0.26;
+  // Cursor line CCT-tinted to match the cursor ball + banner readout, so the
+  // line, ball, and banner read as one continuous "current moment" element.
+  const _cctForLine = cursorPoint ? Math.round(cursorPoint.cct) : 4500;
+  const _rgbForLine = cctToRGB(_cctForLine);
+  const cursorLineStyle = { color: _rgbForLine, width: 2 };
+
+  // Cursor x in the chart's frame coordinate (lift wall-clock into [xA, xA+24]).
+  const xA = chartState.ascendStart;
+  const cursorFrameX = visHour(cursorHour, xA);
 
   // Add cursor line with gap around the point
   if (cursorPoint) {
@@ -3416,77 +4105,35 @@ function applyCursor() {
     const lowerEnd = Math.max(0, cursorPoint.y - gap);
     const upperStart = Math.min(GRAPH_Y_MAX, cursorPoint.y + gap);
 
-    // Lower segment
-    shapes.push({
-      type: 'line', xref: 'x', yref: 'y',
-      x0: cursorHour, x1: cursorHour, y0: 0, y1: lowerEnd,
-      line: cursorLineStyle, layer: 'above'
-    });
-    // Upper segment
-    shapes.push({
-      type: 'line', xref: 'x', yref: 'y',
-      x0: cursorHour, x1: cursorHour, y0: upperStart, y1: GRAPH_Y_MAX,
-      line: cursorLineStyle, layer: 'above'
-    });
+    shapes.push({ type: 'line', xref: 'x', yref: 'y',
+      x0: cursorFrameX, x1: cursorFrameX, y0: 0, y1: lowerEnd,
+      line: cursorLineStyle, layer: 'above' });
+    shapes.push({ type: 'line', xref: 'x', yref: 'y',
+      x0: cursorFrameX, x1: cursorFrameX, y0: upperStart, y1: GRAPH_Y_MAX,
+      line: cursorLineStyle, layer: 'above' });
   } else {
-    // Full line if no point
-    shapes.push({
-      type: 'line', xref: 'x', yref: 'paper',
-      x0: cursorHour, x1: cursorHour, y0: 0, y1: 1,
-      line: cursorLineStyle, layer: 'above'
-    });
+    shapes.push({ type: 'line', xref: 'x', yref: 'paper',
+      x0: cursorFrameX, x1: cursorFrameX, y0: 0, y1: 1,
+      line: cursorLineStyle, layer: 'above' });
   }
-
-  // Cursor line extending below x-axis down to callout
-  const cursorExtendY = -0.38;
-  shapes.push({
-    type: 'line', xref: 'x', yref: 'paper',
-    x0: cursorHour, x1: cursorHour, y0: cursorExtendY, y1: 0,
-    line: cursorLineStyle, layer: 'above'
-  });
-
 
   Plotly.relayout(chart, { shapes, annotations });
 
-  // Update cursor callout and marker
+  // Update cursor ball marker (CCT-colored with white border)
   if (cursorPoint) {
-    const bri = Math.round(cursorPoint.y);
     const cctVal = Math.round(cursorPoint.cct);
     const color = cctToRGB(cctVal);
-
-    const plotArea = chart.querySelector('.cartesianlayer .plot') || chart.querySelector('.nsewdrag');
-    const chartWrapper = document.querySelector('.chart-wrapper');
-    if (plotArea && chartWrapper) {
-      const rect = plotArea.getBoundingClientRect();
-      const chartRect = chart.getBoundingClientRect();
-      const wrapperRect = chartWrapper.getBoundingClientRect();
-      const layout = chart._fullLayout;
-      const xRange = layout?.xaxis?.range || [0, 24];
-      const ratio = (cursorHour - xRange[0]) / (xRange[1] - xRange[0] || 1);
-      const leftPx = rect.left + ratio * rect.width - wrapperRect.left;
-
-      cursorCallout.textContent = `${fmtTime(cursorHour)} • ${bri}% • ${cctVal}K`;
-      cursorCallout.style.left = `${leftPx}px`;
-      cursorCallout.style.opacity = '1';
-
-      // Color callout based on CCT
-      cursorCallout.style.background = color;
-      cursorCallout.style.color = readableTextColor(color);
-      cursorCallout.style.borderColor = '#fdfdfd';
-    }
-
-    // Update cursor ball marker (CCT-colored with white border)
     if (traceIdx != null) {
       const markerUpdate = {
-        x: [[cursorPoint.x]],
+        x: [[cursorFrameX]],
         y: [[cursorPoint.y]],
         marker: [{
           size: 14,
           color,
           opacity: 1,
           symbol: 'circle',
-          line: { width: 2, color: '#fff' }
-        }]
+          line: { width: 2, color: '#fff' },
+        }],
       };
       Plotly.restyle(chart, markerUpdate, traceIdx);
     }
@@ -3494,6 +4141,9 @@ function applyCursor() {
     // Live Design: update lights when cursor values change
     applyLiveLight();
   }
+
+  // Re-position HTML overlays (NOW pill, sun labels, handles, ghosts, action chips)
+  positionOverlays();
 
   // Update sleep card phase badges
   updateSleepPhaseBadges();
@@ -3505,6 +4155,691 @@ function applyCursor() {
 
 function updateSleepPhaseBadges() {
   // Phase badges removed from sleep card header (kept for chart cursor)
+}
+
+// ============================================================
+// Chart-shell overlay helpers
+// (sliding 24h frame anchored at ascend_start; overlays positioned via
+// _fullLayout.xaxis._offset / _length on top of the Plotly DOM)
+// ============================================================
+
+// Map a wall-clock hour (0-24) into the visible chart frame [xA, xA+24).
+function visHour(h, xA) {
+  return h < xA ? h + 24 : h;
+}
+function wrapHour(t) {
+  return ((t % 24) + 24) % 24;
+}
+function fmtHourShort(t) {
+  const h = wrapHour(t);
+  let hh = Math.floor(h);
+  const ap = (hh < 12 || hh === 24) ? 'a' : 'p';
+  hh = hh % 12; if (hh === 0) hh = 12;
+  return `${hh}${ap}`;
+}
+
+// Anchor x=0 at config.ascend_start so morning-ramp begins at the left edge
+// and bed never wraps past the right. Recompute on save (not mid-drag) so the
+// chart doesn't slide while the user drags wake/bed.
+function recomputeAscendStart() {
+  const a = Number.isFinite(config.ascend_start) ? config.ascend_start : 3.0;
+  chartState.ascendStart = wrapHour(a);
+}
+
+// Mirror of area.html computePhaseSafeOffset (~area.html:3083). Returns the
+// hours of buffer to keep at each end of the phase so the brightness-shifted
+// midpoint stays inside [phaseMin, phaseMax]. `kind` is 'wake' (ascend phase)
+// or 'bed' (descend phase).
+function computePhaseSafeOffset(kind) {
+  const inAscend = kind === 'wake';
+  const brightnessPct = inAscend
+    ? (config.wake_brightness || 50)
+    : (config.bed_brightness || 50);
+  const margin = 0.25;
+  if (brightnessPct === 50) return { minOffset: margin, maxOffset: margin };
+  const speed = inAscend ? config.wake_speed : config.bed_speed;
+  const slopeMag = SPEED_TO_SLOPE[Math.max(1, Math.min(12, speed))];
+  if (!(slopeMag > 0)) return { minOffset: margin, maxOffset: margin };
+  const bMin = (config.min_brightness || 2) / 100;
+  const bMax = (config.max_brightness || 100) / 100;
+  const targetNorm = bMin + (bMax - bMin) * (brightnessPct / 100);
+  const eps = 0.001;
+  const clamped = Math.max(bMin + eps, Math.min(bMax - eps, targetNorm));
+  const ratio = (clamped - bMin) / (bMax - bMin);
+  const logTerm = Math.log((1 - ratio) / ratio);
+  const slopeSigned = inAscend ? slopeMag : -slopeMag;
+  const offset = logTerm / slopeSigned;
+  return {
+    minOffset: Math.max(0, -offset) + margin,
+    maxOffset: Math.max(0, offset) + margin,
+  };
+}
+
+// Signed midpoint shift: how many hours computeShiftedMidpoint will move the
+// midpoint for a given phase. Positive = later, negative = earlier. Used by
+// the bed-wrap UI bound below; the bed midpoint must stay below 24h-lifted
+// or the silent `% 24` in calculateBrightnessAtHour wraps it onto the wrong
+// side of tDescend and the descent curve collapses (v1.2.128 workaround).
+function computePhaseSignedOffset(kind) {
+  const inAscend = kind === 'wake';
+  const brightnessPct = inAscend
+    ? (config.wake_brightness || 50)
+    : (config.bed_brightness || 50);
+  if (brightnessPct === 50) return 0;
+  const speed = inAscend ? config.wake_speed : config.bed_speed;
+  const slopeMag = SPEED_TO_SLOPE[Math.max(1, Math.min(SPEED_TO_SLOPE.length - 1, speed))];
+  if (!(slopeMag > 0)) return 0;
+  const bMin = (config.min_brightness || 2) / 100;
+  const bMax = (config.max_brightness || 100) / 100;
+  const targetNorm = bMin + (bMax - bMin) * (brightnessPct / 100);
+  const eps = 0.001;
+  const clamped = Math.max(bMin + eps, Math.min(bMax - eps, targetNorm));
+  const ratio = (clamped - bMin) / (bMax - bMin);
+  const logTerm = Math.log((1 - ratio) / ratio);
+  const slopeSigned = inAscend ? slopeMag : -slopeMag;
+  return logTerm / slopeSigned;
+}
+
+// Bounds for wake/bed in the chart frame [xA, xA+24]. Mirrors area-details
+// phaseMin/phaseMax. Plus a minimum-sleep-window guard between bed and wake.
+const MIN_SLEEP_HOURS = 4.0;
+function getPhaseBoundsInFrame(kind) {
+  const xA = chartState.ascendStart;
+  const tDescAnchor = visHour(config.descend_start, xA);
+  const wakeFrameSaved = visHour(config.wake_time, xA);
+  const bedFrameSaved = visHour(config.bed_time, xA);
+  const wakeFrame = chartState.wakeDragVal != null ? visHour(chartState.wakeDragVal, xA) : wakeFrameSaved;
+  const bedFrame = chartState.bedDragVal != null ? visHour(chartState.bedDragVal, xA) : bedFrameSaved;
+  const off = computePhaseSafeOffset(kind);
+  let lo, hi;
+  if (kind === 'wake') {
+    lo = xA + off.minOffset;
+    hi = Math.min(tDescAnchor - off.maxOffset, bedFrame - MIN_SLEEP_HOURS);
+  } else {
+    lo = Math.max(tDescAnchor + off.minOffset, wakeFrame + MIN_SLEEP_HOURS);
+    hi = (xA + 24) - off.maxOffset;
+    // Bed-wrap UI bound: keep shifted bed midpoint < 24h-lifted so the silent
+    // `% 24` in calculateBrightnessAtHour doesn't drop it onto the wrong side
+    // of tDescend. Shifted = bedFrame + signedOffset; we want shifted < 24.
+    const signedOff = computePhaseSignedOffset('bed');
+    const wrapHi = 24 - signedOff - 0.05;
+    if (wrapHi < hi) hi = Math.max(lo + 0.1, wrapHi);
+  }
+  if (hi - lo < 0.5) {
+    if (kind === 'wake') { lo = xA + 0.05; hi = bedFrame - 0.05; }
+    else { lo = wakeFrame + 0.05; hi = (xA + 24) - 0.05; }
+  }
+  return { lo, hi };
+}
+
+// Build an x→px function in chart-shell coordinates. Input is wall-clock
+// 0-24; output places it inside the visible [ascendStart, ascendStart+24].
+function getXPxFn() {
+  const chartDiv = document.getElementById('chart');
+  const shell = document.getElementById('chart-shell');
+  if (!chartDiv || !shell || !chartDiv._fullLayout?.xaxis) return null;
+  const xa = chartDiv._fullLayout.xaxis;
+  const shellRect = shell.getBoundingClientRect();
+  const chartRect = chartDiv.getBoundingClientRect();
+  const offX = chartRect.left - shellRect.left;
+  const xA = xa.range[0];
+  const span = xa.range[1] - xa.range[0] || 24;
+  return h => offX + xa._offset + ((visHour(h, xA) - xA) / span) * xa._length;
+}
+function pxToHourInFrame(clientX) {
+  const chartDiv = document.getElementById('chart');
+  const fl = chartDiv?._fullLayout;
+  if (!fl) return 0;
+  const xa = fl.xaxis;
+  const localX = clientX - chartDiv.getBoundingClientRect().left - xa._offset;
+  return xa.range[0] + Math.max(0, Math.min(1, localX / xa._length)) * 24;
+}
+function pxToHour(clientX) {
+  return wrapHour(pxToHourInFrame(clientX));
+}
+
+// Today (Python weekday: 0=Mon..6=Sun)
+function getTodayPyWeekday() {
+  return (new Date().getDay() + 6) % 7;
+}
+
+// Resolve A/B groups from existing alt-day config. Group A = primary
+// (days NOT in alt_days), group B = alt (days IN alt_days). Returns null if no alt.
+function getScheduleGroups(kind) {
+  const altDays = (kind === 'wake' ? config.wake_alt_days : config.bed_alt_days) || [];
+  const altTime = kind === 'wake' ? config.wake_alt_time : config.bed_alt_time;
+  const primaryTime = kind === 'wake' ? config.wake_time : config.bed_time;
+  const ALL = [0, 1, 2, 3, 4, 5, 6];
+  const primaryDays = ALL.filter(d => !altDays.includes(d));
+  if (altTime == null || altDays.length === 0) {
+    return { primary: { id: 'primary', days: ALL.slice(), time: primaryTime }, alt: null };
+  }
+  return {
+    primary: { id: 'primary', days: primaryDays, time: primaryTime },
+    alt: { id: 'alt', days: altDays.slice(), time: altTime },
+  };
+}
+
+function dayLabelFor(days) {
+  if (!days || days.length === 0 || days.length === 7) return 'Every day';
+  const sorted = [...days].sort((a, b) => a - b);
+  if (sorted.length === 5 && sorted.join(',') === '0,1,2,3,4') return 'Mo\u2013Fr';
+  if (sorted.length === 2 && sorted.join(',') === '5,6') return 'Sa\u2013Su';
+  return sorted.map(d => DAY_SHORT[d]).join(', ');
+}
+
+function groupForToday(kind) {
+  const grps = getScheduleGroups(kind);
+  const today = getTodayPyWeekday();
+  if (grps.alt && grps.alt.days.includes(today)) return grps.alt;
+  return grps.primary;
+}
+
+function buildSaveOptions(kind) {
+  const grps = getScheduleGroups(kind);
+  const todayPy = getTodayPyWeekday();
+  const todayName = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'][todayPy];
+  const opts = [];
+  const todayGrp = groupForToday(kind);
+  const seen = new Set();
+  [grps.primary, grps.alt].forEach(g => {
+    if (!g || seen.has(g.id)) return;
+    seen.add(g.id);
+    const isToday = g === todayGrp;
+    opts.push({
+      key: g.id,
+      label: dayLabelFor(g.days),
+      sub: isToday ? `Includes today (${todayName})` : `Days: ${dayLabelFor(g.days)}`,
+      isToday,
+    });
+  });
+  opts.push({ key: 'all', label: 'All days', sub: 'Sets every day to this value' });
+  return opts;
+}
+
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+// Returns true if the chart "page view" has drifted from defaults — cursor
+// off-now, outdoor source overridden, wake/bed dragged but unsaved, or month
+// chip set to anything other than the current month. Drives whether the ↺
+// master reset chip in the banner is visible.
+function isChartViewDirty() {
+  if (!cursorTrackingNow) return true;
+  if (chartState.outdoorSrc && chartState.outdoorSrc !== 'current') return true;
+  if (chartState.wakeDragVal != null) return true;
+  if (chartState.bedDragVal != null) return true;
+  if (chartState.monthIdx != null && chartState.monthIdx !== new Date().getMonth()) return true;
+  return false;
+}
+
+function updateBannerResetVisibility() {
+  const btn = document.getElementById('cct-banner-reset');
+  if (!btn) return;
+  // display:none (not visibility:hidden) so the % · K readout is truly
+  // centered in the banner when the chart view is clean. When the reset
+  // appears, the readout+reset cluster centers as a unit (readout shifts
+  // slightly left to make room) — acceptable since the reset only appears
+  // when the user is already in an interactive state.
+  btn.style.display = isChartViewDirty() ? '' : 'none';
+}
+
+// Position the HTML overlays (NOW pill, sunrise/sunset labels, outdoor chip,
+// wake/bed handles, ghost pills, action chips) on top of the Plotly chart.
+function positionOverlays() {
+  updateBannerResetVisibility();
+  const xToPx = getXPxFn();
+  if (!xToPx) return;
+
+  const xA = chartState.ascendStart;
+
+  // CCT tint — applied to the merged page-header (which now hosts the readout +
+  // arrows + Experience pill that the cct-banner used to). Tint follows cursor
+  // CCT just like the banner did.
+  const headerEl = document.getElementById('page-header');
+  const bannerReadout = document.getElementById('cct-banner-readout');
+  const bannerTimeEl = document.getElementById('cct-banner-time');
+  if (headerEl && bannerReadout && cursorHour != null) {
+    const dim = chartState.sunDimFactor ? chartState.sunDimFactor(cursorHour) : 1.0;
+    const bri = calculateBrightnessAtHour(cursorHour) * dim * 100;
+    const cct = calculateColorAtHour(cursorHour, true);
+    const rgb = cctToRGB(cct);
+    bannerReadout.textContent = `${Math.round(bri)}% \u00b7 ${Math.round(cct)}K`;
+    if (bannerTimeEl) bannerTimeEl.textContent = formatHour(cursorHour);
+    headerEl.style.background = colorWithAlpha(rgb, 0.92);
+    headerEl.style.color = readableTextColor(rgb);
+  }
+
+  // Sunrise / sunset HTML labels + connector heights to the x-axis line.
+  // Compute the dynamic height once (depends on Plotly layout, same for both
+  // labels and the wake/bed pill connectors).
+  const sr = sunTimes?.sunrise;
+  const ss = sunTimes?.sunset;
+  const sunriseEl = document.getElementById('sunrise-label');
+  const sunsetEl = document.getElementById('sunset-label');
+  const shellEl = document.getElementById('chart-shell');
+  const chartElForConn = document.getElementById('chart');
+  const fl = chartElForConn?._fullLayout;
+  let axisFromShellBottom = null;
+  if (shellEl && chartElForConn && fl?.yaxis) {
+    // Axis line position from chart-shell bottom = chart-shell-height
+    //   minus chart.offsetTop minus yaxis._offset minus yaxis._length.
+    axisFromShellBottom = shellEl.offsetHeight
+      - chartElForConn.offsetTop - fl.yaxis._offset - fl.yaxis._length;
+  }
+  // Wake/bed connector base sits 32px from chart-shell bottom (handle bottom 4
+  //   + handle height 34 - 6px overlap into pill). v1.2.217 dropped handle
+  //   bottom 14 → 4 but left this offset at 42 — lines stopped 10px short of
+  //   the x-axis. Now 32 so the connector lands on the axis line.
+  if (axisFromShellBottom != null) {
+    const phaseConnectorH = Math.max(0, axisFromShellBottom - 32);
+    const wh = document.getElementById('wake-handle');
+    const bh = document.getElementById('bed-handle');
+    if (wh) wh.style.setProperty('--phase-connector-h', phaseConnectorH + 'px');
+    if (bh) bh.style.setProperty('--phase-connector-h', phaseConnectorH + 'px');
+  }
+  const setSolar = (el, h) => {
+    if (!el || !Number.isFinite(h)) return;
+    el.style.left = xToPx(h) + 'px';
+    el.dataset.time = formatHour(h);
+    if (axisFromShellBottom != null) {
+      // solar-label bottom: 40; label height ~14px → label top at 54 from
+      // chart-shell bottom. Connector starts at label top + 1px margin = 55,
+      // ends at axis line. v1.2.217 dropped solar-label bottom 50 → 40 but
+      // left this offset at 65 — same 10px short bug as the phase connector.
+      const solarConnectorH = Math.max(0, axisFromShellBottom - 55);
+      el.style.setProperty('--solar-connector-h', solarConnectorH + 'px');
+    }
+  };
+  setSolar(sunriseEl, sr);
+  setSolar(sunsetEl, ss);
+
+  // Sun intensity chip + popover — live in the card-color gap above the chart
+  // canvas, at solar-noon x. Centered vertically in chart-shell's top margin
+  // (chart has margin-top:24px which gives the chip ~24px of headroom above
+  // the dark plot area). Popover hangs just below into the chart.
+  // Note: pre-v1.2.215 the gap was banner-bottom → chart-top; now that the
+  // banner has been lifted up to .page-header the gap is simply 0 → chart-top.
+  const chip = document.getElementById('outdoor-chip');
+  const pop = document.getElementById('outdoor-popover');
+  const chartElForChip = document.getElementById('chart');
+  let _gapChartTop = null;
+  if (chip && Number.isFinite(sr) && Number.isFinite(ss)) {
+    const noon = (sr + ss) / 2;
+    const px = xToPx(noon);
+    chip.style.left = px + 'px';
+    if (chartElForChip) {
+      const chartTop = chartElForChip.offsetTop;
+      _gapChartTop = chartTop;
+      const chipH = chip.offsetHeight || 14;
+      chip.style.top = Math.round((chartTop - chipH) / 2) + 'px';
+      if (pop) {
+        pop.style.left = px + 'px';
+        pop.style.top = (chartTop + 4) + 'px';
+      }
+    }
+  }
+  // Month label — pinned far-left in the same gap as the sun-intensity chip.
+  const monthLabelEl = document.getElementById('month-label');
+  const monthPop = document.getElementById('month-popover');
+  if (monthLabelEl && _gapChartTop != null) {
+    const labelH = monthLabelEl.offsetHeight || 14;
+    monthLabelEl.style.top = Math.round((_gapChartTop - labelH) / 2) + 'px';
+    if (monthPop) monthPop.style.top = (_gapChartTop + 4) + 'px';
+  }
+  // Try-it (Experience) popover now lives inside .page-header and is positioned
+  // by CSS (top: 100% + 4px, right: 8px). No JS positioning needed.
+
+  // Wake/Bed handles — working drag value (until commit/reset) takes priority
+  // over saved time, so the pill stays where the user dragged it.
+  const wakeT = chartState.wakeDragVal != null ? chartState.wakeDragVal : config.wake_time;
+  const bedT = chartState.bedDragVal != null ? chartState.bedDragVal : config.bed_time;
+  const wakeHandle = document.getElementById('wake-handle');
+  const bedHandle = document.getElementById('bed-handle');
+  if (wakeHandle) {
+    wakeHandle.style.left = xToPx(wakeT) + 'px';
+    const t = wakeHandle.querySelector('.phase-time');
+    if (t) t.textContent = formatHour(wakeT);
+  }
+  if (bedHandle) {
+    bedHandle.style.left = xToPx(bedT) + 'px';
+    const t = bedHandle.querySelector('.phase-time');
+    if (t) t.textContent = formatHour(bedT);
+  }
+
+  // Ghost pills at saved positions, only visible while dragging
+  const wakeGhost = document.querySelector('.phase-ghost.for-wake');
+  const bedGhost = document.querySelector('.phase-ghost.for-bed');
+  if (wakeGhost) {
+    wakeGhost.style.left = xToPx(config.wake_time) + 'px';
+    const wakeMoved = chartState.wakeDragActive
+      && Math.abs((chartState.wakeDragVal ?? config.wake_time) - config.wake_time) > 0.01;
+    wakeGhost.style.display = wakeMoved ? 'block' : 'none';
+  }
+  if (bedGhost) {
+    bedGhost.style.left = xToPx(config.bed_time) + 'px';
+    const bedMoved = chartState.bedDragActive
+      && Math.abs((chartState.bedDragVal ?? config.bed_time) - config.bed_time) > 0.01;
+    bedGhost.style.display = bedMoved ? 'block' : 'none';
+  }
+
+  // Surface drag state in the Sleep card dirty bar. Drag = preview only;
+  // Save/Revert in the bar is the only path to mutate the saved schedule.
+  updateSleepDirtyBar();
+}
+
+// ============================================================
+// Wake/Bed handle drag, outdoor popover, save chip wiring
+// ============================================================
+
+/**
+ * Drag a wake/bed phase handle. While the pointer is down we update
+ * chartState.{wake|bed}DragVal each move and re-render. On release we
+ * commit the value into config.{wake|bed}_time so the rest of the chart
+ * (curve, bri/cct) updates against the new schedule. Save / Reset chips
+ * appear automatically because positionOverlays() compares against
+ * configSnapshot.
+ */
+function setupHandleDrag(elId, kind) {
+  const el = document.getElementById(elId);
+  if (!el || el._dragInit) return;
+  el._dragInit = true;
+
+  let dragging = false;
+  const moveTo = (clientX) => {
+    const tFrame = pxToHourInFrame(clientX);
+    if (!Number.isFinite(tFrame)) return;
+    const { lo, hi } = getPhaseBoundsInFrame(kind);
+    // Snap to 15-minute ticks to match the wake/bed sliders in the Sleep card
+    const tSnapped = Math.round(tFrame * 4) / 4;
+    const tClamped = Math.max(lo, Math.min(hi, tSnapped));
+    const stored = wrapHour(tClamped);
+    // Drag updates the working-copy only; config.wake_time / bed_time stay
+    // pinned to the saved value until the user clicks Save. Keeps the Sleep
+    // accordion stable while previewing on the chart.
+    if (kind === 'wake') chartState.wakeDragVal = stored;
+    else chartState.bedDragVal = stored;
+    renderChart();
+  };
+
+  el.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    dragging = true;
+    el.classList.add('dragging');
+    chartState[kind + 'DragActive'] = true;
+    if (kind === 'wake') chartState.wakeDragVal = config.wake_time;
+    else chartState.bedDragVal = config.bed_time;
+    // Snapshot the live pill's rendered width into the ghost so the ghost
+    // reads as a 1:1 dashed duplicate. Without this, the ghost defaults to
+    // its 76px min-width while the live pill expands to fit "WAKE 6:45a"
+    // (~90px) — ghost looks narrower than the original.
+    const pill = el.querySelector('.phase-pill');
+    const ghostPill = document.querySelector(`.phase-ghost.for-${kind} .phase-ghost-pill`);
+    if (pill && ghostPill) {
+      const w = pill.getBoundingClientRect().width;
+      if (w > 0) ghostPill.style.width = w + 'px';
+    }
+    try { el.setPointerCapture(e.pointerId); } catch {}
+  });
+  el.addEventListener('pointermove', (e) => { if (dragging) moveTo(e.clientX); });
+  const end = (e) => {
+    if (!dragging) return;
+    dragging = false;
+    el.classList.remove('dragging');
+    chartState[kind + 'DragActive'] = false;
+    try { el.releasePointerCapture(e.pointerId); } catch {}
+    // Drag = preview only. The drag value persists in chartState until the
+    // user explicitly Saves or Reverts from the Sleep card dirty bar (or
+    // master-resets the chart). This decouples chart play from real schedule
+    // mutation: levers move freely without touching the home's schedule.
+    const dragVal = kind === 'wake' ? chartState.wakeDragVal : chartState.bedDragVal;
+    const savedVal = kind === 'wake' ? config.wake_time : config.bed_time;
+    if (dragVal == null || Math.abs(dragVal - savedVal) <= 0.01) {
+      chartState.wakeDragVal = chartState.wakeDragVal != null
+        && Math.abs(chartState.wakeDragVal - config.wake_time) > 0.01 ? chartState.wakeDragVal : null;
+      chartState.bedDragVal = chartState.bedDragVal != null
+        && Math.abs(chartState.bedDragVal - config.bed_time) > 0.01 ? chartState.bedDragVal : null;
+    }
+    renderChart();
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+
+  // Hover preview: spawn a SECOND (colored) cursor — vertical line + circle —
+  // at the pill's x. White (time) cursor stays put. Vanishes on leave/release.
+  el.addEventListener('pointerenter', (e) => {
+    if (dragging || e.pointerType === 'touch') return;
+    chartState[kind + 'Hovering'] = true;
+    renderChart();
+  });
+  el.addEventListener('pointerleave', () => {
+    if (dragging) return;
+    chartState[kind + 'Hovering'] = false;
+    renderChart();
+  });
+}
+
+/**
+ * Hover wiring for sunrise/sunset labels — sets chartState.{sunrise,sunset}Hovering
+ * so renderChart() draws the chart-spanning yellow line. Mirror of wake/bed
+ * pointerenter/leave but solar isn't draggable, so hover-only.
+ */
+function setupSolarHover() {
+  const wire = (id, kind) => {
+    const el = document.getElementById(id);
+    if (!el || el._solarHoverInit) return;
+    el._solarHoverInit = true;
+    el.addEventListener('pointerenter', (e) => {
+      if (e.pointerType === 'touch') return;
+      chartState[kind + 'Hovering'] = true;
+      renderChart();
+    });
+    el.addEventListener('pointerleave', () => {
+      chartState[kind + 'Hovering'] = false;
+      renderChart();
+    });
+  };
+  wire('sunrise-label', 'sunrise');
+  wire('sunset-label', 'sunset');
+}
+
+/**
+ * Outdoor chip → single-list popover. Top row is "Current: <condition> <pct%>"
+ * pulled from live weather; remaining rows come from the backend's
+ * weather_condition_map (weather_groups in /api/outdoor-status), so editing the
+ * map in settings updates this picker. Selecting Current sets outdoorSrc='current';
+ * any other row sets outdoorSrc='manual' with that row's pct.
+ */
+function setupOutdoorPopover() {
+  const chip = document.getElementById('outdoor-chip');
+  const pop = document.getElementById('outdoor-popover');
+  if (!chip || !pop || chip._init) return;
+  chip._init = true;
+
+  chip.addEventListener('click', (e) => {
+    e.stopPropagation();
+    pop.classList.toggle('open');
+  });
+
+  buildOutdoorPopover();
+  updateOutdoorChipIcon();
+}
+
+function updateOutdoorChipIcon() {
+  const iconEl = document.getElementById('outdoor-icon');
+  const pctEl = document.getElementById('outdoor-pct');
+  const pct = chartState.outdoorSrc === 'current'
+    ? Math.round((_liveConditionMult ?? 1) * 100)
+    : (chartState.outdoorPctManual ?? 100);
+  if (iconEl) iconEl.textContent = '\u2600';
+  if (pctEl) pctEl.textContent = pct + '%';
+}
+
+function buildOutdoorPopover() {
+  const pop = document.getElementById('outdoor-popover');
+  if (!pop) return;
+  const groups = Array.isArray(_outdoorGroups) ? _outdoorGroups : [];
+  const liveLabel = (() => {
+    if (!_liveCondition) return null;
+    const match = groups.find(g => g.key === _liveCondition || g.key === _liveCondition.replace(/_/g, ''));
+    return match ? match.label : _liveCondition;
+  })();
+  const livePct = Math.round((_liveConditionMult ?? 1) * 100);
+  const manualPct = chartState.outdoorPctManual ?? 100;
+  const isCurrent = chartState.outdoorSrc === 'current';
+
+  let html = '';
+  html += `<div class="outdoor-popover-title">Sun intensity</div>`;
+  // Current row — always first; selected when outdoorSrc==='current'
+  html += `<div class="opt opt-current${isCurrent ? ' selected' : ''}" data-src="current">`
+        + `<span class="opt-icon">&#128338;</span>`
+        + `current${liveLabel ? ': ' + liveLabel : ''}`
+        + `<span class="opt-pct">${livePct}%</span>`
+        + `</div>`;
+  // Manual rows — from backend weather_groups
+  groups.forEach(g => {
+    const pct = Math.round((g.multiplier || 0) * 100);
+    const sel = !isCurrent && manualPct === pct;
+    html += `<div class="opt${sel ? ' selected' : ''}" data-src="manual" data-pct="${pct}">`
+          + `${g.label}<span class="opt-pct">${pct}%</span>`
+          + `</div>`;
+  });
+  pop.innerHTML = html;
+
+  pop.querySelectorAll('.opt').forEach(o => {
+    o.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const src = o.dataset.src;
+      if (src === 'current') {
+        chartState.outdoorSrc = 'current';
+      } else {
+        chartState.outdoorSrc = 'manual';
+        chartState.outdoorPctManual = parseInt(o.dataset.pct, 10);
+      }
+      pop.querySelectorAll('.opt').forEach(x => x.classList.remove('selected'));
+      o.classList.add('selected');
+      updateOutdoorChipIcon();
+      renderChart();
+      applyCursor();
+      pop.classList.remove('open');
+    });
+  });
+}
+
+/**
+ * Sleep card "dirty bar": surfaces when the user drags wake/bed on the chart.
+ * Drag mutates chartState.{wake|bed}DragVal only — config (saved schedule) is
+ * untouched. The bar is the explicit Save/Revert affordance: Save commits to
+ * today's group via commitSave(); Revert clears the drag value.
+ *
+ * If both wake and bed are dragged at once, the bar shows whichever was most
+ * recently moved; Save commits both in one shot.
+ */
+let _lastDirtyKind = null;
+
+function isWakeDirty() {
+  return chartState.wakeDragVal != null
+    && Math.abs(chartState.wakeDragVal - config.wake_time) > 0.01;
+}
+function isBedDirty() {
+  return chartState.bedDragVal != null
+    && Math.abs(chartState.bedDragVal - config.bed_time) > 0.01;
+}
+
+function updateSleepDirtyBar() {
+  const bar = document.getElementById('sleep-dirty-bar');
+  if (!bar) return;
+  const wDirty = isWakeDirty();
+  const bDirty = isBedDirty();
+  if (!wDirty && !bDirty) {
+    bar.classList.remove('is-dirty');
+    return;
+  }
+  // Show whichever kind is currently dragging, or last-dirty as tiebreaker.
+  const showKind = chartState.wakeDragActive ? 'wake'
+    : chartState.bedDragActive ? 'bed'
+    : (wDirty && bDirty) ? (_lastDirtyKind || 'wake')
+    : (wDirty ? 'wake' : 'bed');
+  _lastDirtyKind = showKind;
+  const fromVal = showKind === 'wake' ? config.wake_time : config.bed_time;
+  const toVal = showKind === 'wake' ? chartState.wakeDragVal : chartState.bedDragVal;
+  document.getElementById('sleep-dirty-bar-kind').textContent = showKind === 'wake' ? 'Wake' : 'Bed';
+  document.getElementById('sleep-dirty-bar-from').textContent = formatHour(fromVal);
+  document.getElementById('sleep-dirty-bar-to').textContent = formatHour(toVal);
+  bar.classList.add('is-dirty');
+}
+
+function setupSleepDirtyBar() {
+  const bar = document.getElementById('sleep-dirty-bar');
+  if (!bar || bar._init) return;
+  bar._init = true;
+  document.getElementById('sleep-dirty-revert')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    chartState.wakeDragVal = null;
+    chartState.bedDragVal = null;
+    _lastDirtyKind = null;
+    renderChart();
+  });
+  document.getElementById('sleep-dirty-save')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    // Commit each dirty kind to today's group (preserves alt-day clusters).
+    if (isWakeDirty()) commitSave('wake', groupForToday('wake').id);
+    if (isBedDirty()) commitSave('bed', groupForToday('bed').id);
+    _lastDirtyKind = null;
+  });
+}
+
+function closeSavePopover() {
+  const pop = document.getElementById('save-popover');
+  if (pop) pop.classList.remove('open');
+}
+
+/**
+ * Persist a wake/bed change. `key` is one of:
+ *   'primary' (Mo–Fr by default), 'alt' (Sa–Su), or 'all'.
+ * For today's group we update the corresponding *_time / *_alt_time slot.
+ * For 'all' we set the primary value and clear the alt arrays so every day
+ * resolves to the same time. Then saveZoneSettings() pushes to the backend.
+ */
+function commitSave(kind, key) {
+  // Source of truth during edit is the drag working-copy; falls back to the
+  // saved config value if the user opened Save without dragging.
+  const newVal = kind === 'wake'
+    ? (chartState.wakeDragVal != null ? chartState.wakeDragVal : config.wake_time)
+    : (chartState.bedDragVal != null ? chartState.bedDragVal : config.bed_time);
+  if (kind === 'wake') {
+    if (key === 'all') {
+      config.wake_time = newVal;
+      config.wake_alt_time = null;
+      config.wake_alt_days = [];
+    } else if (key === 'alt') {
+      config.wake_alt_time = newVal;
+      // Restore primary from snapshot so we don't accidentally overwrite it
+      if (configSnapshot.wake_time != null) config.wake_time = configSnapshot.wake_time;
+    } else {
+      // primary (or any other group key): write to wake_time
+      config.wake_time = newVal;
+    }
+  } else {
+    if (key === 'all') {
+      config.bed_time = newVal;
+      config.bed_alt_time = null;
+      config.bed_alt_days = [];
+    } else if (key === 'alt') {
+      config.bed_alt_time = newVal;
+      if (configSnapshot.bed_time != null) config.bed_time = configSnapshot.bed_time;
+    } else {
+      config.bed_time = newVal;
+    }
+  }
+  chartState.wakeDragVal = null;
+  chartState.bedDragVal = null;
+  closeSavePopover();
+  syncUIFromConfig();
+  takeConfigSnapshot();
+  recomputeAscendStart();
+  renderChart();
+  updateSectionDirtyState();
+  saveZoneSettings();
 }
 
 // ============================================================
@@ -3526,20 +4861,10 @@ function updateDesignModeUI() {
 }
 
 /**
- * Show/hide chart schedule toggles based on whether alt times are configured.
+ * Variant viewing was dropped — chart shows today's schedule only.
+ * Stub kept so older callers don't blow up.
  */
-function updateScheduleToggles() {
-  const container = document.getElementById('chart-schedule-toggles');
-  if (!container) return;
-  // Hide toggle if no alt exists OR if alt time equals primary time
-  const showWake = config.wake_alt_time != null && config.wake_alt_time !== config.wake_time;
-  const showBed = config.bed_alt_time != null && config.bed_alt_time !== config.bed_time;
-  const wakeToggle = document.getElementById('chart-wake-secondary-toggle');
-  const bedToggle = document.getElementById('chart-bed-secondary-toggle');
-  if (wakeToggle) wakeToggle.style.display = showWake ? '' : 'none';
-  if (bedToggle) bedToggle.style.display = showBed ? '' : 'none';
-  container.style.display = (showWake || showBed) ? 'flex' : 'none';
-}
+function updateScheduleToggles() {}
 
 /**
  * Snap cursor to current time and re-render.
@@ -3550,6 +4875,47 @@ function snapCursorToNow() {
   cursorHour = now.getHours() + now.getMinutes() / 60;
   renderChart();
   applyCursor();
+}
+
+/**
+ * Master reset for the rhythm-design chart view. Reverts the page to its
+ * "as-just-loaded" state for transient view controls — does NOT roll back
+ * saved config. Resets:
+ *   - cursor → now (resume live tracking)
+ *   - outdoor source → 'current' (live weather)
+ *   - wake/bed drag working values → null (handles snap back to saved)
+ *   - month → current month
+ */
+function resetChartView() {
+  // Cursor → now
+  cursorTrackingNow = true;
+  const now = new Date();
+  cursorHour = now.getHours() + now.getMinutes() / 60;
+  // Outdoor → current
+  chartState.outdoorSrc = 'current';
+  updateOutdoorChipIcon();
+  buildOutdoorPopover();
+  // Wake/bed drag → null (handles snap back to saved config values)
+  chartState.wakeDragVal = null;
+  chartState.bedDragVal = null;
+  chartState.wakeDragActive = false;
+  chartState.bedDragActive = false;
+  _lastDirtyKind = null;
+  // Month → current
+  chartState.monthIdx = new Date().getMonth();
+  const monthSlider = document.getElementById('month-slider');
+  const monthLabelEl = document.getElementById('month-label');
+  if (monthSlider) {
+    monthSlider.value = String(chartState.monthIdx);
+    updateSliderFill(monthSlider);
+  }
+  if (monthLabelEl) monthLabelEl.textContent = MONTH_NAMES[chartState.monthIdx];
+  // Re-render and resume live cursor application
+  closeSavePopover();
+  recomputeAscendStart();
+  renderChart();
+  applyCursor();
+  updateSectionDirtyState();
 }
 function positionTimelineBadges() {
   const ascendBadge = document.getElementById('ascend-start-badge');
@@ -3573,6 +4939,128 @@ function updateSliderValue(sliderId, displayId, formatter) {
     updateDisplay(displayId, formatter(val));
     syncConfigFromUI();
     renderChart();
+  });
+}
+
+// Speed sliders: show "N · Word · ~time" while user is interacting (so the
+// level number helps them navigate the 12 stops), then 1.2s after they stop
+// fall back to "Word · ~time" (clean idle readout).
+function setupSpeedSliderReadout(sliderId, displayId) {
+  const slider = document.getElementById(sliderId);
+  if (!slider) return;
+  let idleTimer = null;
+  slider.addEventListener('input', () => {
+    const val = parseInt(slider.value, 10);
+    updateDisplay(displayId, formatSpeedReadoutActive(val));
+    syncConfigFromUI();
+    renderChart();
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      updateDisplay(displayId, formatSpeedReadoutIdle(val));
+    }, 1200);
+  });
+}
+
+// Show a transient inline error tooltip below a time-display span when the
+// user types a time outside the valid wake/bed window. Restores the display
+// to its original value and fades out after ~2.5s.
+function showTimeInputError(display, original, message) {
+  display.textContent = original;
+  if (display.parentElement && getComputedStyle(display.parentElement).position === 'static') {
+    display.parentElement.style.position = 'relative';
+  }
+  const tip = document.createElement('div');
+  tip.textContent = message;
+  tip.style.cssText = 'position:absolute; top:100%; right:0; margin-top:4px; padding:4px 8px; background:rgba(180,40,40,0.95); color:#fff; font-size:11px; border-radius:4px; white-space:nowrap; z-index:50; pointer-events:none; box-shadow:0 2px 8px rgba(0,0,0,0.5);';
+  (display.parentElement || display).appendChild(tip);
+  setTimeout(() => tip.remove(), 2500);
+}
+
+// Make a time-display span click-to-edit. Allows demos to type a non-rounded
+// time like "7:27a" instead of dragging the (0.25-step) slider.
+function setupTimeInputEdit(displayId, sliderId) {
+  const display = document.getElementById(displayId);
+  const slider = document.getElementById(sliderId);
+  if (!display || !slider) return;
+  display.style.cursor = 'text';
+  display.title = 'Click to type a precise time (e.g. 7:27a)';
+  display.addEventListener('click', (e) => {
+    e.stopPropagation();
+    // Ensure the parent reveal-group (slider row) is open — clicking the time
+    // text should reveal the slider too, not just open the typing field.
+    const rg = display.closest('.reveal-group');
+    if (rg && !rg.classList.contains('is-revealing')) {
+      document.querySelectorAll('.reveal-group.is-revealing').forEach(g => {
+        if (g !== rg) g.classList.remove('is-revealing');
+      });
+      rg.classList.add('is-revealing');
+    }
+    if (display.querySelector('input')) return;
+    const original = display.textContent;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = original;
+    input.style.cssText = 'width: 5.5em; font: inherit; color: inherit; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 1px 4px; text-align: right;';
+    display.textContent = '';
+    display.appendChild(input);
+    input.focus();
+    input.select();
+    let committed = false;
+    const commit = () => {
+      if (committed) return;
+      committed = true;
+      const parsed = parseTimeString(input.value);
+      if (parsed == null) {
+        display.textContent = original;
+        return;
+      }
+      // Validate against guarded bounds — show inline error if outside the
+      // valid window for this phase. Falls back to slider min/max if guarded
+      // bounds aren't computable (e.g., chart not yet initialized).
+      const isWake = sliderId === 'wake-time' || sliderId === 'wake-alt-time';
+      const kind = isWake ? 'wake' : 'bed';
+      let bounds = null;
+      try {
+        if (typeof getPhaseBoundsInFrame === 'function' && chartState && chartState.ascendStart != null) {
+          bounds = getPhaseBoundsInFrame(kind);
+        }
+      } catch (_) { bounds = null; }
+      if (bounds) {
+        const xA = chartState.ascendStart;
+        const parsedFrame = visHour(parsed, xA);
+        if (parsedFrame < bounds.lo || parsedFrame > bounds.hi) {
+          const loStr = formatHour(((bounds.lo % 24) + 24) % 24);
+          const hiStr = formatHour(((bounds.hi % 24) + 24) % 24);
+          showTimeInputError(display, original, `must be between ${loStr} and ${hiStr}`);
+          return;
+        }
+      }
+      // Wrap-aware slider value: bed slider goes 0–36; if current slider value
+      // is past midnight (>=24) and parsed value is small, push to next day.
+      const sMin = parseFloat(slider.min);
+      const sMax = parseFloat(slider.max);
+      let sliderVal = parsed;
+      if (sMax > 24 && parseFloat(slider.value) >= 24 && parsed < 12) {
+        sliderVal = parsed + 24;
+      }
+      sliderVal = Math.max(sMin, Math.min(sMax, sliderVal));
+      slider.value = sliderVal;
+      // Fire input so existing handler updates display, syncs config, renders.
+      slider.dispatchEvent(new Event('input', { bubbles: true }));
+      // Override config with the precise (sub-step) value for this kind.
+      if (sliderId === 'wake-time') config.wake_time = parsed;
+      else if (sliderId === 'bed-time') config.bed_time = parsed;
+      else if (sliderId === 'wake-alt-time') config.wake_alt_time = parsed;
+      else if (sliderId === 'bed-alt-time') config.bed_alt_time = parsed;
+      updateDisplay(displayId, formatHour(parsed));
+      updateSliderFill(slider);
+      renderChart();
+    };
+    input.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') { ev.preventDefault(); commit(); input.blur(); }
+      else if (ev.key === 'Escape') { committed = true; display.textContent = original; input.blur(); }
+    });
+    input.addEventListener('blur', commit);
   });
 }
 
@@ -3833,6 +5321,7 @@ function syncConfigFromUI() {
   config.min_brightness = parseInt(document.getElementById('brightness-min').value);
   config.max_brightness = parseInt(document.getElementById('brightness-max').value);
   config.brightness_sensitivity = SENSITIVITY_STEPS[parseInt(document.getElementById('brightness-sensitivity').value)].multiplier;
+  config.brightness_sensitivity_enabled = document.getElementById('brightness-sensitivity-enabled').checked;
   // Constrain solar target sliders to color range (clamps values if needed)
   updateSolarTargetSliderConstraints();
 
@@ -3928,6 +5417,8 @@ function syncUIFromConfig() {
   document.getElementById('brightness-min').value = config.min_brightness;
   document.getElementById('brightness-max').value = config.max_brightness;
   document.getElementById('brightness-sensitivity').value = findClosestSensitivityStep(config.brightness_sensitivity ?? 1.0);
+  const briSensEnabledEl = document.getElementById('brightness-sensitivity-enabled');
+  if (briSensEnabledEl) briSensEnabledEl.checked = config.brightness_sensitivity_enabled !== false;
   // Set warm night slider values FROM CONFIG BEFORE calling updateSolarTargetSliderConstraints
   document.getElementById('warm-night-enabled').checked = config.warm_night_enabled;
   document.getElementById('warm-night-mode').value = config.warm_night_mode;
@@ -3967,8 +5458,8 @@ function syncUIFromConfig() {
   updateDisplay('wake-brightness-display', wb + '%');
   const bb = config.bed_brightness || 50;
   updateDisplay('bed-brightness-display', bb + '%');
-  updateDisplay('wake-speed-display', `${config.wake_speed}: ${SPEED_LABELS[config.wake_speed].toLowerCase()}`);
-  updateDisplay('bed-speed-display', `${config.bed_speed}: ${SPEED_LABELS[config.bed_speed].toLowerCase()}`);
+  updateDisplay('wake-speed-display', formatSpeedReadoutIdle(config.wake_speed));
+  updateDisplay('bed-speed-display', formatSpeedReadoutIdle(config.bed_speed));
   updateRangeDisplays();
 
 
@@ -3992,48 +5483,9 @@ function syncUIFromConfig() {
   });
 }
 
-// Set chart wake/bed secondary checkboxes based on current/next effective schedule
-function initChartScheduleDefaults() {
-  const ALL = [0, 1, 2, 3, 4, 5, 6];
-  const phase = getSleepPhase();
-  const jsToday = new Date().getDay();
-  const pyToday = jsToday === 0 ? 6 : jsToday - 1;
-  const nowDecimal = new Date().getHours() + new Date().getMinutes() / 60;
-
-  ['wake', 'bed'].forEach(prefix => {
-    const primaryDays = getSelectedDays(`${prefix}-days`);
-    const altDays = primaryDays.length === 0
-      ? []
-      : (primaryDays.length < 7 ? ALL.filter(d => !primaryDays.includes(d)) : []);
-    if (altDays.length === 0) return;
-
-    const altSlider = document.getElementById(`${prefix}-alt-time`);
-    if (!altSlider) return;
-
-    const p = phase[prefix];
-    let useAlt = false;
-    if (p === 'current') {
-      useAlt = altDays.includes(pyToday);
-    } else {
-      let startOffset = 1;
-      if (prefix === 'bed' && nowDecimal < (config.descend_start || 20)) startOffset = 0;
-      if (prefix === 'wake' && nowDecimal < (config.ascend_start || 6)) startOffset = 0;
-      const checkDay = (pyToday + startOffset) % 7;
-      useAlt = altDays.includes(checkDay);
-    }
-
-    const checkboxId = prefix === 'wake' ? 'chart-wake-secondary' : 'chart-bed-secondary';
-    if (useAlt) {
-      if (prefix === 'wake') chartWakeMode = 'alt'; else chartBedMode = 'alt';
-      const cb = document.getElementById(checkboxId);
-      if (cb) cb.checked = true;
-    } else {
-      if (prefix === 'wake') chartWakeMode = 'primary'; else chartBedMode = 'primary';
-      const cb = document.getElementById(checkboxId);
-      if (cb) cb.checked = false;
-    }
-  });
-}
+// Variant viewing was dropped — chart always shows today's actual schedule.
+// Stub kept for callers that still invoke it.
+function initChartScheduleDefaults() {}
 
 // Update card header range displays
 function updateRangeDisplays() {
@@ -4118,6 +5570,13 @@ function syncColorRuleRows() {
   if (weatherEl) {
     weatherEl.disabled = !daylightEnabled;
     weatherEl.style.opacity = daylightEnabled ? '' : '0.4';
+  }
+
+  // Brightness sun-dimming body — grey out when unchecked
+  const briSensEnabled = config.brightness_sensitivity_enabled !== false;
+  const briSensBody = document.getElementById('brightness-sensitivity-body');
+  if (briSensBody) {
+    briSensBody.classList.toggle('is-disabled', !briSensEnabled);
   }
 
   // Update card header with warm/cool labels
@@ -4210,12 +5669,18 @@ function setupEventListeners() {
   updateSliderValue('descend-start', 'descend-start-display', formatHour);
   updateSliderValue('wake-time', 'wake-time-display', formatHour);
   updateSliderValue('bed-time', 'bed-time-display', formatHour);
-  updateSliderValue('wake-speed', 'wake-speed-display', v => `${v}: ${SPEED_LABELS[v].toLowerCase()}`);
-  updateSliderValue('bed-speed', 'bed-speed-display', v => `${v}: ${SPEED_LABELS[v].toLowerCase()}`);
+  setupSpeedSliderReadout('wake-speed', 'wake-speed-display');
+  setupSpeedSliderReadout('bed-speed', 'bed-speed-display');
 
   // Alt time sliders
   updateSliderValue('wake-alt-time', 'wake-alt-time-display', formatHour);
   updateSliderValue('bed-alt-time', 'bed-alt-time-display', formatHour);
+
+  // Click-to-type on time displays (lets demos enter precise minutes).
+  setupTimeInputEdit('wake-time-display', 'wake-time');
+  setupTimeInputEdit('bed-time-display', 'bed-time');
+  setupTimeInputEdit('wake-alt-time-display', 'wake-alt-time');
+  setupTimeInputEdit('bed-alt-time-display', 'bed-alt-time');
 
   // Brightness target sliders
   updateSliderValue('wake-brightness', 'wake-brightness-display', v => v + '%');
@@ -4294,6 +5759,12 @@ function setupEventListeners() {
     renderChart();
   });
 
+  document.getElementById('brightness-sensitivity-enabled')?.addEventListener('change', () => {
+    config.brightness_sensitivity_enabled = document.getElementById('brightness-sensitivity-enabled').checked;
+    syncColorRuleRows();
+    renderChart();
+  });
+
   // Close info tooltips when clicking outside
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.info-icon') && !e.target.closest('.info-tooltip')) {
@@ -4347,80 +5818,92 @@ function setupEventListeners() {
     }
   });
 
-  document.getElementById('chart-date-slider').addEventListener('input', () => {
-    renderChart();
-  });
-
-  // Click date label to reset to today
-  const dateDisplay = document.getElementById('chart-date-display');
-  if (dateDisplay) {
-    dateDisplay.addEventListener('click', () => {
-      const slider = document.getElementById('chart-date-slider');
-      if (!slider) return;
-      const now = new Date();
-      const todayOffset = Math.floor((now - new Date(now.getFullYear(), 0, 1)) / 86400000);
-      slider.value = todayOffset;
+  // Month slider — opens from the quiet "april" caption inside chart-shell
+  // (bottom-left). 12 stops; renderChart() reads chartState.monthIdx via
+  // getSelectedDateISO() to compute sun times.
+  const monthSlider = document.getElementById('month-slider');
+  const monthLabelEl = document.getElementById('month-label');
+  if (monthSlider) {
+    monthSlider.addEventListener('input', () => {
+      chartState.monthIdx = parseInt(monthSlider.value, 10);
+      if (monthLabelEl) monthLabelEl.textContent = MONTH_NAMES[chartState.monthIdx];
+      updateSliderFill(monthSlider);
       renderChart();
+    });
+    updateSliderFill(monthSlider);
+  }
+  const monthPop = document.getElementById('month-popover');
+  if (monthLabelEl && monthPop) {
+    monthLabelEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      monthPop.classList.toggle('open');
+    });
+    document.addEventListener('click', (e) => {
+      if (!monthPop.contains(e.target) && e.target !== monthLabelEl) {
+        monthPop.classList.remove('open');
+      }
     });
   }
 
-  const _condSel = document.getElementById('modeled-conditions');
-  _condSel.addEventListener('change', () => {
-    renderChart();
-  });
-  // Swap "Current" label: short when collapsed, full when open
-  _condSel.addEventListener('focus', () => {
-    const opt = _condSel.options[0];
-    if (opt?.value === 'current' && opt.dataset.fullLabel) opt.text = opt.dataset.fullLabel;
-  });
-  _condSel.addEventListener('blur', () => {
-    const opt = _condSel.options[0];
-    if (opt?.value === 'current' && opt.dataset.shortLabel) opt.text = opt.dataset.shortLabel;
+  // CCT banner controls — ↺ master reset (top-right of row 1) reverts page
+  // view to defaults (cursor → now, outdoor → current, wake/bed drag → null,
+  // month → current). Page-scope, NOT time-scope; does not roll back saved
+  // config. ←/→ in row 2 step the cursor by `cursorStepMin` (configurable via
+  // Settings → App → Rhythm chart).
+  document.getElementById('cct-banner-reset')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    resetChartView();
   });
 
-  // Chart schedule toggles (wake/bed primary vs alt)
-  document.getElementById('chart-wake-secondary')?.addEventListener('change', (e) => {
-    chartWakeMode = e.target.checked ? 'alt' : 'primary';
-    renderChart();
+  const _stepCursor = (dirSign) => {
+    // Read the live config value first so freshly-saved settings take effect
+    // even on a back-button (bfcache) restore that skipped loadConfig. Fall
+    // back to the cached `cursorStepMin`, then to the 5-min default.
+    const cfgStep = parseInt(config?.rhythm_cursor_step_min, 10);
+    let stepMin = (typeof cursorStepMin === 'number' && cursorStepMin > 0) ? cursorStepMin : 5;
+    if (Number.isFinite(cfgStep) && cfgStep > 0) stepMin = cfgStep;
+    const stepHr = (stepMin / 60) * dirSign;
+    const xA = chartState.ascendStart;
+    // Step in chart-frame coordinates (xA → xA+24) and clamp at the edges so
+    // the cursor doesn't wrap from the right edge to the left (which would
+    // visually look like a teleport across the whole chart).
+    const frame = visHour(cursorHour, xA);
+    const next = Math.max(xA, Math.min(xA + 24 - 0.001, frame + stepHr));
+    cursorTrackingNow = false;
+    cursorHour = wrapHour(next);
     applyCursor();
+  };
+  document.getElementById('cct-banner-prev')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    _stepCursor(-1);
   });
-  document.getElementById('chart-bed-secondary')?.addEventListener('change', (e) => {
-    chartBedMode = e.target.checked ? 'alt' : 'primary';
-    renderChart();
-    applyCursor();
+  document.getElementById('cct-banner-next')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    _stepCursor(+1);
   });
 
-  // Time navigation buttons — always active
-  document.getElementById('cursor-time-now')?.addEventListener('click', () => {
-    cursorTrackingNow = true;
-    const now = new Date();
-    cursorHour = now.getHours() + now.getMinutes() / 60;
-    renderChart();
-    applyCursor();
-  });
-  document.getElementById('cursor-time-plus')?.addEventListener('click', () => {
-    cursorTrackingNow = false;
-    cursorHour = (cursorHour + 5/60) % 24;  // +5 minutes, wrap at 24
-    renderChart();
-    applyCursor();
-  });
-  document.getElementById('cursor-time-minus')?.addEventListener('click', () => {
-    cursorTrackingNow = false;
-    cursorHour = (cursorHour - 5/60 + 24) % 24;
-    renderChart();
-    applyCursor();
-  });
-  document.getElementById('cursor-time-plus-30')?.addEventListener('click', () => {
-    cursorTrackingNow = false;
-    cursorHour = (cursorHour + 30/60) % 24;
-    renderChart();
-    applyCursor();
-  });
-  document.getElementById('cursor-time-minus-30')?.addEventListener('click', () => {
-    cursorTrackingNow = false;
-    cursorHour = (cursorHour - 30/60 + 24) % 24;
-    renderChart();
-    applyCursor();
+  // Wake/Bed handle drag setup
+  setupHandleDrag('wake-handle', 'wake');
+  setupHandleDrag('bed-handle', 'bed');
+
+  // Sunrise/sunset hover → chart-spanning yellow line
+  setupSolarHover();
+
+  // Outdoor chip toggle + popover wiring
+  setupOutdoorPopover();
+
+  // Sleep card dirty bar wiring — surfaces when wake/bed pill dragged on chart.
+  setupSleepDirtyBar();
+
+  // Outside-click closes popovers
+  document.addEventListener('pointerdown', (e) => {
+    if (!e.target.closest('.save-popover')) {
+      closeSavePopover();
+    }
+    if (!e.target.closest('.outdoor-popover') && !e.target.closest('.outdoor-chip')) {
+      const op = document.getElementById('outdoor-popover');
+      if (op) op.classList.remove('open');
+    }
   });
 
 }
@@ -4436,6 +5919,8 @@ async function loadConfig() {
     if (resp.ok) {
       const data = await resp.json();
       Object.assign(config, data);
+      const stepRaw = parseInt(data.rhythm_cursor_step_min, 10);
+      if (Number.isFinite(stepRaw) && stepRaw > 0) cursorStepMin = stepRaw;
       syncUIFromConfig();
       renderChart();
     }
@@ -4454,47 +5939,130 @@ async function saveConfig() {
 // ============================================================
 
 /**
- * Load areas from Home Assistant and populate the dropdown.
+ * Load areas from Home Assistant and cache for the Try-it popover.
  */
 async function loadLiveDesignAreas() {
-  const select = document.getElementById('live-area-select');
-  if (!select) return;
-
-  console.log('[Live Design] Loading areas...');
-
   try {
-    const response = await fetch('./api/areas');
-    console.log('[Live Design] API response status:', response.status);
+    const [areasRes, zonesRes] = await Promise.all([
+      fetch('./api/areas'),
+      fetch('./api/glozones'),
+    ]);
+    if (!areasRes.ok) return;
+    const areas = await areasRes.json();
+    if (!Array.isArray(areas)) return;
+    liveDesignAreas = areas.map(a => ({ area_id: a.area_id, name: a.name }));
 
-    if (!response.ok) {
-      const text = await response.text();
-      console.warn('[Live Design] Failed to load areas:', response.status, text);
-      return;
+    // Group areas by glozone to mirror the home page's zone-grouped layout.
+    // Within each zone, preserve the API-returned order (= user's drag order
+    // from areas.html). Areas not in any zone fall into "Unassigned" at end.
+    liveDesignZones = [];
+    if (zonesRes && zonesRes.ok) {
+      const zonesData = await zonesRes.json();
+      const zones = zonesData.zones || {};
+      const claimed = new Set();
+      // Sort zone names alphabetically (matches areas.html line 2402).
+      const zoneNames = Object.keys(zones).sort();
+      for (const zoneName of zoneNames) {
+        const zoneAreaIds = (zones[zoneName].areas || [])
+          .map(a => (typeof a === 'object' ? a.id : a))
+          .filter(Boolean);
+        const zoneAreas = [];
+        for (const id of zoneAreaIds) {
+          const match = liveDesignAreas.find(a => a.area_id === id);
+          if (match) {
+            zoneAreas.push(match);
+            claimed.add(id);
+          }
+        }
+        if (zoneAreas.length) liveDesignZones.push({ name: zoneName, areas: zoneAreas });
+      }
+      const unassigned = liveDesignAreas.filter(a => !claimed.has(a.area_id));
+      if (unassigned.length) liveDesignZones.push({ name: 'Unassigned', areas: unassigned });
+    } else {
+      // Fallback: single bucket if glozones fetch failed.
+      liveDesignZones = [{ name: '', areas: liveDesignAreas }];
     }
-    const areas = await response.json();
-    console.log('[Live Design] Received areas:', areas);
-
-    if (!Array.isArray(areas) || areas.length === 0) {
-      console.warn('[Live Design] No areas returned or invalid response');
-      return;
-    }
-
-    // Clear existing options except the placeholder
-    while (select.options.length > 1) {
-      select.remove(1);
-    }
-
-    // Add area options
-    areas.forEach(area => {
-      const option = document.createElement('option');
-      option.value = area.area_id;
-      option.textContent = area.name;
-      select.appendChild(option);
-    });
-    console.log('[Live Design] Added', areas.length, 'areas to dropdown');
   } catch (err) {
-    console.error('[Live Design] Error loading areas:', err);
+    console.error('[Try-it] Error loading areas:', err);
   }
+}
+
+/**
+ * Render the area list inside the popover with checkbox state + max-3 cap.
+ */
+function renderTryItAreaList() {
+  const list = document.getElementById('try-it-area-list');
+  const counter = document.getElementById('try-it-counter');
+  if (!list || !counter) return;
+  list.innerHTML = '';
+  // Render grouped by zone (matches areas.html layout). Zone header = small
+  // muted caption; areas underneath in user's drag order. If glozones fetch
+  // failed we get a single unnamed bucket with all areas.
+  const groups = liveDesignZones.length ? liveDesignZones : [{ name: '', areas: liveDesignAreas }];
+  groups.forEach((group, gi) => {
+    if (group.name) {
+      const header = document.createElement('div');
+      header.className = 'try-it-zone-header';
+      header.textContent = group.name;
+      if (gi > 0) header.classList.add('not-first');
+      list.appendChild(header);
+    }
+    group.areas.forEach(area => {
+      const row = document.createElement('label');
+      row.className = 'try-it-area-row';
+      const checked = liveDesignAreaIds.includes(area.area_id);
+      const atCap = !checked && liveDesignAreaIds.length >= TRY_IT_MAX;
+      if (atCap) row.classList.add('is-disabled');
+      row.innerHTML = `<input type="checkbox" data-area-id="${area.area_id}" ${checked ? 'checked' : ''} ${atCap ? 'disabled' : ''}> <span>${area.name}</span>`;
+      const cb = row.querySelector('input');
+      cb.addEventListener('change', (e) => {
+        const id = e.target.dataset.areaId;
+        if (e.target.checked) {
+          if (!liveDesignAreaIds.includes(id)) liveDesignAreaIds.push(id);
+        } else {
+          liveDesignAreaIds = liveDesignAreaIds.filter(x => x !== id);
+        }
+        renderTryItAreaList();
+      });
+      list.appendChild(row);
+    });
+  });
+  counter.textContent = `${liveDesignAreaIds.length} / ${TRY_IT_MAX}`;
+}
+
+function openTryItPopover() {
+  const pop = document.getElementById('try-it-popover');
+  const btn = document.getElementById('try-it-btn');
+  const footerStop = document.getElementById('try-it-stop-btn');
+  if (!pop || !btn) return;
+  renderTryItAreaList();
+  // Footer Stop appears next to Go only when live — the header is now reserved
+  // for the "Broadcast" title + area counter (no Stop pill in the header).
+  if (footerStop) footerStop.style.display = liveDesignEnabled ? '' : 'none';
+  pop.classList.add('open');
+  pop.setAttribute('aria-hidden', 'false');
+  btn.setAttribute('aria-expanded', 'true');
+}
+
+function closeTryItPopover() {
+  const pop = document.getElementById('try-it-popover');
+  const btn = document.getElementById('try-it-btn');
+  if (!pop || !btn) return;
+  pop.classList.remove('open');
+  pop.setAttribute('aria-hidden', 'true');
+  btn.setAttribute('aria-expanded', 'false');
+}
+
+function _formatAreaLabel(ids) {
+  if (ids.length === 0) return 'Preview';
+  const nameOf = id => (liveDesignAreas.find(a => a.area_id === id) || {}).name || id;
+  // Live state: drop the "Trying in" prefix — the broadcast SVG (already inside
+  // the button) carries that meaning, and the dark .is-live container makes the
+  // accent-orange room name stand out as the "active" signal. Multi-area uses
+  // a "+N more" tail (not concatenated names) so even longer area names like
+  // "SunOffice" don't push the centered % · K readout off-center in the banner.
+  if (ids.length === 1) return nameOf(ids[0]);
+  return `${nameOf(ids[0])} +${ids.length - 1}`;
 }
 
 /**
@@ -4504,77 +6072,70 @@ async function loadLiveDesignAreas() {
 function getCursorLightValues() {
   if (cursorHour === null || !config) return null;
 
-  // Use core calculation functions for exact values (consistent with brain.py)
+  // Sun-dim factor matches the visible solid curve (brightnessPct), so the
+  // value broadcast to the bulb tracks what the chart shows at the cursor.
+  const dim = chartState.sunDimFactor ? chartState.sunDimFactor(cursorHour) : 1.0;
   return {
-    brightness: calculateBrightnessAtHour(cursorHour) * 100,  // Convert 0-1 to 0-100
+    brightness: calculateBrightnessAtHour(cursorHour) * dim * 100,
     colorTemp: calculateColorAtHour(cursorHour, true)         // With solar rules
   };
 }
 
 /**
- * Apply the current cursor lighting values to the selected area.
+ * Apply the current cursor lighting values to all selected areas in parallel.
+ *
+ * Trailing-debounced (100ms) so rapid cursor scrubs collapse to ~10 calls/sec
+ * instead of one-per-cursor-pixel. The latest pending value always fires —
+ * we never drop the user's intent, just suppress redundant intermediates that
+ * would saturate the ZHA radio. First-apply (Go) bypasses the debounce so
+ * lights respond instantly when broadcast starts.
  */
-async function applyLiveLight() {
-  console.log('[Live Design] applyLiveLight called, enabled=', liveDesignEnabled, 'areaId=', liveDesignAreaId);
-  if (!liveDesignEnabled || !liveDesignAreaId) {
-    console.log('[Live Design] Skipping - not enabled or no area selected');
-    return;
-  }
+let _liveDesignDebounceTimer = null;
+let _liveDesignPendingApply = false;
+const LIVE_DESIGN_DEBOUNCE_MS = 100;
 
-  const values = getCursorLightValues();
-  console.log('[Live Design] Cursor values:', values);
-  if (!values) {
-    console.log('[Live Design] No cursor values available');
-    return;
-  }
-
-  const statusEl = document.getElementById('live-design-status');
-
-  // Use 2-second transition on first apply after entering, then default 0.3s
-  const transition = liveDesignFirstApply ? 2 : 0.3;
+function applyLiveLight() {
+  if (!liveDesignEnabled || liveDesignAreaIds.length === 0) return;
   if (liveDesignFirstApply) {
-    liveDesignFirstApply = false;
-    console.log('[Live Design] First apply - using 2s transition');
+    // Initial apply: fire immediately so user sees lights respond when
+    // pressing Go, then subsequent scrubs are debounced.
+    _doApplyLiveLight();
+    return;
   }
-
-  console.log('[Live Design] Sending to API:', {
-    area_id: liveDesignAreaId,
-    brightness: Math.round(values.brightness),
-    color_temp: Math.round(values.colorTemp),
-    transition
-  });
-
-  try {
-    const response = await fetch('./api/apply-light', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        area_id: liveDesignAreaId,
-        brightness: Math.round(values.brightness),
-        color_temp: Math.round(values.colorTemp),
-        transition
-      })
-    });
-
-    if (response.ok) {
-      if (statusEl) {
-        statusEl.textContent = 'Live';
-        statusEl.classList.add('active', 'live-blink');
-      }
-    } else {
-      console.warn('Failed to apply light:', response.status);
-      if (statusEl) {
-        statusEl.textContent = 'Error';
-        statusEl.classList.remove('active', 'live-blink');
-      }
+  _liveDesignPendingApply = true;
+  if (_liveDesignDebounceTimer) clearTimeout(_liveDesignDebounceTimer);
+  _liveDesignDebounceTimer = setTimeout(() => {
+    _liveDesignDebounceTimer = null;
+    if (_liveDesignPendingApply) {
+      _liveDesignPendingApply = false;
+      _doApplyLiveLight();
     }
-  } catch (err) {
-    console.error('Error applying live light:', err);
-    if (statusEl) {
-      statusEl.textContent = 'Error';
-      statusEl.classList.remove('active', 'live-blink');
+  }, LIVE_DESIGN_DEBOUNCE_MS);
+}
+
+async function _doApplyLiveLight() {
+  const values = getCursorLightValues();
+  if (!values) return;
+  // 2s transition on first apply (smooth fade-in from current state); 0.1s on
+  // subsequent scrubs so bulbs feel responsive to cursor drag instead of
+  // chasing the cursor with a noticeable lag.
+  const transition = liveDesignFirstApply ? 2 : 0.1;
+  if (liveDesignFirstApply) liveDesignFirstApply = false;
+
+  const bri = Math.round(values.brightness);
+  const ct = Math.round(values.colorTemp);
+
+  await Promise.all(liveDesignAreaIds.map(async (areaId) => {
+    try {
+      await fetch('./api/apply-light', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ area_id: areaId, brightness: bri, color_temp: ct, transition }),
+      });
+    } catch (err) {
+      console.error('[Try-it] Error applying light to', areaId, err);
     }
-  }
+  }));
 }
 
 /**
@@ -4600,103 +6161,145 @@ async function setCircadianMode(areaId, enabled) {
   }
 }
 
+// Heartbeat — server's watchdog ends Live Design if these stop arriving for
+// 60s. Keeps an abandoned browser (closed tab, slept laptop) from holding any
+// area out of periodic updates indefinitely. Sent per-area for all active targets.
+let _liveDesignHeartbeatTimer = null;
+async function sendLiveDesignHeartbeat(areaIds) {
+  if (!areaIds || areaIds.length === 0) return;
+  await Promise.all(areaIds.map(async (areaId) => {
+    try {
+      await fetch('./api/live-design/heartbeat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ area_id: areaId }),
+      });
+    } catch (err) {
+      console.warn('[Try-it] Heartbeat failed for', areaId, err);
+    }
+  }));
+}
+function startLiveDesignHeartbeat(areaIds) {
+  stopLiveDesignHeartbeat();
+  if (!areaIds || areaIds.length === 0) return;
+  sendLiveDesignHeartbeat(areaIds);
+  // Snapshot the array so timer doesn't observe mutations
+  const ids = [...areaIds];
+  _liveDesignHeartbeatTimer = setInterval(() => sendLiveDesignHeartbeat(ids), 30000);
+}
+function stopLiveDesignHeartbeat() {
+  if (_liveDesignHeartbeatTimer) {
+    clearInterval(_liveDesignHeartbeatTimer);
+    _liveDesignHeartbeatTimer = null;
+  }
+}
+
 /**
- * Set up Live Design event listeners.
- * - Selecting an area auto-enables Live Design
- * - Pause button pauses/resumes (restoring lights on pause)
+ * Update the Try-it button label + active visual to match current state.
  */
 function updateLiveVisuals() {
-  const controls = document.getElementById('live-design-controls');
-  const fab = document.getElementById('live-fab');
-  if (controls) controls.classList.toggle('is-live', liveDesignEnabled);
-  if (fab) fab.classList.toggle('is-active', liveDesignEnabled);
+  const btn = document.getElementById('try-it-btn');
+  const label = document.getElementById('try-it-label');
+  if (!btn || !label) return;
+  btn.classList.toggle('is-live', liveDesignEnabled);
+  label.textContent = liveDesignEnabled ? _formatAreaLabel(liveDesignAreaIds) : 'Preview';
+}
+
+/**
+ * Commit the popover's current selection: start (or update) Live Design.
+ * If selection is empty and we were live, treat as Stop.
+ */
+async function commitTryItSelection() {
+  const newIds = [...liveDesignAreaIds];
+  // Determine deltas vs prior state
+  const wasLive = liveDesignEnabled;
+  const oldIds = wasLive ? [...liveDesignAreaIds] : [];
+
+  if (newIds.length === 0) {
+    if (wasLive) await stopTryIt();
+    closeTryItPopover();
+    return;
+  }
+
+  // Areas being removed (only matters if we were live)
+  const removed = oldIds.filter(id => !newIds.includes(id));
+  // Areas being added (always need to suppress circadian + start broadcasting)
+  const added = wasLive ? newIds.filter(id => !oldIds.includes(id)) : newIds;
+
+  // Restore circadian on removed areas
+  if (removed.length > 0) {
+    await Promise.all(removed.map(id => setCircadianMode(id, true)));
+  }
+
+  // Suppress circadian on newly added areas
+  if (added.length > 0) {
+    await Promise.all(added.map(id => setCircadianMode(id, false)));
+  }
+
+  liveDesignEnabled = true;
+  liveDesignFirstApply = !wasLive;
+  startLiveDesignHeartbeat(liveDesignAreaIds);
+  updateDesignModeUI();
+  updateLiveVisuals();
+  closeTryItPopover();
+
+  // For freshly-started broadcast, give bulbs ~2.2s to fade-to-off before pushing values
+  if (!wasLive) {
+    await new Promise(r => setTimeout(r, 2200));
+  }
+  if (cursorHour !== null) applyLiveLight();
+}
+
+/**
+ * Stop Live Design across all selected areas. Re-enables circadian for each.
+ */
+async function stopTryIt() {
+  if (!liveDesignEnabled) return;
+  const ids = [...liveDesignAreaIds];
+  stopLiveDesignHeartbeat();
+  liveDesignEnabled = false;
+  liveDesignAreaIds = [];
+  await Promise.all(ids.map(id => setCircadianMode(id, true)));
+  updateDesignModeUI();
+  updateLiveVisuals();
+  snapCursorToNow();
 }
 
 function setupLiveDesign() {
-  const toggleBtn = document.getElementById('live-design-toggle');
-  const areaSelect = document.getElementById('live-area-select');
-  const statusEl = document.getElementById('live-design-status');
+  const btn = document.getElementById('try-it-btn');
+  const popover = document.getElementById('try-it-popover');
+  const doneBtn = document.getElementById('try-it-done-btn');
+  const stopBtn = document.getElementById('try-it-stop-btn');
 
-  if (toggleBtn) {
-    toggleBtn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      if (!liveDesignAreaId) return;
-
-      // Stop: re-enable Circadian, reset UI to initial state
-      liveDesignEnabled = false;
-      toggleBtn.style.display = 'none';
-      areaSelect.value = '';
-      if (statusEl) {
-        statusEl.textContent = '';
-        statusEl.classList.remove('active', 'live-blink');
-      }
-      updateDesignModeUI();
-      updateLiveVisuals();
-      await setCircadianMode(liveDesignAreaId, true);
-      liveDesignAreaId = null;
-      snapCursorToNow();
-    });
-  }
-
-  if (areaSelect) {
-    areaSelect.addEventListener('change', async (e) => {
-      const oldAreaId = liveDesignAreaId;
-      const newAreaId = e.target.value || null;
-
-      // If we had an active Live Design, end it for the old area
-      if (liveDesignEnabled && oldAreaId) {
-        if (statusEl) {
-          statusEl.textContent = 'Exiting...';
-        }
-        await setCircadianMode(oldAreaId, true);
-      }
-
-      liveDesignAreaId = newAreaId;
-
-      if (newAreaId) {
-        // Auto-enable Live Design when area is selected
-        liveDesignEnabled = true;
-        toggleBtn.style.display = '';
-        toggleBtn.textContent = 'Stop';
-        updateDesignModeUI();
-        updateLiveVisuals();
-        if (statusEl) {
-          statusEl.textContent = 'Live starting...';
-          statusEl.classList.remove('live-blink');
-          statusEl.classList.add('active');
-        }
-        await setCircadianMode(newAreaId, false);
-        // Wait for fade-to-off to complete before applying live values
-        await new Promise(r => setTimeout(r, 2200));
-        // Apply current cursor position if set with 3s transition
-        liveDesignFirstApply = true;
-        if (cursorHour !== null) {
-          applyLiveLight();
-        }
-        // Update status after transition
-        setTimeout(() => {
-          if (liveDesignEnabled && statusEl) {
-            statusEl.textContent = 'Live';
-            statusEl.classList.add('live-blink');
-          }
-        }, 2500);
+  if (btn) {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (popover && popover.classList.contains('open')) {
+        closeTryItPopover();
       } else {
-        // No area selected - hide button and reset state
-        liveDesignEnabled = false;
-        toggleBtn.style.display = 'none';
-        if (statusEl) {
-          statusEl.textContent = '';
-          statusEl.classList.remove('active', 'live-blink');
-        }
-        updateDesignModeUI();
-        updateLiveVisuals();
-        // Snap cursor back to now — exiting design mode
-        snapCursorToNow();
+        openTryItPopover();
       }
     });
   }
+  if (doneBtn) {
+    doneBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      commitTryItSelection();
+    });
+  }
+  const stopHandler = async (e) => {
+    e.stopPropagation();
+    await stopTryIt();
+    closeTryItPopover();
+  };
+  if (stopBtn) stopBtn.addEventListener('click', stopHandler);
+  // Click-outside closes the popover (without committing)
+  document.addEventListener('click', (e) => {
+    if (!popover || !popover.classList.contains('open')) return;
+    if (popover.contains(e.target) || (btn && btn.contains(e.target))) return;
+    closeTryItPopover();
+  });
 
-  // Load areas from HA
   loadLiveDesignAreas();
 }
 
@@ -5236,6 +6839,9 @@ async function loadZoneFromData() {
       syncConfigFromUI();
       if (storedColorSens != null) config.color_sensitivity = storedColorSens;
       takeConfigSnapshot();
+      // Anchor chart frame at ascend_start - 2 once real config loads, so the
+      // initial render isn't stuck at the placeholder default.
+      recomputeAscendStart();
       renderChart();
 
       // Auto-expand color card when arriving from tune color tab
@@ -5336,6 +6942,7 @@ async function saveZoneSettings() {
     daylight_fade: config.daylight_fade,
     color_sensitivity: config.color_sensitivity,
     brightness_sensitivity: config.brightness_sensitivity,
+    brightness_sensitivity_enabled: config.brightness_sensitivity_enabled,
     activity_preset: config.activity_preset,
   };
 
@@ -5388,11 +6995,13 @@ const _backUrl = _backParam && _backParam !== 'home'
   : (_basePath || '.') + '/';
 
 function stopLiveDesign() {
-  if (liveDesignEnabled && liveDesignAreaId) {
-    // Fire-and-forget re-enable circadian for the area
-    setCircadianMode(liveDesignAreaId, true);
+  if (liveDesignEnabled && liveDesignAreaIds.length > 0) {
+    const ids = [...liveDesignAreaIds];
+    stopLiveDesignHeartbeat();
     liveDesignEnabled = false;
-    liveDesignAreaId = null;
+    liveDesignAreaIds = [];
+    Promise.all(ids.map(id => setCircadianMode(id, true)));
+    updateLiveVisuals();
   }
 }
 
@@ -5432,20 +7041,24 @@ function setupSectionActions() {
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-  const slider = document.getElementById('chart-date-slider');
-  if (slider) {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), 0, 1);
-    const diff = now - start;
-    const dayOfYear = Math.floor(diff / 86400000);
-    slider.value = dayOfYear;
-  }
+  // Initialize month slider to current month
+  const monthSlider = document.getElementById('month-slider');
+  const monthLabelEl = document.getElementById('month-label');
+  chartState.monthIdx = new Date().getMonth();
+  if (monthSlider) monthSlider.value = chartState.monthIdx;
+  if (monthLabelEl) monthLabelEl.textContent = MONTH_NAMES[chartState.monthIdx];
 
-  // Apply server-injected global settings (lat, lon, timezone) before first render
+  // Apply server-injected global settings (lat, lon, timezone, cursor step)
+  // before first render. `rhythm_cursor_step_min` drives the banner ←/→
+  // step amount and was previously never read on this page (loadConfig is
+  // defined but not called in init), leaving cursorStepMin pinned to its
+  // 15-min default regardless of what the user picked in Settings.
   const injectedCfg = (window.circadianData || {}).config || {};
-  ['latitude', 'longitude', 'timezone', 'use_ha_location'].forEach(key => {
+  ['latitude', 'longitude', 'timezone', 'use_ha_location', 'rhythm_cursor_step_min'].forEach(key => {
     if (injectedCfg[key] != null) config[key] = injectedCfg[key];
   });
+  const _cursorStepRaw = parseInt(injectedCfg.rhythm_cursor_step_min, 10);
+  if (Number.isFinite(_cursorStepRaw) && _cursorStepRaw > 0) cursorStepMin = _cursorStepRaw;
 
   setupEventListeners();
   setupLiveDesign();
@@ -5467,39 +7080,18 @@ document.addEventListener('DOMContentLoaded', () => {
   fetch('./api/outdoor-status').then(r => r.json()).then(data => {
     _liveCondition = data.weather_condition ?? null;
     _liveSource = data.source ?? null;
+    _outdoorGroups = Array.isArray(data.weather_groups) ? data.weather_groups : [];
     // Store backend params so elevationToOutdoorNorm matches backend formula
     _outdoorParams = {
       maxSummerElevation: data.max_summer_elevation || 78,
       sunSaturation: data.sun_saturation || 40,
-      sunSaturationRamp: data.sun_saturation_ramp || 'squared',
     };
     // Use condition_multiplier directly from backend (no reverse-engineering)
     _liveConditionMult = data.condition_multiplier ?? 1.0;
-    // Format condition name for display
-    function fmtCondition(c) {
-      if (!c) return '';
-      return c.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    }
-    // Update the "Current" option label (short when collapsed, full when dropped down)
-    const sel = document.getElementById('modeled-conditions');
-    if (sel && sel.options[0]?.value === 'current') {
-      let shortLabel = 'Current';
-      let fullLabel = 'Current';
-      if (_liveSource === 'weather' && _liveCondition) {
-        shortLabel = fmtCondition(_liveCondition) + ' (' + Math.round(_liveConditionMult * 100) + '%)';
-        fullLabel = 'Current: ' + shortLabel;
-      } else if (_liveSource === 'lux') {
-        shortLabel = 'lux (' + Math.round(_liveConditionMult * 100) + '%)';
-        fullLabel = 'Current: ' + shortLabel;
-      } else if (_liveSource === 'angle') {
-        shortLabel = 'sun angle';
-        fullLabel = 'Current: ' + shortLabel;
-      }
-      sel.options[0].dataset.shortLabel = shortLabel;
-      sel.options[0].dataset.fullLabel = fullLabel;
-      sel.options[0].text = sel === document.activeElement ? fullLabel : shortLabel;
-    }
-    if (sel?.value === 'current') {
+    // Rebuild popover now that we have weather_groups + live condition data.
+    if (typeof buildOutdoorPopover === 'function') buildOutdoorPopover();
+    if (typeof updateOutdoorChipIcon === 'function') updateOutdoorChipIcon();
+    if (chartState.outdoorSrc === 'current') {
       renderChart();
       applyCursor();
     }
@@ -5511,6 +7103,16 @@ document.addEventListener('DOMContentLoaded', () => {
       snapCursorToNow();
     }
   }, 30000);
+
+  // bfcache restore: when the user navigates back from Settings (which may
+  // have changed `rhythm_cursor_step_min` or other globals), refetch the
+  // server config so cursorStepMin reflects the latest saved value rather
+  // than the stale value baked into window.circadianData at first paint.
+  window.addEventListener('pageshow', (ev) => {
+    if (ev.persisted) {
+      loadConfig();
+    }
+  });
 });
 </script>
 </body>

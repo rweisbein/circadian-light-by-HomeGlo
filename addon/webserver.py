@@ -7,6 +7,7 @@ import logging
 import math
 import os
 import tempfile
+import time
 from typing import Any, Dict, List, Optional
 from aiohttp import web, ClientSession
 from aiohttp.web import Request, Response
@@ -43,6 +44,24 @@ logger = logging.getLogger(__name__)
 # Webhook for unsupported-device reports — Cloudflare Worker that files
 # submissions as GitHub issues in rweisbein/device-requests.
 HOMEGLO_REPORT_WEBHOOK_URL = "https://homeglo-device-reports.rweisbein.workers.dev"
+
+
+def _iso_to_hour(iso_str, default, tzinfo=None):
+    """Parse ISO timestamp → decimal hour (with optional tz conversion).
+
+    Used by the arbitrary-date sun-times paths (`/api/sun-times?date=…` and
+    `_get_sun_hours_for_date`). The today-path uses `client._get_sun_times()`
+    which returns decimal hours directly (no parsing needed).
+    """
+    if not iso_str:
+        return default
+    try:
+        dt = datetime.fromisoformat(iso_str)
+        if tzinfo and dt.tzinfo:
+            dt = dt.astimezone(tzinfo)
+        return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
+    except Exception:
+        return default
 
 
 def _get_addon_version() -> str:
@@ -395,6 +414,10 @@ def generate_curve_data(config: dict) -> dict:
         }
 
 
+LIVE_DESIGN_TIMEOUT_SEC = 60
+LIVE_DESIGN_WATCHER_INTERVAL_SEC = 15
+
+
 class LightDesignerServer:
     """Web server for the Light Designer ingress interface."""
 
@@ -428,14 +451,23 @@ class LightDesignerServer:
         self.options_file = os.path.join(self.data_dir, "options.json")
         self.designer_file = os.path.join(self.data_dir, "designer_config.json")
 
-        # Live Design capability cache (one area at a time)
-        # Populated when Live Design is enabled for an area
-        self.live_design_area: str = None  # Currently active Live Design area
-        self.live_design_color_lights: list = []  # Color-capable lights in area
-        self.live_design_ct_lights: list = []  # CT-only lights in area
-        self.live_design_saved_states: dict = (
-            {}
-        )  # Saved light states to restore when ending
+        # Live Design capability cache, keyed per area_id so multi-area
+        # broadcasts (up to TRY_IT_MAX simultaneous targets) don't clobber
+        # each other. Each entry holds the snapshot needed to restore the
+        # area's prior state when Live Design ends for that area.
+        # Schema per area_id:
+        #   {
+        #     "color_lights": [entity_id, ...],
+        #     "ct_lights":    [entity_id, ...],
+        #     "saved_states": {entity_id: attrs_dict, ...},
+        #     "started_at":   float (epoch),
+        #     "last_heartbeat": float (epoch),
+        #   }
+        # Browser pings /api/live-design/heartbeat per-area every ~30s; the
+        # watcher ends Live Design for any area whose heartbeat is older
+        # than LIVE_DESIGN_TIMEOUT_SEC, leaving the rest untouched.
+        self.live_design_areas: Dict[str, Dict[str, Any]] = {}
+        self._live_design_watcher_task = None
 
         # Areas cache - populated once on first request, refreshed by sync-devices
         self.cached_areas_list: list = (
@@ -527,6 +559,16 @@ class LightDesignerServer:
         )
         self.app.router.add_post("/api/apply-light", self.apply_light)
         self.app.router.add_post("/api/circadian-mode", self.set_circadian_mode)
+        # Live Design heartbeat — browser pings ~30s while page is open;
+        # watcher in start_serving ends Live Design if pings stop.
+        self.app.router.add_route(
+            "POST",
+            "/{path:.*}/api/live-design/heartbeat",
+            self.live_design_heartbeat,
+        )
+        self.app.router.add_post(
+            "/api/live-design/heartbeat", self.live_design_heartbeat
+        )
 
         # GloZone API routes - Zones CRUD
         # Reorder routes MUST be registered before {name} wildcard routes
@@ -1496,24 +1538,11 @@ class LightDesignerServer:
                 date_str = now.strftime("%Y-%m-%d")
 
             # Calculate sun times using brain.py function
-            sun_times = calculate_sun_times(lat, lon, date_str)
+            sun_times = calculate_sun_times(lat, lon, date_str, tz=timezone)
 
-            # Helper to convert ISO string to hour (with timezone conversion)
-            def iso_to_hour(iso_str, default):
-                if not iso_str:
-                    return default
-                try:
-                    dt = datetime.fromisoformat(iso_str)
-                    # Convert to local timezone if available
-                    if tzinfo and dt.tzinfo:
-                        dt = dt.astimezone(tzinfo)
-                    return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
-                except Exception:
-                    return default
-
-            sunrise_hour = iso_to_hour(sun_times.get("sunrise"), 6.0)
-            sunset_hour = iso_to_hour(sun_times.get("sunset"), 18.0)
-            noon_hour = iso_to_hour(sun_times.get("noon"), 12.0)
+            sunrise_hour = _iso_to_hour(sun_times.get("sunrise"), 6.0, tzinfo)
+            sunset_hour = _iso_to_hour(sun_times.get("sunset"), 18.0, tzinfo)
+            noon_hour = _iso_to_hour(sun_times.get("noon"), 12.0, tzinfo)
             midnight_hour = (noon_hour + 12.0) % 24.0
 
             return web.json_response(
@@ -1619,16 +1648,11 @@ class LightDesignerServer:
                 Config,
                 AreaState,
                 SunTimes,
-                calculate_sun_times,
                 compute_daylight_fade_weight,
                 DEFAULT_DAYLIGHT_FADE,
             )
 
-            # Get location from environment
-            latitude = float(os.getenv("HASS_LATITUDE", "35.0"))
-            longitude = float(os.getenv("HASS_LONGITUDE", "-78.6"))
             timezone = os.getenv("HASS_TIME_ZONE", "US/Eastern")
-
             try:
                 tzinfo = ZoneInfo(timezone)
             except:
@@ -1637,41 +1661,10 @@ class LightDesignerServer:
             now = datetime.now(tzinfo)
             hour = now.hour + now.minute / 60 + now.second / 3600
 
-            # Calculate sun times for solar rules
-            sun_times = SunTimes()  # defaults
-            try:
-                date_str = now.strftime("%Y-%m-%d")
-                sun_dict = calculate_sun_times(latitude, longitude, date_str)
-
-                def iso_to_hour(iso_str, default):
-                    if not iso_str:
-                        return default
-                    try:
-                        dt = datetime.fromisoformat(iso_str)
-                        # Convert to local timezone if available
-                        if tzinfo and dt.tzinfo:
-                            dt = dt.astimezone(tzinfo)
-                        return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
-                    except:
-                        return default
-
-                sun_times = SunTimes(
-                    sunrise=iso_to_hour(sun_dict.get("sunrise"), 6.0),
-                    sunset=iso_to_hour(sun_dict.get("sunset"), 18.0),
-                    solar_noon=iso_to_hour(sun_dict.get("noon"), 12.0),
-                    solar_mid=(iso_to_hour(sun_dict.get("noon"), 12.0) + 12.0) % 24.0,
-                )
-
-                # Outdoor data is shared in-memory (main.py seeds lux_tracker from live events)
-                outdoor_norm = lux_tracker.get_outdoor_normalized()
-                outdoor_source = lux_tracker.get_outdoor_source()
-                if outdoor_norm is None:
-                    outdoor_norm = 0.0
-                    outdoor_source = "none"
-                sun_times.outdoor_normalized = outdoor_norm
-                sun_times.outdoor_source = outdoor_source
-            except Exception as e:
-                logger.debug(f"[ZoneStates] Error calculating sun times: {e}")
+            # Sun times — delegate to client's cached resolver (single source of
+            # truth: instance-attr lat/lon → env fallback → is_fallback safety net,
+            # outdoor data attached fresh).
+            sun_times = self.client._get_sun_times() if self.client else SunTimes()
 
             # Get zones and rhythms from glozone module (consistent with area-status)
             zones = glozone.get_glozones()
@@ -1918,7 +1911,6 @@ class LightDesignerServer:
         "use_ha_location",
         "month",
         "sun_saturation",  # Sun intensity saturation cap (1-100, default 40)
-        "sun_saturation_ramp",  # Ramp curve: 'linear' or 'squared' (default squared)
         "turn_on_transition",  # Transition time in tenths of seconds for turn-on operations
         "turn_off_transition",  # Transition time in tenths of seconds for turn-off operations
         "two_step_bri_threshold",  # Min brightness change (%) to trigger 2-step (default 15)
@@ -1966,6 +1958,7 @@ class LightDesignerServer:
         "confirm_zone_pushes",  # Show confirmation dialogs for zone push actions (default true)
         "home_slider_mode",  # Homepage slider: "brightness", "step", or "color" (default "brightness")
         "home_buttons_mode",  # Homepage up/down buttons: "step", "bright", or "color" (default "step")
+        "rhythm_cursor_step_min",  # Cursor chip ←/→ step amount in minutes (default 5)
     }
 
     def _migrate_to_glozone_format(self, config: dict) -> dict:
@@ -2547,22 +2540,11 @@ class LightDesignerServer:
             except Exception:
                 tzinfo = None
 
-            sun_dict = calculate_sun_times(latitude, longitude, date_str)
-
-            def iso_to_hour(iso_str, default):
-                if not iso_str:
-                    return default
-                try:
-                    dt = datetime.fromisoformat(iso_str)
-                    if tzinfo and dt.tzinfo:
-                        dt = dt.astimezone(tzinfo)
-                    return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
-                except Exception:
-                    return default
+            sun_dict = calculate_sun_times(latitude, longitude, date_str, tz=timezone)
 
             result = (
-                iso_to_hour(sun_dict.get("sunrise"), 6.0),
-                iso_to_hour(sun_dict.get("sunset"), 18.0),
+                _iso_to_hour(sun_dict.get("sunrise"), 6.0, tzinfo),
+                _iso_to_hour(sun_dict.get("sunset"), 18.0, tzinfo),
             )
 
             # Prune stale entries (dates before today)
@@ -2890,7 +2872,6 @@ class LightDesignerServer:
             from brain import (
                 SunTimes,
                 SPEED_TO_SLOPE,
-                calculate_sun_times,
                 calculate_natural_light_factor,
                 compute_daylight_fade_weight,
                 compute_override_decay,
@@ -2909,52 +2890,13 @@ class LightDesignerServer:
             # Get current hour for calculations
             current_hour = get_current_hour()
 
-            # Calculate sun times for solar rules
-            latitude = float(os.getenv("HASS_LATITUDE", "35.0"))
-            longitude = float(os.getenv("HASS_LONGITUDE", "-78.6"))
-            sun_times = SunTimes()  # defaults
-            try:
-                from zoneinfo import ZoneInfo
-
-                timezone = os.getenv("HASS_TIME_ZONE", "US/Eastern")
-                try:
-                    tzinfo = ZoneInfo(timezone)
-                except:
-                    tzinfo = None
-                now = datetime.now(tzinfo)
-                date_str = now.strftime("%Y-%m-%d")
-                sun_dict = calculate_sun_times(latitude, longitude, date_str)
-
-                def iso_to_hour(iso_str, default):
-                    if not iso_str:
-                        return default
-                    try:
-                        dt = datetime.fromisoformat(iso_str)
-                        # Convert to local timezone if available
-                        if tzinfo and dt.tzinfo:
-                            dt = dt.astimezone(tzinfo)
-                        return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
-                    except:
-                        return default
-
-                sun_times = SunTimes(
-                    sunrise=iso_to_hour(sun_dict.get("sunrise"), 6.0),
-                    sunset=iso_to_hour(sun_dict.get("sunset"), 18.0),
-                    solar_noon=iso_to_hour(sun_dict.get("noon"), 12.0),
-                    solar_mid=(iso_to_hour(sun_dict.get("noon"), 12.0) + 12.0) % 24.0,
-                )
-            except Exception as e:
-                logger.debug(f"[AreaStatus] Error calculating sun times: {e}")
-
-            # Outdoor data is shared in-memory (main.py seeds lux_tracker from live events)
-            outdoor_norm = lux_tracker.get_outdoor_normalized()
-            outdoor_source = lux_tracker.get_outdoor_source()
-            if outdoor_norm is None:
-                outdoor_norm = 0.0
-                outdoor_source = "none"
-
-            sun_times.outdoor_normalized = outdoor_norm
-            sun_times.outdoor_source = outdoor_source
+            # Sun times — delegate to client's cached resolver
+            sun_times = self.client._get_sun_times() if self.client else SunTimes()
+            # Outdoor data is attached to sun_times by _get_sun_times (always
+            # fresh, never cached). Pull into locals — referenced repeatedly
+            # below per area for sun-bright + status payload.
+            outdoor_norm = sun_times.outdoor_normalized
+            outdoor_source = sun_times.outdoor_source
 
             # Optional single-area filter
             filter_area_id = request.query.get("area_id")
@@ -3291,7 +3233,6 @@ class LightDesignerServer:
                         ),
                         "angle_factor": round(lux_tracker.get_angle_factor(), 3),
                         "sun_saturation": lux_tracker.get_sun_saturation(),
-                        "sun_saturation_ramp": lux_tracker.get_sun_saturation_ramp(),
                         "max_summer_elevation": round(
                             lux_tracker.get_max_summer_elevation(), 1
                         ),
@@ -3450,7 +3391,7 @@ class LightDesignerServer:
 
                         if in_ascend:
                             slope = SPEED_TO_SLOPE[
-                                max(1, min(10, area_config.wake_speed))
+                                max(1, min(12, area_config.wake_speed))
                             ]
                             bri_pct = area_config.wake_brightness
                             if area_state.brightness_mid is not None:
@@ -3472,7 +3413,7 @@ class LightDesignerServer:
                             )
                         else:
                             slope = -SPEED_TO_SLOPE[
-                                max(1, min(10, area_config.bed_speed))
+                                max(1, min(12, area_config.bed_speed))
                             ]
                             bri_pct = area_config.bed_brightness
                             if area_state.brightness_mid is not None:
@@ -3739,13 +3680,23 @@ class LightDesignerServer:
             return brightness
 
     async def apply_light(self, request: Request) -> Response:
-        """Apply brightness and color temperature to lights in an area.
+        """Raw light broadcast for Live Design — bypass pipeline.
 
-        Uses per-light filter pipeline (area_factor, filter presets, off_threshold)
-        to calculate individual brightness per filter group, then dispatches:
-        - Color-capable lights: xy_color for full color range
-        - CT-only lights: color_temp_kelvin (clamped to 2000K minimum)
-        - Lights below off_threshold: turn_off
+        Sends chart values directly to bulbs without sun_exposure scaling,
+        area_factor, per-purpose filter splits, 2-step CT handover, or CT
+        compensation. The chart shows what the user is designing and the
+        broadcast must show exactly that — pipeline adjustments would make
+        the live preview disagree with the curve being edited (e.g. a sun
+        room at full sun-exposure would broadcast a much-dimmed value).
+
+        Optimized for ZHA radio efficiency:
+        - All ZHA bulbs in an area: 1 light.turn_on per existing
+          Circadian_<area>_<purpose>_<color|ct> ZHA group entity → bulbs
+          sync at the radio level (single packet). Typical area = 1-2
+          group calls regardless of bulb count.
+        - Non-ZHA bulbs: 1 bulk light.turn_on per capability bucket with
+          entity_id list → HA dispatches per-platform internally
+          (Hue bridge batches via Hue API, etc.).
         """
         if not self.client:
             return web.json_response(
@@ -3755,30 +3706,176 @@ class LightDesignerServer:
         try:
             data = await request.json()
             area_id = data.get("area_id")
-            base_brightness = data.get("brightness")
-            color_temp = data.get("color_temp")
-            transition = data.get("transition", 0.3)
+            bri_in = data.get("brightness")
+            ct_in = data.get("color_temp")
+            transition = float(data.get("transition", 0.1))
 
             if not area_id:
                 return web.json_response({"error": "area_id is required"}, status=400)
 
-            # Send through pipeline — applies sun bright, area factor, filters, CT comp
-            bri = int(base_brightness) if base_brightness is not None else None
-            ct = int(color_temp) if color_temp is not None else None
-            await self.client.send_light(
-                area_id,
-                {"brightness": bri, "kelvin": ct},
-                transition=transition,
+            client = self.client
+            bri = max(1, min(100, int(bri_in))) if bri_in is not None else None
+            kelvin = int(ct_in) if ct_in is not None else None
+
+            # CT compensation — boost brightness when kelvin is very warm so the
+            # *perceived* brightness matches what the chart implies at that
+            # kelvin. Same function the periodic pipeline uses (pipeline.py
+            # apply_ct_compensation), so any future tuning of the curve flows
+            # through to Live Design automatically. No other pipeline steps
+            # apply (no sun_exposure scaling, no area_factor, etc.) — raw means
+            # raw, except for this perception correction which is part of what
+            # the chart promises.
+            if bri is not None and kelvin is not None:
+                from pipeline import apply_ct_compensation
+
+                raw_cfg = glozone.load_config_from_files()
+                bri = apply_ct_compensation(
+                    bri,
+                    kelvin,
+                    enabled=raw_cfg.get("ct_comp_enabled", False),
+                    begin=raw_cfg.get("ct_comp_begin", 1650),
+                    end=raw_cfg.get("ct_comp_end", 2250),
+                    factor=raw_cfg.get("ct_comp_factor", 1.7),
+                )
+
+            xy = (
+                CircadianLight.color_temperature_to_xy(kelvin)
+                if kelvin is not None
+                else None
             )
 
+            color_lights, ct_lights, brightness_lights, onoff_lights = (
+                client.get_lights_by_capability(area_id)
+            )
+
+            normalized_key = client._normalize_area_key(area_id)
+            group_candidates = (
+                client.area_group_map.get(normalized_key, {}) if normalized_key else {}
+            )
+            zha_color_groups = [
+                v
+                for k, v in group_candidates.items()
+                if k.startswith("zha_group_") and k.endswith("_color") and v
+            ]
+            zha_ct_groups = [
+                v
+                for k, v in group_candidates.items()
+                if k.startswith("zha_group_") and k.endswith("_ct") and v
+            ]
+
+            tasks = []
+
+            if zha_color_groups and xy is not None and bri is not None:
+                color_data = {
+                    "transition": transition,
+                    "brightness_pct": bri,
+                    "xy_color": list(xy),
+                }
+                for gid in zha_color_groups:
+                    tasks.append(
+                        asyncio.create_task(
+                            client.call_service(
+                                "light", "turn_on", color_data, {"entity_id": gid}
+                            )
+                        )
+                    )
+
+            if zha_ct_groups and kelvin is not None and bri is not None:
+                ct_data = {
+                    "transition": transition,
+                    "brightness_pct": bri,
+                    "color_temp_kelvin": max(2000, kelvin),
+                }
+                for gid in zha_ct_groups:
+                    tasks.append(
+                        asyncio.create_task(
+                            client.call_service(
+                                "light", "turn_on", ct_data, {"entity_id": gid}
+                            )
+                        )
+                    )
+
+            non_zha_color = [
+                eid for eid in color_lights if eid not in client.zha_lights
+            ]
+            if non_zha_color and xy is not None and bri is not None:
+                color_data = {
+                    "transition": transition,
+                    "brightness_pct": bri,
+                    "xy_color": list(xy),
+                }
+                tasks.append(
+                    asyncio.create_task(
+                        client.call_service(
+                            "light",
+                            "turn_on",
+                            color_data,
+                            {"entity_id": non_zha_color},
+                        )
+                    )
+                )
+
+            non_zha_ct = [eid for eid in ct_lights if eid not in client.zha_lights]
+            if non_zha_ct and kelvin is not None and bri is not None:
+                # Highest min_color_temp_kelvin among members so the value
+                # is valid for all (some CT bulbs floor at 2200K, etc.).
+                ct_floor = 2000
+                for eid in non_zha_ct:
+                    m = client.light_min_ct_kelvin.get(eid)
+                    if m and m > ct_floor:
+                        ct_floor = m
+                ct_data = {
+                    "transition": transition,
+                    "brightness_pct": bri,
+                    "color_temp_kelvin": max(ct_floor, kelvin),
+                }
+                tasks.append(
+                    asyncio.create_task(
+                        client.call_service(
+                            "light", "turn_on", ct_data, {"entity_id": non_zha_ct}
+                        )
+                    )
+                )
+
+            if brightness_lights and bri is not None:
+                tasks.append(
+                    asyncio.create_task(
+                        client.call_service(
+                            "light",
+                            "turn_on",
+                            {"transition": transition, "brightness_pct": bri},
+                            {"entity_id": brightness_lights},
+                        )
+                    )
+                )
+
+            if onoff_lights:
+                tasks.append(
+                    asyncio.create_task(
+                        client.call_service(
+                            "light",
+                            "turn_on",
+                            {"transition": transition},
+                            {"entity_id": onoff_lights},
+                        )
+                    )
+                )
+
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
+
             logger.info(
-                f"Live Design: Applied {bri}% / {ct}K to area {area_id} via pipeline"
+                f"Live Design RAW: {area_id} → {bri}% / {kelvin}K "
+                f"({len(zha_color_groups)} ZHA color groups, "
+                f"{len(zha_ct_groups)} ZHA CT groups, "
+                f"{len(non_zha_color)} non-ZHA color, "
+                f"{len(non_zha_ct)} non-ZHA CT)"
             )
             return web.json_response({"status": "ok"})
         except json.JSONDecodeError:
             return web.json_response({"error": "Invalid JSON"}, status=400)
         except Exception as e:
-            logger.error(f"Error applying light: {e}")
+            logger.error(f"Error applying light (raw): {e}")
             return web.json_response({"error": str(e)}, status=500)
 
     async def set_circadian_mode(self, request: Request) -> Response:
@@ -3801,7 +3898,9 @@ class LightDesignerServer:
             state.set_is_circadian(area_id, is_circadian)
 
             if not is_circadian:
-                # Live Design is starting - get light capabilities from client cache
+                # Live Design starting for this area — independent of any
+                # other areas already broadcasting. Each area gets its own
+                # snapshot in self.live_design_areas[area_id].
                 if self.client:
                     area_lights = self.client.area_lights.get(area_id, [])
                     color_lights = []
@@ -3813,47 +3912,63 @@ class LightDesignerServer:
                         else:
                             ct_lights.append(eid)
 
-                    self.live_design_area = area_id
-                    self.live_design_color_lights = color_lights
-                    self.live_design_ct_lights = ct_lights
-
-                    # Save current light states from cache for restoration later
+                    saved_states = {}
                     all_lights = color_lights + ct_lights
-                    self.live_design_saved_states = {}
                     for eid in all_lights:
                         s = self.client.cached_states.get(eid, {})
                         if s.get("state") == "on":
-                            self.live_design_saved_states[eid] = s.get("attributes", {})
+                            saved_states[eid] = s.get("attributes", {})
+
+                    now = time.time()
+                    self.live_design_areas[area_id] = {
+                        "color_lights": color_lights,
+                        "ct_lights": ct_lights,
+                        "saved_states": saved_states,
+                        "started_at": now,
+                        "last_heartbeat": now,
+                    }
 
                     logger.info(
-                        f"[Live Design] Started for area {area_id}: {len(color_lights)} color, {len(ct_lights)} CT-only, saved {len(self.live_design_saved_states)} states"
+                        f"[Live Design] Started for area {area_id}: "
+                        f"{len(color_lights)} color, {len(ct_lights)} CT-only, "
+                        f"saved {len(saved_states)} states "
+                        f"(active areas: {len(self.live_design_areas)})"
                     )
 
                     # Visual feedback: fade to off over 2 seconds
-                    await self.client.call_service(
-                        "light",
-                        "turn_off",
-                        {"transition": 2},
-                        {"entity_id": all_lights},
-                    )
+                    if all_lights:
+                        await self.client.call_service(
+                            "light",
+                            "turn_off",
+                            {"transition": 2},
+                            {"entity_id": all_lights},
+                        )
 
                     self.client.handle_live_design(area_id, True)
                 else:
                     logger.warning(
                         "[Live Design] Cannot fetch capabilities - client not ready"
                     )
-                    self.live_design_area = area_id
-                    self.live_design_color_lights = []
-                    self.live_design_ct_lights = []
-                    self.live_design_saved_states = {}
+                    now = time.time()
+                    self.live_design_areas[area_id] = {
+                        "color_lights": [],
+                        "ct_lights": [],
+                        "saved_states": {},
+                        "started_at": now,
+                        "last_heartbeat": now,
+                    }
             else:
-                # Live Design is ending - restore saved states and clear cache
-                if self.live_design_area == area_id:
+                # Live Design ending for this area — restore its saved state
+                # and remove it from the active set. Other broadcasting areas
+                # are unaffected.
+                area_entry = self.live_design_areas.get(area_id)
+                if area_entry:
                     logger.info(f"[Live Design] Ended for area {area_id}")
 
                     all_lights = (
-                        self.live_design_color_lights + self.live_design_ct_lights
+                        area_entry["color_lights"] + area_entry["ct_lights"]
                     )
+                    saved_states = area_entry["saved_states"]
 
                     # Visual feedback: fade to off over 2 seconds, then restore
                     if all_lights and self.client:
@@ -3865,8 +3980,8 @@ class LightDesignerServer:
                         )
 
                     # Restore saved light states with 2s transition
-                    if self.live_design_saved_states and self.client:
-                        for eid, attrs in self.live_design_saved_states.items():
+                    if saved_states and self.client:
+                        for eid, attrs in saved_states.items():
                             restore_data = {"transition": 2}
                             if attrs.get("brightness"):
                                 restore_data["brightness"] = attrs["brightness"]
@@ -3883,16 +3998,13 @@ class LightDesignerServer:
                                 {"entity_id": eid},
                             )
                         logger.info(
-                            f"[Live Design] Restored {len(self.live_design_saved_states)} light states"
+                            f"[Live Design] Restored {len(saved_states)} light states for {area_id}"
                         )
 
                     if self.client:
                         self.client.handle_live_design(area_id, False)
 
-                    self.live_design_area = None
-                    self.live_design_color_lights = []
-                    self.live_design_ct_lights = []
-                    self.live_design_saved_states = {}
+                    self.live_design_areas.pop(area_id, None)
 
             logger.info(
                 f"[Live Design] Circadian mode {'enabled' if is_circadian else 'disabled'} for area {area_id}"
@@ -3904,6 +4016,67 @@ class LightDesignerServer:
         except Exception as e:
             logger.error(f"Error setting circadian mode: {e}")
             return web.json_response({"error": str(e)}, status=500)
+
+    async def live_design_heartbeat(self, request: Request) -> Response:
+        """Browser pings this per active broadcast area while the page is open.
+
+        Each area in self.live_design_areas has its own last_heartbeat
+        timestamp; a ping for area_id X only refreshes X's timer, so an
+        abandoned area (browser closed, laptop slept) eventually times out
+        independently while still-active areas stay alive.
+        """
+        try:
+            data = await request.json()
+            area_id = data.get("area_id")
+            if not area_id:
+                return web.json_response({"error": "area_id is required"}, status=400)
+            entry = self.live_design_areas.get(area_id)
+            if entry:
+                entry["last_heartbeat"] = time.time()
+                return web.json_response({"status": "ok", "active": True})
+            return web.json_response({"status": "ok", "active": False})
+        except json.JSONDecodeError:
+            return web.json_response({"error": "Invalid JSON"}, status=400)
+        except Exception as e:
+            logger.error(f"Error processing live design heartbeat: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def _live_design_watcher(self):
+        """Background loop that ends Live Design for any area whose heartbeat
+        has gone stale.
+
+        Iterates all entries in self.live_design_areas independently — a slept
+        laptop with 3 broadcasting areas resumes all 3 to circadian, not just
+        whichever was last-added. Lights resume circadian on the next periodic
+        update; saved-state restoration is skipped on the watchdog path since
+        the user's intent (after abandoning the page) is to resume normal
+        operation, not freeze the broadcast snapshot in place.
+        """
+        while True:
+            try:
+                await asyncio.sleep(LIVE_DESIGN_WATCHER_INTERVAL_SEC)
+                if not self.live_design_areas:
+                    continue
+                now = time.time()
+                stale_areas = [
+                    aid
+                    for aid, entry in self.live_design_areas.items()
+                    if (now - entry.get("last_heartbeat", 0)) > LIVE_DESIGN_TIMEOUT_SEC
+                ]
+                for area_id in stale_areas:
+                    age = now - self.live_design_areas[area_id].get("last_heartbeat", 0)
+                    logger.info(
+                        f"[Live Design] Watchdog: ending area {area_id} "
+                        f"(no heartbeat for {age:.0f}s, threshold {LIVE_DESIGN_TIMEOUT_SEC}s)"
+                    )
+                    state.set_is_circadian(area_id, True)
+                    if self.client:
+                        self.client.handle_live_design(area_id, False)
+                    self.live_design_areas.pop(area_id, None)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                logger.error(f"Live Design watcher error: {e}")
 
     # -------------------------------------------------------------------------
     # GloZone API - Zones CRUD
@@ -4983,7 +5156,6 @@ class LightDesignerServer:
                 Config,
                 AreaState,
                 SunTimes,
-                calculate_sun_times,
                 calculate_natural_light_factor,
             )
 
@@ -4998,49 +5170,8 @@ class LightDesignerServer:
                 else get_current_hour()
             )
 
-            # Sun times
-            sun_times = SunTimes()
-            try:
-                from zoneinfo import ZoneInfo
-
-                latitude = float(os.getenv("HASS_LATITUDE", "35.0"))
-                longitude = float(os.getenv("HASS_LONGITUDE", "-78.6"))
-                timezone = os.getenv("HASS_TIME_ZONE", "US/Eastern")
-                try:
-                    tzinfo = ZoneInfo(timezone)
-                except Exception:
-                    tzinfo = None
-                now = datetime.now(tzinfo)
-                date_str = now.strftime("%Y-%m-%d")
-                sun_dict = calculate_sun_times(latitude, longitude, date_str)
-
-                def iso_to_hour(iso_str, default):
-                    if not iso_str:
-                        return default
-                    try:
-                        dt = datetime.fromisoformat(iso_str)
-                        if tzinfo and dt.tzinfo:
-                            dt = dt.astimezone(tzinfo)
-                        return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
-                    except Exception:
-                        return default
-
-                sun_times = SunTimes(
-                    sunrise=iso_to_hour(sun_dict.get("sunrise"), 6.0),
-                    sunset=iso_to_hour(sun_dict.get("sunset"), 18.0),
-                    solar_noon=iso_to_hour(sun_dict.get("noon"), 12.0),
-                    solar_mid=(iso_to_hour(sun_dict.get("noon"), 12.0) + 12.0) % 24.0,
-                )
-
-                outdoor_norm = lux_tracker.get_outdoor_normalized()
-                outdoor_source = lux_tracker.get_outdoor_source()
-                if outdoor_norm is None:
-                    outdoor_norm = 0.0
-                    outdoor_source = "none"
-                sun_times.outdoor_normalized = outdoor_norm
-                sun_times.outdoor_source = outdoor_source
-            except Exception as e:
-                logger.debug(f"[SliderPreview] Error calculating sun times: {e}")
+            # Sun times — delegate to client's cached resolver
+            sun_times = self.client._get_sun_times() if self.client else SunTimes()
 
             b_min = area_config.min_brightness
             b_max = area_config.max_brightness
@@ -5824,7 +5955,6 @@ class LightDesignerServer:
                 ),
                 "angle_factor": round(lux_tracker.get_angle_factor(), 3),
                 "sun_saturation": lux_tracker._sun_saturation,
-                "sun_saturation_ramp": lux_tracker._sun_saturation_ramp,
                 "max_summer_elevation": round(lux_tracker._max_summer_elevation, 1),
             }
         )
@@ -7273,6 +7403,10 @@ class LightDesignerServer:
         site = web.TCPSite(self._runner, "0.0.0.0", self.port)
         await site.start()
         logger.info(f"Light Designer server started on port {self.port}")
+        if self._live_design_watcher_task is None:
+            self._live_design_watcher_task = asyncio.create_task(
+                self._live_design_watcher()
+            )
         return self._runner
 
     async def start(self):
