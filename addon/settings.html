@@ -120,34 +120,78 @@
       margin-bottom: 4px;
     }
 
-    /* Settings Sections */
+    /* Settings Sections — visually matched to area-details cards
+       (Adjust / Schedule / Tune / Lights) for cross-page consistency.
+       Single-color card body (no header tint), 10px radius, tighter
+       padding (12px 14px), chevron-character disclosure on left. */
     .settings-section {
       background: var(--card);
       border: 1px solid var(--line);
-      border-radius: 12px;
-      margin-bottom: 20px;
+      border-radius: 10px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      transition: border-color 0.2s;
     }
 
     .section-header {
-      background: var(--panel);
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--line);
-      border-radius: 12px 12px 0 0;
+      padding: 12px 14px;
       font-weight: 600;
-      font-size: 0.95rem;
+      font-size: 0.95rem;  /* matches area-details --font-card-title */
+      color: var(--text);
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
     }
 
+    /* Disclosure chevron — character-based, rotates from 0deg (collapsed)
+       to 90deg (open). Same visual treatment as area-details
+       `.auto-sched-chevron`. Lives in the header before the title text. */
+    .section-header::before {
+      content: '\203A';  /* › */
+      font-size: 1.15rem;
+      line-height: 1;
+      color: var(--muted2);
+      transform: rotate(90deg);
+      transition: transform 0.25s;
+      flex-shrink: 0;
+      display: inline-block;
+    }
+
+    .settings-section.collapsed .section-header::before {
+      transform: rotate(0deg);
+    }
+
+    /* `flex: 1` so the section-header-left wrapper grows to fill available
+       space — pushes any sibling (e.g., CT Comp's Enabled checkbox) to
+       the right edge naturally, without needing `justify-content` on the
+       parent (which would also push the title right when there's no
+       sibling, which we DON'T want for simple-text headers like "General"). */
     .section-header-left {
       display: flex;
       align-items: center;
       gap: 8px;
+      flex: 1;
     }
 
+    /* Body uses max-height + opacity for a smooth open/close animation
+       (matches area-details `.auto-sched-body`). Padding only on
+       horizontal + bottom — top butts directly against the header so the
+       transition reads as a continuous reveal. */
     .section-content {
-      padding: 20px;
+      padding: 0 14px 14px 14px;
+      max-height: 6000px;
+      opacity: 1;
+      overflow: hidden;
+      transition: max-height 0.3s ease, opacity 0.2s, padding-bottom 0.2s;
+    }
+
+    .settings-section.collapsed .section-content {
+      max-height: 0;
+      opacity: 0;
+      padding-bottom: 0;
     }
 
     .section-content.disabled {
@@ -504,7 +548,7 @@
 
     <!-- General Section -->
     <div class="settings-section">
-      <div class="section-header">General</div>
+      <div class="section-header" data-section-key="general">General</div>
       <div class="section-content">
         <div class="form-row">
           <label class="form-label">
@@ -533,7 +577,7 @@
 
     <!-- Refresh Section -->
     <div class="settings-section">
-      <div class="section-header">Refresh</div>
+      <div class="section-header" data-section-key="refresh">Refresh</div>
       <div class="section-content">
         <div class="form-row">
           <label class="form-label">
@@ -629,7 +673,7 @@
 
     <!-- Controls Section -->
     <div class="settings-section">
-      <div class="section-header">Controls</div>
+      <div class="section-header" data-section-key="controls">Controls</div>
       <div class="section-content">
         <div class="form-row">
           <label class="form-label">
@@ -676,7 +720,7 @@
 
     <!-- Light Effects Section -->
     <div class="settings-section">
-      <div class="section-header">Light Effects</div>
+      <div class="section-header" data-section-key="lighteffects">Light Effects</div>
       <div class="section-content">
         <div class="form-row">
           <label class="form-label">
@@ -708,7 +752,7 @@
 
     <!-- Feedback Cues Section -->
     <div class="settings-section">
-      <div class="section-header">Feedback Cues</div>
+      <div class="section-header" data-section-key="feedbackcues">Feedback Cues</div>
       <div class="section-content">
         <div class="form-row">
           <label class="form-label">
@@ -851,7 +895,7 @@
 
     <!-- Zigbee Improvements Section -->
     <div class="settings-section">
-      <div class="section-header">Zigbee Improvements</div>
+      <div class="section-header" data-section-key="zigbee">Zigbee Improvements</div>
       <div class="section-content">
 
         <div style="border-bottom:1px solid var(--line);margin-bottom:12px;padding-bottom:8px;">
@@ -885,7 +929,7 @@
 
     <!-- Outdoor Brightness Section -->
     <div class="settings-section">
-      <div class="section-header">
+      <div class="section-header" data-section-key="outdoorbrightness">
         <div class="section-header-left">
           Outdoor Brightness
           <span class="info-icon">i<span class="info-tooltip">Controls how the system estimates outdoor light levels. Uses the highest-priority source available: manual override, lux sensor, weather entity, or sun angle estimate.</span></span>
@@ -985,7 +1029,7 @@
 
     <!-- CT Brightness Compensation Section -->
     <div class="settings-section">
-      <div class="section-header">
+      <div class="section-header" data-section-key="ctcomp">
         <div class="section-header-left">
           CT Brightness Compensation
           <span class="info-icon">i<span class="info-tooltip">Compensates for brightness loss when Hue bulbs transition from efficient warm-white LEDs to less efficient RGB LEDs at very warm color temperatures. The "handover zone" is where this transition occurs.</span></span>
@@ -1033,7 +1077,7 @@
 
     <!-- Light Filters Section -->
     <div class="settings-section">
-      <div class="section-header">Light Purposes</div>
+      <div class="section-header" data-section-key="lightpurposes">Light Purposes</div>
       <div class="section-content">
         <div id="filter-presets-container">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
@@ -1049,7 +1093,7 @@
 
     <!-- Sun Section -->
     <div class="settings-section">
-      <div class="section-header">Sun</div>
+      <div class="section-header" data-section-key="sun">Sun</div>
       <div class="section-content">
         <div class="location-section" id="location-section">
           <div class="location-row">
@@ -1103,7 +1147,7 @@
 
     <!-- App Section -->
     <div class="settings-section">
-      <div class="section-header">App</div>
+      <div class="section-header" data-section-key="app">App</div>
       <div class="section-content">
         <div class="form-row">
           <label class="form-label">
@@ -1902,7 +1946,36 @@
     }
 
     // Load on page load
+    // ============================================================
+    // Section collapse/expand
+    // ============================================================
+    // Each `.settings-section` can be toggled by clicking its header.
+    // State (per-section) persists in localStorage so the page
+    // restores how the user left it. Default = open (no key in storage).
+    // Form controls inside the header (e.g., CT Comp's "Enabled"
+    // checkbox, info-icon tooltips) don't trigger toggle — their clicks
+    // are skipped via target inspection.
+    function initSectionToggles() {
+      document.querySelectorAll('.section-header[data-section-key]').forEach(header => {
+        const key = header.dataset.sectionKey;
+        const section = header.parentElement;
+        // Restore stored state
+        if (localStorage.getItem('settings_section_' + key + '_collapsed') === 'true') {
+          section.classList.add('collapsed');
+        }
+        header.addEventListener('click', (e) => {
+          // Skip toggle when click started on a form control / interactive
+          // element inside the header — keeps inline checkboxes etc. usable.
+          if (e.target.closest('input, select, textarea, label, .info-icon, button')) return;
+          section.classList.toggle('collapsed');
+          const collapsed = section.classList.contains('collapsed');
+          localStorage.setItem('settings_section_' + key + '_collapsed', collapsed ? 'true' : 'false');
+        });
+      });
+    }
+
     document.addEventListener('DOMContentLoaded', async () => {
+      initSectionToggles();
       await loadSettings();
       // Load filter presets
       try {
