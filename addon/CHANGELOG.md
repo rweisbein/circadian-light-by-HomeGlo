@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.264
+- **`glozone_state.py` fallback path no longer hardcoded to `/app/.data` (Docker-only path).** Symptom on local-dev runs: `/api/zone-states` crashed with `OSError: [Errno 30] Read-only file system: '/app'` because the path-resolution helper had three branches (HA `/config/circadian-light`, addon `/data`, fallback `/app/.data`) and the fallback didn't account for native macOS dev runs. Now mirrors `switches.py:_LAST_ACTION_FILE` — local fallback uses `Path(__file__).parent / ".data"`, so the state file lands in `addon/.data/glozone_runtime_state.json` next to the source. **Dev-mode only fix** — HA-installed addons never hit the third branch (the `/data` directory always exists in HA's Supervisor container) so production behavior is unchanged.
+
+## 1.2.263
+- **Stop spamming `/api/controls` from the area-details periodic refresh.** Was: every refresh tick (~4s) re-fetched the full controls list (HA registry walk + auto-create + config merge per call) just to update recency-dot timestamps in the area's controls card. Caused `[Controls] Returning N controls` to log every 4s indefinitely while any area-details tab was open. Now the periodic loop hits `/api/controls/refresh` (in-memory `last_actions` + `pause_states`, no HA registry walk) and patches `areaControls` in-place — same recency-dot UX, fraction of the cost. Initial page load still fetches the full list once. Also removed a dead `refreshRecentControlsStrip()` reference (function was deleted with the Recent strip in v1.2.86-89; the call line stayed and was throwing a silent ReferenceError each tick). And demoted the `[Controls] Returning N controls` log from INFO to DEBUG so the line doesn't show up at default log level even on the legitimate full-list fetches.
+
+## 1.2.262
+- **Settings page sections now collapse/expand, with card styling matched to area-details.** Each card on Settings (General, Refresh, Controls, Light Effects, Feedback Cues, Zigbee, Outdoor Brightness, CT Comp, Light Purposes, Sun, App) gets a chevron-character disclosure on the left — click the header to toggle. State persists per-section in localStorage so the page restores how you left it; default is open. Visual treatment now matches area-details cards (Adjust / Schedule / Tune / Lights): 10px radius, single-color body (no header tint), 12px 14px header padding, `›` character chevron rotating 90deg on toggle, max-height + opacity animation. Inline form controls in headers (e.g., CT Comp's "Enabled" checkbox, info tooltips) don't trigger the toggle. First step before reorganizing the page.
+
 ## 1.2.261
 - **Home-page motion countdown breathes slower (1.4s → 2.5s).** Motion is a passive "auto-off pending" state, not a fresh action — a calmer breath reads as ambient rather than urgent. Other status flashes (fade, boost, warning) keep the 1.4s pace.
 

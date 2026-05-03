@@ -40,7 +40,10 @@ def _get_state_file() -> Path:
         elif os.path.isdir("/data"):
             _STATE_FILE = Path("/data/glozone_runtime_state.json")
         else:
-            _STATE_FILE = Path("/app/.data/glozone_runtime_state.json")
+            # Local dev fallback: state file lives next to the source so it
+            # lands in addon/.data/ instead of the read-only /app/.data
+            # Docker path. Mirrors switches.py:_LAST_ACTION_FILE handling.
+            _STATE_FILE = Path(__file__).parent / ".data" / "glozone_runtime_state.json"
         _STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
     return _STATE_FILE
 

@@ -4069,14 +4069,33 @@
             }
             updateContent();
             renderMiniChartForArea(selectedArea.area_id);
-            // Re-fetch controls so the Recent strip picks up newly-pressed switches
-            // (last_action.timestamp on each control). Filter for current area.
+            // Patch areaControls' last_action timestamps so recency dots
+            // animate without waiting for a page reload. Uses the lightweight
+            // /api/controls/refresh endpoint (returns just last_actions +
+            // pause_states from in-memory cache, no HA-registry walk, no
+            // auto-create, no config merge) instead of the full /api/controls.
+            // The full controls list is fetched once at page load — its
+            // membership doesn't change inside a session, so periodic delta
+            // updates are sufficient.
             try {
-              const cres = await fetch(basePath + '/api/controls');
+              const cres = await fetch(basePath + '/api/controls/refresh');
               if (cres.ok) {
                 const cd = await cres.json();
-                areaControls = filterControlsForArea(cd.controls || [], selectedArea.area_id);
-                refreshRecentControlsStrip();
+                const actions = cd.last_actions || {};
+                let changed = false;
+                for (const ctrl of (areaControls || [])) {
+                  const key = (ctrl.category === 'motion_sensor' || ctrl.category === 'contact_sensor')
+                    ? ctrl.device_id : ctrl.id;
+                  const fresh = actions[key] || actions[ctrl.id] || actions[ctrl.device_id];
+                  if (fresh && JSON.stringify(ctrl.last_action) !== JSON.stringify(fresh)) {
+                    ctrl.last_action = fresh;
+                    changed = true;
+                  }
+                }
+                if (changed) {
+                  const container = document.getElementById('ctrl-list-container');
+                  if (container) container.innerHTML = renderAreaControlsBody();
+                }
               }
             } catch (_) { /* non-fatal */ }
           }
