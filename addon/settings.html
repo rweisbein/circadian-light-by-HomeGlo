@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Circadian Light - Settings</title>
+  <link rel="stylesheet" href="./shared.css">
   <style>
     :root {
       --bg: #000;
@@ -788,105 +789,112 @@
           </div>
         </div>
 
-        <div class="form-row">
-          <label class="form-label">
-            Reach feedback
+        <div class="sub-section">
+          <div class="sub-section-header">
+            <span class="sub-section-title">Reach feedback</span>
             <span class="info-icon">i<span class="info-tooltip">When enabled, changing reach scope flashes lights to indicate the new scope number. When disabled, reach changes are silent.</span></span>
-          </label>
-          <div class="form-control">
-            <label class="checkbox-label">
+            <label class="checkbox-label" style="margin-left: auto;">
               <input type="checkbox" id="reach-feedback-enabled" checked>
             </label>
           </div>
-        </div>
-
-        <div class="form-row" id="reach-daytime-threshold-row" style="padding-left: 20px;">
-          <label class="form-label">
-            Reach daytime threshold
-            <span class="info-icon">i<span class="info-tooltip">Below this brightness during daytime (when natural light is active), reach feedback flashes UP to 100% instead of dimming OFF, ensuring visibility in bright rooms.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="reach-daytime-threshold" min="5" max="80" step="5" value="50" style="width: 80px;">
-            <span class="form-hint">% brightness</span>
+          <div class="sub-section-body">
+            <div class="form-row" id="reach-daytime-threshold-row">
+              <label class="form-label">
+                Reach daytime threshold
+                <span class="info-icon">i<span class="info-tooltip">Below this brightness during daytime (when natural light is active), reach feedback flashes UP to 100% instead of dimming OFF, ensuring visibility in bright rooms.</span></span>
+              </label>
+              <div class="form-control">
+                <input type="number" class="form-input" id="reach-daytime-threshold" min="5" max="80" step="5" value="50" style="width: 80px;">
+                <span class="form-hint">% brightness</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="form-row" style="margin-top: 20px;">
-          <label class="form-label">
-            Freeze feedback
+        <div class="sub-section">
+          <div class="sub-section-header">
+            <span class="sub-section-title">Freeze feedback</span>
             <span class="info-icon">i<span class="info-tooltip">When enabled, freezing/unfreezing lights shows a visual dip-and-restore cue. When disabled, freeze toggles are silent.</span></span>
-          </label>
-          <div class="form-control">
-            <label class="checkbox-label">
+            <label class="checkbox-label" style="margin-left: auto;">
               <input type="checkbox" id="freeze-feedback-enabled" checked>
             </label>
           </div>
-        </div>
-
-        <div class="form-row" id="freeze-off-rise-row" style="padding-left: 20px;">
-          <label class="form-label">
-            Freeze off rise speed
-            <span class="info-icon">i<span class="info-tooltip">When unfreezing, lights rise back to circadian values over this amount of time. A slower rise gives a gentle visual confirmation that the area has been unfrozen.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="freeze-off-rise" min="0" max="100" step="0.1" value="10" style="width: 80px;">
-            <span class="form-hint">tenths of a second</span>
+          <div class="sub-section-body">
+            <div class="form-row" id="freeze-hold-at-dim-row">
+              <label class="form-label">
+                Wait between 2 phases
+                <span class="info-icon">i<span class="info-tooltip">After the dip to 1%, how long to hold before the restore phase. Used for both freeze toggle on (snap back) and toggle off (slow rise). Shorter feels snappier; longer makes the dip more obvious.</span></span>
+              </label>
+              <div class="form-control">
+                <input type="number" class="form-input" id="freeze-hold-at-dim" min="0" max="50" step="1" value="2" style="width: 80px;">
+                <span class="form-hint">tenths of a second</span>
+              </div>
+            </div>
+            <div class="form-row" id="freeze-off-rise-row">
+              <label class="form-label">
+                Freeze off rise speed
+                <span class="info-icon">i<span class="info-tooltip">When unfreezing, lights rise back to circadian values over this amount of time. A slower rise gives a gentle visual confirmation that the area has been unfrozen.</span></span>
+              </label>
+              <div class="form-control">
+                <input type="number" class="form-input" id="freeze-off-rise" min="0" max="100" step="0.1" value="10" style="width: 80px;">
+                <span class="form-hint">tenths of a second</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="form-row" style="margin-top: 20px;">
-          <label class="form-label">
-            Bounce
+        <div class="sub-section">
+          <div class="sub-section-header">
+            <span class="sub-section-title">Bounce</span>
             <span class="info-icon">i<span class="info-tooltip">Visual brightness dip/flash used for limit bounce (hitting step limits) and motion alerts. Controls the base bounce percentages shared by both features.</span></span>
-          </label>
-          <div class="form-control">
-            <label class="checkbox-label">
+            <label class="checkbox-label" style="margin-left: auto;">
               <input type="checkbox" id="limit-bounce-enabled" checked>
             </label>
           </div>
-        </div>
+          <div class="sub-section-body">
+            <div class="form-row" id="limit-bounce-max-row">
+              <label class="form-label">
+                Small bounce (max bright)
+                <span class="info-icon">i<span class="info-tooltip">How much to dip when brightness is high. Used as the base for limit bounce and alert bounce (alert intensity multiplies this).</span></span>
+              </label>
+              <div class="form-control">
+                <input type="number" class="form-input" id="limit-bounce-max-percent" min="5" max="50" step="1" value="25" style="width: 80px;">
+                <span class="form-hint">%</span>
+              </div>
+            </div>
 
-        <div class="form-row" id="limit-bounce-max-row" style="padding-left: 20px;">
-          <label class="form-label">
-            Small bounce (max bright)
-            <span class="info-icon">i<span class="info-tooltip">How much to dip when brightness is high. Used as the base for limit bounce and alert bounce (alert intensity multiplies this).</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="limit-bounce-max-percent" min="5" max="50" step="1" value="25" style="width: 80px;">
-            <span class="form-hint">%</span>
-          </div>
-        </div>
+            <div class="form-row" id="limit-bounce-min-row">
+              <label class="form-label">
+                Small bounce (min bright)
+                <span class="info-icon">i<span class="info-tooltip">How much to flash up when brightness is low. Used as the base for limit bounce and alert bounce (alert intensity multiplies this).</span></span>
+              </label>
+              <div class="form-control">
+                <input type="number" class="form-input" id="limit-bounce-min-percent" min="5" max="50" step="1" value="13" style="width: 80px;">
+                <span class="form-hint">%</span>
+              </div>
+            </div>
 
-        <div class="form-row" id="limit-bounce-min-row" style="padding-left: 20px;">
-          <label class="form-label">
-            Small bounce (min bright)
-            <span class="info-icon">i<span class="info-tooltip">How much to flash up when brightness is low. Used as the base for limit bounce and alert bounce (alert intensity multiplies this).</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="limit-bounce-min-percent" min="5" max="50" step="1" value="13" style="width: 80px;">
-            <span class="form-hint">%</span>
-          </div>
-        </div>
+            <div class="form-row" id="limit-bounce-speed-row">
+              <label class="form-label">
+                Limit bounce speed
+                <span class="info-icon">i<span class="info-tooltip">How fast the brightness bounces when hitting a step limit.</span></span>
+              </label>
+              <div class="form-control">
+                <input type="number" class="form-input" id="limit-warning-speed" min="0" max="100" step="0.1" value="3" style="width: 80px;">
+                <span class="form-hint">tenths of a second</span>
+              </div>
+            </div>
 
-        <div class="form-row" id="limit-bounce-speed-row" style="padding-left: 20px;">
-          <label class="form-label">
-            Limit bounce speed
-            <span class="info-icon">i<span class="info-tooltip">How fast the brightness bounces when hitting a step limit.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="limit-warning-speed" min="0" max="100" step="0.1" value="3" style="width: 80px;">
-            <span class="form-hint">tenths of a second</span>
-          </div>
-        </div>
-
-        <div class="form-row" id="alert-bounce-speed-row" style="padding-left: 20px;">
-          <label class="form-label">
-            Alert bounce speed
-            <span class="info-icon">i<span class="info-tooltip">How fast the brightness bounces for motion alert mode. Slower makes the alert more visible.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="alert-bounce-speed" min="1" max="50" step="1" value="10" style="width: 80px;">
-            <span class="form-hint">tenths of a second</span>
+            <div class="form-row" id="alert-bounce-speed-row">
+              <label class="form-label">
+                Alert bounce speed
+                <span class="info-icon">i<span class="info-tooltip">How fast the brightness bounces for motion alert mode. Slower makes the alert more visible.</span></span>
+              </label>
+              <div class="form-control">
+                <input type="number" class="form-input" id="alert-bounce-speed" min="1" max="50" step="1" value="10" style="width: 80px;">
+                <span class="form-hint">tenths of a second</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1310,6 +1318,7 @@
           updateReachFeedbackState();
           document.getElementById('freeze-feedback-enabled').checked = config.freeze_feedback_enabled ?? true;
           document.getElementById('freeze-off-rise').value = config.freeze_off_rise ?? 10;
+          document.getElementById('freeze-hold-at-dim').value = config.freeze_hold_at_dim ?? 2;
           updateFreezeFeedbackState();
           document.getElementById('limit-bounce-enabled').checked = config.limit_bounce_enabled ?? true;
           document.getElementById('limit-warning-speed').value = config.limit_warning_speed ?? 3;
@@ -1398,6 +1407,7 @@
         reach_daytime_threshold: parseInt(document.getElementById('reach-daytime-threshold').value) || 50,
         freeze_feedback_enabled: document.getElementById('freeze-feedback-enabled').checked,
         freeze_off_rise: parseFloat(document.getElementById('freeze-off-rise').value) || 10,
+        freeze_hold_at_dim: parseInt(document.getElementById('freeze-hold-at-dim').value) || 2,
         limit_bounce_enabled: document.getElementById('limit-bounce-enabled').checked,
         limit_warning_speed: parseFloat(document.getElementById('limit-warning-speed').value) || 3,
         alert_bounce_speed: parseInt(document.getElementById('alert-bounce-speed').value) || 10,
@@ -1473,15 +1483,16 @@
 
     function updateFreezeFeedbackState() {
       const enabled = document.getElementById('freeze-feedback-enabled').checked;
-      const row = document.getElementById('freeze-off-rise-row');
-      const input = document.getElementById('freeze-off-rise');
-      if (enabled) {
-        row.style.opacity = '1';
-        input.disabled = false;
-      } else {
-        row.style.opacity = '0.4';
-        input.disabled = true;
-      }
+      const rows = [
+        document.getElementById('freeze-off-rise-row'),
+        document.getElementById('freeze-hold-at-dim-row'),
+      ];
+      const inputs = [
+        document.getElementById('freeze-off-rise'),
+        document.getElementById('freeze-hold-at-dim'),
+      ];
+      for (const row of rows) if (row) row.style.opacity = enabled ? '1' : '0.4';
+      for (const input of inputs) if (input) input.disabled = !enabled;
     }
 
     function updateCtCompState() {
@@ -1725,6 +1736,7 @@
     document.getElementById('reach-daytime-threshold').addEventListener('blur', saveSettings);
     document.getElementById('freeze-feedback-enabled').addEventListener('change', () => { updateFreezeFeedbackState(); saveSettings(); });
     document.getElementById('freeze-off-rise').addEventListener('blur', saveSettings);
+    document.getElementById('freeze-hold-at-dim').addEventListener('blur', saveSettings);
     document.getElementById('limit-bounce-enabled').addEventListener('change', () => {
       updateLimitBounceState();
       saveSettings();

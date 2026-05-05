@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Circadian Light - Area</title>
+  <link rel="stylesheet" href="./shared.css">
   <style>
     :root {
       --bg: #000;
@@ -694,6 +695,11 @@
     .auto-sched-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; transition: border-color 0.2s; }
     /* Bonded Auto panel: now an inner container inside the outer Auto card */
     .auto-sched-bonded { background: transparent; border: none; border-radius: 0; overflow: visible; }
+    /* Schedule card uses the canonical sub-section pattern alongside its
+       legacy auto-sched-* classes. Existing `.auto-sched-card--sub .auto-sched-field`
+       rules already provide the field indent, so neutralize sub-section-body's
+       default 20px to avoid double-indenting. */
+    #schedule-card .sub-section-body { padding-left: 0; }
     .auto-sched-card--sub { background: transparent; border: none; border-radius: 0; transition: background 0.3s; }
     .auto-sched-card--sub + .auto-sched-card--sub { border-top: 1px solid var(--line); }
     /* Sub-card bodies are always visible (outer Auto controls collapse) */
@@ -762,7 +768,8 @@
     .auto-sched-next { font-size: var(--font-display); color: var(--text); font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
     /* Tint resolved time when an override is active — paired with the
        "clear override" link underneath to double-signal modified state. */
-    .auto-sched-next.has-override { color: rgba(254, 172, 96, 0.95); }
+    /* Subheader time stays in default color regardless of override state —
+       the "clear override" link in the same row is the override indicator. */
     .auto-sched-chevron { display: inline-block; font-size: var(--font-display); line-height: 1; transform: rotate(0deg); transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
     .auto-sched-card.is-open .auto-sched-chevron { transform: rotate(90deg); }
 
@@ -1294,10 +1301,9 @@
         <span class="auto-outer-next" id="auto-outer-next"></span>
       </div>
       <div class="auto-sched-body" id="auto-outer-body">
-    <div class="auto-sched-bonded" id="auto-bonded-panel">
-    <div class="auto-sched-card auto-sched-card--sub" id="auto-on-card">
-        <div class="auto-sched-header auto-sched-header--static">
-          <span class="auto-sched-title">On</span>
+    <div class="auto-sched-card auto-sched-card--sub sub-section" id="auto-on-card">
+        <div class="auto-sched-header auto-sched-header--static sub-section-header">
+          <span class="auto-sched-title sub-section-title">On</span>
           <label class="auto-sched-toggle" onclick="event.stopPropagation()">
             <input type="checkbox" id="auto-on-enabled" onchange="onAutoToggleChanged('on')">
             <span class="slider"></span>
@@ -1307,7 +1313,7 @@
             <a id="auto-on-override-link" href="#" style="display:none; font-size:var(--font-caps); color:var(--muted2); text-decoration:underline; line-height:1;">set override</a>
           </span>
         </div>
-        <div class="auto-sched-body" id="auto-on-body">
+        <div class="auto-sched-body sub-section-body" id="auto-on-body">
          <div class="auto-sched-body-inner">
           <div class="auto-sched-field">
             <span class="auto-sched-field-label">Light</span>
@@ -1394,9 +1400,9 @@
         </div>
       </div>
 
-    <div class="auto-sched-card auto-sched-card--sub" id="auto-off-card">
-        <div class="auto-sched-header auto-sched-header--static">
-          <span class="auto-sched-title">Off</span>
+    <div class="auto-sched-card auto-sched-card--sub sub-section" id="auto-off-card">
+        <div class="auto-sched-header auto-sched-header--static sub-section-header">
+          <span class="auto-sched-title sub-section-title">Off</span>
           <label class="auto-sched-toggle" onclick="event.stopPropagation()">
             <input type="checkbox" id="auto-off-enabled" onchange="onAutoToggleChanged('off')">
             <span class="slider"></span>
@@ -1406,7 +1412,7 @@
             <a id="auto-off-override-link" href="#" style="display:none; font-size:var(--font-caps); color:var(--muted2); text-decoration:underline; line-height:1;">set override</a>
           </span>
         </div>
-        <div class="auto-sched-body" id="auto-off-body">
+        <div class="auto-sched-body sub-section-body" id="auto-off-body">
          <div class="auto-sched-body-inner">
           <div class="auto-sched-field">
             <span class="auto-sched-field-label">Time</span>
@@ -2234,9 +2240,14 @@
       // can read it. Prefer live tuneState (unsaved Tune edits) over saved
       // status — same priority as sbfNow above. This drives the per-hour
       // sun-dimming projection (rhythm-design:3719 formula).
-      const briSens = (tuneState?.initialized && tuneState.brightnessSensitivity != null)
-        ? tuneState.brightnessSensitivity
-        : (areaLive.brightness_sensitivity ?? 0);
+      // When sun-dimming is disabled at the rhythm level, force sensitivity
+      // to 0 so the chart shows no dimming projection.
+      const briSensEnabled = areaLive.brightness_sensitivity_enabled !== false;
+      const briSens = !briSensEnabled
+        ? 0
+        : (tuneState?.initialized && tuneState.brightnessSensitivity != null)
+          ? tuneState.brightnessSensitivity
+          : (areaLive.brightness_sensitivity ?? 0);
       // natural_light_exposure: live tuneState (Sun-exposure slider preview)
       // wins over saved status. Defaults to 0 if missing — don't project
       // dimming we can't ground in real config.
@@ -3539,9 +3550,12 @@
                 // out when those fields are missing — making the ghost
                 // visually flat where the live curve dips.
                 const liveStatus = areaStatus[selectedArea?.area_id] || {};
-                const _briSens = (tuneState?.initialized && tuneState.brightnessSensitivity != null)
-                  ? tuneState.brightnessSensitivity
-                  : (liveStatus.brightness_sensitivity ?? 0);
+                const _briSensEnabled = liveStatus.brightness_sensitivity_enabled !== false;
+                const _briSens = !_briSensEnabled
+                  ? 0
+                  : (tuneState?.initialized && tuneState.brightnessSensitivity != null)
+                    ? tuneState.brightnessSensitivity
+                    : (liveStatus.brightness_sensitivity ?? 0);
                 const _exposure = (tuneState?.initialized && typeof SOLAR_STEPS !== 'undefined'
                   && SOLAR_STEPS[tuneState.solarStep])
                   ? SOLAR_STEPS[tuneState.solarStep].exposure
@@ -3805,9 +3819,12 @@
           const sbfNow = previewState.live_sbf
             ?? (areaStatus[selectedArea.area_id]?.sun_bright_factor)
             ?? cachedSunTimes.sunBrightFactorNow ?? 1.0;
-          const briSens = (tuneState?.initialized && tuneState.brightnessSensitivity != null)
-            ? tuneState.brightnessSensitivity
-            : (areaStatus[selectedArea.area_id]?.brightness_sensitivity ?? 0);
+          const _enabled = areaStatus[selectedArea.area_id]?.brightness_sensitivity_enabled !== false;
+          const briSens = !_enabled
+            ? 0
+            : (tuneState?.initialized && tuneState.brightnessSensitivity != null)
+              ? tuneState.brightnessSensitivity
+              : (areaStatus[selectedArea.area_id]?.brightness_sensitivity ?? 0);
           const naturalLightExposure =
             (tuneState?.initialized && typeof SOLAR_STEPS !== 'undefined'
               && SOLAR_STEPS[tuneState.solarStep])
@@ -6754,12 +6771,12 @@
       return timeStr.replace(/:00([ap])$/, '$1');
     }
 
-    // Day suffix matching home-page algorithm: bare within 24h, abbr 2-6 days out, date 7+.
+    // Day suffix: today bare, abbr 1-6 days out (so tomorrow's "7a Tu" disambiguates
+    // from today's "7a"), date 7+ days out.
     function formatAutoDaySuffix(nxt) {
       if (!nxt) return '';
       const offset = nxt.offset;
-      if (offset == null || offset < 0) return '';
-      if (offset <= 1) return '';
+      if (offset == null || offset <= 0) return '';
       if (offset <= 6) return nxt.day_abbr || '';
       return (nxt.date_short || '').replace(' ', '');
     }
@@ -6784,16 +6801,23 @@
       const s = autoState[type];
       const source = s?.source;
       let core;
-      if (source === 'sunrise' || source === 'sunset') {
-        const word = source === 'sunrise' ? 'Sunrise' : 'Sunset';
-        const offStr = s.offset === 0 ? '' : ' ' + formatOffset(s.offset);
-        core = word + offStr;
-      } else if (isAutoDirty(type)) {
+      if (isAutoDirty(type)) {
+        // Live preview from the UI's pending edits, before save.
         const projected = projectAutoHeaderFromUI(type);
         core = projected ? formatAutoTimeCompact(projected) : (nxt?.time ? formatAutoTimeCompact(nxt.time) : '—');
       } else if (nxt && nxt.time) {
-        core = formatAutoTimeCompact(nxt.time);
+        // Backend resolved a next-fire — render it. Sun-based shows the word
+        // ("Sunset +30m"); clock-based shows the time. We trust the backend's
+        // resolution (it accounts for overrides, weekday filters, etc.).
+        if (source === 'sunrise' || source === 'sunset') {
+          const word = source === 'sunrise' ? 'Sunrise' : 'Sunset';
+          const offStr = s.offset === 0 ? '' : ' ' + formatOffset(s.offset);
+          core = word + offStr;
+        } else {
+          core = formatAutoTimeCompact(nxt.time);
+        }
       } else {
+        // No next fire (e.g. pause-forever, or no eligible weekday) — em-dash.
         core = '—';
       }
       const daySuffix = formatAutoDaySuffix(nxt);

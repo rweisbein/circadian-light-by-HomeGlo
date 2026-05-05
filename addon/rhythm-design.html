@@ -5,6 +5,7 @@
 <title>Circadian Light - Rhythm Zone</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<link rel="stylesheet" href="./shared.css">
 <style>
 :root {
   --bg: #000;
@@ -74,11 +75,8 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 .rhythm-card-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.35s ease, opacity 0.25s ease; padding: 0 14px; }
 .rhythm-card.is-open .rhythm-card-body { max-height: 1200px; opacity: 1; padding-bottom: 14px; }
 
-/* Sub-section: flat, always-visible grouping within a card */
-.sub-section-header { display: flex; align-items: center; gap: 6px; padding: 8px 0; user-select: none; }
-.sub-section-title { font-size: var(--font-value); font-weight: 600; color: var(--text); }
-/* Sleep card: Wake and Bed stacked, separated by a divider */
-#rhythm-sleep-body .sub-section + .sub-section { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+/* Sub-section base styles live in shared.css (inlined by serve_page).
+   Only page-specific overrides belong here. */
 
 /* Sleep card header summary (two-line stack) */
 .rhythm-sleep-summary { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
@@ -385,9 +383,7 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 /* Sleep sub-section: time-rows AND Brightness/Speed rows share one left-aligned value column.
    Col 1 (210px) fits the day-pill block (7 × 24px + 6 × 3px = 186px) plus a buffer; col 2 starts
    "a bit after Sunday" so 7:00a / 8:00a / 25% / 8: snappy all left-align in the same column. */
-/* Indent Wake/Bed body content so the section headers stay prominent and the
-   four-row stack reads as belonging to its parent section. */
-.sub-section-body { padding-left: 20px; }
+/* `.sub-section-body { padding-left: 20px; }` lives in shared.css. */
 .sub-section-body .tune-control-row {
   grid-template-columns: 210px 1fr;
   gap: 0 12px;
@@ -416,8 +412,8 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 /* Brightness-card sensitivity slider: full-width to match min/max gradient */
 .brightness-sensitivity-group > .tune-slider-row { max-width: none; padding-left: 14px; padding-right: 14px; }
 .brightness-sensitivity-group > .tune-slider-row input[type=range] { width: 100%; }
-/* Narrow brightness-card gradient to match .tune-control-row horizontal padding (16px L, 14px R) */
-#rhythm-brightness-body > .ct-gradient-wrap { margin-left: 16px; margin-right: 14px; }
+/* Brightness gradient narrowing now handled by `.ct-gradient-wrap--inset` on the
+   container element itself (consistent with Night/Day color sliders). */
 
 /* Brightness "Sun impact" sub-section: divider above for equal weight; label + value inline left-aligned */
 .bri-sub-section { margin-top: 18px; padding-top: 6px; border-top: 1px solid var(--line); }
@@ -1137,9 +1133,19 @@ input[type=range]::-moz-range-thumb {
 /* Interactive color gradient (ported from tune.html + handle additions) */
 /* Color gradient layout: cursor above, gradient, ticks, labels+K below */
 .ct-gradient-wrap { margin-top: 8px; position: relative; }
-.ct-cursor-layer { position: relative; height: 36px; margin-bottom: 2px; }
-.ct-cursor-pill { position: absolute; top: 0; transform: translateX(-50%); padding: 2px 8px; border-radius: 8px; border: 1.5px solid #fdfdfd; font-size: var(--font-body); font-weight: 600; white-space: nowrap; pointer-events: none; }
-.ct-cursor-dot { position: absolute; bottom: 0; height: 14px; border-left: 1px dotted rgba(255,255,255,0.4); pointer-events: none; }
+/* Inset variant: narrower than the parent container (used for sub-section sliders
+   so the slider feels visually inset from the section header above it).
+   Default = 32px L / 24px R from the parent's content edge. Inside a
+   `.sub-section-body` (which already provides 20px left padding) the wrap's
+   left padding is reduced so the total indent stays consistent across cards. */
+.ct-gradient-wrap--inset { padding-left: 32px; padding-right: 24px; }
+.sub-section-body > .ct-gradient-wrap--inset { padding-left: 12px; }
+
+/* Live readout above the gradient — one label per handle, anchored at its
+   thumb position. Replaces the old "K below name" row, which doubled the
+   vertical footprint and visually conflated handle K-value with axis tick K-value. */
+.ct-handle-readouts { position: relative; height: 16px; margin-bottom: 2px; }
+.ct-handle-readout { position: absolute; top: 0; transform: translateX(-50%); font-size: var(--font-body); font-weight: 600; color: var(--text); white-space: nowrap; pointer-events: none; font-variant-numeric: tabular-nums; }
 .ct-gradient-bar { height: 12px; border-radius: 6px; position: relative; overflow: visible; }
 .ct-grey-left, .ct-grey-right { position: absolute; top: 0; height: 100%; background: rgba(0,0,0,0.72); pointer-events: none; z-index: 1; }
 .ct-grey-left { left: 0; border-radius: 6px 0 0 6px; }
@@ -1168,17 +1174,18 @@ input[type=range]::-moz-range-thumb {
 .ct-axis-tick .ct-axis-label { color: var(--muted2); }
 /* Ref labels: prominent, interactive look */
 .ct-axis-ref .ct-axis-label { color: var(--text); font-weight: 600; font-size: var(--font-body); }
+.ct-axis-ref .ct-axis-label.ct-axis-static { color: var(--muted); font-weight: 400; }
 .ct-axis-ref .ct-axis-label.ct-draggable { cursor: grab; user-select: none; transition: color 0.15s; }
 .ct-axis-ref .ct-axis-label.ct-draggable:hover { color: var(--accent); }
 .ct-axis-ref .ct-axis-label.ct-draggable:active { cursor: grabbing; color: var(--accent); }
 /* K values row below labels */
-.ct-axis-kval { position: relative; height: 14px; }
-.ct-axis-kval .ct-axis-label { color: var(--muted); font-weight: 400; font-size: var(--font-caps); }
 /* Draggable handles on gradient bar */
 .ct-handle { position: absolute; top: -16px; width: 44px; height: 44px; transform: translateX(-50%); cursor: grab; z-index: 5; touch-action: none; }
 .ct-handle:active, .ct-handle.dragging { cursor: grabbing; }
-.ct-handle-thumb { position: absolute; left: 50%; top: 50%; width: 14px; height: 20px; border-radius: 5px; background: rgba(255,255,255,0.9); border: 1px solid rgba(0,0,0,0.3); transform: translate(-50%, -50%); box-shadow: 0 1px 4px rgba(0,0,0,0.5); pointer-events: none; transition: background 0.15s; }
-.ct-handle:hover .ct-handle-thumb, .ct-handle.dragging .ct-handle-thumb { background: #fff; box-shadow: 0 0 8px rgba(255,255,255,0.6); }
+/* Pill-shaped grabbable thumb modeled on home-page area-card slider thumb (~44px wide)
+   so it's mobile-friendly. Background may be set inline to a CT/brightness-derived color. */
+.ct-handle-thumb { position: absolute; left: 50%; top: 50%; width: 32px; height: 19px; border-radius: 9px 9px 6px 6px; background: rgba(255,255,255,0.9); border: 1px solid rgba(0,0,0,0.4); transform: translate(-50%, -50%); box-shadow: 0 1px 4px rgba(0,0,0,0.5); pointer-events: none; transition: box-shadow 0.15s; }
+.ct-handle:hover .ct-handle-thumb, .ct-handle.dragging .ct-handle-thumb { box-shadow: 0 0 8px rgba(255,255,255,0.6); }
 
 /* Lock checkbox for range controls */
 .lock-checkbox-wrap {
@@ -1303,6 +1310,14 @@ input[type=range]::-moz-range-thumb {
 }
 .info-tooltip.is-open {
   display: block;
+}
+/* Sun dimming tooltip lives at the right edge of the brightness card, so the
+   default left:50% center anchor pushes it past the card edge. Anchor it to
+   the icon's right edge and extend leftward instead. */
+#brightness-sensitivity-info {
+  left: auto;
+  right: 0;
+  transform: none;
 }
 .color-rule-toggle input[type=checkbox] {
   width: 16px;
@@ -2101,7 +2116,7 @@ input[type=range]::-moz-range-thumb {
       <span class="rhythm-card-val" id="rhythm-brightness-val">1 – 100%</span>
     </div>
     <div class="rhythm-card-body" id="rhythm-brightness-body">
-      <div id="rhythm-bri-gradient-container" class="ct-gradient-wrap"></div>
+      <div id="rhythm-bri-gradient-container" class="ct-gradient-wrap ct-gradient-wrap--inset"></div>
       <input type="hidden" id="brightness-min" value="1">
       <input type="hidden" id="brightness-max" value="100">
       <div class="bri-sub-section">
@@ -2110,7 +2125,7 @@ input[type=range]::-moz-range-thumb {
             <label class="color-rule-label">Sun dimming</label>
             <div class="color-rule-controls">
               <div class="color-rule-toggle"><input type="checkbox" id="brightness-sensitivity-enabled" checked></div>
-              <span class="info-icon" data-tooltip="brightness-sensitivity-info">i<span class="info-tooltip" id="brightness-sensitivity-info">How aggressively brightness pulls back when sun is high. Higher = more dimming on bright sunny days.</span></span>
+              <span class="info-icon" data-tooltip="brightness-sensitivity-info">i<span class="info-tooltip" id="brightness-sensitivity-info">Dims lights based on sun intensity so they don't fight the daylight already in the room. Each area's Sun exposure setting controls how aggressively it dims so that bright rooms with lots of windows pull back more than dim interior ones.</span></span>
             </div>
           </div>
           <div class="color-rule-stack-body" id="brightness-sensitivity-body">
@@ -2144,18 +2159,21 @@ input[type=range]::-moz-range-thumb {
       <span class="rhythm-card-val" id="rhythm-color-val">500 – 6500 K</span>
     </div>
     <div class="rhythm-card-body" id="rhythm-color-body">
-      <!-- Interactive color gradient -->
-      <div id="rhythm-ct-gradient-container" class="ct-gradient-wrap"></div>
       <input type="hidden" id="color-min" value="500">
       <input type="hidden" id="color-max" value="6500">
 
-      <div class="color-rule-grid">
-        <div class="color-rule-stack" data-color-row="night">
+      <div class="sub-section">
+        <div class="sub-section-header">
+          <span class="sub-section-title">Night</span>
+        </div>
+        <div class="sub-section-body">
+          <div id="rhythm-ct-night-gradient" class="ct-gradient-wrap ct-gradient-wrap--inset"></div>
+          <div class="color-rule-stack" data-color-row="night">
           <div class="color-rule-stack-label">
             <label class="color-rule-label">Night warming</label>
             <div class="color-rule-controls">
               <div class="color-rule-toggle"><input type="checkbox" id="warm-night-enabled"></div>
-              <span class="info-icon" data-tooltip="warm-night-info">i<span class="info-tooltip" id="warm-night-info">Caps color temperature when sun isn't up; if your curve is cool (high K) between sunset and sunrise, this warms it.</span></span>
+              <span class="info-icon" data-tooltip="warm-night-info">i<span class="info-tooltip" id="warm-night-info">Caps color temperature when the sun is below the horizon (night). If your curve runs cool (high K) at any point between sunset and sunrise, this warms those moments back to a softer range. Especially useful in winter at higher latitudes, where dark hours stretch into your evening routine.</span></span>
             </div>
           </div>
           <input type="hidden" id="warm-night-mode" value="all">
@@ -2201,17 +2219,37 @@ input[type=range]::-moz-range-thumb {
             </div>
           </div>
         </div>
+        </div><!-- /sub-section-body Night -->
+      </div><!-- /sub-section Night -->
 
-        <div class="color-rule-stack" data-color-row="daylight">
+      <div class="sub-section">
+        <div class="sub-section-header">
+          <span class="sub-section-title">Day</span>
+        </div>
+        <div class="sub-section-body">
+          <div id="rhythm-ct-day-gradient" class="ct-gradient-wrap ct-gradient-wrap--inset"></div>
+          <div class="color-rule-stack" data-color-row="daylight">
           <div class="color-rule-stack-label">
             <label class="color-rule-label">Sun cooling</label>
             <div class="color-rule-controls">
               <div class="color-rule-toggle"><input type="checkbox" id="daylight-enabled" checked></div>
-              <span class="info-icon" data-tooltip="daylight-info">i<span class="info-tooltip" id="daylight-info">Pushes color toward a cooler target during the day based on outdoor brightness and sun elevation.</span></span>
+              <span class="info-icon" data-tooltip="daylight-info">i<span class="info-tooltip" id="daylight-info">Pushes light cooler during the day based on sun intensity, mimicking natural light indoors.</span></span>
             </div>
           </div>
           <input type="hidden" id="daylight-cct" value="5500">
           <div class="color-rule-stack-body" id="daylight-body">
+            <div class="reveal-group">
+              <div class="tune-control-row">
+                <span class="tune-control-left">
+                  <span class="tune-control-label">Strength</span>
+                  <span class="tune-control-reset" id="reset-color-sensitivity" data-default="5">reset</span>
+                </span>
+                <span class="tune-control-impact" id="color-sensitivity-text">1.00: standard</span>
+              </div>
+              <div class="tune-slider-row">
+                <input type="range" id="color-sensitivity" min="0" max="8" step="1" value="5">
+              </div>
+            </div>
             <div class="reveal-group">
               <div class="tune-control-row">
                 <span class="tune-control-left">
@@ -2250,21 +2288,10 @@ input[type=range]::-moz-range-thumb {
                 <input type="range" id="daylight-fade" min="0" max="300" step="30" value="60">
               </div>
             </div>
-            <div class="reveal-group">
-              <div class="tune-control-row">
-                <span class="tune-control-left">
-                  <span class="tune-control-label">Sun impact</span>
-                  <span class="tune-control-reset" id="reset-color-sensitivity" data-default="5">reset</span>
-                </span>
-                <span class="tune-control-impact" id="color-sensitivity-text">1.00: standard</span>
-              </div>
-              <div class="tune-slider-row">
-                <input type="range" id="color-sensitivity" min="0" max="8" step="1" value="5">
-              </div>
-            </div>
           </div>
         </div>
-      </div>
+        </div><!-- /sub-section-body Day -->
+      </div><!-- /sub-section Day -->
       <div class="section-actions" id="color-section-actions">
         <button class="section-cancel-btn" onclick="cancelColorChanges()">Cancel</button>
         <button class="section-save-btn" onclick="saveZoneSettings()">Save</button>
@@ -2962,7 +2989,14 @@ function updateColorGradients() {
 }
 
 function renderColorGradient() {
-  const container = document.getElementById('rhythm-ct-gradient-container');
+  // Dispatcher — renders the Night and Day sub-section sliders.
+  renderCTSlider('night');
+  renderCTSlider('day');
+}
+
+function renderCTSlider(role) {
+  const containerId = role === 'night' ? 'rhythm-ct-night-gradient' : 'rhythm-ct-day-gradient';
+  const container = document.getElementById(containerId);
   if (!container || !config) return;
 
   const minK = config.min_color_temp;
@@ -2972,32 +3006,46 @@ function renderColorGradient() {
   const dayEnabled = config.daylight_enabled !== false;
   const dayCct = config.daylight_cct;
 
-  // Cursor = color at cursor position (updates live during drag)
-  const currentK = (typeof calculateColorAtHour === 'function' && typeof cursorHour === 'number')
-    ? calculateColorAtHour(cursorHour, true) : null;
+  // Role determines which 1-or-2 handles appear and which range gets greyed.
+  let handles, leftGreyEnd, rightGreyStart;
+  if (role === 'night') {
+    handles = [{ name: 'warmest', k: minK, label: 'warmest' }];
+    if (warmEnabled) {
+      handles.push({ name: 'night-max', k: warmTarget, label: 'coolest' });
+    }
+    leftGreyEnd = minK;
+    rightGreyStart = warmEnabled ? warmTarget : maxK;
+  } else {
+    // Day-slider left handle relabels based on sun cooling: with sun cooling on it's
+    // "dark day" (the warm anchor under no-sun); off, it's the only cool handle so just "coolest".
+    const dayLeftLabel = dayEnabled ? 'dark day' : 'coolest';
+    handles = [{ name: 'coolest-base', k: maxK, label: dayLeftLabel }];
+    if (dayEnabled) {
+      handles.push({ name: 'coolest-day', k: dayCct, label: 'coolest' });
+    }
+    // Day gradient is lit from night warmest (minK) up through the day cool target,
+    // since sleep-hour daylight can be warmer than the "warmest day" handle.
+    leftGreyEnd = minK;
+    rightGreyStart = dayEnabled ? dayCct : maxK;
+  }
 
-  // Build gradient stops (always 500–6500K)
+  // Full 500-6500K gradient (consistent across both sliders).
   const stops = [];
   for (let i = 0; i <= 9; i++) {
     stops.push(cctToRGB(CT_SYSTEM_MIN + CT_SPAN * (i / 9)));
   }
   const gradStyle = 'background:linear-gradient(to right,' + stops.join(',') + ');';
 
-  // Grey overlays
-  const effectiveCool = dayEnabled ? Math.max(maxK, dayCct) : maxK;
-  const greyLeftPct = ctPct(minK);
-  const greyRightPct = 100 - ctPct(effectiveCool);
+  // Grey overlays mark out-of-range parts of the spectrum for this role.
+  const greyLeftPct = ctPct(leftGreyEnd);
+  const greyRightPct = 100 - ctPct(rightGreyStart);
   let greyHtml = '';
   if (greyLeftPct > 0.5) greyHtml += '<div class="ct-grey-left" style="width:' + greyLeftPct + '%;"></div>';
   if (greyRightPct > 0.5) greyHtml += '<div class="ct-grey-right" style="width:' + greyRightPct + '%;"></div>';
 
-  // Layer structure: ticks, ref labels, K values (below gradient)
-  // Cursor is ABOVE gradient
   const refLayerIdx = 1;
-  const barH = 12;
   const layerH = 15;
   const gapH = 2;
-
   function pipHtml(pct, cls, targetLayer) {
     const dotH = gapH + (targetLayer * layerH) + 7;
     return '<div class="ct-pip ' + cls + '" style="left:' + pct + '%;">'
@@ -3005,49 +3053,27 @@ function renderColorGradient() {
       + '<div class="ct-pip-line ct-pip-dot" style="height:' + dotH + 'px;"></div>'
       + '</div>';
   }
-
-  // Ref pip lines (dotted connectors to labels below)
   let pipsHtml = '';
-  if (currentK != null) pipsHtml += pipHtml(ctPct(currentK), 'ct-pip-now', 0);
-  pipsHtml += pipHtml(ctPct(minK), 'ct-pip-ref', refLayerIdx);
-  if (warmEnabled) pipsHtml += pipHtml(ctPct(warmTarget), 'ct-pip-ref', refLayerIdx);
-  pipsHtml += pipHtml(ctPct(maxK), 'ct-pip-ref', refLayerIdx);
-  if (dayEnabled) pipsHtml += pipHtml(ctPct(dayCct), 'ct-pip-ref', refLayerIdx);
+  for (const h of handles) {
+    pipsHtml += pipHtml(ctPct(h.k), 'ct-pip-ref', refLayerIdx);
+  }
 
-  // Draggable handles on gradient bar
+  // Handles colored by their CT value so each handle visually shows the
+  // selected color \u2014 replaces the old cursor-pill-on-bar idea.
   let handlesHtml = '';
-  handlesHtml += '<div class="ct-handle" data-handle="warmest" style="left:' + ctPct(minK) + '%;"><div class="ct-handle-thumb"></div></div>';
-  if (warmEnabled) {
-    handlesHtml += '<div class="ct-handle" data-handle="night-max" style="left:' + ctPct(warmTarget) + '%;"><div class="ct-handle-thumb"></div></div>';
-  }
-  handlesHtml += '<div class="ct-handle" data-handle="coolest-base" style="left:' + ctPct(maxK) + '%;"><div class="ct-handle-thumb"></div></div>';
-  if (dayEnabled) {
-    handlesHtml += '<div class="ct-handle" data-handle="coolest-day" style="left:' + ctPct(dayCct) + '%;"><div class="ct-handle-thumb"></div></div>';
+  for (const h of handles) {
+    const handleColor = cctToRGB(Math.round(h.k));
+    handlesHtml += '<div class="ct-handle" data-handle="' + h.name + '" style="left:' + ctPct(h.k) + '%;">'
+      + '<div class="ct-handle-thumb" style="background:' + handleColor + ';"></div>'
+      + '</div>';
   }
 
-  // --- Cursor layer (ABOVE gradient) ---
   function refStyle(pct) {
     if (pct <= 2) return 'left:' + pct + '%;transform:none;';
     if (pct >= 98) return 'left:' + pct + '%;transform:translateX(-100%);';
     return 'left:' + pct + '%;';
   }
-  let cursorLayerHtml = '';
-  if (currentK != null) {
-    const cursorColor = cctToRGB(Math.round(currentK));
-    const cursorText = readableTextColor(cursorColor);
-    const cursorPct = ctPct(currentK);
-    let cursorPos = 'left:' + cursorPct + '%;';
-    if (cursorPct <= 2) cursorPos += 'transform:none;';
-    else if (cursorPct >= 98) cursorPos += 'transform:translateX(-100%);';
-    else cursorPos += 'transform:translateX(-50%);';
-    const cursorTimeStr = typeof cursorHour === 'number' ? fmtTime(cursorHour) + ' \u00b7 ' : '';
-    cursorLayerHtml = '<div class="ct-cursor-layer">'
-      + '<span class="ct-cursor-pill" style="' + cursorPos + 'background:' + cursorColor + ';color:' + cursorText + ';">' + cursorTimeStr + Math.round(currentK) + 'K</span>'
-      + '<span class="ct-cursor-dot" style="left:' + cursorPct + '%;"></span>'
-      + '</div>';
-  }
 
-  // --- Layers below gradient ---
   // Layer 1: K tick marks
   let ticks = [{ k: CT_SYSTEM_MIN, pct: 0, label: CT_SYSTEM_MIN + 'K', edge: 'left' }];
   for (let k = 1000; k < CT_SYSTEM_MAX; k += 1000) {
@@ -3064,41 +3090,38 @@ function renderColorGradient() {
   }
   const layer1 = '<div class="ct-axis ct-axis-tick">' + ticksHtml + '</div>';
 
-  // Layer 2: Reference labels (draggable)
+  // Layer 2: Reference labels (draggable, handle names below the bar)
   let refHtml = '';
-  refHtml += '<span class="ct-axis-label ct-draggable" data-handle="warmest" style="' + refStyle(ctPct(minK)) + '">warmest</span>';
-  if (warmEnabled) {
-    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="night-max" style="' + refStyle(ctPct(warmTarget)) + '">coolest<span class="ct-label-colon">: </span><span class="ct-label-sub">night</span></span>';
+  for (const h of handles) {
+    const labelHtml = h.subLabel
+      ? h.label + '<span class="ct-label-colon">: </span><span class="ct-label-sub">' + h.subLabel + '</span>'
+      : h.label;
+    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="' + h.name + '" style="' + refStyle(ctPct(h.k)) + '">' + labelHtml + '</span>';
   }
-  if (dayEnabled) {
-    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-base" style="' + refStyle(ctPct(maxK)) + '">coolest<span class="ct-label-colon">: </span><span class="ct-label-sub">no-sun</span></span>';
-    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-day" style="' + refStyle(ctPct(dayCct)) + '">coolest<span class="ct-label-colon">: </span><span class="ct-label-sub">sunny</span></span>';
-  } else {
-    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-base" style="' + refStyle(ctPct(maxK)) + '">coolest</span>';
+  // Static (non-draggable) edge labels — mark the boundary where the gradient
+  // transitions between colored and grey, when that edge isn't already pinned
+  // by a draggable handle.
+  // Night with night-warming OFF: "coolest" sits at the right grey boundary (= maxK).
+  // Day with night-warmest below day-warmest: "warmest" sits at the left grey boundary (= minK).
+  if (role === 'night' && !warmEnabled) {
+    refHtml += '<span class="ct-axis-label ct-axis-static" style="' + refStyle(ctPct(maxK)) + '">coolest</span>';
+  } else if (role === 'day' && minK < maxK) {
+    refHtml += '<span class="ct-axis-label ct-axis-static" style="' + refStyle(ctPct(minK)) + '">warmest</span>';
   }
   const layer2 = '<div class="ct-axis ct-axis-ref">' + refHtml + '</div>';
 
-  // Layer 3: K values below labels
-  let kvalHtml = '';
-  kvalHtml += '<span class="ct-axis-label" style="' + refStyle(ctPct(minK)) + '">' + minK + 'K</span>';
-  if (warmEnabled) {
-    kvalHtml += '<span class="ct-axis-label" style="' + refStyle(ctPct(warmTarget)) + '">' + warmTarget + 'K</span>';
+  // Live readouts above the bar \u2014 one K value per handle, anchored at thumb.
+  let readoutsHtml = '';
+  for (const h of handles) {
+    readoutsHtml += '<span class="ct-handle-readout" style="' + refStyle(ctPct(h.k)) + '">' + Math.round(h.k) + 'K</span>';
   }
-  if (dayEnabled) {
-    kvalHtml += '<span class="ct-axis-label" style="' + refStyle(ctPct(maxK)) + '">' + maxK + 'K</span>';
-    kvalHtml += '<span class="ct-axis-label" style="' + refStyle(ctPct(dayCct)) + '">' + dayCct + 'K</span>';
-  } else {
-    kvalHtml += '<span class="ct-axis-label" style="' + refStyle(ctPct(maxK)) + '">' + maxK + 'K</span>';
-  }
-  const layer3 = '<div class="ct-axis ct-axis-kval">' + kvalHtml + '</div>';
 
-  container.innerHTML = cursorLayerHtml
+  container.innerHTML = '<div class="ct-handle-readouts">' + readoutsHtml + '</div>'
     + '<div class="ct-gradient-bar" style="' + gradStyle + '">'
     + greyHtml + pipsHtml + handlesHtml
     + '</div>'
-    + '<div class="ct-layers">' + layer1 + layer2 + layer3 + '</div>';
+    + '<div class="ct-layers">' + layer1 + layer2 + '</div>';
 
-  // Attach drag listeners
   attachHandleDragListeners(container);
 }
 
@@ -3206,10 +3229,6 @@ function renderBrightnessGradient() {
   const minB = config.min_brightness;
   const maxB = config.max_brightness;
 
-  // Cursor brightness (updates live during drag)
-  const cursorBri = (typeof calculateBrightnessAtHour === 'function' && typeof cursorHour === 'number')
-    ? Math.round(calculateBrightnessAtHour(cursorHour) * 100) : null;
-
   // Fixed gradient: dark to white
   const gradStyle = 'background:linear-gradient(to right,#111,#fff);';
 
@@ -3232,35 +3251,18 @@ function renderBrightnessGradient() {
   }
 
   let pipsHtml = '';
-  if (cursorBri != null) pipsHtml += pipHtml(briPct(cursorBri), 'ct-pip-now', 0);
   pipsHtml += pipHtml(briPct(minB), 'ct-pip-ref', refLayerIdx);
   pipsHtml += pipHtml(briPct(maxB), 'ct-pip-ref', refLayerIdx);
 
-  // Handles
+  // Handles colored by their brightness value (greyscale: dark for dim, white for bright).
   let handlesHtml = '';
-  handlesHtml += '<div class="ct-handle" data-handle="dimmest" style="left:' + briPct(minB) + '%;"><div class="ct-handle-thumb"></div></div>';
-  handlesHtml += '<div class="ct-handle" data-handle="brightest" style="left:' + briPct(maxB) + '%;"><div class="ct-handle-thumb"></div></div>';
+  handlesHtml += '<div class="ct-handle" data-handle="dimmest" style="left:' + briPct(minB) + '%;"><div class="ct-handle-thumb" style="background:' + briToGrey(minB) + ';"></div></div>';
+  handlesHtml += '<div class="ct-handle" data-handle="brightest" style="left:' + briPct(maxB) + '%;"><div class="ct-handle-thumb" style="background:' + briToGrey(maxB) + ';"></div></div>';
 
-  // Cursor pill (above gradient)
   function refStyle(pct) {
     if (pct <= 2) return 'left:' + pct + '%;transform:none;';
     if (pct >= 98) return 'left:' + pct + '%;transform:translateX(-100%);';
     return 'left:' + pct + '%;';
-  }
-  let cursorLayerHtml = '';
-  if (cursorBri != null) {
-    const bg = briToGrey(cursorBri);
-    const fg = readableTextColor(bg);
-    const pct = briPct(cursorBri);
-    let pos = 'left:' + pct + '%;';
-    if (pct <= 2) pos += 'transform:none;';
-    else if (pct >= 98) pos += 'transform:translateX(-100%);';
-    else pos += 'transform:translateX(-50%);';
-    const briTimeStr = typeof cursorHour === 'number' ? fmtTime(cursorHour) + ' \u00b7 ' : '';
-    cursorLayerHtml = '<div class="ct-cursor-layer">'
-      + '<span class="ct-cursor-pill" style="' + pos + 'background:' + bg + ';color:' + fg + ';">' + briTimeStr + cursorBri + '%</span>'
-      + '<span class="ct-cursor-dot" style="left:' + pct + '%;"></span>'
-      + '</div>';
   }
 
   // Layer 1: Tick marks
@@ -3281,23 +3283,22 @@ function renderBrightnessGradient() {
   }
   const layer1 = '<div class="ct-axis ct-axis-tick">' + ticksHtml + '</div>';
 
-  // Layer 2: Ref labels (draggable)
+  // Layer 2: Ref labels (draggable, handle names below the bar)
   let refHtml = '';
   refHtml += '<span class="ct-axis-label ct-draggable" data-handle="dimmest" style="' + refStyle(briPct(minB)) + '">dimmest</span>';
   refHtml += '<span class="ct-axis-label ct-draggable" data-handle="brightest" style="' + refStyle(briPct(maxB)) + '">brightest</span>';
   const layer2 = '<div class="ct-axis ct-axis-ref">' + refHtml + '</div>';
 
-  // Layer 3: % values below labels
-  let valHtml = '';
-  valHtml += '<span class="ct-axis-label" style="' + refStyle(briPct(minB)) + '">' + minB + '%</span>';
-  valHtml += '<span class="ct-axis-label" style="' + refStyle(briPct(maxB)) + '">' + maxB + '%</span>';
-  const layer3 = '<div class="ct-axis ct-axis-kval">' + valHtml + '</div>';
+  // Live readouts above the bar — % per handle, anchored at thumb.
+  let readoutsHtml = '';
+  readoutsHtml += '<span class="ct-handle-readout" style="' + refStyle(briPct(minB)) + '">' + minB + '%</span>';
+  readoutsHtml += '<span class="ct-handle-readout" style="' + refStyle(briPct(maxB)) + '">' + maxB + '%</span>';
 
-  container.innerHTML = cursorLayerHtml
+  container.innerHTML = '<div class="ct-handle-readouts">' + readoutsHtml + '</div>'
     + '<div class="ct-gradient-bar" style="' + gradStyle + '">'
     + greyHtml + pipsHtml + handlesHtml
     + '</div>'
-    + '<div class="ct-layers">' + layer1 + layer2 + layer3 + '</div>';
+    + '<div class="ct-layers">' + layer1 + layer2 + '</div>';
 
   attachBriHandleDragListeners(container);
 }

@@ -622,6 +622,7 @@ RHYTHM_SETTINGS = {
     "activity_preset",
     "max_dim_steps",
     "brightness_sensitivity",
+    "brightness_sensitivity_enabled",
 }
 
 # Settings that are global (not per-rhythm)

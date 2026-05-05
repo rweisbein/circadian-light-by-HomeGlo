@@ -1,0 +1,46 @@
+/* ==========================================================================
+   shared.css — canonical styles inlined into every page by serve_page().
+   Keep this file small. Anything page-specific stays in the page's <style>.
+   Relies on CSS variables defined in each page's :root (--line, --text,
+   --font-value, etc.).
+   ========================================================================== */
+
+/* Disable text selection on UI chrome by default. Settings/control surfaces
+   shouldn't highlight when you click-drag over labels, sliders, headers, etc.
+   Re-enabled below on elements where selection is actually useful: form
+   inputs, info tooltips (so users can copy text out of them), and any
+   element opted in via `.is-selectable`. */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Sub-section: flat, always-visible grouping within a card.
+   Use when a card has multiple labeled regions but doesn't need each region
+   to be its own collapsible/bordered mini-card. */
+.sub-section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0;
+  user-select: none;
+}
+.sub-section-title {
+  font-size: var(--font-value, 0.9rem);
+  font-weight: 600;
+  color: var(--text, #e2e8f0);
+}
+.sub-section-body {
+  padding-left: 20px;
+}
+/* Adjacent sub-sections get a divider — works in any card. */
+.sub-section + .sub-section {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line, #334155);
+}

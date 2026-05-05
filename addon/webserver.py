@@ -965,6 +965,22 @@ class LightDesignerServer:
                         html_content = html_content.replace(pattern, inline_script)
                         break
 
+            # Inline shared.css content (same reason as shared.js)
+            shared_css_path = Path(__file__).parent / "shared.css"
+            if shared_css_path.exists():
+                async with aiofiles.open(shared_css_path, "r") as f:
+                    shared_css_content = await f.read()
+                inline_style = f"<style>\n{shared_css_content}\n</style>"
+                for pattern in [
+                    '<link rel="stylesheet" href="./shared.css">',
+                    '<link rel="stylesheet" href="shared.css">',
+                    "<link rel='stylesheet' href='./shared.css'>",
+                    "<link rel='stylesheet' href='shared.css'>",
+                ]:
+                    if pattern in html_content:
+                        html_content = html_content.replace(pattern, inline_style)
+                        break
+
             # Inline icon.png as base64 data URI (avoids routing issues with ingress paths)
             icon_path = Path(__file__).parent / "icon.png"
             if icon_path.exists() and 'src="./icon.png"' in html_content:
@@ -1952,6 +1968,7 @@ class LightDesignerServer:
         "motion_blink_threshold",  # Brightness % below which motion warning blinks instead of dims
         "freeze_feedback_enabled",  # Whether freeze/unfreeze shows visual dip-and-restore cue (default true)
         "freeze_off_rise",  # Transition time in tenths of seconds for unfreeze rise (default 10 = 1.0s)
+        "freeze_hold_at_dim",  # Wait between freeze dip and restore phase (tenths of seconds, default 2 = 0.2s)
         "alert_bounce_speed",  # Transition time in tenths of seconds for alert bounce animation (default 10 = 1.0s)
         "limit_bounce_enabled",  # Whether to show visual bounce when hitting step limits (default true)
         "limit_warning_speed",  # Transition time in tenths of seconds for limit bounce animation (default 3 = 0.3s)
@@ -2175,6 +2192,7 @@ class LightDesignerServer:
             # Visual feedback settings
             "freeze_feedback_enabled": True,  # Show visual dip on freeze/unfreeze
             "freeze_off_rise": 10,  # tenths of seconds (1.0s)
+            "freeze_hold_at_dim": 2,  # tenths of seconds (0.2s) — wait between freeze dip and restore
             "limit_bounce_enabled": True,  # Show visual bounce at step limits
             "limit_warning_speed": 3,  # tenths of seconds (0.3s)
             "limit_bounce_max_percent": 25,  # % of range (hitting max)
@@ -2285,6 +2303,7 @@ class LightDesignerServer:
             # Visual feedback settings
             "freeze_feedback_enabled": True,
             "freeze_off_rise": 10,  # tenths of seconds (1.0s)
+            "freeze_hold_at_dim": 2,  # tenths of seconds (0.2s) — wait between freeze dip and restore
             "limit_bounce_enabled": True,  # Show visual bounce at step limits
             "limit_warning_speed": 3,  # tenths of seconds (0.3s)
             "limit_bounce_max_percent": 25,  # % of range (hitting max)
@@ -3026,13 +3045,20 @@ class LightDesignerServer:
                     area_brightness_sensitivity = rhythm_cfg.get(
                         "brightness_sensitivity", 1.0
                     )
-                    # Brightness sun bright uses raw outdoor_norm (no daylight fade —
-                    # fade applies to color solar rules only, not brightness)
-                    sun_bright_factor = calculate_natural_light_factor(
-                        area_sun_exposure,
-                        outdoor_norm,
-                        area_brightness_sensitivity,
+                    area_brightness_sensitivity_enabled = (
+                        rhythm_cfg.get("brightness_sensitivity_enabled", True) is not False
                     )
+                    # Brightness sun bright uses raw outdoor_norm (no daylight fade —
+                    # fade applies to color solar rules only, not brightness).
+                    # Skip when sun-dimming is disabled at the rhythm level.
+                    if not area_brightness_sensitivity_enabled:
+                        sun_bright_factor = 1.0
+                    else:
+                        sun_bright_factor = calculate_natural_light_factor(
+                            area_sun_exposure,
+                            outdoor_norm,
+                            area_brightness_sensitivity,
+                        )
 
                     # Apply natural light reduction to brightness (matches main.py)
                     if sun_bright_factor < 1.0:
@@ -3275,6 +3301,7 @@ class LightDesignerServer:
                         "outdoor_last_update": lux_tracker.get_last_outdoor_update(),
                         "sun_factor": round(outdoor_norm, 3),  # backward compat alias
                         "brightness_sensitivity": area_brightness_sensitivity,
+                        "brightness_sensitivity_enabled": area_brightness_sensitivity_enabled,
                         "lux_smoothed": (
                             round(lux_smoothed, 1) if lux_smoothed is not None else None
                         ),

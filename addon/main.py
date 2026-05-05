@@ -2352,7 +2352,10 @@ class HomeAssistantWebSocketClient:
 
         elif main_action == "freeze_toggle":
             await self.primitives.freeze_toggle_multiple(areas, "switch")
-            await self._feedback_cue(switch_id, "freeze")
+            # Post-toggle state determines which feedback variant to play.
+            # All areas in a reach toggle together, so the first area's state is representative.
+            freeze_on = bool(areas) and state.is_frozen(areas[0])
+            await self._feedback_cue(switch_id, "freeze", freeze_on=freeze_on)
 
         elif main_action == "glo_up":
             # Push area settings to GloZone (atomic - zone only, not to other areas)
@@ -2887,6 +2890,7 @@ class HomeAssistantWebSocketClient:
         bounce_type: str = "step",
         scope_number: int = 1,
         sun_dimming_hint: bool = False,
+        freeze_on: bool = True,
     ) -> None:
         """Unified feedback cue — hits all areas in the active reach.
 
@@ -3011,18 +3015,33 @@ class HomeAssistantWebSocketClient:
                 )
 
             elif cue_type == "freeze":
+                # Restore-phase transition differs by direction:
+                #   freeze_on  → snap back (0s) — confirms "now locked"
+                #   freeze_off → slow rise (freeze_off_rise setting) — confirms "now unlocked"
+                # Dip phase uses limit_speed in both cases.
+                restore_transition = (
+                    0
+                    if freeze_on
+                    else self.primitives._get_freeze_off_rise()
+                )
+                # Hold-at-1% duration before restore. Settings-driven so user
+                # can tune the dip-and-restore cadence without touching code.
+                hold_at_dim = self.primitives._get_freeze_hold_at_dim()
 
                 def freeze_phase1(t):
                     return {"brightness": 1, "transition": limit_speed}
 
                 def freeze_restore(t):
-                    return {"brightness": t["cached_bri"], "transition": limit_speed}
+                    return {"brightness": t["cached_bri"], "transition": restore_transition}
 
                 await self._send_feedback_phase(targets, freeze_phase1)
-                await asyncio.sleep(limit_speed + two_step_delay)
+                await asyncio.sleep(limit_speed + hold_at_dim)
                 await self._send_feedback_phase(targets, freeze_restore)
 
-                logger.info(f"Feedback freeze: {len(targets)} area(s)")
+                logger.info(
+                    f"Feedback freeze ({'on' if freeze_on else 'off'}, restore={restore_transition}s): "
+                    f"{len(targets)} area(s)"
+                )
 
             elif cue_type == "reach":
                 # Determine per-area flash behavior based on sun exposure
@@ -4354,10 +4373,13 @@ class HomeAssistantWebSocketClient:
 
                         # Color lights
                         sdata = {"transition": transition}
-                        if not is_dimming:
-                            # Brightening: send brightness + color
-                            sdata["brightness_pct"] = comp_bri
-                        # Dimming: brightness already at target from phase 1, just add color
+                        # Always include brightness — even on dim phase 2 where
+                        # phase 1 already dimmed. Some bulbs/integrations
+                        # interpret a CT-only `light.turn_on` at near-zero
+                        # brightness as "(re)ignite," producing a brief
+                        # brightness bump. The redundant brightness suppresses
+                        # that without changing visual state.
+                        sdata["brightness_pct"] = comp_bri
                         if include_color and xy is not None:
                             sdata["xy_color"] = list(xy)
                         zha_group = group_candidates.get(
@@ -4377,8 +4399,8 @@ class HomeAssistantWebSocketClient:
                         # CT lights
                         zha_ct = group_candidates.get(f"zha_group_{filt_norm_p2}_ct")
                         ct_data = {"transition": transition}
-                        if not is_dimming:
-                            ct_data["brightness_pct"] = comp_bri
+                        # Always include brightness (see sdata comment above).
+                        ct_data["brightness_pct"] = comp_bri
                         if include_color and kelvin:
                             ct_data["color_temp_kelvin"] = max(2000, kelvin)
                         if zha_ct:

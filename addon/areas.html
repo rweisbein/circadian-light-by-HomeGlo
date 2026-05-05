@@ -10,6 +10,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Circadian Light - Home</title>
+  <link rel="stylesheet" href="./shared.css">
   <style>
     :root {
       --bg: #000;
@@ -1619,6 +1620,33 @@
       return `<a href="${href}" class="timer-alarm" style="text-decoration:none; color:inherit;">${arrow} ${text}${relative}</a>`;
     }
 
+    // Wall-clock-sync any pulsing animations within `root`.
+    //
+    // Setting `animation-delay: -<offset>s` (offset = now % duration) makes the
+    // CSS animation start at the phase it would be at if it had been running
+    // since wall-clock 0. After a DOM rebuild (renderAreas → innerHTML or
+    // updateHomeTimers' sig-change branch) the new element resumes at the
+    // same wall-clock phase as the one it replaced, so the rebuild is
+    // invisible — no jump in the breath cycle.
+    //
+    // The dataset.pulseSynced flag makes this idempotent: re-setting
+    // animation-delay on a running animation would itself cause a phase jump,
+    // so we only ever sync each element once.
+    function syncPulsesToWallClock(root) {
+      const els = root.querySelectorAll('.timer-fade, .timer-motion, .timer-warning, .timer-boost, .timer-boost-flash');
+      const now = Date.now();
+      for (const el of els) {
+        if (el.dataset.pulseSynced) continue;
+        const cs = getComputedStyle(el);
+        const durStr = (cs.animationDuration || '').split(',')[0].trim();
+        const dur = parseFloat(durStr) * 1000;
+        if (!dur || isNaN(dur)) continue;
+        const offset = (now % dur) / 1000;
+        el.style.animationDelay = `-${offset.toFixed(3)}s`;
+        el.dataset.pulseSynced = '1';
+      }
+    }
+
     function updateHomeTimers() {
       // Update active status (row 1) and schedule (row 3) separately
       // Active status: fade, motion, boost, frozen (current state)
@@ -1684,6 +1712,7 @@
           // Structure changed — full rebuild
           el.innerHTML = parts.join('');
           el.setAttribute('data-sig', sig);
+          syncPulsesToWallClock(el);
         } else {
           // Same structure — update text only (preserves animations)
           const children = el.children;
@@ -2354,6 +2383,7 @@
         return {
           ...area,
           is_on: status.is_on || false,
+          is_circadian: status.is_circadian !== false,  // default true when undefined
           brightness: status.is_on ? (status.actual_brightness ?? status.brightness ?? 0) : 0,
           kelvin: status.kelvin || 4000,
           frozen: status.frozen || false,
@@ -2564,9 +2594,11 @@
           }
         }
 
-        // Power button: only show if one or more areas in zone have lights on.
+        // Power button: only show if one or more areas in the zone are
+        // effectively on — circadian-disabled areas don't count, since the
+        // power button only does something for areas under our control.
         // When hidden, a spacer preserves the centered-title layout.
-        const zoneOnAreas = sorted.filter(a => a.is_on);
+        const zoneOnAreas = sorted.filter(a => a.is_on && a.is_circadian);
         const zonePowerBtn = zoneOnAreas.length > 0
           ? `<div class="row-controls-left"><button class="row-btn active" onclick="event.stopPropagation(); confirmZonePowerOff('${escapedZoneName}')" title="Turn off all in '${zoneName}'">${powerIconSvg}</button></div>`
           : `<div class="row-controls-left" style="visibility: hidden;" aria-hidden="true"><button class="row-btn" tabindex="-1">${powerIconSvg}</button></div>`;
@@ -2618,9 +2650,13 @@
           <a href="#" onclick="event.preventDefault(); createZoneFromEdit()" style="font-size: 0.85rem; color: var(--accent); text-decoration: none;">+ New Zone</a>
         </div>`;
       } else if (viewMode === 'onoff') {
-        // Group by on/off first, then by zone within each
-        const onAreas = filtered.filter(a => a.is_on);
-        const offAreas = filtered.filter(a => !a.is_on);
+        // Group by on/off first, then by zone within each. Areas with circadian
+        // disabled are bucketed with off areas — even though their lights might
+        // be physically on, they're not under our control. (We don't mutate
+        // `is_on` itself; it's a display-only adjustment for this filter.)
+        const isEffectivelyOn = (a) => a.is_on && a.is_circadian;
+        const onAreas = filtered.filter(isEffectivelyOn);
+        const offAreas = filtered.filter(a => !isEffectivelyOn(a));
 
         const renderOnOffSection = (sectionAreas, allOff = false) => {
           if (sectionAreas.length === 0) return '';
@@ -2697,6 +2733,7 @@
       initRowSliders();
       updateAllSliderFills();
       updateHomeTimers();
+      syncPulsesToWallClock(container);
       initStickyHeaders();
     }
 

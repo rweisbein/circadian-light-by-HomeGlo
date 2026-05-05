@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Circadian Light - Controls</title>
+  <link rel="stylesheet" href="./shared.css">
   <style>
     :root {
       --bg: #000;
@@ -568,15 +569,16 @@
   <!-- Main Content -->
   <main class="main">
     <div class="page-header">
-      <div style="display: flex; align-items: center; gap: 12px;">
-        <a href="./switchmap" style="font-size: 0.8rem; color: var(--muted); text-decoration: underline; text-decoration-color: rgba(255,255,255,0.2); text-underline-offset: 3px;">Cheatsheet &rarr;</a>
-        <select id="fourth-field-header" style="margin-left:auto;font-size:0.78rem;padding:2px 6px;border-radius:4px;border:1px solid var(--line);background:var(--card);color:var(--text);cursor:pointer;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <label for="fourth-field-header" style="font-size:0.78rem;color:var(--muted);">View</label>
+        <select id="fourth-field-header" style="font-size:0.78rem;padding:2px 6px;border-radius:4px;border:1px solid var(--line);background:var(--card);color:var(--text);cursor:pointer;">
           <option value="lastAction">Last action</option>
           <option value="status">Status</option>
           <option value="battery">Battery</option>
           <option value="lux">Lux</option>
           <option value="pause">Pause</option>
         </select>
+        <a href="./switchmap" style="margin-left:auto;font-size:0.8rem;color:var(--muted);text-decoration:underline;text-decoration-color:rgba(255,255,255,0.2);text-underline-offset:3px;">Cheatsheet &rarr;</a>
       </div>
     </div>
 
@@ -1270,7 +1272,9 @@
           statusFilter = 'all';
           pauseFilter = 'all';
           sortColumn = 'fourth';
-          sortAsc = true;
+          // Last action defaults to most-recent-first (descending) since "what
+          // happened recently" is almost always more useful than the oldest events.
+          sortAsc = fourthField !== 'lastAction';
           savePreferences();
           renderControls();
         } else if (e.target.id === 'fourth-filter') {
@@ -1311,7 +1315,7 @@
         lastActionFilter = 'all';
         batteryFilter = 'all';
         sortColumn = 'fourth';
-        sortAsc = true;
+        sortAsc = fourthField !== 'lastAction';  // most-recent-first for Last action
         savePreferences();
         renderControls();
       });
