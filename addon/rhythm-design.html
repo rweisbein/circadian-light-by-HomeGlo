@@ -1823,6 +1823,57 @@ input[type=range]::-moz-range-thumb {
   cursor: pointer; transition: all 0.15s;
 }
 .section-save-btn:hover { opacity: 0.9; }
+
+/* Sticky "unsaved changes" banner — shown above the cards whenever any section
+   is dirty. Lists the dirty cards as pills (click to scroll to that card) and
+   provides global Save all / Cancel all. Per-card buttons are now Reset-only. */
+.dirty-banner {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  margin: 0 -14px 12px;
+  background: rgba(254, 172, 96, 0.12);
+  border-bottom: 1px solid rgba(254, 172, 96, 0.4);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  font-size: var(--font-body);
+}
+.dirty-banner.is-active { display: flex; }
+.dirty-banner-label { color: var(--muted); font-weight: 500; flex-shrink: 0; }
+.dirty-banner-pills { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; min-width: 0; }
+.dirty-banner-pill {
+  padding: 2px 8px; border-radius: 10px;
+  background: rgba(254, 172, 96, 0.18); border: 1px solid rgba(254, 172, 96, 0.4);
+  color: var(--text); font-weight: 500;
+  cursor: pointer; user-select: none;
+}
+.dirty-banner-pill:hover { background: rgba(254, 172, 96, 0.28); }
+.dirty-banner-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.dirty-banner-cancel {
+  padding: 4px 12px; border-radius: 6px; border: 1px solid var(--line);
+  background: transparent; color: var(--muted); font-size: var(--font-body); cursor: pointer;
+}
+.dirty-banner-cancel:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+.dirty-banner-save {
+  padding: 4px 14px; border-radius: 6px; border: 1px solid var(--accent);
+  background: var(--accent); color: #000; font-size: var(--font-body); font-weight: 600; cursor: pointer;
+}
+.dirty-banner-save:hover { opacity: 0.9; }
+
+/* Card-level dirty marker — small accent dot before the card title */
+.rhythm-card.is-dirty .rhythm-card-title::before {
+  content: '';
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-right: 6px;
+  vertical-align: middle;
+}
 </style>
 </head>
 <body>
@@ -1867,6 +1918,14 @@ input[type=range]::-moz-range-thumb {
 
 <div class="container">
   <div id="save-status"></div>
+  <div class="dirty-banner" id="dirty-banner" role="region" aria-label="Unsaved changes">
+    <span class="dirty-banner-label">Unsaved:</span>
+    <div class="dirty-banner-pills" id="dirty-banner-pills"></div>
+    <div class="dirty-banner-actions">
+      <button type="button" class="dirty-banner-cancel" onclick="cancelAllChanges()">Cancel all</button>
+      <button type="button" class="dirty-banner-save" onclick="saveZoneSettings()">Save all</button>
+    </div>
+  </div>
 
   <!-- Chart -->
   <div class="section-block" id="chart-section">
@@ -2102,8 +2161,7 @@ input[type=range]::-moz-range-thumb {
       <input type="range" id="ascend-start" min="0" max="24" step="0.5" value="3" style="display:none">
       <input type="range" id="descend-start" min="0" max="36" step="0.5" value="12" style="display:none">
       <div class="section-actions" id="sleep-section-actions">
-        <button class="section-cancel-btn" onclick="cancelSleepChanges()">Cancel</button>
-        <button class="section-save-btn" onclick="saveZoneSettings()">Save</button>
+        <button class="section-cancel-btn" onclick="cancelSleepChanges()">Reset</button>
       </div>
     </div>
   </div>
@@ -2132,7 +2190,7 @@ input[type=range]::-moz-range-thumb {
             <div class="reveal-group brightness-sensitivity-group">
               <div class="tune-control-row">
                 <span class="tune-control-left">
-                  <span class="tune-control-label">Sun impact</span>
+                  <span class="tune-control-label">Strength</span>
                   <span class="tune-control-reset" id="reset-brightness-sensitivity" data-default="5">reset</span>
                 </span>
                 <span class="tune-control-impact" id="brightness-sensitivity-text">1.00: standard</span>
@@ -2145,8 +2203,7 @@ input[type=range]::-moz-range-thumb {
         </div>
       </div>
       <div class="section-actions" id="brightness-section-actions">
-        <button class="section-cancel-btn" onclick="cancelBrightnessChanges()">Cancel</button>
-        <button class="section-save-btn" onclick="saveZoneSettings()">Save</button>
+        <button class="section-cancel-btn" onclick="cancelBrightnessChanges()">Reset</button>
       </div>
     </div>
   </div>
@@ -2293,8 +2350,7 @@ input[type=range]::-moz-range-thumb {
         </div><!-- /sub-section-body Day -->
       </div><!-- /sub-section Day -->
       <div class="section-actions" id="color-section-actions">
-        <button class="section-cancel-btn" onclick="cancelColorChanges()">Cancel</button>
-        <button class="section-save-btn" onclick="saveZoneSettings()">Save</button>
+        <button class="section-cancel-btn" onclick="cancelColorChanges()">Reset</button>
       </div>
     </div>
   </div>
@@ -2368,15 +2424,15 @@ const ACTIVITY_PRESETS = {
 };
 
 const SENSITIVITY_STEPS = [
-  { label: "None",     multiplier: 0.00 },
-  { label: "Minimal",  multiplier: 0.10 },
-  { label: "Low",      multiplier: 0.25 },
-  { label: "Medium",   multiplier: 0.50 },
-  { label: "Moderate", multiplier: 0.75 },
-  { label: "Standard", multiplier: 1.00 },
-  { label: "High",     multiplier: 1.25 },
-  { label: "Strong",   multiplier: 1.50 },
-  { label: "Maximum",  multiplier: 2.00 },
+  { label: "None",      multiplier: 0.00 },
+  { label: "Minimal",   multiplier: 0.10 },
+  { label: "Low",       multiplier: 0.25 },
+  { label: "Medium",    multiplier: 0.50 },
+  { label: "High",      multiplier: 0.75 },
+  { label: "Full",      multiplier: 1.00 },
+  { label: "Amplified", multiplier: 1.25 },
+  { label: "Intense",   multiplier: 1.50 },
+  { label: "Maximum",   multiplier: 2.00 },
 ];
 
 function findClosestSensitivityStep(value) {
@@ -6832,16 +6888,62 @@ function cancelSleepChanges() { revertFields(SLEEP_FIELDS); }
 function cancelColorChanges() { revertFields(COLOR_FIELDS); }
 function cancelBrightnessChanges() { revertFields(BRIGHTNESS_FIELDS); }
 
+// Global "Cancel all" — revert every section's fields to the saved snapshot.
+function cancelAllChanges() {
+  cancelSleepChanges();
+  cancelColorChanges();
+  cancelBrightnessChanges();
+}
+
+// Section metadata: pairs each card's dirty-tracking field set with its DOM
+// hooks (per-card Reset action container, the rhythm-card element to mark
+// dirty, and the human-friendly label used on the banner pill).
+const RHYTHM_SECTIONS = [
+  { name: 'Sleep',             fields: () => SLEEP_FIELDS,       actionsId: 'sleep-section-actions',       cardId: 'rhythm-sleep-card' },
+  { name: 'Color temperature', fields: () => COLOR_FIELDS,       actionsId: 'color-section-actions',       cardId: 'rhythm-color-card' },
+  { name: 'Brightness',        fields: () => BRIGHTNESS_FIELDS,  actionsId: 'brightness-section-actions',  cardId: 'rhythm-brightness-card' },
+];
+
 function updateSectionDirtyState() {
-  const toggle = (id, fields) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    if (isSectionDirty(fields)) el.classList.add('has-changes');
-    else el.classList.remove('has-changes');
-  };
-  toggle('sleep-section-actions', SLEEP_FIELDS);
-  toggle('color-section-actions', COLOR_FIELDS);
-  toggle('brightness-section-actions', BRIGHTNESS_FIELDS);
+  const banner = document.getElementById('dirty-banner');
+  const pillsContainer = document.getElementById('dirty-banner-pills');
+  if (!banner || !pillsContainer) return;
+
+  const dirtySections = [];
+  for (const sec of RHYTHM_SECTIONS) {
+    const dirty = isSectionDirty(sec.fields());
+    // Per-card Reset visibility (toggle has-changes on the actions container)
+    const actionsEl = document.getElementById(sec.actionsId);
+    if (actionsEl) actionsEl.classList.toggle('has-changes', dirty);
+    // Card-level dirty dot (toggle is-dirty on the card element)
+    const cardEl = document.getElementById(sec.cardId);
+    if (cardEl) cardEl.classList.toggle('is-dirty', dirty);
+    if (dirty) dirtySections.push(sec);
+  }
+
+  // Banner: visible only when at least one section is dirty. Each pill
+  // jumps to its card on click (and expands it if collapsed).
+  banner.classList.toggle('is-active', dirtySections.length > 0);
+  pillsContainer.innerHTML = dirtySections.map(sec =>
+    `<span class="dirty-banner-pill" onclick="scrollToRhythmCard('${sec.cardId}')">${sec.name}</span>`
+  ).join('');
+}
+
+// Helper: scroll a rhythm-card into view, expand it if collapsed.
+function scrollToRhythmCard(cardId) {
+  const card = document.getElementById(cardId);
+  if (!card) return;
+  if (!card.classList.contains('is-open') && typeof toggleRhythmCard === 'function') {
+    // toggleRhythmCard signature: (cardId, persistKey). The persist key
+    // mirrors the existing pattern (rhythm_<short>_expanded).
+    const persistKeyMap = {
+      'rhythm-sleep-card': 'rhythm_sleep_expanded',
+      'rhythm-color-card': 'rhythm_color_expanded',
+      'rhythm-brightness-card': 'rhythm_brightness_expanded',
+    };
+    toggleRhythmCard(cardId, persistKeyMap[cardId]);
+  }
+  card.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function updateSliderFill(el) {
