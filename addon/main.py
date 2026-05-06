@@ -3630,6 +3630,8 @@ class HomeAssistantWebSocketClient:
         delay. Each call resets the counter and delay timer.
         """
         self._last_light_action_time = time.time()
+        # Driven by the Lab card's `post_action_burst_count` (currently surfaced
+        # only in HomeGlo's developer-mode Lab tab; not user-facing). Default 1.
         try:
             raw_config = glozone.load_config_from_files()
             burst_count = int(raw_config.get("post_action_burst_count", 1))
@@ -3645,6 +3647,7 @@ class HomeAssistantWebSocketClient:
         ):
             self._pending_post_action_delay.cancel()
 
+        # Driven by Lab card's `post_switch_refresh` (tenths of a second).
         try:
             raw_config = glozone.load_config_from_files()
             tenths = raw_config.get("post_switch_refresh", 30)
@@ -6393,23 +6396,14 @@ class HomeAssistantWebSocketClient:
                             log_periodic = False
                     else:
                         log_periodic = False
-                    # Periodic transition speed (day/night) — values in seconds
-                    periodic_transition_day = float(
-                        raw_config.get("periodic_transition_day", 1)
-                    )
-                    periodic_transition_night = float(
-                        raw_config.get("periodic_transition_night", 1)
-                    )
-                    sun_elev = lux_tracker.compute_sun_elevation()
-                    periodic_transition = (
-                        periodic_transition_day
-                        if sun_elev > 0
-                        else periodic_transition_night
-                    )
+                    # Hardcoded — used to be day/night separate values but the
+                    # difference rarely mattered in practice and the UI was
+                    # confusing. 1s is smooth enough across both phases.
+                    periodic_transition = 1.0
                 except Exception:
                     refresh_interval = 30
                     log_periodic = False
-                    periodic_transition = 2.0
+                    periodic_transition = 1.0
                 self._log_periodic = log_periodic
 
                 # Choose wait timeout: short during burst, normal otherwise

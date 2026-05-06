@@ -691,13 +691,21 @@
       background: rgba(50,50,50,0.9);
     }
 
+    /* Active row button (area-row power) — high-contrast inversion (white fill,
+       black icon) reads as "lit up" without relying on the orange accent.
+       Dark border keeps the button's edge visible on light-tinted card
+       backgrounds (e.g. cream tint when warm CT × high brightness). */
     .row-btn.active {
-      background: rgba(60,60,60,0.9);
-      color: var(--text);
-      border-color: var(--accent);
+      background: #fff;
+      color: #000;
+      border-color: rgba(0,0,0,0.4);
+    }
+    .row-btn.active:hover {
+      background: rgba(255,255,255,0.92);
+      border-color: rgba(0,0,0,0.55);
     }
 
-    /* Power button — reduced visual weight: hollow circle off, filled amber on */
+    /* Zone-level power button — same inversion idiom, hollow off / solid white on. */
     .row-controls-left .row-btn {
       border-radius: 50%;
       background: transparent;
@@ -709,13 +717,13 @@
       background: rgba(255,255,255,0.08);
     }
     .row-controls-left .row-btn.active {
-      background: rgba(0, 0, 0, 0.4);
-      border-color: rgba(0, 0, 0, 0.3);
-      color: var(--accent);
+      background: #fff;
+      border-color: rgba(0,0,0,0.4);
+      color: #000;
     }
     .row-controls-left .row-btn.active:hover {
-      background: rgba(0, 0, 0, 0.55);
-      border-color: rgba(0, 0, 0, 0.45);
+      background: rgba(255,255,255,0.92);
+      border-color: rgba(0,0,0,0.55);
     }
     .row-controls-left .row-btn svg {
       width: 13px;
@@ -1063,8 +1071,11 @@
       white-space: nowrap;
     }
     .view-toggle:hover { border-color: rgba(255,255,255,0.4); color: var(--text); }
-    .view-toggle.active { color: var(--accent); border-color: currentColor; background: transparent; }
-    .view-toggle.active:hover { color: var(--accent); filter: brightness(1.12); }
+    /* Active = filled white pill with black text. High-contrast inversion reads
+       as "lit up / engaged" without relying on color (orange is reserved for
+       actively-dirty state elsewhere). */
+    .view-toggle.active { background: #fff; color: #000; border-color: #fff; }
+    .view-toggle.active:hover { background: rgba(255,255,255,0.92); border-color: rgba(255,255,255,0.92); }
 
     /* Edit mode styles */
     .edit-toolbar { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
@@ -1181,6 +1192,23 @@
       font-weight: 700;
       color: var(--text);
       letter-spacing: 0.01em;
+      cursor: text;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: background 0.15s;
+    }
+    .home-name-heading:hover { background: rgba(255,255,255,0.06); }
+    .home-name-input {
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 0.01em;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--accent);
+      border-radius: 4px;
+      padding: 2px 4px;
+      outline: none;
+      font-family: inherit;
     }
 
     .drag-handle { color: var(--muted2); font-size: 1.1rem; cursor: grab; user-select: none; }
@@ -1238,6 +1266,7 @@
     let homeRefreshTimer = null;     // Home page card refresh timer
     let homeTickTimer = null;        // 1s home page timer countdown tick
     let sliderDragging = false;      // Guards renderAreas during row button actions
+    let homeNameEditing = false;     // Guards renderAreas while inline-editing the home name
 
     // ============================================================
     // Circadian Calculation Functions (for row shading)
@@ -2373,8 +2402,55 @@
       setTimeout(() => crossZoneMove(areaId, sourceZone, targetZone), 350);
     }
 
+    // Click-to-edit home name. Span swaps to a text input; blur or Enter
+    // commits to /api/config; Escape cancels. Updates cachedConfig in place
+    // so the next render picks up the new value without a full refetch.
+    async function editHomeName(spanEl) {
+      homeNameEditing = true;  // pause renderAreas() so periodic refresh doesn't clobber the input
+      const current = spanEl.textContent;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'home-name-input';
+      input.value = current === 'Your home' ? '' : current;
+      input.placeholder = 'Your home';
+      spanEl.replaceWith(input);
+      input.focus();
+      input.select();
+
+      let committed = false;
+      const commit = async (save) => {
+        if (committed) return;
+        committed = true;
+        const newName = save ? (input.value.trim() || '') : current;
+        const span = document.createElement('span');
+        span.className = 'home-name-heading';
+        span.id = 'home-name-heading';
+        span.title = 'Click to rename';
+        span.onclick = () => editHomeName(span);
+        span.textContent = newName || 'Your home';
+        input.replaceWith(span);
+        homeNameEditing = false;  // re-enable renderAreas
+        if (save && newName !== current) {
+          if (cachedConfig) cachedConfig.home_name = newName;
+          try {
+            await fetch('./api/config', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ home_name: newName }),
+            });
+          } catch (e) { console.error('Save home name failed:', e); }
+        }
+      };
+      input.addEventListener('blur', () => commit(true));
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+        else if (e.key === 'Escape') { e.preventDefault(); commit(false); }
+      });
+    }
+
     function renderAreas() {
       if (sliderDragging) return; // Don't re-render while user is dragging
+      if (homeNameEditing) return; // Don't re-render while inline-editing home name
       const container = document.getElementById('areas-container');
 
       // Merge area data with status
@@ -2479,7 +2555,7 @@
       } else {
         html = `
           <div class="home-toolbar" style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-            <span class="home-name-heading">${homeName || ''}</span>
+            <span class="home-name-heading" id="home-name-heading" onclick="editHomeName(this)" title="Click to rename">${homeName || ''}</span>
             <button class="view-toggle ${viewMode === 'onoff' ? 'active' : ''}" data-view-toggle title="Group by on/off state">On</button>
             <span style="flex: 1;"></span>
             <a href="#" class="edit-toolbar-link" id="organize-link" style="padding-left: 8px;">Organize</a>

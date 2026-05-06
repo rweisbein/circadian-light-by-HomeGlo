@@ -1825,8 +1825,8 @@ input[type=range]::-moz-range-thumb {
 .section-save-btn:hover { opacity: 0.9; }
 
 /* Sticky "unsaved changes" banner — shown above the cards whenever any section
-   is dirty. Lists the dirty cards as pills (click to scroll to that card) and
-   provides global Save all / Cancel all. Per-card buttons are now Reset-only. */
+   is dirty. Card-level orange dots tell the user *which* card is dirty; the
+   banner's job is just to surface the global commit/revert affordance. */
 .dirty-banner {
   position: sticky;
   top: 0;
@@ -1835,7 +1835,7 @@ input[type=range]::-moz-range-thumb {
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
-  margin: 0 -14px 12px;
+  margin-bottom: 12px;
   background: rgba(254, 172, 96, 0.12);
   border-bottom: 1px solid rgba(254, 172, 96, 0.4);
   backdrop-filter: blur(6px);
@@ -1843,15 +1843,7 @@ input[type=range]::-moz-range-thumb {
   font-size: var(--font-body);
 }
 .dirty-banner.is-active { display: flex; }
-.dirty-banner-label { color: var(--muted); font-weight: 500; flex-shrink: 0; }
-.dirty-banner-pills { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; min-width: 0; }
-.dirty-banner-pill {
-  padding: 2px 8px; border-radius: 10px;
-  background: rgba(254, 172, 96, 0.18); border: 1px solid rgba(254, 172, 96, 0.4);
-  color: var(--text); font-weight: 500;
-  cursor: pointer; user-select: none;
-}
-.dirty-banner-pill:hover { background: rgba(254, 172, 96, 0.28); }
+.dirty-banner-label { color: var(--muted); font-weight: 500; flex: 1; }
 .dirty-banner-actions { display: flex; gap: 8px; flex-shrink: 0; }
 .dirty-banner-cancel {
   padding: 4px 12px; border-radius: 6px; border: 1px solid var(--line);
@@ -1874,6 +1866,25 @@ input[type=range]::-moz-range-thumb {
   margin-right: 6px;
   vertical-align: middle;
 }
+/* Header Reset button — orange-tinted to tie visually to the dot + the
+   banner's accent treatment. Sits between the title and the summary value:
+   layout becomes chevron · dot+title · Reset · ←auto gap→ · val. */
+.rhythm-card-reset {
+  display: none;
+  margin-left: 8px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(254, 172, 96, 0.5);
+  background: rgba(254, 172, 96, 0.12);
+  color: var(--accent);
+  font-size: var(--font-body);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.rhythm-card-reset:hover { background: rgba(254, 172, 96, 0.22); border-color: var(--accent); }
+.rhythm-card.is-dirty .rhythm-card-reset { display: inline-flex; align-items: center; }
 </style>
 </head>
 <body>
@@ -1919,8 +1930,7 @@ input[type=range]::-moz-range-thumb {
 <div class="container">
   <div id="save-status"></div>
   <div class="dirty-banner" id="dirty-banner" role="region" aria-label="Unsaved changes">
-    <span class="dirty-banner-label">Unsaved:</span>
-    <div class="dirty-banner-pills" id="dirty-banner-pills"></div>
+    <span class="dirty-banner-label">Unsaved</span>
     <div class="dirty-banner-actions">
       <button type="button" class="dirty-banner-cancel" onclick="cancelAllChanges()">Cancel all</button>
       <button type="button" class="dirty-banner-save" onclick="saveZoneSettings()">Save all</button>
@@ -1986,6 +1996,7 @@ input[type=range]::-moz-range-thumb {
     <div class="rhythm-card-header" onclick="toggleRhythmCard('rhythm-sleep-card', 'rhythm_sleep_expanded')">
       <span class="rhythm-card-chevron" id="rhythm-sleep-chevron">&#x203A;</span>
       <span class="rhythm-card-title">Sleep</span>
+      <button type="button" class="rhythm-card-reset" onclick="event.stopPropagation(); cancelSleepChanges()">Reset</button>
       <span class="rhythm-card-val" id="rhythm-sleep-val">9:00p &ndash; 7:00a</span>
       <div class="rhythm-sleep-summary" id="rhythm-sleep-summary" style="display:none">
         <div class="rhythm-sleep-summary-row">
@@ -2160,9 +2171,6 @@ input[type=range]::-moz-range-thumb {
       <!-- Hidden fields for ascend/descend (set by sleep pattern) -->
       <input type="range" id="ascend-start" min="0" max="24" step="0.5" value="3" style="display:none">
       <input type="range" id="descend-start" min="0" max="36" step="0.5" value="12" style="display:none">
-      <div class="section-actions" id="sleep-section-actions">
-        <button class="section-cancel-btn" onclick="cancelSleepChanges()">Reset</button>
-      </div>
     </div>
   </div>
 
@@ -2171,6 +2179,7 @@ input[type=range]::-moz-range-thumb {
     <div class="rhythm-card-header" onclick="toggleRhythmCard('rhythm-brightness-card', 'rhythm_brightness_expanded')">
       <span class="rhythm-card-chevron">&#x203A;</span>
       <span class="rhythm-card-title">Brightness</span>
+      <button type="button" class="rhythm-card-reset" onclick="event.stopPropagation(); cancelBrightnessChanges()">Reset</button>
       <span class="rhythm-card-val" id="rhythm-brightness-val">1 – 100%</span>
     </div>
     <div class="rhythm-card-body" id="rhythm-brightness-body">
@@ -2202,9 +2211,6 @@ input[type=range]::-moz-range-thumb {
           </div>
         </div>
       </div>
-      <div class="section-actions" id="brightness-section-actions">
-        <button class="section-cancel-btn" onclick="cancelBrightnessChanges()">Reset</button>
-      </div>
     </div>
   </div>
 
@@ -2212,7 +2218,8 @@ input[type=range]::-moz-range-thumb {
   <div class="rhythm-card" id="rhythm-color-card">
     <div class="rhythm-card-header" onclick="toggleRhythmCard('rhythm-color-card', 'rhythm_color_expanded')">
       <span class="rhythm-card-chevron">&#x203A;</span>
-      <span class="rhythm-card-title">Color temperature</span>
+      <span class="rhythm-card-title">Color temp</span>
+      <button type="button" class="rhythm-card-reset" onclick="event.stopPropagation(); cancelColorChanges()">Reset</button>
       <span class="rhythm-card-val" id="rhythm-color-val">500 – 6500 K</span>
     </div>
     <div class="rhythm-card-body" id="rhythm-color-body">
@@ -2349,9 +2356,6 @@ input[type=range]::-moz-range-thumb {
         </div>
         </div><!-- /sub-section-body Day -->
       </div><!-- /sub-section Day -->
-      <div class="section-actions" id="color-section-actions">
-        <button class="section-cancel-btn" onclick="cancelColorChanges()">Reset</button>
-      </div>
     </div>
   </div>
 
@@ -3448,7 +3452,9 @@ function formatHour(h) {
   }
   const suffix = hr < 12 ? 'a' : 'p';
   const hr12 = hr === 0 ? 12 : (hr > 12 ? hr - 12 : hr);
-  return min === 0 ? `${hr12}:00${suffix}` : `${hr12}:${min.toString().padStart(2, '0')}${suffix}`;
+  // Drop ":00" at the top of the hour ("9p" instead of "9:00p") — tighter
+  // visually and easier to scan; non-zero minutes keep the full form.
+  return min === 0 ? `${hr12}${suffix}` : `${hr12}:${min.toString().padStart(2, '0')}${suffix}`;
 }
 
 function fmtTime(h) {
@@ -6895,55 +6901,31 @@ function cancelAllChanges() {
   cancelBrightnessChanges();
 }
 
-// Section metadata: pairs each card's dirty-tracking field set with its DOM
-// hooks (per-card Reset action container, the rhythm-card element to mark
-// dirty, and the human-friendly label used on the banner pill).
+// Section metadata — each card's dirty-tracking field set + the rhythm-card
+// element that gets the `is-dirty` class (drives the dot + the header Reset
+// button visibility, both via CSS).
 const RHYTHM_SECTIONS = [
-  { name: 'Sleep',             fields: () => SLEEP_FIELDS,       actionsId: 'sleep-section-actions',       cardId: 'rhythm-sleep-card' },
-  { name: 'Color temperature', fields: () => COLOR_FIELDS,       actionsId: 'color-section-actions',       cardId: 'rhythm-color-card' },
-  { name: 'Brightness',        fields: () => BRIGHTNESS_FIELDS,  actionsId: 'brightness-section-actions',  cardId: 'rhythm-brightness-card' },
+  { name: 'Sleep',             fields: () => SLEEP_FIELDS,       cardId: 'rhythm-sleep-card' },
+  { name: 'Color temperature', fields: () => COLOR_FIELDS,       cardId: 'rhythm-color-card' },
+  { name: 'Brightness',        fields: () => BRIGHTNESS_FIELDS,  cardId: 'rhythm-brightness-card' },
 ];
 
 function updateSectionDirtyState() {
   const banner = document.getElementById('dirty-banner');
-  const pillsContainer = document.getElementById('dirty-banner-pills');
-  if (!banner || !pillsContainer) return;
+  if (!banner) return;
 
-  const dirtySections = [];
+  let anyDirty = false;
   for (const sec of RHYTHM_SECTIONS) {
     const dirty = isSectionDirty(sec.fields());
-    // Per-card Reset visibility (toggle has-changes on the actions container)
-    const actionsEl = document.getElementById(sec.actionsId);
-    if (actionsEl) actionsEl.classList.toggle('has-changes', dirty);
-    // Card-level dirty dot (toggle is-dirty on the card element)
     const cardEl = document.getElementById(sec.cardId);
     if (cardEl) cardEl.classList.toggle('is-dirty', dirty);
-    if (dirty) dirtySections.push(sec);
+    if (dirty) anyDirty = true;
   }
 
-  // Banner: visible only when at least one section is dirty. Each pill
-  // jumps to its card on click (and expands it if collapsed).
-  banner.classList.toggle('is-active', dirtySections.length > 0);
-  pillsContainer.innerHTML = dirtySections.map(sec =>
-    `<span class="dirty-banner-pill" onclick="scrollToRhythmCard('${sec.cardId}')">${sec.name}</span>`
-  ).join('');
-}
-
-// Helper: scroll a rhythm-card into view, expand it if collapsed.
-function scrollToRhythmCard(cardId) {
-  const card = document.getElementById(cardId);
-  if (!card) return;
-  if (!card.classList.contains('is-open') && typeof toggleRhythmCard === 'function') {
-    // toggleRhythmCard signature: (cardId, persistKey). The persist key
-    // mirrors the existing pattern (rhythm_<short>_expanded).
-    const persistKeyMap = {
-      'rhythm-sleep-card': 'rhythm_sleep_expanded',
-      'rhythm-color-card': 'rhythm_color_expanded',
-      'rhythm-brightness-card': 'rhythm_brightness_expanded',
-    };
-    toggleRhythmCard(cardId, persistKeyMap[cardId]);
-  }
-  card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Banner: visible only when at least one section is dirty. The per-card
+  // dot + header Reset tell the user *which* card; the banner's job is the
+  // global action.
+  banner.classList.toggle('is-active', anyDirty);
 }
 
 function updateSliderFill(el) {
