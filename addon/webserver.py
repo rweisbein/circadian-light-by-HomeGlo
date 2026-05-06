@@ -685,11 +685,15 @@ class LightDesignerServer:
         )
         self.app.router.add_post("/api/zone/action", self.handle_zone_action)
 
-        # Manual sync endpoint
+        # Manual sync endpoints — full (lights + ZHA groups) and controls-only.
         self.app.router.add_route(
             "POST", "/{path:.*}/api/sync-devices", self.handle_sync_devices
         )
         self.app.router.add_post("/api/sync-devices", self.handle_sync_devices)
+        self.app.router.add_route(
+            "POST", "/{path:.*}/api/sync-controls", self.handle_sync_controls
+        )
+        self.app.router.add_post("/api/sync-controls", self.handle_sync_controls)
 
         # Controls API routes (new unified endpoint)
         self.app.router.add_route("GET", "/{path:.*}/api/controls", self.get_controls)
@@ -1728,9 +1732,7 @@ class LightDesignerServer:
                     brightness_override_set_at=runtime_state.get(
                         "brightness_override_set_at"
                     ),
-                    color_override_set_at=runtime_state.get(
-                        "color_override_set_at"
-                    ),
+                    color_override_set_at=runtime_state.get("color_override_set_at"),
                 )
                 logger.debug(
                     f"[ZoneStates] Zone '{zone_name}' area_state: brightness_mid={area_state.brightness_mid}, color_mid={area_state.color_mid}, frozen_at={area_state.frozen_at}"
@@ -3046,7 +3048,8 @@ class LightDesignerServer:
                         "brightness_sensitivity", 1.0
                     )
                     area_brightness_sensitivity_enabled = (
-                        rhythm_cfg.get("brightness_sensitivity_enabled", True) is not False
+                        rhythm_cfg.get("brightness_sensitivity_enabled", True)
+                        is not False
                     )
                     # Brightness sun bright uses raw outdoor_norm (no daylight fade —
                     # fade applies to color solar rules only, not brightness).
@@ -4019,9 +4022,7 @@ class LightDesignerServer:
                 if area_entry:
                     logger.info(f"[Live Design] Ended for area {area_id}")
 
-                    all_lights = (
-                        area_entry["color_lights"] + area_entry["ct_lights"]
-                    )
+                    all_lights = area_entry["color_lights"] + area_entry["ct_lights"]
                     saved_states = area_entry["saved_states"]
 
                     # Visual feedback: fade to off over 2 seconds, then restore
@@ -5389,10 +5390,11 @@ class LightDesignerServer:
     # -------------------------------------------------------------------------
 
     async def handle_sync_devices(self, request: Request) -> Response:
-        """Trigger manual device/area/group sync.
+        """Trigger manual full sync (lights + ZHA groups + areas).
 
         Re-scans Home Assistant for new/moved lights, areas, and ZHA devices.
-        Also auto-creates inactive control configs for unconfigured devices.
+        Heavier than handle_sync_controls — rebuilds light capability cache
+        and syncs ZHA groups.
         """
         try:
             # Clear areas cache so it gets refreshed on next request
@@ -5409,6 +5411,30 @@ class LightDesignerServer:
             )
         except Exception as e:
             logger.error(f"Error triggering device sync: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def handle_sync_controls(self, request: Request) -> Response:
+        """Trigger controls-only sync (registry refresh, no ZHA changes).
+
+        Refreshes device + entity registries so newly paired controls
+        (switches, motion sensors, contact sensors, cameras) show up on
+        the Controls page. Skips the light capability cache rebuild and
+        ZHA group sync — safe to run frequently after pairing.
+        """
+        try:
+            # Areas list is built from registries too — clear so it re-fetches.
+            self.cached_areas_list = None
+
+            if self.client:
+                await self.client.run_controls_sync()
+            else:
+                return web.json_response({"error": "Client not connected"}, status=503)
+
+            return web.json_response(
+                {"success": True, "message": "Controls sync triggered"}
+            )
+        except Exception as e:
+            logger.error(f"Error triggering controls sync: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
     def _auto_create_controls(self, ha_controls, configured_switches) -> int:

@@ -36,7 +36,7 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
 .sub-section-header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
   padding: 4px 0 10px;
   user-select: none;
 }
@@ -48,4 +48,31 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
 }
 .sub-section-body {
   padding-left: 20px;
+}
+
+/* Sub-sub-section: lighter nested grouping inside a .sub-section.
+   Use when a sub-section has a logical inner cluster of fields that
+   benefits from a label + soft separator without competing visually
+   with the parent .sub-section title. */
+.sub-sub-section {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.sub-sub-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 0 8px;
+  user-select: none;
+}
+.sub-sub-section-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.sub-sub-section-body {
+  padding-left: 16px;
 }

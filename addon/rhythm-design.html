@@ -1243,13 +1243,9 @@ input[type=range]::-moz-range-thumb {
   align-items: center;
   gap: 10px;
 }
-/* Tooltip on color-rule header info-icon: anchor left so it extends right into the card body
-   (header icons sit at the left of the card; right-anchoring would push the tooltip off-screen left) */
-.color-rule-stack-label .info-tooltip {
-  left: 0;
-  right: auto;
-  transform: none;
-}
+/* Anchor overrides removed — tooltip is now position:fixed with JS-driven
+   coords that clamp to the viewport, which fixes clipping inside the
+   brightness card's overflow:hidden ancestor (and any future ones). */
 .color-rule-stack-label select {
   padding: 4px 8px;
   border-radius: 6px;
@@ -1290,11 +1286,15 @@ input[type=range]::-moz-range-thumb {
 }
 .info-tooltip {
   display: none;
-  position: absolute;
-  top: 24px;
-  left: 50%;
-  transform: translateX(-50%);
+  /* position: fixed so the tooltip can escape every clipping ancestor —
+     rhythm-card uses overflow:hidden for the collapse animation, which
+     would otherwise crop the tooltip at the card edges. JS sets coords
+     on open and clamps to the viewport. */
+  position: fixed;
+  top: -9999px;
+  left: -9999px;
   width: 280px;
+  max-width: calc(100vw - 40px);
   padding: 10px 12px;
   background: rgba(30,30,35,0.98);
   border: 1px solid rgba(255,255,255,0.2);
@@ -1306,19 +1306,14 @@ input[type=range]::-moz-range-thumb {
   text-transform: none;
   letter-spacing: 0;
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  z-index: 100;
+  z-index: 1000;
 }
 .info-tooltip.is-open {
   display: block;
 }
-/* Sun dimming tooltip lives at the right edge of the brightness card, so the
-   default left:50% center anchor pushes it past the card edge. Anchor it to
-   the icon's right edge and extend leftward instead. */
-#brightness-sensitivity-info {
-  left: auto;
-  right: 0;
-  transform: none;
-}
+/* (removed: previous override pinned this tooltip to the icon's right
+   edge to avoid card clipping. JS positioning + position:fixed handles
+   viewport clamping universally now.) */
 .color-rule-toggle input[type=checkbox] {
   width: 16px;
   height: 16px;
@@ -5793,6 +5788,29 @@ function setupEventListeners() {
     }
   });
 
+  // Position a fixed-position tooltip relative to its info icon, clamped
+  // to the viewport. Mirrors settings.html#positionInfoTooltip.
+  function positionInfoTooltip(icon, tooltip) {
+    if (!tooltip) return;
+    // Measure without revealing
+    const prevDisp = tooltip.style.display;
+    const prevVis = tooltip.style.visibility;
+    tooltip.style.visibility = 'hidden';
+    tooltip.style.display = 'block';
+    const tipW = tooltip.offsetWidth;
+    const tipH = tooltip.offsetHeight;
+    tooltip.style.display = prevDisp;
+    tooltip.style.visibility = prevVis;
+    const r = icon.getBoundingClientRect();
+    let top = r.bottom + 8;
+    if (top + tipH > window.innerHeight - 10) {
+      top = Math.max(10, r.top - tipH - 8);  // flip above when below clips
+    }
+    const left = Math.max(10, Math.min(r.left - 4, window.innerWidth - tipW - 10));
+    tooltip.style.top = top + 'px';
+    tooltip.style.left = left + 'px';
+  }
+
   // Info icon click handlers - toggle tooltip visibility
   document.querySelectorAll('.info-icon').forEach(icon => {
     icon.addEventListener('click', (e) => {
@@ -5803,7 +5821,11 @@ function setupEventListeners() {
       document.querySelectorAll('.info-tooltip').forEach(t => {
         if (t.id !== tooltipId) t.classList.remove('is-open');
       });
-      tooltip?.classList.toggle('is-open');
+      if (tooltip) {
+        const willOpen = !tooltip.classList.contains('is-open');
+        tooltip.classList.toggle('is-open');
+        if (willOpen) positionInfoTooltip(icon, tooltip);
+      }
     });
   });
 

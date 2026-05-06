@@ -635,8 +635,7 @@ class HomeAssistantWebSocketClient:
         scoped_areas = sensor_config.areas
         if self.live_design_areas:
             filtered = [
-                ac for ac in scoped_areas
-                if ac.area_id not in self.live_design_areas
+                ac for ac in scoped_areas if ac.area_id not in self.live_design_areas
             ]
             if len(filtered) < len(scoped_areas):
                 suppressed = sorted(
@@ -898,8 +897,7 @@ class HomeAssistantWebSocketClient:
         scoped_areas = sensor_config.areas
         if self.live_design_areas:
             filtered = [
-                ac for ac in scoped_areas
-                if ac.area_id not in self.live_design_areas
+                ac for ac in scoped_areas if ac.area_id not in self.live_design_areas
             ]
             if len(filtered) < len(scoped_areas):
                 suppressed = sorted(
@@ -1095,8 +1093,7 @@ class HomeAssistantWebSocketClient:
         scoped_areas = sensor_config.areas
         if self.live_design_areas:
             filtered = [
-                ac for ac in scoped_areas
-                if ac.area_id not in self.live_design_areas
+                ac for ac in scoped_areas if ac.area_id not in self.live_design_areas
             ]
             if len(filtered) < len(scoped_areas):
                 suppressed = sorted(
@@ -3020,9 +3017,7 @@ class HomeAssistantWebSocketClient:
                 #   freeze_off → slow rise (freeze_off_rise setting) — confirms "now unlocked"
                 # Dip phase uses limit_speed in both cases.
                 restore_transition = (
-                    0
-                    if freeze_on
-                    else self.primitives._get_freeze_off_rise()
+                    0 if freeze_on else self.primitives._get_freeze_off_rise()
                 )
                 # Hold-at-1% duration before restore. Settings-driven so user
                 # can tune the dip-and-restore cadence without touching code.
@@ -3032,7 +3027,10 @@ class HomeAssistantWebSocketClient:
                     return {"brightness": 1, "transition": limit_speed}
 
                 def freeze_restore(t):
-                    return {"brightness": t["cached_bri"], "transition": restore_transition}
+                    return {
+                        "brightness": t["cached_bri"],
+                        "transition": restore_transition,
+                    }
 
                 await self._send_feedback_phase(targets, freeze_phase1)
                 await asyncio.sleep(limit_speed + hold_at_dim)
@@ -4029,7 +4027,10 @@ class HomeAssistantWebSocketClient:
                 else:
                     # Dimming: phase 1 = dim to target brightness (keep OLD color)
                     def _add_p1_dim(entity_id, cap_type):
-                        p1 = {"transition": p1_transition, "brightness_pct": filtered_bri}
+                        p1 = {
+                            "transition": p1_transition,
+                            "brightness_pct": filtered_bri,
+                        }
                         # No color data — keep current color during dim
                         phase1_tasks.append(
                             self.call_service(
@@ -4180,8 +4181,15 @@ class HomeAssistantWebSocketClient:
                         )
                 continue
 
-            # Pipeline already includes CT compensation
-            comp_brightness = filtered_bri
+            # Pipeline already includes CT compensation.
+            # Floor to 1% — we only reach this branch when should_off was
+            # False (purpose did not cross its off_threshold), so the bulb
+            # should stay ON. Sending brightness_pct=0 in a turn_on call is
+            # interpreted inconsistently across bulbs (some treat it as
+            # "off", some as "minimum + transition") and lets the bulb's
+            # state diverge from our cached state, which then breaks the
+            # next brightening command. 1% is the safe minimum.
+            comp_brightness = max(1, filtered_bri)
 
             # Cache per-purpose last-sent values
             state.set_last_sent_purpose(
@@ -6460,7 +6468,9 @@ class HomeAssistantWebSocketClient:
                         ]
                         if skipped:
                             circadian_areas = [
-                                a for a in circadian_areas if a not in self.live_design_areas
+                                a
+                                for a in circadian_areas
+                                if a not in self.live_design_areas
                             ]
                             logger.debug(f"Skipping Live Design areas: {skipped}")
 
@@ -6623,6 +6633,61 @@ class HomeAssistantWebSocketClient:
             logger.info("[sync] Area/group sync complete")
         except Exception as e:
             logger.error(f"[sync] Error during sync: {e}")
+
+    async def run_controls_sync(self):
+        """Run controls-only sync: refresh device + entity registries.
+
+        Lightweight alternative to run_manual_sync() for picking up newly
+        paired controls (switches, motion sensors, contact sensors, cameras).
+        Skips the light capability cache rebuild, ZHA group sync, and power-
+        recovery apply — so it's safe to run frequently right after pairing
+        without disturbing existing lights or ZHA groups.
+
+        The Controls page reads from self.device_registry / self.entity_registry,
+        so refreshing those is sufficient to make new controls appear.
+        """
+        try:
+            logger.info("[sync-controls] Starting controls registry refresh")
+
+            await self.get_states()
+
+            device_result = await self.send_message_wait_response(
+                {"type": "config/device_registry/list"}
+            )
+            devices = device_result if isinstance(device_result, list) else []
+            entity_result = await self.send_message_wait_response(
+                {"type": "config/entity_registry/list"}
+            )
+            entities = entity_result if isinstance(entity_result, list) else []
+
+            if not devices or not entities:
+                logger.error(
+                    "[sync-controls] Empty registry response — aborting "
+                    "(WebSocket may be degraded)"
+                )
+                return
+
+            self.device_registry.clear()
+            for device in devices:
+                if isinstance(device, dict):
+                    device_id = device.get("id")
+                    if device_id:
+                        self.device_registry[device_id] = device
+
+            self.entity_registry.clear()
+            for entity in entities:
+                if isinstance(entity, dict):
+                    entity_id = entity.get("entity_id")
+                    if entity_id:
+                        self.entity_registry[entity_id] = entity
+
+            logger.info(
+                f"[sync-controls] Refreshed registries: "
+                f"{len(self.device_registry)} devices, "
+                f"{len(self.entity_registry)} entities"
+            )
+        except Exception as e:
+            logger.error(f"[sync-controls] Error: {e}", exc_info=True)
 
     def _refresh_group_entity_mappings(self):
         """Re-scan cached_states for grouped light entities and update area_group_map.
