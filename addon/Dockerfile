@@ -16,7 +16,7 @@ RUN apk add --no-cache python3 py3-pip py3-aiohttp py3-aiofiles tzdata curl
 ARG ADDON_VERSION
 ENV ADDON_VERSION=${ADDON_VERSION}
 WORKDIR /app
-COPY *.py *.html *.js *.png requirements.txt ./
+COPY *.py *.html *.js *.css *.png requirements.txt ./
 COPY .channel ./
 
 # Install only the packages not available from Alpine repos
