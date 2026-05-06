@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.278
+- **Sub-section visual treatment strengthened** in `shared.css`. The structural standardization shipped in v1.2.265 had the markup right but the visual was too weak to read as section headers — sub-section titles (Location, Pattern, Wake, Bed, Homepage, Rhythm chart, Motion warning, etc.) blended into surrounding form-rows, and the divider only fired between adjacent pairs (so Location had no anchor at all). Three changes:
+  - **Top divider on every sub-section** instead of only `.sub-section + .sub-section`. Now there's always a horizontal line above the sub-section header — separates from the card's intro content (or from the card header itself if the sub-section is first), so the title visually claims everything below it.
+  - **Brighter divider color** (`rgba(255,255,255,0.14)` vs the previous `var(--line)` at #334155) so the line is clearly visible regardless of card background tint (dark home cards, cream-tinted area rows, etc.).
+  - **Bolder title**: `font-weight: 700` (was 600) and explicit `--font-value` size with a small letter-spacing bump — reads as a header, not a body label. Header padding tightened (`4px 0 10px`) so the title hugs its own body.
+
 ## 1.2.277
 - **Settings page wholesale reorg.** Cards reduced from 11 → 9 with cleaner ordering by user-frequency. Final order: **Main · App · Controls · Light Behavior · Quirky Hardware · Outdoor Brightness · Light Purposes · System · HomeGlo lab** (Lab hidden by default).
   - **General → Main** (renamed). Now also contains `Circadian refresh` (moved from Refresh card) and `Location` sub-section (folded in from the deleted Sun card). Refresh card eliminated. Sun card eliminated.

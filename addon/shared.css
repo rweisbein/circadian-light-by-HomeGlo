@@ -22,25 +22,30 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
 
 /* Sub-section: flat, always-visible grouping within a card.
    Use when a card has multiple labeled regions but doesn't need each region
-   to be its own collapsible/bordered mini-card. */
+   to be its own collapsible/bordered mini-card. Every sub-section gets:
+   - A clear top divider that visually separates it from siblings or intro content
+   - A bold title that reads as a section label
+   - A body with a left indent so the contents read as "below the title" */
+.sub-section {
+  margin-top: 16px;
+  padding-top: 14px;
+  /* Brighter than var(--line) so it's clearly visible on any card bg
+     (dark home cards, light area-tinted cards, etc.). */
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
 .sub-section-header {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 0;
+  padding: 4px 0 10px;
   user-select: none;
 }
 .sub-section-title {
-  font-size: var(--font-value, 0.9rem);
-  font-weight: 600;
+  font-size: var(--font-value, 0.95rem);
+  font-weight: 700;
   color: var(--text, #e2e8f0);
+  letter-spacing: 0.01em;
 }
 .sub-section-body {
   padding-left: 20px;
-}
-/* Adjacent sub-sections get a divider — works in any card. */
-.sub-section + .sub-section {
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px solid var(--line, #334155);
 }
