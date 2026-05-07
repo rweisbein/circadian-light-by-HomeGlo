@@ -5824,10 +5824,16 @@ class HomeAssistantWebSocketClient:
             logger.warning("refresh_event not yet initialized, skipping signal")
 
     def handle_outdoor_override(self, condition=None, duration_minutes=60):
-        """Set or clear outdoor override. Called by webserver settings page."""
+        """Set or clear outdoor override. Called by webserver settings page.
+        duration_minutes=None means "forever" — passed through to lux_tracker.
+        """
         if condition:
-            lux_tracker.set_override(condition, int(duration_minutes))
-            logger.info(f"Outdoor override set: {condition} for {duration_minutes}min")
+            duration = None if duration_minutes is None else int(duration_minutes)
+            lux_tracker.set_override(condition, duration)
+            logger.info(
+                f"Outdoor override set: {condition} for "
+                f"{'forever' if duration is None else f'{duration}min'}"
+            )
         else:
             lux_tracker.clear_override()
             logger.info("Outdoor override cleared")

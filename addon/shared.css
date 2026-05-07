@@ -76,3 +76,132 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
 .sub-sub-section-body {
   padding-left: 16px;
 }
+
+/* Pulse dot — small white dot for recent-activity indication. Opacity is set
+   inline by buildPulseDot() (decays linearly over a configured window).
+   Color stays white throughout so the only signal is brightness — avoids
+   conflict with red/amber battery semantics. */
+.pulse-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* Grouping divider — header that splits a list into named buckets with an
+   optional count. Typography-led: bold, brighter title with generous
+   vertical breathing room. No top rule — that competed with row dividers
+   below and made the header feel like just another separator. The
+   spacing + type contrast is what carries the grouping. Used for in/reach
+   on area-filtered views, scheduled/permanent on PAUSED, etc. */
+.group-divider {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 14px 8px;
+  margin-top: 18px;
+}
+.group-divider:first-child {
+  margin-top: 4px;
+}
+.group-divider-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text, #e2e8f0);
+  letter-spacing: 0;
+}
+.group-divider-count {
+  font-size: 0.82rem;
+  color: var(--muted2, #64748b);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+/* =============================================================================
+   View segmented control — single mode-picker for a page (e.g., home page
+   AREAS / 'ON' FIRST / REORDER, or future controls page ALL / SETUP / etc.).
+   Collapsed-by-default: only the active pill shows. Clicking the pill drops
+   a vertical popover with the other modes stacked below. Each instance
+   manages its own active state + click-to-expand JS in the consuming page.
+   ============================================================================= */
+.view-segments {
+  position: relative;
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid rgba(255,255,255,0.22);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.04);
+}
+.view-segment {
+  border: 0;
+  background: transparent;
+  color: var(--muted, #94a3b8);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 5px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, box-shadow 0.18s ease;
+  white-space: nowrap;
+  font-family: inherit;
+}
+.view-segment:hover { color: var(--text, #e2e8f0); background: rgba(255,255,255,0.06); }
+/* Active = filled white pill with black text — matches the inversion
+   idiom used on power buttons. */
+.view-segment.active { background: #fff; color: #000; }
+.view-segment.active:hover { background: rgba(255,255,255,0.94); color: #000; }
+/* Affordance hint: subtle white outline glow on the active pill when
+   hovered in the collapsed state — tells users it's clickable. */
+.view-segments:not(.is-expanded):hover .view-segment.active {
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.18);
+}
+/* Vertical popover with the other modes — appears below the active pill
+   when expanded. Right-aligned to the trigger so it never spills past
+   the page edge. */
+.view-segments-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  display: none;
+  flex-direction: column;
+  gap: 3px;
+  padding: 5px;
+  background: rgba(20, 20, 22, 0.98);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  z-index: 50;
+  min-width: 100%;
+}
+.view-segments.is-expanded .view-segments-popover {
+  display: flex;
+  animation: viewSegPopIn 0.16s ease-out;
+}
+@keyframes viewSegPopIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+/* Popover items render at the same look as the bar pills, but full width
+   within the popover and left-aligned text since each row is a discrete
+   menu item. */
+.view-segments-popover .view-segment {
+  width: 100%;
+  text-align: left;
+  padding: 7px 14px;
+}
+/* Active item INSIDE the popover gets a subtle highlight rather than the
+   full white-fill — reads as "currently selected" (like a native menu's
+   checkmark row) without duplicating the bar pill's strong inversion. */
+.view-segments-popover .view-segment.active {
+  background: rgba(255,255,255,0.10);
+  color: var(--text, #e2e8f0);
+}
+.view-segments-popover .view-segment.active:hover {
+  background: rgba(255,255,255,0.15);
+  color: var(--text, #e2e8f0);
+}

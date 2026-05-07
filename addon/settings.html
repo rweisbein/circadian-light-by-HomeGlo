@@ -1345,6 +1345,17 @@
 
         <div class="form-row">
           <label class="form-label">
+            Pulse window
+            <span class="info-icon">i<span class="info-tooltip">How long the white pulse-dot next to recently-touched controls stays visible. Opacity fades linearly from full to invisible over this window. Used on the area-details Controls card and the main Controls list.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="controls-pulse-window-hours" min="0.25" max="48" step="0.25" value="6" style="width: 80px;">
+            <span class="form-hint">hours</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
             Tick command shape
             <span class="info-icon">i<span class="info-tooltip">Experimental — what gets sent each periodic tick. <b>Both</b> = current (brightness + CT in one turn_on). <b>Skip</b> = no command if neither changed within tolerance (1% / 25K). <b>Bri only</b> = drop CT from payload when CT unchanged. <b>CT only</b> = drop brightness from payload when bri unchanged. Use to identify what part of a redundant command makes some bulbs visibly bounce.</span></span>
           </label>
@@ -1557,6 +1568,7 @@
           updateLocationSection(config);
           document.getElementById('sun-saturation').value = config.sun_saturation ?? 40;
           document.getElementById('experimental-tick-mode').value = config.experimental_tick_mode ?? 'both';
+          document.getElementById('controls-pulse-window-hours').value = config.controls_pulse_window_hours ?? 6;
         }
       } catch (err) {
         console.error('Error loading settings:', err);
@@ -1606,7 +1618,8 @@
         ct_comp_end: parseInt(document.getElementById('ct-comp-end').value) || 2250,
         ct_comp_factor: parseFloat(document.getElementById('ct-comp-factor').value) || 1.7,
         sun_saturation: parseInt(document.getElementById('sun-saturation').value) || 40,
-        experimental_tick_mode: document.getElementById('experimental-tick-mode').value || 'both'
+        experimental_tick_mode: document.getElementById('experimental-tick-mode').value || 'both',
+        controls_pulse_window_hours: parseFloat(document.getElementById('controls-pulse-window-hours').value) || 6
       };
 
       try {
@@ -1891,13 +1904,6 @@
       { value: 'lightning',     label: 'Storm',         groupKey: 'lightning' },
     ];
 
-    // Minutes from now until next local midnight — used for "Today" duration.
-    function minutesUntilMidnight() {
-      const now = new Date();
-      const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
-      return Math.max(1, Math.round((next - now) / 60000));
-    }
-
     function renderOutdoorPopover(data) {
       const pop = document.getElementById('outdoor-chip-popover');
       if (!pop) return;
@@ -1941,11 +1947,13 @@
         //         when inactive       → small "override" toggle link.
         let metaLine = '';
         if (isActive) {
-          const mins = Math.max(0, Math.round(data.override.expires_in_minutes ?? 0));
-          const remaining = mins >= 60 ? Math.round(mins / 60) + 'h' : mins + 'm';
+          // expires_in_minutes is null when override is "forever" (no expiry).
+          // formatDurationRemaining renders "permanent" in that case; otherwise
+          // a compact "Xm/Xh/Xd/Xw left".
+          const remaining = formatDurationRemaining(data.override.expires_in_minutes);
           metaLine = `<span class="ocp-extras-line ocp-extras-meta">
             <span class="ocp-tag-override">override</span>
-            <span>&middot; ${remaining} left</span>
+            <span>&middot; ${remaining}</span>
             <button type="button" class="ocp-link-btn" id="ocp-clear-btn" title="Clear override">clear</button>
           </span>`;
         } else if (!_overridePickerOpen) {
@@ -2004,12 +2012,7 @@
             </div>
             <div class="ocp-override-controls">
               <select id="ocp-cond-select">${condOpts}</select>
-              <select id="ocp-dur-select">
-                <option value="5">5 min</option>
-                <option value="60">1 hour</option>
-                <option value="240" selected>4 hours</option>
-                <option value="today">Today</option>
-              </select>
+              <select id="ocp-dur-select">${buildDurationOptions(DURATION_DEFAULT)}</select>
               <button type="button" id="ocp-set-btn">Set</button>
             </div>
           </div>
@@ -2052,7 +2055,8 @@
           e.stopPropagation();
           const condition = pop.querySelector('#ocp-cond-select').value;
           const durRaw = pop.querySelector('#ocp-dur-select').value;
-          const duration_minutes = durRaw === 'today' ? minutesUntilMidnight() : parseInt(durRaw, 10);
+          // null = "forever" — no expiry. Backend handles null specially.
+          const duration_minutes = durationValueToMinutes(durRaw);
           setBtn.disabled = true;
           setBtn.textContent = 'Setting...';
           try {
@@ -2192,6 +2196,7 @@
 
     document.getElementById('sun-saturation').addEventListener('blur', saveSettings);
     document.getElementById('experimental-tick-mode').addEventListener('change', saveSettings);
+    document.getElementById('controls-pulse-window-hours').addEventListener('blur', saveSettings);
 
     // Location functions
     function updateLocationSection(config) {

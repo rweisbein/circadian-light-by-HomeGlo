@@ -957,18 +957,13 @@
     .ctrl-list-chevron { flex-shrink: 0; color: var(--muted2); font-size: var(--font-value); }
     .ctrl-list-divider { border-top: 1px solid var(--line); margin: 0; }
     /* Recently active pinned strip */
-    /* Section headers inside the Controls card body. Group rows into
-       "In <area>" + "Reaches <area>" buckets — each header same caps-label
-       treatment that the old Recent strip used. Headers are hidden when
-       their group has zero rows. */
-    .ctrl-section-label { font-size: var(--font-caps); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted2); padding: 10px 14px 4px; }
-    .ctrl-section + .ctrl-section .ctrl-section-label { border-top: 1px solid var(--line); margin-top: 4px; }
+    /* In/Reaches headers now use the shared `.group-divider` from
+       shared.css (heavier rule + count parenthetical). */
     /* Recency dot — fixed-width slot on the LEFT of every row so all names
        align regardless of whether a row's dot is currently active.
        Bright green when just-triggered, fades down to dim green over 1h,
        disappears after that. */
     .ctrl-fresh-dot-slot { display: inline-flex; align-items: center; justify-content: center; width: 12px; height: 12px; flex-shrink: 0; }
-    .ctrl-fresh-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .tune-brightness-val { margin-left: auto; font-size: var(--font-display); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; transition: opacity 0.25s; }
     .tune-brightness-card.is-open .tune-brightness-val { opacity: 0; }
     .tune-brightness-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; padding-bottom: 0; }
@@ -6098,27 +6093,21 @@
       });
     }
 
-    // Recency dot color — bright green at 0–1m, fades to a dim green by 1h
-    // (no grey transition; user wanted "less bright" not "different hue").
-    // Returns null when the timestamp is older than 1h or absent — caller
-    // renders an empty slot in that case so row alignment stays stable.
-    const FRESHNESS_WINDOW_MIN = 60;
-    function freshnessDotColor(timestampMs) {
-      if (timestampMs == null) return null;
-      const ageMin = (Date.now() - timestampMs) / 60000;
-      if (ageMin >= FRESHNESS_WINDOW_MIN) return null;
-      if (ageMin <= 1) return 'rgba(80, 220, 140, 1)';
-      const t = (ageMin - 1) / (FRESHNESS_WINDOW_MIN - 1);
-      // Linear fade alpha 1.0 → 0.30 — same green hue throughout, just dimmer.
-      const alpha = 1 - t * 0.7;
-      return `rgba(80, 220, 140, ${alpha.toFixed(2)})`;
-    }
-
-    function controlLastActionMs(ctrl) {
+    // Recent-activity dot — replaced by the shared `pulse-dot` component
+    // (see buildPulseDot in shared.js). White, fades linearly to invisible
+    // over a Lab-configured window (default 6h). Same component used on the
+    // main Controls list page for consistency.
+    function controlLastActionSec(ctrl) {
       const ts = ctrl && ctrl.last_action && ctrl.last_action.timestamp;
       if (!ts) return null;
       const t = Date.parse(ts);
-      return isNaN(t) ? null : t;
+      return isNaN(t) ? null : t / 1000;
+    }
+    function controlsPulseWindowHours() {
+      // Lab-set window in hours — defaults to 6.
+      const v = cachedConfig && cachedConfig.controls_pulse_window_hours;
+      const n = parseFloat(v);
+      return Number.isFinite(n) && n > 0 ? n : 6;
     }
 
     // Renders one row, with a fixed-width dot slot on the LEFT so names
@@ -6129,10 +6118,7 @@
       const pausedBadge = ctrl.inactive ? '<span class="ctrl-paused-badge">paused</span>' : '';
       const encodedId = encodeURIComponent(ctrl.id);
       const areaId = selectedArea ? encodeURIComponent(selectedArea.area_id) : '';
-      const dotColor = freshnessDotColor(controlLastActionMs(ctrl));
-      const dotHtml = dotColor
-        ? `<span class="ctrl-fresh-dot" style="background:${dotColor};"></span>`
-        : '';
+      const dotHtml = buildPulseDot(controlLastActionSec(ctrl), controlsPulseWindowHours());
       let row = `<div class="ctrl-list-row" onclick="window.location.href='${basePath}/control/${encodedId}?from=area&id=${areaId}'">`;
       row += `<span class="ctrl-list-icon">${icon}</span>`;
       row += `<span class="ctrl-fresh-dot-slot">${dotHtml}</span>`;
@@ -6170,22 +6156,19 @@
       // a redundant "In SunOffice" header above all controls when no
       // outside-area control targets this room.
       const showHeaders = inGroup.length > 0 && reachGroup.length > 0;
-      const sections = [];
+      // Flat structure: dividers are direct siblings of rows so the
+      // shared `.group-divider:first-child` rule (suppress top border
+      // on the very first divider) works correctly across both groups.
+      let html = '';
       if (inGroup.length) {
-        let html = '<div class="ctrl-section">';
-        if (showHeaders) html += `<div class="ctrl-section-label">In ${areaLabel}</div>`;
+        if (showHeaders) html += buildGroupDivider(`In ${areaLabel}`, inGroup.length);
         for (const ctrl of inGroup) html += renderControlRow(ctrl);
-        html += '</div>';
-        sections.push(html);
       }
       if (reachGroup.length) {
-        let html = '<div class="ctrl-section">';
-        if (showHeaders) html += `<div class="ctrl-section-label">Reaches ${areaLabel}</div>`;
+        if (showHeaders) html += buildGroupDivider(`Reaches ${areaLabel}`, reachGroup.length);
         for (const ctrl of reachGroup) html += renderControlRow(ctrl);
-        html += '</div>';
-        sections.push(html);
       }
-      return sections.join('');
+      return html;
     }
 
     function renderAreaControlsList() {

@@ -422,13 +422,22 @@ def compute_sun_elevation(latitude: float = None, longitude: float = None) -> fl
 # ---------------------------------------------------------------------------
 # Manual override
 # ---------------------------------------------------------------------------
-def set_override(condition: str, duration_minutes: int = 60):
-    """Set a temporary outdoor condition override."""
+def set_override(condition: str, duration_minutes: Optional[int] = 60):
+    """Set a manual outdoor condition override.
+
+    duration_minutes=None means "forever" — no auto-expiry. The override
+    persists until clear_override() is called or the addon restarts.
+    """
     global _override_condition, _override_expires_at
     if condition not in CONDITION_MULTIPLIERS:
         return
     _override_condition = condition
-    _override_expires_at = time.monotonic() + duration_minutes * 60
+    if duration_minutes is None:
+        # "Forever" — no expiry. get_override_info() returns expires_in_minutes
+        # = None for this case, which the UI renders as "permanent".
+        _override_expires_at = float("inf")
+    else:
+        _override_expires_at = time.monotonic() + duration_minutes * 60
 
 
 def clear_override():
@@ -443,6 +452,12 @@ def get_override_info() -> Optional[dict]:
     global _override_condition, _override_expires_at
     if _override_condition is None or _override_expires_at is None:
         return None
+    if _override_expires_at == float("inf"):
+        # Permanent override — no expiry. UI renders this as "permanent".
+        return {
+            "condition": _override_condition,
+            "expires_in_minutes": None,
+        }
     remaining = _override_expires_at - time.monotonic()
     if remaining <= 0:
         _override_condition = None

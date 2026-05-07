@@ -669,3 +669,104 @@ async function openAreaPicker(options = {}) {
 
   }); // end Promise
 }
+
+// =============================================================================
+// Duration picker — shared between sky-clarity override (settings) and control
+// pause (controls list). Six options: 5 min / 1 hour / 4 hours / Day / Week /
+// Forever. Pause uses all six; sky clarity uses all six.
+// =============================================================================
+
+const DURATION_OPTIONS = [
+  { value: '5',       label: '5 min',  minutes: 5 },
+  { value: '60',      label: '1 hour', minutes: 60 },
+  { value: '240',     label: '4 hours', minutes: 240 },
+  { value: '1440',    label: 'Day',    minutes: 1440 },
+  { value: '10080',   label: 'Week',   minutes: 10080 },
+  { value: 'forever', label: 'Forever', minutes: null },
+];
+
+const DURATION_DEFAULT = '240';  // 4 hours — common case for both flows.
+
+// Resolve a picker value to actual minutes, or null for "forever" (no expiry).
+function durationValueToMinutes(value) {
+  if (value === 'forever' || value == null) return null;
+  const n = parseInt(value, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+// Compact single-unit countdown display — drops smaller units once a
+// larger one is meaningful (3h instead of "3h 15m"; minutes don't matter
+// at that scale, same with hours vs days). Returns 'permanent' for null.
+// Examples with default suffix='left': "25m left", "3h left", "5d left".
+// Pass suffix='' for unsuffixed form when the caller wraps with its own
+// prefix (e.g., "unpause in 3h").
+function formatDurationRemaining(minutes, suffix) {
+  if (minutes === null || minutes === undefined) return 'permanent';
+  if (suffix === undefined) suffix = 'left';
+  const m = Math.max(0, Math.round(minutes));
+  let unit;
+  if (m < 60) unit = m + 'm';
+  else {
+    const h = Math.round(m / 60);
+    if (h < 24) unit = h + 'h';
+    else {
+      const d = Math.round(h / 24);
+      if (d < 7) unit = d + 'd';
+      else unit = Math.round(d / 7) + 'w';
+    }
+  }
+  return suffix ? unit + ' ' + suffix : unit;
+}
+
+// Build the <option> markup for a duration <select>. Pass excludeForever to
+// hide the "Forever" option (kept for future flexibility — not currently
+// used anywhere, both pickers now include Forever).
+function buildDurationOptions(selectedValue, excludeForever) {
+  const opts = excludeForever
+    ? DURATION_OPTIONS.filter(o => o.value !== 'forever')
+    : DURATION_OPTIONS;
+  return opts
+    .map(o => `<option value="${o.value}"${o.value === selectedValue ? ' selected' : ''}>${o.label}</option>`)
+    .join('');
+}
+
+// =============================================================================
+// Pulse dot — small white dot indicating recent control activity. Opacity
+// fades linearly from 1 to 0 over a configured window (default 6 hours).
+// Same color throughout — only brightness/decay reads as the signal.
+// Used on area-details Controls card and (future) main controls list.
+// =============================================================================
+
+// Returns 0..1 opacity. lastTouchedSeconds is epoch seconds; null/undefined
+// means "never touched". windowHours over which the dot decays to invisible.
+function pulseOpacity(lastTouchedSeconds, windowHours) {
+  if (!lastTouchedSeconds || !windowHours || windowHours <= 0) return 0;
+  const nowSec = Date.now() / 1000;
+  const elapsedH = Math.max(0, (nowSec - lastTouchedSeconds) / 3600);
+  if (elapsedH >= windowHours) return 0;
+  return 1 - (elapsedH / windowHours);
+}
+
+// Build the pulse-dot HTML. Returns empty string if invisible (so callers can
+// render an empty slot for layout stability — see ctrl-fresh-dot-slot etc.).
+function buildPulseDot(lastTouchedSeconds, windowHours) {
+  const op = pulseOpacity(lastTouchedSeconds, windowHours);
+  if (op <= 0) return '';
+  return '<span class="pulse-dot" style="opacity: ' + op.toFixed(2) + ';" aria-hidden="true"></span>';
+}
+
+// =============================================================================
+// Grouping divider — header that splits a list into named buckets with an
+// optional count. See `.group-divider` in shared.css. Use anywhere a list
+// has named subdivisions: in/reach on area-filtered views, scheduled/permanent
+// on the PAUSED control view, etc. Pass count=null to omit the parenthetical.
+// =============================================================================
+function buildGroupDivider(title, count) {
+  const countSpan = (count == null)
+    ? ''
+    : '<span class="group-divider-count">(' + count + ')</span>';
+  return '<div class="group-divider">'
+    + '<span class="group-divider-title">' + title + '</span>'
+    + countSpan
+    + '</div>';
+}

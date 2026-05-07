@@ -1056,81 +1056,9 @@
     .nav-overflow-item:hover { color: var(--text); background: rgba(255,255,255,0.05); }
     .nav-overflow-item.active { color: var(--text); }
 
-    /* Home page view segments — single mode-picker for the page.
-       Collapsed-by-default: only the active pill shows. Clicking the pill
-       drops a vertical popover with the other modes stacked below. Click
-       any item to switch mode + collapse; click outside to collapse. The
-       active pill carries the visual mode-indicator (white-fill pill);
-       the page body responds to currentMode for organize-specific
-       affordances. New modes (e.g. Tune) can be added as the home page
-       absorbs more page-purposes. */
-    .view-segments {
-      position: relative;
-      display: inline-flex;
-      padding: 3px;
-      border: 1px solid rgba(255,255,255,0.22);
-      border-radius: 999px;
-      background: rgba(255,255,255,0.04);
-    }
-    .view-segment {
-      border: 0;
-      background: transparent;
-      color: var(--muted);
-      font-size: 0.78rem;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      padding: 5px 14px;
-      border-radius: 999px;
-      cursor: pointer;
-      transition: background 0.15s, color 0.15s, box-shadow 0.18s ease;
-      white-space: nowrap;
-      font-family: inherit;
-    }
-    .view-segment:hover { color: var(--text); background: rgba(255,255,255,0.06); }
-    /* Active = filled white pill with black text — matches the inversion
-       idiom used on power buttons and the prior "On" toggle. */
-    .view-segment.active { background: #fff; color: #000; }
-    .view-segment.active:hover { background: rgba(255,255,255,0.94); color: #000; }
-    /* Affordance hint: subtle white outline glow on the active pill when
-       hovered in the collapsed state — tells users it's clickable. */
-    .view-segments:not(.is-expanded):hover .view-segment.active {
-      box-shadow: 0 0 0 2px rgba(255,255,255,0.18);
-    }
-    /* Vertical popover with the other modes — appears below the active
-       pill when expanded. Right-aligned to the trigger so it never spills
-       past the page edge. */
-    .view-segments-popover {
-      position: absolute;
-      top: calc(100% + 6px);
-      right: 0;
-      display: none;
-      flex-direction: column;
-      gap: 3px;
-      padding: 5px;
-      background: rgba(20, 20, 22, 0.98);
-      border: 1px solid rgba(255,255,255,0.18);
-      border-radius: 14px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-      z-index: 50;
-      min-width: 100%;
-    }
-    .view-segments.is-expanded .view-segments-popover {
-      display: flex;
-      animation: viewSegPopIn 0.16s ease-out;
-    }
-    @keyframes viewSegPopIn {
-      from { opacity: 0; transform: translateY(-4px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    /* Popover items render at the same look as the bar pills, but full
-       width within the popover and left-aligned text since each row is a
-       discrete menu item. */
-    .view-segments-popover .view-segment {
-      width: 100%;
-      text-align: left;
-      padding: 7px 14px;
-    }
+    /* Home page view segments — see `.view-segments` in shared.css. Same
+       component used by the Controls page; consumers manage their own
+       active state + click-to-expand JS. */
 
     /* Edit mode styles */
     .edit-toolbar { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
@@ -2609,15 +2537,20 @@
         ? 'organize'
         : (viewMode === 'onoff' ? 'onoff' : 'home');
       const VIEWS = [
-        { value: 'home',     label: 'Areas' },
+        { value: 'home',     label: 'All' },
         { value: 'onoff',    label: '&lsquo;On&rsquo; first' },
         { value: 'organize', label: 'Reorder' },
       ];
       const activeView = VIEWS.find(v => v.value === viewValue) || VIEWS[0];
-      const otherViews = VIEWS.filter(v => v.value !== viewValue);
       const expandedClass = _viewSegExpanded ? ' is-expanded' : '';
-      const popoverItems = otherViews
-        .map(v => `<button class="view-segment" data-view="${v.value}">${v.label}</button>`)
+      // Popover lists ALL views (including the active one with subtle
+      // highlight). Like a native menu with a checkmark on the selected
+      // row — bar pill is the trigger, popover is the menu.
+      const popoverItems = VIEWS
+        .map(v => {
+          const cls = v.value === viewValue ? 'view-segment active' : 'view-segment';
+          return `<button class="${cls}" data-view="${v.value}">${v.label}</button>`;
+        })
         .join('');
       let html = `
         <div class="home-toolbar" style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">

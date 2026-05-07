@@ -5850,17 +5850,24 @@ class LightDesignerServer:
             return web.json_response({"sensors": []})
 
     async def set_outdoor_override(self, request: Request) -> Response:
-        """Set a temporary outdoor brightness override."""
+        """Set a manual outdoor brightness override.
+
+        Body: {condition: str, duration_minutes: int|null}
+        duration_minutes=null means "forever" — override persists until
+        cleared or the addon restarts.
+        """
         try:
             data = await request.json()
             condition = data.get("condition")
-            duration = data.get("duration_minutes", 60)
+            raw_duration = data.get("duration_minutes", 60)
             if not condition:
                 return web.json_response({"error": "condition required"}, status=400)
-            lux_tracker.set_override(condition, int(duration))
+            # null/None means "forever" — pass through as None.
+            duration = None if raw_duration is None else int(raw_duration)
+            lux_tracker.set_override(condition, duration)
 
             if self.client:
-                self.client.handle_outdoor_override(condition, int(duration))
+                self.client.handle_outdoor_override(condition, duration)
 
             return web.json_response({"status": "ok"})
         except Exception as e:
