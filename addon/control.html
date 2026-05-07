@@ -1597,16 +1597,21 @@
       const select = document.getElementById('pause-timer-select');
       const pauseSection = document.getElementById('pause-section');
 
-      if (!editingInactiveUntil) {
-        // Picker defaults to DURATION_DEFAULT (4h) — but is dormant since
-        // the pause toggle is off. The actual timer doesn't start until the
-        // user toggles pause.
-        select.value = DURATION_DEFAULT;
-      } else if (editingInactiveUntil === 'forever') {
+      // Paused with no expiry (or sentinel 'forever') → render as Forever
+      // in the picker. Without this the dropdown defaulted to 4h and
+      // confused users navigating from the list ("wasn't this paused
+      // forever? why does it now say 4 hours?").
+      if (editingInactive && (!editingInactiveUntil || editingInactiveUntil === 'forever')) {
+        editingInactiveUntil = 'forever';
         select.value = 'forever';
+        pauseSection.classList.add('is-open');
+      } else if (!editingInactiveUntil) {
+        // Not paused — picker is dormant, just preselect the default.
+        // The actual timer doesn't start until the user toggles pause.
+        select.value = DURATION_DEFAULT;
       } else {
-        // Find closest matching option from the shared duration set
-        // (5 / 60 / 240 / 1440 / 10080 minutes).
+        // Has timestamp — find closest matching option from the shared
+        // duration set (5 / 60 / 240 / 1440 / 10080 minutes).
         const remaining = new Date(editingInactiveUntil) - Date.now();
         if (remaining <= 0) {
           select.value = DURATION_DEFAULT;

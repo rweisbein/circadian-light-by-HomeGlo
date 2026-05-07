@@ -101,7 +101,9 @@
 
     /* Main Content - Single Column */
     .main {
-      max-width: 600px;
+      /* Match the controls-list page width so jumping between CHEATSHEET
+         and the other pill-bar views doesn't visibly narrow the page. */
+      max-width: 750px;
       margin: 0 auto;
       padding: 16px;
     }
@@ -325,7 +327,10 @@
     }
 
     .cheat-btn-label {
-      width: 100px;
+      /* Was 100px when this carried badge + text descriptor; now badge
+         only (~22px), so trim — frees horizontal room for the press-type
+         + action mapping rows. */
+      width: 32px;
       flex-shrink: 0;
       display: flex;
       align-items: center;
@@ -335,12 +340,15 @@
     .cheat-actions {
       flex: 1;
       min-width: 0;
+      /* Space between badge area and the press-type label/action, so the
+         row doesn't feel crammed against the badge. */
+      padding-left: 8px;
     }
 
     .cheat-action-row {
       display: flex;
       align-items: baseline;
-      gap: 8px;
+      gap: 18px;
       padding: 3px 0;
     }
 
@@ -365,7 +373,9 @@
       font-size: 0.8rem;
       color: var(--muted);
       font-weight: 500;
-      min-width: 32px;
+      /* Wider min-width so press-type labels (Short / Long / 2× / 3×)
+         align consistently and the action text starts at a clean column. */
+      min-width: 56px;
       flex-shrink: 0;
     }
 
@@ -567,9 +577,15 @@
   <!-- Main Content -->
   <main class="main">
     <div class="page-header">
-      <a href="./switches" title="Back to Controls">&larr;</a>
-      <span class="page-title">Cheatsheet</span>
+      <span style="flex: 1;"></span>
       <span class="unsaved-indicator" id="unsaved-indicator"></span>
+      <!-- Same task-view pill bar as the controls list so the chrome
+           feels unified across pages. CHEATSHEET is active here (the
+           active pill is the page label); clicking any other pill
+           navigates to /switches?view=<value>. Component lives in
+           shared.js (see setupViewSegments). The old back-arrow + title
+           were redundant once this pill bar took over both jobs. -->
+      <div class="view-segments" id="cheatsheet-view-segments" role="tablist" title="Page mode"></div>
     </div>
 
     <div class="type-selector">
@@ -579,8 +595,8 @@
     </div>
 
     <div class="mode-bar">
-      <a href="#" id="copy-btn" style="font-size:0.8rem;color:var(--muted);text-decoration:none;" onclick="event.preventDefault();copyCheatSheet()">Copy</a>
-      <a href="#" id="mode-edit" style="margin-left:auto;font-size:0.8rem;color:var(--muted);text-decoration:none;" onclick="event.preventDefault();setMode('edit')">Edit</a>
+      <a href="#" id="mode-edit" style="font-size:0.8rem;color:var(--muted);text-decoration:none;" onclick="event.preventDefault();setMode('edit')">Edit</a>
+      <a href="#" id="copy-btn" style="margin-left:auto;font-size:0.8rem;color:var(--muted);text-decoration:none;" onclick="event.preventDefault();copyCheatSheet()">Copy</a>
     </div>
 
     <div id="cards-container">
@@ -657,6 +673,29 @@
 
     // Initialize
     document.addEventListener('DOMContentLoaded', async () => {
+      // Mount the shared task-view pill bar in the page header. CHEATSHEET
+      // is the active pill; selecting any other pill navigates to
+      // /switches?view=<value> so that page lands on the right view.
+      // If the user has unsaved cheatsheet edits, confirm before leaving.
+      setupViewSegments({
+        containerId: 'cheatsheet-view-segments',
+        views: [
+          { value: 'all',        label: 'All' },
+          { value: 'setup',      label: 'Setup' },
+          { value: 'batteries',  label: 'Battery' },
+          { value: 'paused',     label: 'Paused' },
+          { value: 'cheatsheet', label: 'Cheatsheet' },
+        ],
+        active: 'cheatsheet',
+        onSelect: (v) => {
+          if (v === 'cheatsheet') return;
+          if (hasUnsavedChanges && !confirm('You have unsaved cheatsheet changes. Leave anyway?')) {
+            return;
+          }
+          window.location.href = './switches?view=' + encodeURIComponent(v);
+        },
+      });
+
       await loadData();
       renderSwitchTypeSelect();
       render();
@@ -873,12 +912,13 @@
 
         if (actionRows.length === 0) continue;
 
-        // Button section: label vertically centered, action rows stacked
+        // Button section: label vertically centered, action rows stacked.
+        // Descriptor text (buttonName) removed — the badge symbol/text
+        // alone reads clearly enough.
         buttonRows += `
           <div class="cheat-button-section">
             <div class="cheat-btn-label">
               <span class="btn-badge btn-badge-sm">${badge}</span>
-              <span class="cheat-btn-name">${buttonName}</span>
             </div>
             <div class="cheat-actions">
               ${actionRows.map(r => `

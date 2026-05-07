@@ -77,16 +77,17 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
   padding-left: 16px;
 }
 
-/* Pulse dot — small white dot for recent-activity indication. Opacity is set
-   inline by buildPulseDot() (decays linearly over a configured window).
-   Color stays white throughout so the only signal is brightness — avoids
-   conflict with red/amber battery semantics. */
+/* Pulse dot — small green dot for recent-activity indication. Opacity
+   is set inline by buildPulseDot() (decays linearly over a configured
+   window). Green maps to the "alive/recently active" semantic familiar
+   from device LEDs and presence indicators (vs blue's "new/unread"
+   meaning, which read as "recently added" not "recently used"). */
 .pulse-dot {
   display: inline-block;
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #fff;
+  background: #22c55e;
   vertical-align: middle;
   flex-shrink: 0;
 }

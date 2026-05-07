@@ -696,12 +696,14 @@ function durationValueToMinutes(value) {
 
 // Compact single-unit countdown display — drops smaller units once a
 // larger one is meaningful (3h instead of "3h 15m"; minutes don't matter
-// at that scale, same with hours vs days). Returns 'permanent' for null.
+// at that scale, same with hours vs days). Returns 'forever' for null
+// (matches the duration picker's "Forever" option for consistency
+// between the picker and active-state countdown displays).
 // Examples with default suffix='left': "25m left", "3h left", "5d left".
 // Pass suffix='' for unsuffixed form when the caller wraps with its own
 // prefix (e.g., "unpause in 3h").
 function formatDurationRemaining(minutes, suffix) {
-  if (minutes === null || minutes === undefined) return 'permanent';
+  if (minutes === null || minutes === undefined) return 'forever';
   if (suffix === undefined) suffix = 'left';
   const m = Math.max(0, Math.round(minutes));
   let unit;
@@ -769,4 +771,82 @@ function buildGroupDivider(title, count) {
     + '<span class="group-divider-title">' + title + '</span>'
     + countSpan
     + '</div>';
+}
+
+// =============================================================================
+// View segments bar — shared mode-picker component used on the home page,
+// controls list, and cheatsheet. Each consuming page mounts it via this
+// function with its own views array + onSelect callback. The component
+// manages its own collapsed/expanded state internally.
+//
+// IMPORTANT: call this exactly ONCE per page load. To update the active
+// value later, call the returned handle's setActive(value) method —
+// don't re-call setupViewSegments. Re-mounting would stack additional
+// document click handlers (one per call), and stale handlers fighting
+// over state caused the "pill jumps to All before I click" bug.
+//
+// Options:
+//   containerId: id of an existing <div class="view-segments"> in the DOM
+//   views:       [{ value, label }, ...] in display order
+//   active:      value of the currently-active view
+//   onSelect:    (value) => void — called when user picks a non-active view
+//
+// Returns: { setActive(value) } handle for updating the active view.
+// =============================================================================
+function setupViewSegments(opts) {
+  const container = document.getElementById(opts.containerId);
+  if (!container) return null;
+  let expanded = false;
+  let active = opts.active;
+
+  function render() {
+    const activeView = opts.views.find(v => v.value === active) || opts.views[0];
+    container.classList.toggle('is-expanded', expanded);
+    container.innerHTML =
+      '<button class="view-segment active" data-view="' + activeView.value + '">' + activeView.label + '</button>'
+      + '<div class="view-segments-popover">'
+      + opts.views.map(v => {
+          const cls = v.value === active ? 'view-segment active' : 'view-segment';
+          return '<button class="' + cls + '" data-view="' + v.value + '">' + v.label + '</button>';
+        }).join('')
+      + '</div>';
+  }
+
+  render();
+
+  // Click handling: outside-click collapses; bar-pill toggles expanded;
+  // active-in-popover collapses (no switch); inactive-in-popover triggers
+  // onSelect. The handler reads `active` from the closure each call, so
+  // updating active via setActive() does NOT need to re-bind.
+  document.addEventListener('click', function (e) {
+    const seg = e.target.closest && e.target.closest('.view-segment');
+    const segContainer = e.target.closest && e.target.closest('#' + opts.containerId);
+    if (!segContainer && expanded) {
+      expanded = false;
+      render();
+      return;
+    }
+    if (!seg || !segContainer) return;
+    const isActive = seg.classList.contains('active');
+    if (!expanded) {
+      expanded = true;
+      render();
+      return;
+    }
+    if (isActive) {
+      expanded = false;
+      render();
+      return;
+    }
+    expanded = false;
+    if (opts.onSelect) opts.onSelect(seg.dataset.view);
+  });
+
+  return {
+    setActive: function (v) {
+      active = v;
+      expanded = false;
+      render();
+    },
+  };
 }

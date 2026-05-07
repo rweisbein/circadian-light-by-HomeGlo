@@ -107,7 +107,11 @@
 
     /* Main Content */
     .main {
-      max-width: 900px;
+      /* Mobile-first sizing — 750px keeps left/right info close together
+         on desktop. Wide enough for the multi-field cards but not so
+         wide that controls' summary line and right-side primary feel
+         disconnected on browser. */
+      max-width: 750px;
       margin: 0 auto;
       padding: 12px 12px 24px;
     }
@@ -554,12 +558,68 @@
        prominent in BATTERIES, etc.). Filter toolbar lives above the cards
        since the old in-header filter UX is gone with the table.
        ====================================================================== */
+    /* Two-row toolbar: row 1 = filters (search + area + type chips),
+       row 2 = organization (sort + count + clear). Intentional split so
+       layout doesn't reflow randomly with viewport width. */
     .ctrl-toolbar {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 4px 0 12px;
+    }
+    .ctrl-toolbar-row {
       display: flex;
       align-items: center;
       gap: 8px;
       flex-wrap: wrap;
-      padding: 4px 0 12px;
+    }
+    .ctrl-toolbar-row-organize {
+      font-size: 0.85rem;
+      color: var(--muted2);
+    }
+
+    /* Type filter chips — single-select pill row. Categories are
+       icon-only (same SVGs used per-card) so the visual vocabulary
+       carries; "All" stays text since "all" has no natural icon.
+       Active chip is filled white (matches the active-pill idiom
+       across the app). */
+    .ctrl-type-chips {
+      display: inline-flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .ctrl-type-chip {
+      padding: 4px 10px;
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 999px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.12s, color 0.12s, border-color 0.12s;
+      font-family: inherit;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 28px;
+    }
+    .ctrl-type-chip.is-icon {
+      /* Icon-only chips — square-ish pill with the SVG centered. */
+      padding: 4px 8px;
+      width: 36px;
+    }
+    .ctrl-type-chip:hover { color: var(--text); border-color: rgba(255,255,255,0.32); }
+    .ctrl-type-chip.active {
+      background: #fff;
+      color: #000;
+      border-color: #fff;
+    }
+    .ctrl-type-chip.active:hover {
+      background: rgba(255,255,255,0.94);
+      color: #000;
     }
     .ctrl-toolbar .ctrl-search-wrap { position: relative; flex: 1 1 220px; min-width: 180px; }
     .ctrl-toolbar input[type="search"],
@@ -647,10 +707,21 @@
     .ctrl-card-sub .glozone { opacity: 0.7; }
     .ctrl-card-sub .area { color: var(--muted); }
     .ctrl-card-sub .meta-bullet { color: var(--muted2); }
-    /* Right-side prominent field (per-view emphasis) */
+    /* Right-side prominent field (per-view emphasis). For ALL view, the
+       primary is a 2-line stack: bold relative-time on top, muted action
+       verb beneath. Mirrors the 2-line card body on the left. */
     .ctrl-card-pri { font-size: 0.95rem; font-weight: 600; color: var(--text); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .ctrl-card-pri-muted { font-size: 0.85rem; color: var(--muted); font-weight: 500; }
+    .ctrl-card-pri-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 1px;
+      text-align: right;
+      white-space: nowrap;
+    }
     .ctrl-card-pri-warn { color: var(--warning); }
+    .ctrl-card-pri-caution { color: #fbbf24; } /* yellow — between warn (orange) and neutral, used for the 25-50% battery band */
     .ctrl-card-pri-danger { color: var(--danger); }
     .ctrl-card-pri-success { color: var(--success); }
     .ctrl-card-chevron { color: var(--muted2); font-size: 1rem; }
@@ -663,8 +734,22 @@
       border-radius: 4px;
       vertical-align: middle;
     }
-    .ctrl-badge-paused { color: #f90; background: rgba(255,153,0,0.12); }
-    .ctrl-badge-setup { color: var(--warning); background: rgba(245,158,11,0.10); }
+    /* Paused + setup badges: outlined-pill treatment (no fill, just a
+       thin border + muted text). Color-coded variants retired here —
+       orange/yellow felt too aggressive and could be confused with each
+       other or the battery warn-band. The pillbox shape carries the
+       "this is a status tag" semantic without needing color. Stale stays
+       red since it's an actual error state. */
+    .ctrl-badge-paused {
+      color: var(--text);
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.28);
+    }
+    .ctrl-badge-setup {
+      color: var(--text);
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.28);
+    }
     .ctrl-badge-stale { color: var(--danger); background: rgba(239,68,68,0.10); }
     .ctrl-card-magic { color: var(--accent); font-size: 0.85rem; }
     .ctrl-card-lowbatt { color: var(--danger); font-size: 0.7rem; }
@@ -749,43 +834,30 @@
     let customAreaOrder = {};  // area_id -> order index
     let pulseWindowHours = 6;   // Lab-configurable; populated from /api/config
 
-    // Task-view pill bar — current mode + popover-expanded flag. The bar
-    // is the page's mode switcher (ALL / SETUP / BATTERIES / PAUSED /
-    // CHEATSHEET). Each view will eventually drive its own filter+sort
-    // preset; Pass 1 only wires ALL (default behavior) + CHEATSHEET
-    // (navigate to switchmap). Other views are stubs for now.
+    // Task-view pill bar — uses the shared setupViewSegments component
+    // (see shared.js). The bar is the page's mode switcher and persists
+    // across CHEATSHEET (which lives on a separate URL but mounts the
+    // same component for visual continuity).
     let currentView = 'all';
-    let _viewSegExpanded = false;
+    // Mounted-once pill bar handle (see setupViewSegments in shared.js).
+    // We update active value via _viewSegHandle.setActive() — never
+    // re-call setupViewSegments, since each call adds a new document
+    // click handler.
+    let _viewSegHandle = null;
 
     const CONTROL_VIEWS = [
       { value: 'all',        label: 'All' },
       { value: 'setup',      label: 'Setup' },
-      { value: 'batteries',  label: 'Batteries' },
+      { value: 'batteries',  label: 'Battery' },
       { value: 'paused',     label: 'Paused' },
       { value: 'cheatsheet', label: 'Cheatsheet' },
     ];
 
-    function renderViewSegments() {
-      const container = document.getElementById('controls-view-segments');
-      if (!container) return;
-      const active = CONTROL_VIEWS.find(v => v.value === currentView) || CONTROL_VIEWS[0];
-      container.classList.toggle('is-expanded', _viewSegExpanded);
-      // Popover lists ALL options (including the active one with subtle
-      // highlight) — like a native menu with a checkmark on the current
-      // selection. Bar pill is the trigger; popover is the menu.
-      container.innerHTML =
-        '<button class="view-segment active" data-view="' + active.value + '">' + active.label + '</button>'
-        + '<div class="view-segments-popover">'
-        + CONTROL_VIEWS.map(v => {
-            const cls = v.value === currentView ? 'view-segment active' : 'view-segment';
-            return '<button class="' + cls + '" data-view="' + v.value + '">' + v.label + '</button>';
-          }).join('')
-        + '</div>';
-    }
-
     function selectView(v) {
-      _viewSegExpanded = false;
-      // CHEATSHEET — navigate to existing page. Pass 2 will inline.
+      // CHEATSHEET — separate page, but the pill bar there mounts the
+      // same component so the visual chrome looks unified. We carry no
+      // state across — the cheatsheet page has its own self-contained
+      // edit flow.
       if (v === 'cheatsheet') {
         window.location.href = './switchmap';
         return;
@@ -794,23 +866,21 @@
       // Apply view preset: which column to show + which sort. Each view
       // is a curated lens (filter + sort + emphasis) for a specific job.
       if (v === 'setup') {
-        // Paused + never-used controls. Sort by name (you're reviewing
-        // unconfigured items, alpha is easiest to scan).
+        // Paused + never-used controls. Sort by name.
         fourthField = 'pause';
         statusFilter = 'all'; pauseFilter = 'all';
         batteryFilter = 'all'; lastActionFilter = 'all';
         sortColumn = 'name';
         sortAsc = true;
       } else if (v === 'batteries') {
-        // Battery-powered only. Sort: lowest battery first (replace soon).
+        // Battery-powered only. Sort: lowest battery first.
         fourthField = 'battery';
         statusFilter = 'all'; pauseFilter = 'all';
         batteryFilter = 'all'; lastActionFilter = 'all';
         sortColumn = 'fourth';
         sortAsc = true;
       } else if (v === 'paused') {
-        // All paused controls. Sort: coming off pause soonest first;
-        // permanent (forever) sinks to the bottom.
+        // All paused controls. Sort: ending soonest first.
         fourthField = 'pause';
         statusFilter = 'all'; pauseFilter = 'all';
         batteryFilter = 'all'; lastActionFilter = 'all';
@@ -820,13 +890,43 @@
         // ALL — no preset; user's legacy fourthField/filters/sort stand.
       }
       savePreferences();
-      renderViewSegments();
+      // Update the (already-mounted) pill bar's active value, then
+      // re-render the body. Do NOT re-mount — that would stack click
+      // handlers and break navigation.
+      if (_viewSegHandle) _viewSegHandle.setActive(currentView);
       renderControls();
+    }
+
+    function mountControlsViewSegments() {
+      // Mount the pill bar exactly once. Use _viewSegHandle.setActive(v)
+      // to change the active value later.
+      if (_viewSegHandle) return;
+      _viewSegHandle = setupViewSegments({
+        containerId: 'controls-view-segments',
+        views: CONTROL_VIEWS,
+        active: currentView,
+        onSelect: selectView,
+      });
     }
 
     // Initialize
     document.addEventListener('DOMContentLoaded', async () => {
       await loadPreferences();
+      // ?view= query param overrides persisted view (used when arriving
+      // from the cheatsheet page's pill-bar nav).
+      try {
+        const qsView = new URLSearchParams(window.location.search).get('view');
+        const valid = ['all', 'setup', 'batteries', 'paused'];
+        if (qsView && valid.indexOf(qsView) !== -1) {
+          currentView = qsView;
+        }
+      } catch (_) {}
+      // Apply preset for the loaded view (whether from prefs or query param).
+      // selectView would normally be called via the pill bar — calling it
+      // directly here applies filters + sort and re-renders.
+      if (currentView !== 'all') {
+        selectView(currentView);
+      }
       loadData();
       setupEventListeners();
     });
@@ -1101,45 +1201,80 @@
         return 0;
       });
 
-      // Build filter select HTML for the new toolbar
+      // Build area filter options — view-aware. The top-right view pill
+      // is the page's primary slice; the area dropdown reflects only
+      // areas that have controls matching the current view's filter.
+      // Type chips don't cascade with area (or vice versa) — that's the
+      // "secondary filters don't affect each other" rule.
+      const viewMatches = (c) => {
+        if (currentView === 'setup')
+          return c.inactive && !(c.last_action && c.last_action.timestamp);
+        if (currentView === 'batteries')
+          return c.battery != null && c.battery.value != null;
+        if (currentView === 'paused')
+          return !!c.inactive;
+        return true;  // ALL
+      };
+      const viewAreas = [...new Set(controls.filter(viewMatches).map(c => c.area_name).filter(Boolean))].sort();
+      const viewHasUnassigned = controls.filter(viewMatches).some(c => !c.area_name);
       const areaOptions = `<option value="all">All areas</option>` +
-        (hasUnassigned ? `<option value="unassigned"${areaFilter === 'unassigned' ? ' selected' : ''}>— Unassigned —</option>` : '') +
-        areas.map(a => `<option value="${a}"${areaFilter === a ? ' selected' : ''}>${a}</option>`).join('');
+        (viewHasUnassigned ? `<option value="unassigned"${areaFilter === 'unassigned' ? ' selected' : ''}>— Unassigned —</option>` : '') +
+        viewAreas.map(a => `<option value="${a}"${areaFilter === a ? ' selected' : ''}>${a}</option>`).join('');
 
-      // Toolbar — sits above the card list. Search + area filter live here
-      // (the old in-table-header filter UX is gone with the table). Sort
-      // selector only appears for ALL view; other views lock sort to their
-      // task-driven preset (e.g., Battery view → low first).
+      // Two-row toolbar — Row 1: filters (search + area + type chips).
+      // Row 2: organize (sort + count + clear). Sort selector only
+      // appears in ALL view; other views lock sort to their preset.
       const isFiltered = searchFilter !== '' || areaFilter !== 'all' || categoryFilter !== 'all';
-      const sortLabel = currentView === 'batteries' ? 'Sorted: low battery first'
-        : currentView === 'paused' ? 'Sorted: ending soonest'
-        : currentView === 'setup' ? 'Sorted: A → Z'
+      // "Sort:" prefix on both selector + locked-descriptor variants for
+      // consistent reading. Locked descriptors use minimal phrasing —
+      // "first" / "soonest" are implied by the sort axis itself.
+      const sortLabel = currentView === 'batteries' ? 'Sort: low battery'
+        : currentView === 'paused' ? 'Sort: pause ending'
+        : currentView === 'setup' ? 'Sort: name'
         : null;
       let sortHtml;
       if (sortLabel) {
-        sortHtml = '<span style="font-size:0.78rem;color:var(--muted2);">' + sortLabel + '</span>';
+        sortHtml = '<span>' + sortLabel + '</span>';
       } else {
-        // ALL view sort — three useful options (Recent / Name / Area).
-        // Recent maps to fourth+lastAction internally, which is the
-        // most-touched-first default this page has always had.
         const sortVal = (sortColumn === 'name') ? 'name'
           : (sortColumn === 'area') ? 'area' : 'recent';
-        sortHtml = '<select class="ctrl-tb-select" id="ctrl-sort-select">'
+        sortHtml = '<label style="margin-right:6px;">Sort:</label>'
+          + '<select class="ctrl-tb-select" id="ctrl-sort-select">'
           + '<option value="recent"' + (sortVal === 'recent' ? ' selected' : '') + '>Recent</option>'
           + '<option value="name"' + (sortVal === 'name' ? ' selected' : '') + '>Name</option>'
-          + '<option value="area"' + (sortVal === 'area' ? ' selected' : '') + '>Area</option>'
+          + '<option value="area"' + (sortVal === 'area' ? ' selected' : '') + '>Location</option>'
           + '</select>';
       }
       const searchEsc = searchFilter.replace(/"/g, '&quot;');
+
+      // Type chip filter — icon-only chips (same SVGs we render on each
+      // card) so the visual vocabulary stays consistent. No "All" chip:
+      // clicking an active chip toggles it off, and the page-level
+      // "Clear" link is the explicit reset. Tooltip via title for hover
+      // discovery. Only show categories that exist in the data.
+      const TYPE_LABELS = { switch: 'Switch', motion_sensor: 'Motion', contact_sensor: 'Contact', camera: 'Camera', unknown: 'Other' };
+      const typeOrder = ['switch', 'motion_sensor', 'contact_sensor', 'camera', 'unknown'];
+      const presentTypes = typeOrder.filter(t => categories.includes(t));
+      const typeChipsHtml = '<div class="ctrl-type-chips">'
+        + presentTypes.map(t =>
+            '<button class="ctrl-type-chip is-icon' + (categoryFilter === t ? ' active' : '') + '" data-type="' + t + '" title="' + (TYPE_LABELS[t] || t) + '">' + categoryIcon(t) + '</button>'
+          ).join('')
+        + '</div>';
+
       const toolbarHtml = '<div class="ctrl-toolbar">'
-        + '<div class="ctrl-search-wrap">'
-        +   '<input type="search" id="ctrl-search" class="ctrl-search" placeholder="Search controls..." value="' + searchEsc + '">'
-        +   (searchFilter ? '<button class="ctrl-search-clear" id="ctrl-search-clear" title="Clear">&times;</button>' : '')
+        + '<div class="ctrl-toolbar-row">'
+        +   '<div class="ctrl-search-wrap">'
+        +     '<input type="search" id="ctrl-search" class="ctrl-search" placeholder="Search..." value="' + searchEsc + '">'
+        +     (searchFilter ? '<button class="ctrl-search-clear" id="ctrl-search-clear" title="Clear">&times;</button>' : '')
+        +   '</div>'
+        +   '<select class="ctrl-tb-select' + (areaFilter !== 'all' ? ' is-active' : '') + '" id="ctrl-area-filter">' + areaOptions + '</select>'
+        +   typeChipsHtml
         + '</div>'
-        + '<select class="ctrl-tb-select' + (areaFilter !== 'all' ? ' is-active' : '') + '" id="ctrl-area-filter">' + areaOptions + '</select>'
-        + sortHtml
-        + (isFiltered ? '<a class="ctrl-clear-filters" onclick="clearAllFilters()">Clear</a>' : '')
-        + '<span class="ctrl-result-count">' + sorted.length + (sorted.length === 1 ? ' control' : ' controls') + '</span>'
+        + '<div class="ctrl-toolbar-row ctrl-toolbar-row-organize">'
+        +   sortHtml
+        +   '<span class="ctrl-result-count">' + sorted.length + (sorted.length === 1 ? ' control' : ' controls') + '</span>'
+        +   (isFiltered ? '<a class="ctrl-clear-filters" onclick="clearAllFilters()">Clear</a>' : '')
+        + '</div>'
         + '</div>';
 
       const cardListHtml = (sorted.length === 0)
@@ -1174,9 +1309,19 @@
       // (Area + glozone sub-line was removed; the summary's `→ ...` line
       // covers "what this controls". Location lives on control detail.)
 
-      // Title-row badges: paused, setup, stale, low-battery dot, magic icon.
+      // Title-row badges: paused (+ time left), setup, stale, low-battery,
+      // magic icon. Pause badge inlines the time remaining ("paused 3h")
+      // so users don't need to tap into detail to see when it'll resume.
       const badges = [];
-      if (c.inactive) badges.push('<span class="ctrl-badge ctrl-badge-paused">paused</span>');
+      if (c.inactive) {
+        let pausedLbl = 'paused';
+        const iu = c.inactive_until;
+        if (iu && iu !== 'forever') {
+          const remMs = new Date(iu) - Date.now();
+          if (remMs > 0) pausedLbl = 'paused ' + formatDurationRemaining(remMs / 60000, '');
+        }
+        badges.push('<span class="ctrl-badge ctrl-badge-paused">' + pausedLbl + '</span>');
+      }
       else if (c.status === 'not_configured') badges.push('<span class="ctrl-badge ctrl-badge-setup">setup</span>');
       else if (c.stale) badges.push('<span class="ctrl-badge ctrl-badge-stale">stale</span>');
       if (c.battery && c.battery.value != null && c.battery.value < 10) {
@@ -1193,8 +1338,12 @@
       if (view === 'batteries') {
         const batt = c.battery && c.battery.value;
         if (batt != null) {
-          const cls = batt < 20 ? 'ctrl-card-pri ctrl-card-pri-danger'
-            : batt < 50 ? 'ctrl-card-pri ctrl-card-pri-warn'
+          // 4-band: red <10, orange 10-25, yellow 25-50, neutral 50+.
+          // Color is supplementary signal — the actual % carries the
+          // real information, so yellow being close to orange is OK here.
+          const cls = batt < 10 ? 'ctrl-card-pri ctrl-card-pri-danger'
+            : batt < 25 ? 'ctrl-card-pri ctrl-card-pri-warn'
+            : batt < 50 ? 'ctrl-card-pri ctrl-card-pri-caution'
             : 'ctrl-card-pri';
           primaryHtml = '<span class="' + cls + '">' + batt + '%</span>';
         } else {
@@ -1204,7 +1353,7 @@
         if (c.inactive) {
           let txt;
           if (!c.inactive_until || c.inactive_until === 'forever') {
-            txt = 'permanent';
+            txt = 'forever';
           } else {
             const remMs = new Date(c.inactive_until) - Date.now();
             txt = remMs > 0 ? formatDurationRemaining(remMs / 60000, 'left') : 'expired';
@@ -1214,9 +1363,35 @@
       } else if (view === 'setup') {
         primaryHtml = '<span class="ctrl-card-pri-muted">configure &rarr;</span>';
       } else {
-        // ALL view: last-action time
-        const last = formatLastAction(c);
-        primaryHtml = '<span class="ctrl-card-pri-muted">' + (last || '&mdash;') + '</span>';
+        // ALL view: right-side field is driven by the sort axis — what
+        // you're scanning by gets the visual emphasis. sort=recent shows
+        // last action (relative time + verb). sort=area shows the area
+        // name. sort=name falls back to last action (recency is the most
+        // common implicit context users care about).
+        if (sortColumn === 'area') {
+          // Sort by Location — show area + glozone on the right.
+          const areaName = c.area_name || '—';
+          const glozone = getGlozoneForArea(c.area_id);
+          primaryHtml = '<div class="ctrl-card-pri-stack">'
+            + '<span class="ctrl-card-pri">' + areaName + '</span>'
+            + (glozone ? '<span class="ctrl-card-pri-muted">' + glozone + '</span>' : '')
+            + '</div>';
+        } else {
+          // sort=recent (and fall-through default for sort=name): 2-line
+          // last-action — relative time on top (bold), action verb below
+          // (muted). Mirrors the card body's 2-line name + summary on the left.
+          const lastTs = c.last_action && c.last_action.timestamp;
+          const timeStr = lastTs ? formatRelativeTime(lastTs) : '';
+          const actionStr = formatActionLabel(c);
+          if (timeStr || actionStr) {
+            primaryHtml = '<div class="ctrl-card-pri-stack">'
+              + (timeStr ? '<span class="ctrl-card-pri">' + timeStr + '</span>' : '')
+              + (actionStr ? '<span class="ctrl-card-pri-muted">' + actionStr + '</span>' : '')
+              + '</div>';
+          } else {
+            primaryHtml = '<span class="ctrl-card-pri-muted">&mdash;</span>';
+          }
+        }
       }
 
       const rowClass = c.stale ? 'ctrl-card-row is-stale' : 'ctrl-card-row';
@@ -1364,6 +1539,7 @@
         'switch': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="8" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="13" r="1.5" fill="currentColor" stroke="none"/><line x1="10" y1="18" x2="14" y2="18"/></svg>`,
         'motion_sensor': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 18 A8 8 0 0 1 8 6"/><path d="M5 20 A12 12 0 0 1 5 4"/><circle cx="14" cy="12" r="3" fill="currentColor" stroke="none" opacity="0.6"/><path d="M17 9 A5 5 0 0 1 17 15"/><path d="M20 7 A8 8 0 0 1 20 17"/></svg>`,
         'contact_sensor': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="8" height="12" rx="2"/><rect x="14" y="6" width="8" height="12" rx="2"/><line x1="10" y1="11" x2="14" y2="11" stroke-dasharray="2 2"/><line x1="10" y1="13" x2="14" y2="13" stroke-dasharray="2 2"/></svg>`,
+        'camera': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`,
       };
       return icons[category] || '—';
     }
@@ -1376,6 +1552,65 @@
         'matter': 'Matter'
       };
       return labels[integration] || integration || '—';
+    }
+
+    // Smart relative-time formatting for the cards.
+    //   Today:        "3:42p"
+    //   Yesterday:    "Yest 3:42p"
+    //   This week:    "Tue 3:42p"
+    //   Older:        "5/17"   (or "5/17/24" if a different year)
+    // Control detail page uses a separate, fuller format (always includes
+    // time even for older entries).
+    function formatRelativeTime(timestamp) {
+      if (!timestamp) return '';
+      const date = new Date(timestamp);
+      const now = new Date();
+      let hours = date.getHours();
+      const mins = date.getMinutes().toString().padStart(2, '0');
+      const ampm = hours >= 12 ? 'p' : 'a';
+      hours = hours % 12 || 12;
+      const timeOnly = hours + ':' + mins + ampm;
+      // Same calendar day → time only.
+      if (date.toDateString() === now.toDateString()) return timeOnly;
+      // Yesterday (calendar-day check, not 24h-rolling).
+      const yest = new Date(now);
+      yest.setDate(yest.getDate() - 1);
+      if (date.toDateString() === yest.toDateString()) return 'Yest ' + timeOnly;
+      // Within the last 7 days → day-of-week + time.
+      const ms = now - date;
+      if (ms < 7 * 86400000) {
+        const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        return days[date.getDay()] + ' ' + timeOnly;
+      }
+      // Older — date only.
+      const m = date.getMonth() + 1;
+      const d = date.getDate();
+      if (date.getFullYear() !== now.getFullYear()) {
+        return m + '/' + d + '/' + (date.getFullYear() % 100);
+      }
+      return m + '/' + d;
+    }
+
+    // Returns just the action label (no timestamp). Mirrors formatLastAction's
+    // per-action mapping but without the time prefix — used for the 2-line
+    // right-side primary on cards (line 1 = relative time, line 2 = action).
+    function formatActionLabel(ctrl) {
+      if (!ctrl.last_action) return '';
+      let action;
+      if (typeof ctrl.last_action === 'object') action = ctrl.last_action.action;
+      else action = ctrl.last_action;
+      if (!action) return '';
+      if (action === 'motion_detected') return 'Motion';
+      if (action === 'motion_cleared') return 'Cleared';
+      if (action === 'contact_opened') return 'Opened';
+      if (action === 'contact_closed') return 'Closed';
+      // Switch button events: e.g. "on_short_press" → "On 1×"
+      const parts = action.split('_');
+      const button = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+      const pressType = parts.find(p => ['short', 'long', 'double', 'triple', 'quadruple', 'quintuple'].includes(p));
+      const pressMap = { short: '1×', long: 'hold', double: '2×', triple: '3×', quadruple: '4×', quintuple: '5×' };
+      const press = pressMap[pressType] || '';
+      return press ? (button + ' ' + press) : button;
     }
 
     function formatLastAction(ctrl) {
@@ -1559,34 +1794,8 @@
 
 
     function setupEventListeners() {
-      // Initial pill bar render (state was loaded earlier).
-      renderViewSegments();
-
-      // Pill bar click handling — collapse/expand + select. Same pattern
-      // as home page; first click expands, second selects + collapses.
-      document.addEventListener('click', (e) => {
-        const seg = e.target.closest('.view-segment');
-        const segContainer = e.target.closest('#controls-view-segments');
-        // Outside-click → collapse, no mode change.
-        if (!segContainer && _viewSegExpanded) {
-          _viewSegExpanded = false;
-          renderViewSegments();
-          return;
-        }
-        if (!seg || !segContainer) return;
-        const isActive = seg.classList.contains('active');
-        if (!_viewSegExpanded) {
-          _viewSegExpanded = true;
-          renderViewSegments();
-          return;
-        }
-        if (isActive) {
-          _viewSegExpanded = false;
-          renderViewSegments();
-          return;
-        }
-        selectView(seg.dataset.view);
-      });
+      // Mount the shared view-segments pill bar (state was loaded earlier).
+      mountControlsViewSegments();
 
       // Toolbar (search + area + sort) and search-clear button — wired
       // via event delegation since the toolbar is re-rendered each
@@ -1621,6 +1830,16 @@
           searchFilter = '';
           savePreferences();
           renderControls();
+          return;
+        }
+        // Type chip filter — single-select, click to set, click again to clear.
+        const chip = e.target.closest && e.target.closest('.ctrl-type-chip');
+        if (chip) {
+          const t = chip.dataset.type;
+          categoryFilter = (t === 'all' || t === categoryFilter) ? 'all' : t;
+          savePreferences();
+          renderControls();
+          return;
         }
       });
       // Search input — re-render on every keystroke, restore focus.
