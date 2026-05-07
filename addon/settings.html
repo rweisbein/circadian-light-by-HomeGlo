@@ -1345,6 +1345,21 @@
 
         <div class="form-row">
           <label class="form-label">
+            Tick command shape
+            <span class="info-icon">i<span class="info-tooltip">Experimental — what gets sent each periodic tick. <b>Both</b> = current (brightness + CT in one turn_on). <b>Skip</b> = no command if neither changed within tolerance (1% / 25K). <b>Bri only</b> = drop CT from payload when CT unchanged. <b>CT only</b> = drop brightness from payload when bri unchanged. Use to identify what part of a redundant command makes some bulbs visibly bounce.</span></span>
+          </label>
+          <div class="form-control">
+            <select class="form-input" id="experimental-tick-mode" style="width: 180px;">
+              <option value="both">Both (default)</option>
+              <option value="skip">Skip if no change</option>
+              <option value="bri_only">Bri only (when CT unchanged)</option>
+              <option value="ct_only">CT only (when bri unchanged)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
             Step plateau shift
             <span class="info-icon">i<span class="info-tooltip">When the up/down buttons are pressed at the brightness step plateau (max or min), the Adjust-card arrows shift the circadian curve by this many minutes per press instead.</span></span>
           </label>
@@ -1541,6 +1556,7 @@
           updateCtCompState();
           updateLocationSection(config);
           document.getElementById('sun-saturation').value = config.sun_saturation ?? 40;
+          document.getElementById('experimental-tick-mode').value = config.experimental_tick_mode ?? 'both';
         }
       } catch (err) {
         console.error('Error loading settings:', err);
@@ -1589,7 +1605,8 @@
         ct_comp_begin: parseInt(document.getElementById('ct-comp-begin').value) || 1650,
         ct_comp_end: parseInt(document.getElementById('ct-comp-end').value) || 2250,
         ct_comp_factor: parseFloat(document.getElementById('ct-comp-factor').value) || 1.7,
-        sun_saturation: parseInt(document.getElementById('sun-saturation').value) || 40
+        sun_saturation: parseInt(document.getElementById('sun-saturation').value) || 40,
+        experimental_tick_mode: document.getElementById('experimental-tick-mode').value || 'both'
       };
 
       try {
@@ -1989,8 +2006,8 @@
               <select id="ocp-cond-select">${condOpts}</select>
               <select id="ocp-dur-select">
                 <option value="5">5 min</option>
-                <option value="60" selected>1 hour</option>
-                <option value="240">4 hours</option>
+                <option value="60">1 hour</option>
+                <option value="240" selected>4 hours</option>
                 <option value="today">Today</option>
               </select>
               <button type="button" id="ocp-set-btn">Set</button>
@@ -2010,10 +2027,23 @@
       if (toggleBtn) {
         toggleBtn.addEventListener('click', (e) => {
           e.stopPropagation();
+          const wasOpen = _overridePickerOpen;
           _overridePickerOpen = !_overridePickerOpen;
           if (_lastOutdoorData) renderOutdoorPopover(_lastOutdoorData);
           // Re-position since picker reveal changes popover height.
           positionOutdoorPopover();
+          // When opening, focus the condition select and try to drop it
+          // down so the user can pick immediately. showPicker() is
+          // Chromium-only — focus is the universal fallback.
+          if (!wasOpen) {
+            const condSelect = pop.querySelector('#ocp-cond-select');
+            if (condSelect) {
+              condSelect.focus();
+              if (typeof condSelect.showPicker === 'function') {
+                try { condSelect.showPicker(); } catch (_) { /* ignore */ }
+              }
+            }
+          }
         });
       }
       const setBtn = pop.querySelector('#ocp-set-btn');
@@ -2161,6 +2191,7 @@
     document.getElementById('ct-comp-factor').addEventListener('blur', saveSettings);
 
     document.getElementById('sun-saturation').addEventListener('blur', saveSettings);
+    document.getElementById('experimental-tick-mode').addEventListener('change', saveSettings);
 
     // Location functions
     function updateLocationSection(config) {

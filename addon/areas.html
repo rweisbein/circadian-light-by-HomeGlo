@@ -1056,26 +1056,81 @@
     .nav-overflow-item:hover { color: var(--text); background: rgba(255,255,255,0.05); }
     .nav-overflow-item.active { color: var(--text); }
 
-    /* View mode links — filter pill (On) */
-    .view-toggle {
-      font-size: 0.72rem;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      color: var(--muted);
-      background: transparent;
+    /* Home page view segments — single mode-picker for the page.
+       Collapsed-by-default: only the active pill shows. Clicking the pill
+       drops a vertical popover with the other modes stacked below. Click
+       any item to switch mode + collapse; click outside to collapse. The
+       active pill carries the visual mode-indicator (white-fill pill);
+       the page body responds to currentMode for organize-specific
+       affordances. New modes (e.g. Tune) can be added as the home page
+       absorbs more page-purposes. */
+    .view-segments {
+      position: relative;
+      display: inline-flex;
+      padding: 3px;
       border: 1px solid rgba(255,255,255,0.22);
       border-radius: 999px;
-      cursor: pointer;
-      transition: all 0.15s;
-      padding: 3px 11px;
-      white-space: nowrap;
+      background: rgba(255,255,255,0.04);
     }
-    .view-toggle:hover { border-color: rgba(255,255,255,0.4); color: var(--text); }
-    /* Active = filled white pill with black text. High-contrast inversion reads
-       as "lit up / engaged" without relying on color (orange is reserved for
-       actively-dirty state elsewhere). */
-    .view-toggle.active { background: #fff; color: #000; border-color: #fff; }
-    .view-toggle.active:hover { background: rgba(255,255,255,0.92); border-color: rgba(255,255,255,0.92); }
+    .view-segment {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 5px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, box-shadow 0.18s ease;
+      white-space: nowrap;
+      font-family: inherit;
+    }
+    .view-segment:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+    /* Active = filled white pill with black text — matches the inversion
+       idiom used on power buttons and the prior "On" toggle. */
+    .view-segment.active { background: #fff; color: #000; }
+    .view-segment.active:hover { background: rgba(255,255,255,0.94); color: #000; }
+    /* Affordance hint: subtle white outline glow on the active pill when
+       hovered in the collapsed state — tells users it's clickable. */
+    .view-segments:not(.is-expanded):hover .view-segment.active {
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.18);
+    }
+    /* Vertical popover with the other modes — appears below the active
+       pill when expanded. Right-aligned to the trigger so it never spills
+       past the page edge. */
+    .view-segments-popover {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      display: none;
+      flex-direction: column;
+      gap: 3px;
+      padding: 5px;
+      background: rgba(20, 20, 22, 0.98);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      z-index: 50;
+      min-width: 100%;
+    }
+    .view-segments.is-expanded .view-segments-popover {
+      display: flex;
+      animation: viewSegPopIn 0.16s ease-out;
+    }
+    @keyframes viewSegPopIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    /* Popover items render at the same look as the bar pills, but full
+       width within the popover and left-aligned text since each row is a
+       discrete menu item. */
+    .view-segments-popover .view-segment {
+      width: 100%;
+      text-align: left;
+      padding: 7px 14px;
+    }
 
     /* Edit mode styles */
     .edit-toolbar { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
@@ -1259,6 +1314,10 @@
     let areaStatus = {};
     let zoneStates = {};
     let viewMode = 'custom'; // 'custom', 'alpha', 'onoff'
+    // Whether the view-segments pill bar is expanded (showing all options)
+    // vs. collapsed (showing only the active pill). Reset on render-time
+    // by using a module variable so periodic re-renders preserve state.
+    let _viewSegExpanded = false;
     let cachedConfig = null;
     let cachedSunTimes = null; // { sunrise, sunset, solarNoon, solarMid } in local hours
     let currentMode = 'view'; // 'view' | 'organize'
@@ -2543,25 +2602,33 @@
 
       // Build toolbar HTML
       const homeName = cachedConfig?.home_name || 'Your home';
-      let html;
-      if (currentMode === 'organize') {
-        html = `
-          <div class="edit-toolbar">
-            <span style="font-size: 1rem; font-weight: 600; color: var(--text);">Organize${homeName ? ': ' + homeName : ''}</span>
-            <span style="flex: 1;"></span>
-            <a href="#" class="edit-toolbar-link" onclick="event.preventDefault(); exitMode()" style="color: var(--accent); font-weight: 600;">Done</a>
+      // Unified toolbar across all modes — segmented control is always
+      // visible and *is* the mode switcher. No separate Done link; clicking
+      // a different pill exits the current mode.
+      const viewValue = currentMode === 'organize'
+        ? 'organize'
+        : (viewMode === 'onoff' ? 'onoff' : 'home');
+      const VIEWS = [
+        { value: 'home',     label: 'Areas' },
+        { value: 'onoff',    label: '&lsquo;On&rsquo; first' },
+        { value: 'organize', label: 'Reorder' },
+      ];
+      const activeView = VIEWS.find(v => v.value === viewValue) || VIEWS[0];
+      const otherViews = VIEWS.filter(v => v.value !== viewValue);
+      const expandedClass = _viewSegExpanded ? ' is-expanded' : '';
+      const popoverItems = otherViews
+        .map(v => `<button class="view-segment" data-view="${v.value}">${v.label}</button>`)
+        .join('');
+      let html = `
+        <div class="home-toolbar" style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+          <span class="home-name-heading" id="home-name-heading" ondblclick="editHomeName(this)" title="Double-click (or tap and hold) to rename" style="touch-action: manipulation;">${homeName || ''}</span>
+          <span style="flex: 1;"></span>
+          <div class="view-segments${expandedClass}" id="home-view-segments" role="tablist" title="Page mode">
+            <button class="view-segment active" data-view="${activeView.value}">${activeView.label}</button>
+            <div class="view-segments-popover">${popoverItems}</div>
           </div>
-        `;
-      } else {
-        html = `
-          <div class="home-toolbar" style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-            <span class="home-name-heading" id="home-name-heading" onclick="editHomeName(this)" title="Click to rename">${homeName || ''}</span>
-            <button class="view-toggle ${viewMode === 'onoff' ? 'active' : ''}" data-view-toggle title="Group by on/off state">On</button>
-            <span style="flex: 1;"></span>
-            <a href="#" class="edit-toolbar-link" id="organize-link" style="padding-left: 8px;">Organize</a>
-          </div>
-        `;
-      }
+        </div>
+      `;
 
       const renderZoneGroup = (zoneName, areasInZone, zoneIndex, totalZones, { allOff = false } = {}) => {
         const isCollapsed = collapsedState[zoneName] || false;
@@ -3129,19 +3196,85 @@ function updateSliderFill(el) {
 
     function setupEventListeners() {
       document.getElementById('areas-container').addEventListener('click', (e) => {
-        if (e.target.id === 'organize-link') { e.preventDefault(); enterOrganizeMode(); }
         if (e.target.id === 'add-zone-link') { e.preventDefault(); createZoneFromEdit(); }
       });
 
-      // View mode toggle click
+      // Home view segments — collapsed-by-default mode picker. Clicking
+      // the active pill expands the popover; clicking any other pill in
+      // the popover switches mode (which may include exiting/entering
+      // Reorder mode) and collapses.
       document.getElementById('areas-container').addEventListener('click', (e) => {
-        if (e.target.hasAttribute('data-view-toggle')) {
-          viewMode = viewMode === 'onoff' ? 'custom' : 'onoff';
-          e.target.classList.toggle('active', viewMode === 'onoff');
-          savePreferences();
+        const seg = e.target.closest('.view-segment');
+        if (!seg) return;
+        const segContainer = seg.closest('.view-segments');
+        const isActive = seg.classList.contains('active');
+
+        // Collapsed → expand on first click of the active pill.
+        if (!_viewSegExpanded) {
+          _viewSegExpanded = true;
+          if (segContainer) segContainer.classList.add('is-expanded');
+          return;
+        }
+
+        // Expanded — handle the selection.
+        _viewSegExpanded = false;
+        const v = seg.dataset.view;
+
+        // Clicking the active pill while expanded → just collapse, no-op.
+        if (isActive) {
+          if (segContainer) segContainer.classList.remove('is-expanded');
+          return;
+        }
+
+        // Switching INTO Reorder.
+        if (v === 'organize') {
+          enterOrganizeMode();
+          return;
+        }
+
+        // Switching to Home or On areas first — set sort, then exit
+        // Reorder mode if we were in it (exitMode reloads + re-renders;
+        // otherwise we render directly).
+        viewMode = (v === 'onoff') ? 'onoff' : 'custom';
+        savePreferences();
+        if (currentMode === 'organize') {
+          exitMode();
+        } else {
           renderAreas();
         }
       });
+
+      // Outside-click → collapse the segment popover (no mode change).
+      document.addEventListener('click', (e) => {
+        if (!_viewSegExpanded) return;
+        if (e.target.closest('.view-segments')) return;
+        _viewSegExpanded = false;
+        document.querySelector('.view-segments')?.classList.remove('is-expanded');
+      });
+
+      // Long-press on the home name → enter rename mode (mobile equivalent
+      // of double-click; both gestures route through editHomeName).
+      // ~600ms hold; cancelled if the finger moves or lifts early.
+      let _renameLongPressTimer = null;
+      let _renameTouchTarget = null;
+      const cancelLongPress = () => {
+        if (_renameLongPressTimer) clearTimeout(_renameLongPressTimer);
+        _renameLongPressTimer = null;
+        _renameTouchTarget = null;
+      };
+      const ac = document.getElementById('areas-container');
+      ac.addEventListener('touchstart', (e) => {
+        const nameEl = e.target.closest('#home-name-heading');
+        if (!nameEl) return;
+        _renameTouchTarget = nameEl;
+        _renameLongPressTimer = setTimeout(() => {
+          if (_renameTouchTarget) editHomeName(_renameTouchTarget);
+          _renameTouchTarget = null;
+        }, 600);
+      }, { passive: true });
+      ac.addEventListener('touchend', cancelLongPress);
+      ac.addEventListener('touchmove', cancelLongPress);
+      ac.addEventListener('touchcancel', cancelLongPress);
 
       // Slider fill updates (delegated)
       document.getElementById('areas-container').addEventListener('input', (e) => {

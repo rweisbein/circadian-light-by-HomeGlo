@@ -4191,6 +4191,56 @@ class HomeAssistantWebSocketClient:
             # next brightening command. 1% is the safe minimum.
             comp_brightness = max(1, filtered_bri)
 
+            # Diagnostic: read prior cached values BEFORE updating the
+            # cache, so we can log what (if anything) actually changed
+            # this tick. Helps spot redundant turn_on commands and
+            # tiny-delta oscillations that read as visible bouncing.
+            _prior = state.get_last_sent_purpose(area_id, filter_name) or {}
+            _prior_bri = _prior.get("brightness")
+            _prior_k = _prior.get("kelvin")
+
+            # Experimental tick command mode (Lab) — used to identify
+            # which element of the periodic turn_on causes some bulbs to
+            # visibly bounce. Modes:
+            #   "both"      (default) — current behavior
+            #   "skip"               — skip turn_on if both bri and ct
+            #                          unchanged (within 1% / 25K)
+            #   "bri_only"           — when ct unchanged within 25K, drop
+            #                          color_temp_kelvin / xy_color from
+            #                          the payload (send brightness only)
+            #   "ct_only"            — when bri unchanged within 1%, drop
+            #                          brightness_pct from the payload
+            #                          (send color/CT only)
+            _new_k = kelvin or 0
+            _bri_changed = (_prior_bri is None) or (
+                abs(comp_brightness - _prior_bri) >= 1
+            )
+            _ct_changed = (_prior_k is None) or (abs(_new_k - _prior_k) >= 25)
+            _tick_mode = raw_cfg.get("experimental_tick_mode", "both")
+            _tick_skip = False
+            _tick_emit_bri = True
+            _tick_emit_color = True
+            if _tick_mode == "skip":
+                if not _bri_changed and not _ct_changed:
+                    _tick_skip = True
+            elif _tick_mode == "bri_only":
+                if not _ct_changed:
+                    _tick_emit_color = False
+            elif _tick_mode == "ct_only":
+                if not _bri_changed:
+                    _tick_emit_bri = False
+            if _tick_skip:
+                if log_periodic:
+                    logger.info(
+                        f"[tick-skip] {area_id}/{filter_name}: "
+                        f"bri={comp_brightness}% ct={_new_k}K (both unchanged within tolerance)"
+                    )
+                # Still cache so the prior-value tracking stays accurate
+                state.set_last_sent_purpose(
+                    area_id, filter_name, comp_brightness, _new_k, is_off=should_off
+                )
+                continue
+
             # Cache per-purpose last-sent values
             state.set_last_sent_purpose(
                 area_id,
@@ -4201,20 +4251,35 @@ class HomeAssistantWebSocketClient:
             )
 
             if log_periodic:
+                # Show prior values inline so we can see deltas (or lack
+                # thereof) at a glance. "(=)" marks a no-change tick,
+                # which means we're sending a redundant turn_on.
+                _new_k = kelvin or 0
+                _bri_tag = (
+                    "(=)"
+                    if _prior_bri is not None and _prior_bri == comp_brightness
+                    else f"(was {_prior_bri}%)"
+                )
+                _k_tag = (
+                    "(=)"
+                    if _prior_k is not None and _prior_k == _new_k
+                    else f"(was {_prior_k}K)"
+                )
                 parts = [f"area={area_brightness}%"]
-                parts.append(f"{filter_name}→{filtered_bri}%")
-                parts.append(f"{kelvin}K")
+                parts.append(
+                    f"{filter_name}→{filtered_bri}%→sent {comp_brightness}% {_bri_tag}"
+                )
+                parts.append(f"{_new_k}K {_k_tag}")
                 logger.info(f"[Pipeline] {area_id}: {' → '.join(parts)}")
 
             filt_norm = filter_name.replace(" ", "_").lower()
 
             # Color-capable lights in this filter
             if lights_by_cap["color"]:
-                color_data = {
-                    "transition": transition,
-                    "brightness_pct": comp_brightness,
-                }
-                if include_color and xy is not None:
+                color_data = {"transition": transition}
+                if _tick_emit_bri:
+                    color_data["brightness_pct"] = comp_brightness
+                if _tick_emit_color and include_color and xy is not None:
                     color_data["xy_color"] = list(xy)
 
                 zha_group = group_candidates.get(f"zha_group_{filt_norm}_color")
@@ -4262,8 +4327,10 @@ class HomeAssistantWebSocketClient:
 
             # CT-only lights in this filter
             if lights_by_cap["ct"]:
-                ct_data = {"transition": transition, "brightness_pct": comp_brightness}
-                if include_color and kelvin is not None:
+                ct_data = {"transition": transition}
+                if _tick_emit_bri:
+                    ct_data["brightness_pct"] = comp_brightness
+                if _tick_emit_color and include_color and kelvin is not None:
                     # Use the highest min_color_temp_kelvin from the CT lights
                     # so the value is valid for all members (fallback 2000K)
                     ct_floor = 2000
@@ -4313,8 +4380,9 @@ class HomeAssistantWebSocketClient:
                         )
                     )
 
-            # Brightness-only lights in this filter
-            if lights_by_cap["brightness"]:
+            # Brightness-only lights in this filter — only emit when the
+            # tick mode allows brightness. Otherwise nothing to send.
+            if lights_by_cap["brightness"] and _tick_emit_bri:
                 bri_data = {"transition": transition, "brightness_pct": comp_brightness}
                 if log_periodic:
                     logger.info(
