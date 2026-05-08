@@ -122,6 +122,29 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
 }
 
 /* =============================================================================
+   Control summary line — "what this control does", a third body line on
+   list rows. The leading "→" glyph (muted) labels the row as an
+   action/effect descriptor. Used on /switches and the area-details
+   Controls card. The `controlSummary()` helper in shared.js generates
+   the inner spans (.primary / .secondary).
+   ============================================================================= */
+.ctrl-card-summary {
+  font-size: 0.8rem;
+  color: var(--text, #e2e8f0);
+  opacity: 0.85;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 1px;
+}
+.ctrl-card-summary .lead { color: var(--muted2, #64748b); }
+.ctrl-card-summary .secondary {
+  color: var(--muted2, #64748b);
+  font-size: 0.74rem;
+}
+
+/* =============================================================================
    View segmented control — single mode-picker for a page (e.g., home page
    AREAS / 'ON' FIRST / REORDER, or future controls page ALL / SETUP / etc.).
    Collapsed-by-default: only the active pill shows. Clicking the pill drops

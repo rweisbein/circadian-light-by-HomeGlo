@@ -578,50 +578,10 @@
       color: var(--muted2);
     }
 
-    /* Type filter chips — single-select pill row. Categories are
-       icon-only (same SVGs used per-card) so the visual vocabulary
-       carries; "All" stays text since "all" has no natural icon.
-       Active chip is filled white (matches the active-pill idiom
-       across the app). */
-    .ctrl-type-chips {
-      display: inline-flex;
-      gap: 4px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-    .ctrl-type-chip {
-      padding: 4px 10px;
-      border: 1px solid rgba(255,255,255,0.18);
-      border-radius: 999px;
-      background: transparent;
-      color: var(--muted);
-      font-size: 0.78rem;
-      font-weight: 500;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: background 0.12s, color 0.12s, border-color 0.12s;
-      font-family: inherit;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 28px;
-    }
-    .ctrl-type-chip.is-icon {
-      /* Icon-only chips — square-ish pill with the SVG centered. */
-      padding: 4px 8px;
-      width: 36px;
-    }
-    .ctrl-type-chip:hover { color: var(--text); border-color: rgba(255,255,255,0.32); }
-    .ctrl-type-chip.active {
-      background: #fff;
-      color: #000;
-      border-color: #fff;
-    }
-    .ctrl-type-chip.active:hover {
-      background: rgba(255,255,255,0.94);
-      color: #000;
-    }
-    .ctrl-toolbar .ctrl-search-wrap { position: relative; flex: 1 1 220px; min-width: 180px; }
+    /* Search: collapsed-to-icon by default; expands inline when tapped
+       or while a search term is active. The expanded state grabs the
+       remaining row width so the input is usable. */
+    .ctrl-toolbar .ctrl-search-wrap { position: relative; flex: 1 1 auto; min-width: 0; }
     .ctrl-toolbar input[type="search"],
     .ctrl-toolbar input[type="text"].ctrl-search {
       width: 100%;
@@ -646,19 +606,90 @@
       font-size: 0.95rem;
       padding: 2px 4px;
     }
+    .ctrl-toolbar .ctrl-icon-btn {
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--card);
+      color: var(--muted);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      cursor: pointer;
+      flex-shrink: 0;
+      box-sizing: border-box;
+    }
+    .ctrl-toolbar .ctrl-icon-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.32); }
+    .ctrl-toolbar .ctrl-icon-btn.is-active { color: var(--accent); border-color: var(--accent); }
     .ctrl-toolbar select.ctrl-tb-select {
-      padding: 6px 10px;
+      height: 34px;
+      padding: 0 10px;
       background: var(--card);
       color: var(--text);
       border: 1px solid var(--line);
       border-radius: 6px;
       font-size: 0.85rem;
       cursor: pointer;
+      box-sizing: border-box;
+    }
+    /* Area select stretches to fill the filter row; sort select stays
+       intrinsic width on the organize row. */
+    .ctrl-toolbar select#ctrl-area-filter {
+      flex: 1 1 auto;
+      min-width: 0;
+      max-width: 220px;
+      text-overflow: ellipsis;
     }
     .ctrl-toolbar select.ctrl-tb-select.is-active { border-color: var(--accent); }
     .ctrl-toolbar .ctrl-result-count { color: var(--muted2); font-size: 0.78rem; margin-left: auto; }
-    .ctrl-toolbar .ctrl-clear-filters { font-size: 0.78rem; color: var(--muted); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+    .ctrl-toolbar .ctrl-clear-filters {
+      font-size: 0.78rem;
+      color: var(--muted);
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
     .ctrl-toolbar .ctrl-clear-filters:hover { color: var(--accent); }
+
+    /* Type filter: single icon trigger + popover dropdown. Mirrors the
+       view-segments idiom (icon when closed, icon+label when open). */
+    .ctrl-type-wrap { position: relative; }
+    .ctrl-type-popover {
+      position: absolute;
+      top: calc(100% + 4px);
+      right: 0;
+      min-width: 180px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 4px;
+      z-index: 30;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    .ctrl-type-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.85rem;
+      cursor: pointer;
+      background: transparent;
+      border: none;
+      text-align: left;
+      font-family: inherit;
+    }
+    .ctrl-type-option:hover { background: rgba(255,255,255,0.06); }
+    .ctrl-type-option.is-active { background: rgba(255,255,255,0.10); color: var(--accent); }
+    .ctrl-type-option svg { flex-shrink: 0; }
 
     /* Card list — single grouped container with thin internal dividers
        between rows. Avoids the nested-box look that came from per-card
@@ -724,7 +755,6 @@
     .ctrl-card-pri-caution { color: #fbbf24; } /* yellow — between warn (orange) and neutral, used for the 25-50% battery band */
     .ctrl-card-pri-danger { color: var(--danger); }
     .ctrl-card-pri-success { color: var(--success); }
-    .ctrl-card-chevron { color: var(--muted2); font-size: 1rem; }
 
     /* Inline badges on the title row */
     .ctrl-badge {
@@ -754,24 +784,8 @@
     .ctrl-card-magic { color: var(--accent); font-size: 0.85rem; }
     .ctrl-card-lowbatt { color: var(--danger); font-size: 0.7rem; }
 
-    /* "What this controls" summary — shown as a third body line. The →
-       glyph reads as "reaches/controls", distinguishing it from the
-       second-line location ("where this device lives"). */
-    .ctrl-card-summary {
-      font-size: 0.8rem;
-      color: var(--text);
-      opacity: 0.85;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      flex-wrap: wrap;
-      margin-top: 1px;
-    }
-    .ctrl-card-summary .arrow { color: var(--muted2); }
-    .ctrl-card-summary .secondary {
-      color: var(--muted2);
-      font-size: 0.74rem;
-    }
+    /* .ctrl-card-summary now lives in shared.css (used by the
+       area-details Controls card too). */
   </style>
 </head>
 <body>
@@ -826,6 +840,8 @@
     let areaFilter = 'all';
     let fourthField = 'lastAction';
     let searchFilter = '';
+    let _searchExpanded = false;
+    let _typePopoverOpen = false;
     let statusFilter = 'all';
     let pauseFilter = 'all';
     let lastActionFilter = 'all';
@@ -1087,7 +1103,16 @@
         }
         if (categoryFilter !== 'all' && c.category !== categoryFilter) return false;
         if (areaFilter === 'unassigned' && c.area_name) return false;
-        if (areaFilter !== 'all' && areaFilter !== 'unassigned' && c.area_name !== areaFilter) return false;
+        if (areaFilter !== 'all' && areaFilter !== 'unassigned') {
+          // Widen the area filter to include reach: a control matches if
+          // it LIVES in the filtered area, or any of its scopes REACHES
+          // that area. Mirrors the area-details Controls card model
+          // (In/Reaches). The render then splits into those two groups.
+          const targetAreaId = (allAreas.find(a => a.name === areaFilter) || {}).area_id;
+          const isIn = c.area_name === areaFilter;
+          const reaches = targetAreaId && (c.scopes || []).some(s => (s.areas || []).includes(targetAreaId));
+          if (!isIn && !reaches) return false;
+        }
         // Legacy fourthField-driven filters — only apply in ALL view.
         // In other views, the view itself is the filter; layering more
         // would just confuse.
@@ -1247,41 +1272,117 @@
       }
       const searchEsc = searchFilter.replace(/"/g, '&quot;');
 
-      // Type chip filter — icon-only chips (same SVGs we render on each
-      // card) so the visual vocabulary stays consistent. No "All" chip:
-      // clicking an active chip toggles it off, and the page-level
-      // "Clear" link is the explicit reset. Tooltip via title for hover
-      // discovery. Only show categories that exist in the data.
+      // Type filter — single icon-button trigger + popover dropdown.
+      // Closed state: filter glyph (all types) or selected category icon.
+      // Open: popover lists icon+label per category present in data.
       const TYPE_LABELS = { switch: 'Switch', motion_sensor: 'Motion', contact_sensor: 'Contact', camera: 'Camera', unknown: 'Other' };
       const typeOrder = ['switch', 'motion_sensor', 'contact_sensor', 'camera', 'unknown'];
       const presentTypes = typeOrder.filter(t => categories.includes(t));
-      const typeChipsHtml = '<div class="ctrl-type-chips">'
-        + presentTypes.map(t =>
-            '<button class="ctrl-type-chip is-icon' + (categoryFilter === t ? ' active' : '') + '" data-type="' + t + '" title="' + (TYPE_LABELS[t] || t) + '">' + categoryIcon(t) + '</button>'
-          ).join('')
+      const typeTriggerIcon = categoryFilter === 'all' ? filterGlyphIcon() : categoryIcon(categoryFilter);
+      const typeTriggerTitle = categoryFilter === 'all' ? 'Filter by type' : (TYPE_LABELS[categoryFilter] || categoryFilter);
+      const typePopoverHtml = _typePopoverOpen
+        ? '<div class="ctrl-type-popover">'
+            + '<button class="ctrl-type-option' + (categoryFilter === 'all' ? ' is-active' : '') + '" data-type="all">'
+            +   filterGlyphIcon() + '<span>All types</span>'
+            + '</button>'
+            + presentTypes.map(t =>
+                '<button class="ctrl-type-option' + (categoryFilter === t ? ' is-active' : '') + '" data-type="' + t + '">'
+                  + categoryIcon(t) + '<span>' + (TYPE_LABELS[t] || t) + '</span>'
+                + '</button>'
+              ).join('')
+          + '</div>'
+        : '';
+      const typeFilterHtml = '<div class="ctrl-type-wrap">'
+        + '<button class="ctrl-icon-btn' + (categoryFilter !== 'all' ? ' is-active' : '') + '" id="ctrl-type-trigger" title="' + typeTriggerTitle + '">' + typeTriggerIcon + '</button>'
+        + typePopoverHtml
         + '</div>';
+
+      // Search — collapse-to-icon by default; expand inline when active
+      // (search term present) or when icon tapped.
+      const searchOpen = !!searchFilter || _searchExpanded;
+      const searchHtml = searchOpen
+        ? '<div class="ctrl-search-wrap">'
+            + '<input type="search" id="ctrl-search" class="ctrl-search" placeholder="Search..." value="' + searchEsc + '" autofocus>'
+            + (searchFilter ? '<button class="ctrl-search-clear" id="ctrl-search-clear" title="Clear">&times;</button>' : '')
+          + '</div>'
+        : '<button class="ctrl-icon-btn" id="ctrl-search-toggle" title="Search">' + searchGlyphIcon() + '</button>';
+
+      const clearHtml = isFiltered ? '<a class="ctrl-clear-filters" onclick="clearAllFilters()">Clear</a>' : '';
 
       const toolbarHtml = '<div class="ctrl-toolbar">'
         + '<div class="ctrl-toolbar-row">'
-        +   '<div class="ctrl-search-wrap">'
-        +     '<input type="search" id="ctrl-search" class="ctrl-search" placeholder="Search..." value="' + searchEsc + '">'
-        +     (searchFilter ? '<button class="ctrl-search-clear" id="ctrl-search-clear" title="Clear">&times;</button>' : '')
-        +   '</div>'
+        +   searchHtml
         +   '<select class="ctrl-tb-select' + (areaFilter !== 'all' ? ' is-active' : '') + '" id="ctrl-area-filter">' + areaOptions + '</select>'
-        +   typeChipsHtml
+        +   typeFilterHtml
+        +   clearHtml
         + '</div>'
         + '<div class="ctrl-toolbar-row ctrl-toolbar-row-organize">'
         +   sortHtml
-        +   '<span class="ctrl-result-count">' + sorted.length + (sorted.length === 1 ? ' control' : ' controls') + '</span>'
-        +   (isFiltered ? '<a class="ctrl-clear-filters" onclick="clearAllFilters()">Clear</a>' : '')
+        +   '<span class="ctrl-result-count">' + (function () {
+              const n = sorted.length;
+              const noun = (n === 1 ? 'control' : 'controls');
+              if (currentView === 'setup') return n + ' ' + noun + (n === 1 ? ' needs setup' : ' need setup');
+              if (currentView === 'batteries') return n + ' ' + noun + (n === 1 ? ' has battery' : ' have battery');
+              if (currentView === 'paused') return n + ' ' + noun + (n === 1 ? ' is paused' : ' are paused');
+              return n + ' ' + noun;
+            })() + '</span>'
         + '</div>'
         + '</div>';
 
-      const cardListHtml = (sorted.length === 0)
-        ? '<div class="ctrl-card-empty">' + (controls.length > 0
-            ? 'No controls match the current filters.'
-            : 'No controls found. Click Update to scan Home Assistant.') + '</div>'
-        : '<div class="ctrl-card-list">' + sorted.map(c => renderControlCard(c, currentView)).join('') + '</div>';
+      // Grouped card list — single rounded container with internal
+       // dividers. Two grouping modes:
+       //  1. PAUSED view → split by Scheduled (timed) vs Forever (no expiry).
+       //  2. ALL view + active area filter → split by In <area> vs Reaches <area>,
+       //     mirroring the area-details Controls card model.
+       // Other views render flat.
+      let cardListHtml;
+      if (sorted.length === 0) {
+        cardListHtml = '<div class="ctrl-card-empty">' + (controls.length > 0
+          ? 'No controls match the current filters.'
+          : 'No controls found. Click Update to scan Home Assistant.') + '</div>';
+      } else if (currentView === 'paused') {
+        // Scheduled = has an inactive_until timestamp (whether expired or
+        // future). Forever = no until-date or 'forever' sentinel.
+        const scheduled = [];
+        const forever = [];
+        for (const c of sorted) {
+          const iu = c.inactive_until;
+          if (iu && iu !== 'forever') scheduled.push(c);
+          else forever.push(c);
+        }
+        let inner = '';
+        if (scheduled.length) {
+          inner += buildGroupDivider('Scheduled', scheduled.length);
+          inner += scheduled.map(c => renderControlCard(c, 'paused')).join('');
+        }
+        if (forever.length) {
+          inner += buildGroupDivider('Forever', forever.length);
+          inner += forever.map(c => renderControlCard(c, 'paused')).join('');
+        }
+        cardListHtml = '<div class="ctrl-card-list">' + inner + '</div>';
+      } else if (currentView === 'all' && areaFilter !== 'all' && areaFilter !== 'unassigned') {
+        // Area filter active — 3-bucket grouping (shared with the
+        // area-details Controls card via bucketControlsForArea).
+        const targetAreaId = (allAreas.find(a => a.name === areaFilter) || {}).area_id;
+        const buckets = bucketControlsForArea(sorted, targetAreaId, areaFilter);
+        let inner = '';
+        if (buckets.primary.length) {
+          inner += buildGroupDivider('Main reach', buckets.primary.length);
+          inner += buckets.primary.map(c => renderControlCard(c, 'all')).join('');
+        }
+        if (buckets.other.length) {
+          inner += buildGroupDivider('Other reaches', buckets.other.length);
+          inner += buckets.other.map(c => renderControlCard(c, 'all')).join('');
+        }
+        if (buckets.livesOnly.length) {
+          inner += buildGroupDivider('Lives here only', buckets.livesOnly.length);
+          inner += buckets.livesOnly.map(c => renderControlCard(c, 'all')).join('');
+        }
+        cardListHtml = '<div class="ctrl-card-list">' + inner + '</div>';
+      } else {
+        // Flat list — no grouping.
+        cardListHtml = '<div class="ctrl-card-list">' + sorted.map(c => renderControlCard(c, currentView)).join('') + '</div>';
+      }
 
       container.innerHTML = toolbarHtml + cardListHtml;
 
@@ -1360,49 +1461,26 @@
           }
           primaryHtml = '<span class="ctrl-card-pri-muted">' + txt + '</span>';
         }
-      } else if (view === 'setup') {
-        primaryHtml = '<span class="ctrl-card-pri-muted">configure &rarr;</span>';
       } else {
-        // ALL view: right-side field is driven by the sort axis — what
-        // you're scanning by gets the visual emphasis. sort=recent shows
-        // last action (relative time + verb). sort=area shows the area
-        // name. sort=name falls back to last action (recency is the most
-        // common implicit context users care about).
-        if (sortColumn === 'area') {
-          // Sort by Location — show area + glozone on the right.
-          const areaName = c.area_name || '—';
-          const glozone = getGlozoneForArea(c.area_id);
-          primaryHtml = '<div class="ctrl-card-pri-stack">'
-            + '<span class="ctrl-card-pri">' + areaName + '</span>'
-            + (glozone ? '<span class="ctrl-card-pri-muted">' + glozone + '</span>' : '')
-            + '</div>';
-        } else {
-          // sort=recent (and fall-through default for sort=name): 2-line
-          // last-action — relative time on top (bold), action verb below
-          // (muted). Mirrors the card body's 2-line name + summary on the left.
-          const lastTs = c.last_action && c.last_action.timestamp;
-          const timeStr = lastTs ? formatRelativeTime(lastTs) : '';
-          const actionStr = formatActionLabel(c);
-          if (timeStr || actionStr) {
-            primaryHtml = '<div class="ctrl-card-pri-stack">'
-              + (timeStr ? '<span class="ctrl-card-pri">' + timeStr + '</span>' : '')
-              + (actionStr ? '<span class="ctrl-card-pri-muted">' + actionStr + '</span>' : '')
-              + '</div>';
-          } else {
-            primaryHtml = '<span class="ctrl-card-pri-muted">&mdash;</span>';
-          }
-        }
+        // ALL & SETUP: just the area name on the right. Glozone removed —
+        // most homes have one or a few zones; repeating it on every card
+        // is busy without adding info. Battery / Paused views keep
+        // their task-specific primary field.
+        const areaNameStr = c.area_name || 'Unassigned';
+        const areaCls = c.area_name ? 'ctrl-card-pri' : 'ctrl-card-pri-muted';
+        primaryHtml = '<span class="' + areaCls + '">' + areaNameStr + '</span>';
       }
 
       const rowClass = c.stale ? 'ctrl-card-row is-stale' : 'ctrl-card-row';
       const safeId = c.id.replace(/'/g, "\\'");
       // "What this controls" summary — the most useful sub-line per the
-      // user's framing. Replaces the old area+zone location line, which
-      // was redundant (device names typically start with area, and scopes
-      // contain areas anyway). Location info still lives on control detail.
-      const summaryHtml = controlSummary(c);
+      // user's framing. Replaces the old area+zone location line. The
+      // Leading "→" acts as an "action/effect" descriptor for the row.
+      // Internal arrow inside the body is dropped to avoid duplication
+      // (sensor single-scope renders as "5m Master" — adjacency).
+      const summaryHtml = pageControlSummary(c);
       const summaryLine = summaryHtml
-        ? '<div class="ctrl-card-summary"><span class="arrow">&rarr;</span>' + summaryHtml + '</div>'
+        ? '<div class="ctrl-card-summary"><span class="lead">&rarr;</span>' + summaryHtml + '</div>'
         : '';
       return ''
         + '<div class="' + rowClass + '" onclick="editControl(\'' + safeId + '\')">'
@@ -1416,7 +1494,6 @@
         +     summaryLine
         +   '</div>'
         +   primaryHtml
-        +   '<span class="ctrl-card-chevron">&#x203A;</span>'
         + '</div>';
     }
 
@@ -1430,75 +1507,16 @@
       renderControls();
     }
 
-    // ============================================================
-    // "What this control does" summary
-    // ============================================================
-    // Switches: primary scope = scopes[0]. Format = "<featured> + N" for
-    //           the primary scope's areas, then a secondary "+N reaches"
-    //           tag if there are additional scopes (other reaches the user
-    //           can change to via change-reach). We never mix areas across
-    //           scopes — each scope is a discrete "what this controls" set.
-    // Sensors:  scopes group by mode. on_only + on_off scopes are
-    //           "controlled areas" (what the sensor turns on); we union
-    //           their areas. alert scopes are secondary — flagged with a
-    //           small "alert" tag without further detail.
-    function controlSummary(c) {
-      const scopes = c.scopes || [];
-      if (!scopes.length) return '';
-      if (c.category === 'switch') {
-        const primary = scopes[0];
-        if (!primary) return '';
-        const primaryFmt = formatAreasList(primary.areas || []);
-        const moreReaches = scopes.length - 1;
-        let html = '<span class="primary">' + (primaryFmt || '&mdash;') + '</span>';
-        if (moreReaches > 0) {
-          html += '<span class="secondary">+' + moreReaches + ' reach' + (moreReaches !== 1 ? 'es' : '') + '</span>';
-        }
-        return html;
-      }
-      // Motion / contact / camera
-      const controlledModes = new Set(['on_only', 'on_off', 'on']);
-      const controlled = scopes.filter(s => controlledModes.has(s.mode));
-      const alerts = scopes.filter(s => s.mode === 'alert');
-      // Union of controlled-scope areas (these all "control" the same way,
-      // safe to merge per user's framing).
-      const seen = new Set();
-      const allCtrlAreas = [];
-      for (const s of controlled) {
-        for (const a of (s.areas || [])) {
-          if (!seen.has(a)) {
-            seen.add(a);
-            allCtrlAreas.push(a);
-          }
-        }
-      }
-      if (!allCtrlAreas.length && !alerts.length) return '';
-      let html = '';
-      if (allCtrlAreas.length) {
-        html += '<span class="primary">' + formatAreasList(allCtrlAreas) + '</span>';
-      }
-      if (alerts.length) {
-        html += '<span class="secondary">' + (allCtrlAreas.length ? '+ alert' : 'alert') + '</span>';
-      }
-      return html;
+    // controlSummary + summary helpers + bucketControlsForArea live in
+    // shared.js (used by both /switches and the area-details Controls
+    // card). Page-local wrapper to thread allAreas + the active filter.
+    function getFilterAreaId() {
+      if (areaFilter === 'all' || areaFilter === 'unassigned') return null;
+      const a = (allAreas || []).find(x => x.name === areaFilter);
+      return a ? a.area_id : null;
     }
-
-    // Format a list of area_ids for the scope summary. Now that the
-    // area+zone sub-line is gone, the summary has room to spell out
-    // multiple areas before falling back to "+N":
-    //   1: "Living"
-    //   2: "Living, Kitchen"
-    //   3: "Living, Kitchen, Dining"
-    //   4+: "Living, Kitchen, Dining + N"
-    function formatAreasList(areaIds) {
-      if (!areaIds || !areaIds.length) return '';
-      const names = areaIds.map(id => {
-        const a = (allAreas || []).find(x => x.area_id === id);
-        return a ? a.name : id;
-      });
-      const sorted = [...names].sort((a, b) => a.localeCompare(b));
-      if (sorted.length <= 3) return sorted.join(', ');
-      return sorted.slice(0, 3).join(', ') + ' + ' + (sorted.length - 3);
+    function pageControlSummary(c) {
+      return controlSummary(c, { allAreas: allAreas, filterAreaId: getFilterAreaId(), deviceAreaId: c.area_id });
     }
 
     function getStatusSubtitle(ctrl) {
@@ -1531,6 +1549,14 @@
         'unknown': 'Unknown'
       };
       return labels[category] || category || '—';
+    }
+
+    function searchGlyphIcon() {
+      return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>`;
+    }
+
+    function filterGlyphIcon() {
+      return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 9v6l-4-2v-4z"/></svg>`;
     }
 
     function categoryIcon(category) {
@@ -1826,17 +1852,27 @@
         }
       });
       document.getElementById('controls-container').addEventListener('click', (e) => {
-        if (e.target.id === 'ctrl-search-clear') {
+        if (e.target.closest('#ctrl-search-clear')) {
           searchFilter = '';
+          _searchExpanded = false;
           savePreferences();
           renderControls();
           return;
         }
-        // Type chip filter — single-select, click to set, click again to clear.
-        const chip = e.target.closest && e.target.closest('.ctrl-type-chip');
-        if (chip) {
-          const t = chip.dataset.type;
-          categoryFilter = (t === 'all' || t === categoryFilter) ? 'all' : t;
+        if (e.target.closest('#ctrl-search-toggle')) {
+          _searchExpanded = true;
+          renderControls(true);
+          return;
+        }
+        if (e.target.closest('#ctrl-type-trigger')) {
+          _typePopoverOpen = !_typePopoverOpen;
+          renderControls();
+          return;
+        }
+        const opt = e.target.closest && e.target.closest('.ctrl-type-option');
+        if (opt) {
+          categoryFilter = opt.dataset.type || 'all';
+          _typePopoverOpen = false;
           savePreferences();
           renderControls();
           return;
@@ -1846,6 +1882,27 @@
       document.getElementById('controls-container').addEventListener('input', (e) => {
         if (e.target.id === 'ctrl-search') {
           handleSearch(e.target.value);
+        }
+      });
+      // Search input blur — collapse back to icon when empty. Deferred
+      // so that re-renders (which destroy/recreate the input mid-typing)
+      // don't trigger a false collapse: after the timeout, if the new
+      // input has focus, we abort.
+      document.getElementById('controls-container').addEventListener('focusout', (e) => {
+        if (e.target.id !== 'ctrl-search' || searchFilter) return;
+        setTimeout(() => {
+          const cur = document.getElementById('ctrl-search');
+          if (cur === document.activeElement) return;
+          if (searchFilter) return;
+          _searchExpanded = false;
+          renderControls();
+        }, 0);
+      });
+      // Click outside type popover → close it.
+      document.addEventListener('click', (e) => {
+        if (_typePopoverOpen && !e.target.closest('.ctrl-type-wrap')) {
+          _typePopoverOpen = false;
+          renderControls();
         }
       });
     }

@@ -774,6 +774,187 @@ function buildGroupDivider(title, count) {
 }
 
 // =============================================================================
+// Control summary — "what this control does", scopes-driven. Shared between
+// the controls list page (/switches) and the area-details Controls card. The
+// page passes its `allAreas` registry plus optional `filterAreaId` (when
+// scoped to one area) and `deviceAreaId` (the control's home area, used for
+// switch reach prioritization).
+// =============================================================================
+
+function controlSummaryAreaName(areaId, allAreas) {
+  const a = (allAreas || []).find(x => x.area_id === areaId);
+  return a ? a.name : areaId;
+}
+
+// Format a list of area_ids alphabetically: 1-3 names spelled, +N for rest.
+function controlSummaryFormatAreasList(areaIds, allAreas) {
+  if (!areaIds || !areaIds.length) return '';
+  const names = areaIds.map(id => controlSummaryAreaName(id, allAreas));
+  const sorted = [...names].sort((a, b) => a.localeCompare(b));
+  if (sorted.length <= 3) return sorted.join(', ');
+  return sorted.slice(0, 3).join(', ') + ' + ' + (sorted.length - 3);
+}
+
+// Format a list of area_ids with priority ordering: the device's home area
+// first (if in the list), then the filtered area (if different and in the
+// list), then the natural scope order. Up to 3 names spelled, +N for rest.
+function controlSummaryFormatAreasListPrioritized(areaIds, allAreas, deviceAreaId, filterAreaId) {
+  if (!areaIds || !areaIds.length) return '';
+  const remaining = [...areaIds];
+  const ordered = [];
+  const take = (id) => {
+    const idx = remaining.indexOf(id);
+    if (idx >= 0) {
+      ordered.push(id);
+      remaining.splice(idx, 1);
+    }
+  };
+  if (deviceAreaId) take(deviceAreaId);
+  if (filterAreaId && filterAreaId !== deviceAreaId) take(filterAreaId);
+  ordered.push(...remaining);
+  const names = ordered.map(id => controlSummaryAreaName(id, allAreas));
+  if (names.length <= 3) return names.join(', ');
+  return names.slice(0, 3).join(', ') + ' + ' + (names.length - 3);
+}
+
+// Compact label for one sensor scope's mode + duration.
+//   on_off:        "5m" / "30s" / "1h"  (mode implied by duration)
+//   on / on_only:  "on"
+//   alert:         "alert"
+function controlSummaryFormatSensorScopeLabel(scope) {
+  const mode = scope.mode;
+  if (mode === 'alert') return 'alert';
+  if (mode === 'on_only' || mode === 'on') return 'on';
+  const secs = scope.duration || 60;
+  if (secs < 60) return secs + 's';
+  return formatDurationRemaining(secs / 60, '');
+}
+
+function controlSummaryFormatSensorModeName(mode) {
+  if (mode === 'on_off') return 'on/off';
+  if (mode === 'on_only' || mode === 'on') return 'on';
+  if (mode === 'alert') return 'alert';
+  return mode;
+}
+
+// Aggregate sensor scopes by mode → "on/off 3 · on 2 · alert 5".
+// Per-mode count = unique-area count across scopes of that mode.
+function controlSummaryAggregateSensorScopes(scopes) {
+  const order = ['on_off', 'on_only', 'on', 'alert'];
+  const seenAreasByMode = {};
+  for (const s of scopes) {
+    if (!s.mode || s.mode === 'disabled') continue;
+    if (!seenAreasByMode[s.mode]) seenAreasByMode[s.mode] = new Set();
+    for (const a of (s.areas || [])) seenAreasByMode[s.mode].add(a);
+  }
+  const segs = [];
+  for (const mode of order) {
+    if (seenAreasByMode[mode]) {
+      segs.push(controlSummaryFormatSensorModeName(mode) + ' ' + seenAreasByMode[mode].size);
+    }
+  }
+  for (const mode in seenAreasByMode) {
+    if (!order.includes(mode)) {
+      segs.push(controlSummaryFormatSensorModeName(mode) + ' ' + seenAreasByMode[mode].size);
+    }
+  }
+  return segs.join(' · ');
+}
+
+function controlSummarySwitchAllScopes(scopes, allAreas, deviceAreaId) {
+  const primary = scopes[0];
+  if (!primary) return '';
+  const areas = controlSummaryFormatAreasListPrioritized(primary.areas || [], allAreas, deviceAreaId, null);
+  const moreReaches = scopes.length - 1;
+  let html = '<span class="primary">' + (areas || '&mdash;') + '</span>';
+  if (moreReaches > 0) {
+    html += '<span class="secondary">+' + moreReaches + ' reach' + (moreReaches !== 1 ? 'es' : '') + '</span>';
+  }
+  return html;
+}
+
+function controlSummarySwitchAreaFiltered(scopes, filterAreaId) {
+  const segs = [];
+  scopes.forEach(function (s, idx) {
+    const list = s.areas || [];
+    if (!list.includes(filterAreaId)) return;
+    const reachNum = idx + 1;
+    const partners = list.filter(a => a !== filterAreaId).length;
+    segs.push(partners > 0 ? 'reach ' + reachNum + ' +' + partners : 'reach ' + reachNum);
+  });
+  if (!segs.length) return '';
+  return '<span class="primary">' + segs.join(' · ') + '</span>';
+}
+
+function controlSummarySensorAllScopes(scopes, allAreas) {
+  const enabled = scopes.filter(s => s.mode && s.mode !== 'disabled');
+  if (!enabled.length) return '';
+  if (enabled.length === 1) {
+    const s = enabled[0];
+    const action = controlSummaryFormatSensorScopeLabel(s);
+    const targets = controlSummaryFormatAreasList(s.areas || [], allAreas);
+    return '<span class="primary">' + action + (targets ? ' ' + targets : '') + '</span>';
+  }
+  return '<span class="primary">' + controlSummaryAggregateSensorScopes(enabled) + '</span>';
+}
+
+function controlSummarySensorAreaFiltered(scopes, filterAreaId) {
+  const filtered = scopes.filter(s =>
+    s.mode && s.mode !== 'disabled' && (s.areas || []).includes(filterAreaId)
+  );
+  if (!filtered.length) return '';
+  if (filtered.length === 1) {
+    return '<span class="primary">' + controlSummaryFormatSensorScopeLabel(filtered[0]) + '</span>';
+  }
+  return '<span class="primary">' + controlSummaryAggregateSensorScopes(filtered) + '</span>';
+}
+
+// Top-level dispatcher. opts = { allAreas, filterAreaId, deviceAreaId }.
+// Returns the inner HTML for the summary line (excluding the leading glyph
+// — callers wrap with `<div class="ctrl-card-summary"><span class="lead">→</span>...</div>`).
+function controlSummary(c, opts) {
+  opts = opts || {};
+  const scopes = c.scopes || [];
+  if (!scopes.length) return '';
+  const allAreas = opts.allAreas || [];
+  const filterAreaId = opts.filterAreaId || null;
+  const deviceAreaId = opts.deviceAreaId || c.area_id || null;
+  if (c.category === 'switch') {
+    return filterAreaId
+      ? controlSummarySwitchAreaFiltered(scopes, filterAreaId)
+      : controlSummarySwitchAllScopes(scopes, allAreas, deviceAreaId);
+  }
+  return filterAreaId
+    ? controlSummarySensorAreaFiltered(scopes, filterAreaId)
+    : controlSummarySensorAllScopes(scopes, allAreas);
+}
+
+// Bucket controls when filtering by a specific area. Returns three
+// arrays based on the smallest reach-index of the filter area in each
+// control's scopes:
+//   primary   = filter area appears in scope 0
+//   other     = filter area appears in scope 1+ (not 0)
+//   livesOnly = control's home area equals the filter, but no scope
+//               reaches it (physically located there, doesn't target it)
+function bucketControlsForArea(controls, filterAreaId, currentAreaName) {
+  const primary = [];
+  const other = [];
+  const livesOnly = [];
+  for (const c of controls) {
+    let smallest = -1;
+    (c.scopes || []).forEach(function (s, idx) {
+      if ((s.areas || []).includes(filterAreaId) && smallest === -1) smallest = idx;
+    });
+    if (smallest === 0) primary.push(c);
+    else if (smallest > 0) other.push(c);
+    else if (currentAreaName != null
+             ? c.area_name === currentAreaName
+             : c.area_id === filterAreaId) livesOnly.push(c);
+  }
+  return { primary, other, livesOnly };
+}
+
+// =============================================================================
 // View segments bar — shared mode-picker component used on the home page,
 // controls list, and cheatsheet. Each consuming page mounts it via this
 // function with its own views array + onSelect callback. The component
