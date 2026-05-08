@@ -943,7 +943,11 @@
     .tune-brightness-card.is-open .tune-brightness-chevron { transform: rotate(90deg); }
     .tune-controls-card.is-open .tune-brightness-chevron { transform: rotate(90deg); }
     .tune-controls-card.is-open .tune-brightness-val { opacity: 0; }
-    .tune-controls-card.is-open .tune-brightness-body { max-height: 800px; opacity: 1; padding-bottom: 8px; }
+    /* max-height is required for the open-transition (can't animate to
+       `auto`); set well above any real-world controls list height so it
+       acts as "effectively unlimited". 800px clipped Kitchens with many
+       controls; 6000px matches the auto-sched-card--auto pattern. */
+    .tune-controls-card.is-open .tune-brightness-body { max-height: 6000px; opacity: 1; padding-bottom: 8px; }
 
     /* Controls list inside Controls card */
     .ctrl-list-row { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--line); cursor: pointer; transition: background 0.1s; }

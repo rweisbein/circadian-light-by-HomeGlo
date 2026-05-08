@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.291
+- **Area-details Controls card no longer clips long lists.** `max-height: 800px` (set when lists were shorter) replaced with 6000px — matches the existing auto-sched-card--auto pattern and accommodates Kitchens with many controls in all 4 buckets.
+
 ## 1.2.290
 - **Control-details card persistence.** Open/closed state of `Settings`, `Reach`, `Buttons` (switches), and per-reach scope cards (sensors) now saves to localStorage and restores on next visit. After the HomeGlo Lab card-freshness window passes, the next visit resets to defaults: switches → Reach open / Settings + Buttons closed; sensors → all reach scope cards open / Settings closed. Deep-link `?from=area&id=...` pre-expansion still layers on top (adds matching reach cards to whatever was already open).
 - **Rhythm-design card persistence.** `Sleep`, `Brightness`, `Color` cards now persist their open/closed state with the same freshness rule. Default-after-stale: all three collapsed. The existing deep-link `?back=tune` auto-expand of the Color card still works.
