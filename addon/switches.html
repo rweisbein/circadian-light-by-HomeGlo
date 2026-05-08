@@ -1085,11 +1085,13 @@
         // fourthField-driven filters run only for the ALL view (since
         // other views ARE the filter).
         if (currentView === 'setup') {
-          // Setup = no scope has any reach areas configured. The control
-          // exists in HA but isn't wired to do anything yet — that's the
-          // "needs setup" signal regardless of paused/last-used state.
-          const hasAnyReach = (c.scopes || []).some(s => s.areas && s.areas.length > 0);
-          if (hasAnyReach) return false;
+          // Setup = backend says status='not_configured' — the same
+          // signal that drives the per-card "setup" badge. Backend rule
+          // for switches: configured iff has scope areas OR has any
+          // magic_buttons assigned. For sensors: configured iff has at
+          // least one scope with areas. Aligning with the badge ensures
+          // the view and the badge always agree.
+          if (c.status !== 'not_configured') return false;
         } else if (currentView === 'batteries') {
           // Battery-powered controls only.
           if (c.battery == null || c.battery.value == null) return false;
@@ -1235,7 +1237,7 @@
       // "secondary filters don't affect each other" rule.
       const viewMatches = (c) => {
         if (currentView === 'setup')
-          return !(c.scopes || []).some(s => s.areas && s.areas.length > 0);
+          return c.status === 'not_configured';
         if (currentView === 'batteries')
           return c.battery != null && c.battery.value != null;
         if (currentView === 'paused')

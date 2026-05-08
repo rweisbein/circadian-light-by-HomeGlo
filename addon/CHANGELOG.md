@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.288
+- **SETUP view ↔ setup badge consistency.** The view predicate now matches the badge predicate exactly: both check `status === 'not_configured'` (backend-determined). v287's frontend-only "no scope areas" check missed switches that the backend considers configured via magic_buttons (no scope areas, but magic buttons assigned → backend marks `active`, badge doesn't show, but v287 still pulled them into SETUP view). Aligning to the backend signal makes the badge and the view inseparable by definition.
+
 ## 1.2.287
 - **SETUP view predicate fixed.** Was filtering to `paused + never used`, which mostly matched "old auto-created and forgotten" controls. New predicate: **no scope has any reach areas configured** — i.e., the control exists but isn't wired to do anything yet. That's the actual "needs setup" signal regardless of pause/use state.
 - **Count phrase qualifies by all active filters.** Reads as a single English sentence: `4 motion sensors in Kitchen have battery` / `1 control without an area is paused` / `12 switches in Kitchen`. Type filter swaps the noun (`switches`, `motion sensors`, `contact sensors`, `cameras`); area filter inserts ` in <area>` or ` without an area`. Search filter is intentionally not reflected — it'd jitter on every keystroke and the search box already shows the active term.
