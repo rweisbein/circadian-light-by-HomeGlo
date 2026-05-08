@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.287
+- **SETUP view predicate fixed.** Was filtering to `paused + never used`, which mostly matched "old auto-created and forgotten" controls. New predicate: **no scope has any reach areas configured** — i.e., the control exists but isn't wired to do anything yet. That's the actual "needs setup" signal regardless of pause/use state.
+- **Count phrase qualifies by all active filters.** Reads as a single English sentence: `4 motion sensors in Kitchen have battery` / `1 control without an area is paused` / `12 switches in Kitchen`. Type filter swaps the noun (`switches`, `motion sensors`, `contact sensors`, `cameras`); area filter inserts ` in <area>` or ` without an area`. Search filter is intentionally not reflected — it'd jitter on every keystroke and the search box already shows the active term.
+
 ## 1.2.286
 - **`reach 1 +3` → `reach 1 (+3)`.** Parens disambiguate the `+N` partner count so it doesn't read as "reach 1 and 3" (especially next to the dot-joined `reach 1 · reach 3 +3` form). Multi-reach now reads `reach 1 (+3) · reach 3 (+3)`.
 - **`Lives here only` bucket header → `Doesn't reach <area>`.** Direct, names the problem, no jargon. Same label format on /switches (uses the active area filter) and area-details (uses the page's area). Inside-context still implicit (the page or filter pins what "here" means).
