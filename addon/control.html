@@ -806,13 +806,16 @@
       color: var(--accent);
     }
 
-    .btn-map-section { display: flex; align-items: center; padding: 4px 0; }
+    .btn-map-section { display: flex; align-items: center; padding: 4px 0; gap: 6px; }
     .btn-map-section + .btn-map-section { border-top: 2px solid rgba(255, 255, 255, 0.08); }
-    .btn-map-label { width: 80px; flex-shrink: 0; display: flex; align-items: center; gap: 5px; font-weight: 500; font-size: 0.85rem; }
+    /* Badge-only label (no button-name text) — same treatment as the
+       cheatsheet (switchmap.html). Keeps the icon close to the press
+       type so the eye doesn't have to traverse a long gap. */
+    .btn-map-label { flex-shrink: 0; display: flex; align-items: center; }
     .btn-map-actions { flex: 1; min-width: 0; }
-    .btn-map-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+    .btn-map-row { display: flex; align-items: center; gap: 12px; padding: 3px 0; }
     .btn-map-row + .btn-map-row { border-top: 1px solid rgba(255, 255, 255, 0.03); }
-    .btn-map-type { font-size: 0.75rem; color: var(--muted); min-width: 32px; }
+    .btn-map-type { font-size: 0.75rem; color: var(--muted); min-width: 56px; }
     .btn-map-action { font-size: 0.85rem; }
     .btn-map-magic { display: flex; align-items: center; gap: 4px; flex: 1; }
     .btn-map-magic select { flex: 1; padding: 4px 6px; border-radius: 5px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.85rem; }
@@ -1091,11 +1094,76 @@
     }
 
     // ============================================================
-    // Card toggle
+    // Card toggle + persistence
     // ============================================================
+    // Per-card open/closed state lives in localStorage so the page
+    // restores how you left it. After the HomeGlo Lab card-freshness
+    // window passes (default 15min), the next visit resets to defaults:
+    //   Switch: Reach (switch-config) open; Settings + Buttons closed.
+    //   Sensor: all motion-scope reach cards open; Settings closed.
+    const _CTRL_CARDS_TS_KEY = 'ctrl_cards_ts';
+    const _CTRL_CARDS_TTL_MS = cardFreshnessMs();
+    const _CTRL_CARD_OPEN_KEYS = {
+      'pause-section': 'ctrl_card_pause_open',
+      'switch-config-section': 'ctrl_card_switchconfig_open',
+      'magic-section': 'ctrl_card_magic_open',
+    };
+    const _CTRL_MOTION_SCOPES_KEY = 'ctrl_motion_scopes_open';
+
+    function _resetCtrlCardsIfStale(category, motionScopeCount) {
+      const tsRaw = localStorage.getItem(_CTRL_CARDS_TS_KEY);
+      const ts = tsRaw ? parseInt(tsRaw, 10) : 0;
+      const now = Date.now();
+      if (ts && (now - ts) <= _CTRL_CARDS_TTL_MS) return;
+      const isSwitch = category === 'switch';
+      localStorage.setItem(_CTRL_CARD_OPEN_KEYS['pause-section'], 'false');
+      if (isSwitch) {
+        localStorage.setItem(_CTRL_CARD_OPEN_KEYS['switch-config-section'], 'true');
+        localStorage.setItem(_CTRL_CARD_OPEN_KEYS['magic-section'], 'false');
+      } else {
+        const allIdx = [];
+        for (let i = 0; i < (motionScopeCount || 0); i++) allIdx.push(i);
+        localStorage.setItem(_CTRL_MOTION_SCOPES_KEY, JSON.stringify(allIdx));
+      }
+      localStorage.setItem(_CTRL_CARDS_TS_KEY, String(now));
+    }
+
+    function _applyCtrlCardOpenState(cardId) {
+      const card = document.getElementById(cardId);
+      if (!card) return;
+      const v = localStorage.getItem(_CTRL_CARD_OPEN_KEYS[cardId]);
+      if (v === 'true') card.classList.add('is-open');
+      else if (v === 'false') card.classList.remove('is-open');
+    }
+
+    function _loadCtrlMotionScopesFromStorage() {
+      const raw = localStorage.getItem(_CTRL_MOTION_SCOPES_KEY);
+      if (!raw) return;
+      try {
+        _motionScopeExpanded.clear();
+        JSON.parse(raw).forEach(i => _motionScopeExpanded.add(i));
+      } catch {}
+    }
+
+    function _persistCtrlCard(cardId) {
+      const card = document.getElementById(cardId);
+      if (!card) return;
+      const lsKey = _CTRL_CARD_OPEN_KEYS[cardId];
+      if (!lsKey) return;
+      localStorage.setItem(lsKey, String(card.classList.contains('is-open')));
+      localStorage.setItem(_CTRL_CARDS_TS_KEY, String(Date.now()));
+    }
+
+    function _persistCtrlMotionScopes() {
+      localStorage.setItem(_CTRL_MOTION_SCOPES_KEY, JSON.stringify(Array.from(_motionScopeExpanded)));
+      localStorage.setItem(_CTRL_CARDS_TS_KEY, String(Date.now()));
+    }
+
     function toggleCard(cardId) {
       const card = document.getElementById(cardId);
-      if (card) card.classList.toggle('is-open');
+      if (!card) return;
+      card.classList.toggle('is-open');
+      _persistCtrlCard(cardId);
     }
 
     // ============================================================
@@ -1780,7 +1848,6 @@
       let html = '';
 
       for (const btn of buttons) {
-        const btnName = buttonNames[btn] || btn.charAt(0).toUpperCase() + btn.slice(1);
         const badge = buttonBadges[btn] || btn;
 
         // Collect action rows for this button
@@ -1844,7 +1911,6 @@
           <div class="btn-map-section">
             <div class="btn-map-label">
               <span class="btn-badge-sm">${badge}</span>
-              <span>${btnName}</span>
             </div>
             <div class="btn-map-actions">
               ${actionRows}
@@ -2225,6 +2291,7 @@
       } else {
         _motionScopeExpanded.add(idx);
       }
+      _persistCtrlMotionScopes();
       renderMotionScopesEditor();
     }
 
@@ -2745,28 +2812,43 @@
 
       // Show settings section for all control types and set checkbox + timer
       pauseSection.style.display = '';
-      pauseSection.classList.add('is-open');
       document.getElementById('control-pause-checkbox').checked = editingInactive;
       document.getElementById('pause-timer-row').style.display = editingInactive ? 'flex' : 'none';
       initPauseTimer(ctrl.inactive_until);
+
+      // Card-state persistence: reset to defaults if stale, then apply
+      // saved open/closed state to each visible card. Default-after-stale:
+      //   Switch: Reach open, Settings + Buttons closed.
+      //   Sensor: all motion-scope reach cards open, Settings closed.
+      _resetCtrlCardsIfStale(ctrl.category, editingMotionScopes.length);
+      _applyCtrlCardOpenState('pause-section');
 
       if (isSensorType) {
         if (typeSectionEl) typeSectionEl.style.display = 'none';
         switchSection.style.display = 'none';
         motionSection.style.display = '';
-          document.getElementById('magic-section').style.display = 'none';
+        document.getElementById('magic-section').style.display = 'none';
+        // Restore expanded reach indices from localStorage before render
+        // so the initial draw matches saved state. Pre-expansion below
+        // (from `?from=area`) layers on top.
+        _loadCtrlMotionScopesFromStorage();
         renderMotionScopesEditor();
 
         // Pre-expand reaches containing the area we navigated from
         const fromParams = new URLSearchParams(window.location.search);
         if (fromParams.get('from') === 'area' && fromParams.get('id')) {
           const fromAreaId = fromParams.get('id');
+          let added = false;
           editingMotionScopes.forEach((s, idx) => {
-            if (s.areas && s.areas.includes(fromAreaId)) {
+            if (s.areas && s.areas.includes(fromAreaId) && !_motionScopeExpanded.has(idx)) {
               _motionScopeExpanded.add(idx);
+              added = true;
             }
           });
-          if (_motionScopeExpanded.size > 0) renderMotionScopesEditor();
+          if (added) {
+            _persistCtrlMotionScopes();
+            renderMotionScopesEditor();
+          }
         }
 
         // Show sensitivity row for ZHA motion sensors
@@ -2798,6 +2880,11 @@
         }
 
         renderScopesEditor();
+
+        // Apply persisted open/closed state to switch's top-level cards
+        // (Reach + Buttons). pause-section was applied above the branch.
+        _applyCtrlCardOpenState('switch-config-section');
+        _applyCtrlCardOpenState('magic-section');
       }
 
       // Highlight area chips matching the area we navigated from

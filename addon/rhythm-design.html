@@ -5223,11 +5223,49 @@ function getBrightnessWord(val) {
   return 'Very bright';
 }
 
+// Card-state persistence — open/closed state is saved per card and
+// restored on next visit. After the HomeGlo Lab card-freshness window
+// passes (default 15min), the next visit resets all cards to collapsed.
+const _RHYTHM_CARDS_TS_KEY = 'rhythm_cards_ts';
+const _RHYTHM_CARDS_TTL_MS = cardFreshnessMs();
+const _RHYTHM_CARD_KEYS = [
+  'rhythm_sleep_expanded',
+  'rhythm_brightness_expanded',
+  'rhythm_color_expanded',
+];
+
+function _resetRhythmCardsIfStale() {
+  const tsRaw = localStorage.getItem(_RHYTHM_CARDS_TS_KEY);
+  const ts = tsRaw ? parseInt(tsRaw, 10) : 0;
+  const now = Date.now();
+  if (ts && (now - ts) <= _RHYTHM_CARDS_TTL_MS) return;
+  for (const key of _RHYTHM_CARD_KEYS) localStorage.setItem(key, 'false');
+  localStorage.setItem(_RHYTHM_CARDS_TS_KEY, String(now));
+}
+
+function _applyRhythmCardStates() {
+  const cards = [
+    ['rhythm-sleep-card', 'rhythm_sleep_expanded'],
+    ['rhythm-brightness-card', 'rhythm_brightness_expanded'],
+    ['rhythm-color-card', 'rhythm_color_expanded'],
+  ];
+  for (const [cardId, key] of cards) {
+    const card = document.getElementById(cardId);
+    if (!card) continue;
+    const v = localStorage.getItem(key);
+    if (v === 'true') card.classList.add('is-open');
+    else card.classList.remove('is-open');
+  }
+}
+
 function toggleRhythmCard(cardId, storageKey) {
   const card = document.getElementById(cardId);
   if (!card) return;
-  // Multi-open: just toggle this card; siblings stay as they were.
   card.classList.toggle('is-open');
+  if (storageKey) {
+    localStorage.setItem(storageKey, String(card.classList.contains('is-open')));
+    localStorage.setItem(_RHYTHM_CARDS_TS_KEY, String(Date.now()));
+  }
 }
 
 function initAutoHideSliders() {
@@ -5734,7 +5772,10 @@ function setupEventListeners() {
   // Tap-to-reveal sliders
   initAutoHideSliders();
 
-  // All rhythm cards start collapsed (no localStorage restore)
+  // Card-state persistence (HomeGlo Lab freshness setting). Reset to
+  // defaults if stale, then apply saved open/closed to each card.
+  _resetRhythmCardsIfStale();
+  _applyRhythmCardStates();
 
   // Cool day sliders (sensitivity, start, end, fade)
   ['color-sensitivity', 'brightness-sensitivity', 'daylight-start', 'daylight-end', 'daylight-fade'].forEach(id => {

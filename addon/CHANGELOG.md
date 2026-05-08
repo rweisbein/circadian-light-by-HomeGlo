@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.290
+- **Control-details card persistence.** Open/closed state of `Settings`, `Reach`, `Buttons` (switches), and per-reach scope cards (sensors) now saves to localStorage and restores on next visit. After the HomeGlo Lab card-freshness window passes, the next visit resets to defaults: switches → Reach open / Settings + Buttons closed; sensors → all reach scope cards open / Settings closed. Deep-link `?from=area&id=...` pre-expansion still layers on top (adds matching reach cards to whatever was already open).
+- **Rhythm-design card persistence.** `Sleep`, `Brightness`, `Color` cards now persist their open/closed state with the same freshness rule. Default-after-stale: all three collapsed. The existing deep-link `?back=tune` auto-expand of the Color card still works.
+- **Buttons card on control-details polish (matches cheatsheet).** Button-name labels ("Power", "Up", "Dial"…) dropped — just the badge icon now. Press-type column ("Short", "2×", "Long") wider with bigger gap to the action label, but tighter to the badge so the row reads `[badge] [press-type    action]` instead of `[badge name------] [press-type action]`.
+
 ## 1.2.289
 - **Area-filtered controls grouping refined to 4 buckets.** `Main reach` / `Other reaches` / `Lives here only` is now `Direct reach to <area>` / `Indirect reach to <area>` / `Alerts <area>` / `Doesn't reach <area>`. Bucketing rule now type-aware:
   - **Switches** still bucket by reach index — scope[0] hits the area = Direct, scope[1+] only = Indirect.
