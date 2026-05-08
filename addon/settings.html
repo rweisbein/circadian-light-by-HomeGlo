@@ -1356,6 +1356,17 @@
 
         <div class="form-row">
           <label class="form-label">
+            Card freshness window
+            <span class="info-icon">i<span class="info-tooltip">How long collapsible-card open/closed state is remembered between visits. After this many minutes of inactivity, the next page load resets to defaults (e.g., area-details opens Adjust; control details opens Reach). Affects area-details, control-details, and rhythm-design pages.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="card-freshness-minutes" min="1" max="720" step="1" value="15" style="width: 80px;">
+            <span class="form-hint">minutes</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
             Tick command shape
             <span class="info-icon">i<span class="info-tooltip">Experimental — what gets sent each periodic tick. <b>Both</b> = current (brightness + CT in one turn_on). <b>Skip</b> = no command if neither changed within tolerance (1% / 25K). <b>Bri only</b> = drop CT from payload when CT unchanged. <b>CT only</b> = drop brightness from payload when bri unchanged. Use to identify what part of a redundant command makes some bulbs visibly bounce.</span></span>
           </label>
@@ -1569,6 +1580,10 @@
           document.getElementById('sun-saturation').value = config.sun_saturation ?? 40;
           document.getElementById('experimental-tick-mode').value = config.experimental_tick_mode ?? 'both';
           document.getElementById('controls-pulse-window-hours').value = config.controls_pulse_window_hours ?? 6;
+          document.getElementById('card-freshness-minutes').value = config.card_freshness_minutes ?? 15;
+          // Shadow into localStorage so card-persistence pages can read
+          // it synchronously on init (before they fetch /api/config).
+          localStorage.setItem('homeglo_card_freshness_min', String(config.card_freshness_minutes ?? 15));
         }
       } catch (err) {
         console.error('Error loading settings:', err);
@@ -1619,8 +1634,12 @@
         ct_comp_factor: parseFloat(document.getElementById('ct-comp-factor').value) || 1.7,
         sun_saturation: parseInt(document.getElementById('sun-saturation').value) || 40,
         experimental_tick_mode: document.getElementById('experimental-tick-mode').value || 'both',
-        controls_pulse_window_hours: parseFloat(document.getElementById('controls-pulse-window-hours').value) || 6
+        controls_pulse_window_hours: parseFloat(document.getElementById('controls-pulse-window-hours').value) || 6,
+        card_freshness_minutes: parseInt(document.getElementById('card-freshness-minutes').value, 10) || 15
       };
+      // Shadow card-freshness into localStorage so other pages can read
+      // it synchronously at init.
+      localStorage.setItem('homeglo_card_freshness_min', String(settings.card_freshness_minutes));
 
       try {
         const response = await fetch('./api/config', {
@@ -2197,6 +2216,7 @@
     document.getElementById('sun-saturation').addEventListener('blur', saveSettings);
     document.getElementById('experimental-tick-mode').addEventListener('change', saveSettings);
     document.getElementById('controls-pulse-window-hours').addEventListener('blur', saveSettings);
+    document.getElementById('card-freshness-minutes').addEventListener('blur', saveSettings);
 
     // Location functions
     function updateLocationSection(config) {

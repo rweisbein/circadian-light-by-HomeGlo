@@ -1358,22 +1358,26 @@
         }
         cardListHtml = '<div class="ctrl-card-list">' + inner + '</div>';
       } else if (currentView === 'all' && areaFilter !== 'all' && areaFilter !== 'unassigned') {
-        // Area filter active — 3-bucket grouping (shared with the
+        // Area filter active — 4-bucket grouping (shared with the
         // area-details Controls card via bucketControlsForArea).
         const targetAreaId = (allAreas.find(a => a.name === areaFilter) || {}).area_id;
         const buckets = bucketControlsForArea(sorted, targetAreaId, areaFilter);
         let inner = '';
-        if (buckets.primary.length) {
-          inner += buildGroupDivider('Main reach', buckets.primary.length);
-          inner += buckets.primary.map(c => renderControlCard(c, 'all')).join('');
+        if (buckets.direct.length) {
+          inner += buildGroupDivider('Direct reach to ' + areaFilter, buckets.direct.length);
+          inner += buckets.direct.map(c => renderControlCard(c, 'all')).join('');
         }
-        if (buckets.other.length) {
-          inner += buildGroupDivider('Other reaches', buckets.other.length);
-          inner += buckets.other.map(c => renderControlCard(c, 'all')).join('');
+        if (buckets.indirect.length) {
+          inner += buildGroupDivider('Indirect reach to ' + areaFilter, buckets.indirect.length);
+          inner += buckets.indirect.map(c => renderControlCard(c, 'all')).join('');
         }
-        if (buckets.livesOnly.length) {
-          inner += buildGroupDivider('Doesn’t reach ' + areaFilter, buckets.livesOnly.length);
-          inner += buckets.livesOnly.map(c => renderControlCard(c, 'all')).join('');
+        if (buckets.alerts.length) {
+          inner += buildGroupDivider('Alerts ' + areaFilter, buckets.alerts.length);
+          inner += buckets.alerts.map(c => renderControlCard(c, 'all')).join('');
+        }
+        if (buckets.doesntReach.length) {
+          inner += buildGroupDivider('Doesn’t reach ' + areaFilter, buckets.doesntReach.length);
+          inner += buckets.doesntReach.map(c => renderControlCard(c, 'all', { doesntReach: true })).join('');
         }
         cardListHtml = '<div class="ctrl-card-list">' + inner + '</div>';
       } else {
@@ -1398,7 +1402,8 @@
     // per view (battery % in BATTERIES, pause-until in PAUSED, etc.); the
     // body (name / area / glozone) is consistent across views. Click target
     // is the whole card.
-    function renderControlCard(c, view) {
+    function renderControlCard(c, view, opts) {
+      opts = opts || {};
       const lastTouchedSec = (c.last_action && c.last_action.timestamp)
         ? new Date(c.last_action.timestamp).getTime() / 1000
         : null;
@@ -1475,7 +1480,9 @@
       // Leading "→" acts as an "action/effect" descriptor for the row.
       // Internal arrow inside the body is dropped to avoid duplication
       // (sensor single-scope renders as "5m Master" — adjacency).
-      const summaryHtml = pageControlSummary(c);
+      const summaryHtml = opts.doesntReach
+        ? controlSummaryDoesntReach(c, allAreas)
+        : pageControlSummary(c);
       const summaryLine = summaryHtml
         ? '<div class="ctrl-card-summary"><span class="lead">&rarr;</span>' + summaryHtml + '</div>'
         : '';

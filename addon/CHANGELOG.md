@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.289
+- **Area-filtered controls grouping refined to 4 buckets.** `Main reach` / `Other reaches` / `Lives here only` is now `Direct reach to <area>` / `Indirect reach to <area>` / `Alerts <area>` / `Doesn't reach <area>`. Bucketing rule now type-aware:
+  - **Switches** still bucket by reach index — scope[0] hits the area = Direct, scope[1+] only = Indirect.
+  - **Sensors / cameras / contact** bucket by mode — any `on` / `on_off` scope hits the area = Direct (reach index doesn't matter for sensors); only `alert` scopes hit the area = Alerts. Reach-index ordering doesn't apply to sensors so they don't get an Indirect bucket.
+  - **Each control appears once.** Precedence: Direct > Indirect/Alerts > Doesn't reach.
+- **`Doesn't reach <area>` summary line now shows the control's actual reach** (instead of empty/area-filtered nothing). Switches: standard non-area-filtered area list. Sensors: dedicated form — union of areas reached by `on`/`on_off` scopes, falling back to `alert` areas if there are no on/on_off areas. Right-side home-area field also restored in this bucket on area-details (was hidden for "redundancy"; visual consistency wins).
+- **Card-freshness window is now a HomeGlo Lab setting** (default 15 min). New `card_freshness_minutes` field in Lab section + localStorage shadow so card-persistence pages can read it synchronously at init. Wired to area-details now; control-details and rhythm-design will adopt it next.
+
 ## 1.2.288
 - **SETUP view ↔ setup badge consistency.** The view predicate now matches the badge predicate exactly: both check `status === 'not_configured'` (backend-determined). v287's frontend-only "no scope areas" check missed switches that the backend considers configured via magic_buttons (no scope areas, but magic buttons assigned → backend marks `active`, badge doesn't show, but v287 still pulled them into SETUP view). Aligning to the backend signal makes the badge and the view inseparable by definition.
 

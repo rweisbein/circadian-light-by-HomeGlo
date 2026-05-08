@@ -1527,7 +1527,9 @@
     //      pattern used by the main controls list page so the area-details
     //      doesn't get stuck in an unusual layout from a previous session.
     const _AREA_CARDS_TS_KEY = 'area_cards_ts';
-    const _AREA_CARDS_TTL_MS = 15 * 60 * 1000;
+    // TTL is read at module init via the HomeGlo Lab freshness setting
+    // (cardFreshnessMs in shared.js, backed by localStorage).
+    const _AREA_CARDS_TTL_MS = cardFreshnessMs();
     const _AREA_CARD_KEYS = [
       'adjust_collapsed', 'schedule_collapsed', 'tune_collapsed',
       'tune_adj_open', 'tune_individual_open', 'tune_controls_expanded',
@@ -6013,26 +6015,28 @@
     }
 
     // Row format mirrors /switches: pulse | icon | (name+summary) | rightArea.
-    // currentAreaId is needed so controlSummary can produce the area-filtered
-    // form ("reach 1 +2", "5m") instead of the all-scopes form. hideRightArea
-    // suppresses the right-side home area (used for the "Lives here only"
-    // group where it'd just repeat the current area).
-    function renderControlRow(ctrl, currentAreaId, hideRightArea) {
+    // opts.doesntReach: control is in the "Doesn't reach <area>" bucket —
+    // use the dedicated summary form (no area-filter perspective). Right
+    // side still shows home area for visual consistency across buckets.
+    function renderControlRow(ctrl, currentAreaId, opts) {
+      opts = opts || {};
       const icon = controlCategoryIcon(ctrl.category);
       const pausedBadge = ctrl.inactive ? '<span class="ctrl-paused-badge">paused</span>' : '';
       const encodedId = encodeURIComponent(ctrl.id);
       const areaIdParam = selectedArea ? encodeURIComponent(selectedArea.area_id) : '';
       const dotHtml = buildPulseDot(controlLastActionSec(ctrl), controlsPulseWindowHours());
-      const summary = controlSummary(ctrl, {
-        allAreas: areas,
-        filterAreaId: currentAreaId,
-        deviceAreaId: ctrl.area_id,
-      });
+      const summary = opts.doesntReach
+        ? controlSummaryDoesntReach(ctrl, areas)
+        : controlSummary(ctrl, {
+            allAreas: areas,
+            filterAreaId: currentAreaId,
+            deviceAreaId: ctrl.area_id,
+          });
       const summaryLine = summary
         ? `<div class="ctrl-card-summary"><span class="lead">&rarr;</span>${summary}</div>`
         : '';
       const homeAreaName = ctrl.area_id ? areaName(ctrl.area_id) : '';
-      const rightArea = (!hideRightArea && homeAreaName)
+      const rightArea = homeAreaName
         ? `<span class="ctrl-list-area">${homeAreaName}</span>`
         : '';
       return `<div class="ctrl-list-row" onclick="window.location.href='${basePath}/control/${encodedId}?from=area&id=${areaIdParam}'">`
@@ -6069,24 +6073,27 @@
       // Headers only render when 2+ buckets have content — a single bucket
       // is just "the controls", and the card title already names that.
       const populatedBuckets =
-        (buckets.primary.length > 0 ? 1 : 0)
-        + (buckets.other.length > 0 ? 1 : 0)
-        + (buckets.livesOnly.length > 0 ? 1 : 0);
+        (buckets.direct.length > 0 ? 1 : 0)
+        + (buckets.indirect.length > 0 ? 1 : 0)
+        + (buckets.alerts.length > 0 ? 1 : 0)
+        + (buckets.doesntReach.length > 0 ? 1 : 0);
       const showHeaders = populatedBuckets >= 2;
       let html = '';
-      if (buckets.primary.length) {
-        if (showHeaders) html += buildGroupDivider('Main reach', buckets.primary.length);
-        for (const c of buckets.primary) html += renderControlRow(c, currentAreaId, false);
+      if (buckets.direct.length) {
+        if (showHeaders) html += buildGroupDivider('Direct reach to ' + currentAreaName, buckets.direct.length);
+        for (const c of buckets.direct) html += renderControlRow(c, currentAreaId, {});
       }
-      if (buckets.other.length) {
-        if (showHeaders) html += buildGroupDivider('Other reaches', buckets.other.length);
-        for (const c of buckets.other) html += renderControlRow(c, currentAreaId, false);
+      if (buckets.indirect.length) {
+        if (showHeaders) html += buildGroupDivider('Indirect reach to ' + currentAreaName, buckets.indirect.length);
+        for (const c of buckets.indirect) html += renderControlRow(c, currentAreaId, {});
       }
-      if (buckets.livesOnly.length) {
-        if (showHeaders) html += buildGroupDivider('Doesn’t reach ' + currentAreaName, buckets.livesOnly.length);
-        // Hide right-side home area in this group — it's redundant with
-        // the page (every row's home area equals the current area).
-        for (const c of buckets.livesOnly) html += renderControlRow(c, currentAreaId, true);
+      if (buckets.alerts.length) {
+        if (showHeaders) html += buildGroupDivider('Alerts ' + currentAreaName, buckets.alerts.length);
+        for (const c of buckets.alerts) html += renderControlRow(c, currentAreaId, {});
+      }
+      if (buckets.doesntReach.length) {
+        if (showHeaders) html += buildGroupDivider('Doesn’t reach ' + currentAreaName, buckets.doesntReach.length);
+        for (const c of buckets.doesntReach) html += renderControlRow(c, currentAreaId, { doesntReach: true });
       }
       return html;
     }

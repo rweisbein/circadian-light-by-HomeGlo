@@ -763,6 +763,18 @@ function buildPulseDot(lastTouchedSeconds, windowHours) {
 // has named subdivisions: in/reach on area-filtered views, scheduled/permanent
 // on the PAUSED control view, etc. Pass count=null to omit the parenthetical.
 // =============================================================================
+// HomeGlo Lab: how long card-state localStorage persists before
+// resetting to defaults. Pages with collapsible cards (area, control,
+// rhythm-design) read this at init time — synchronous via the
+// localStorage shadow that settings.html writes whenever the Lab
+// value changes. Default 15 min.
+const _CARD_FRESHNESS_LS_KEY = 'homeglo_card_freshness_min';
+function cardFreshnessMs() {
+  const raw = localStorage.getItem(_CARD_FRESHNESS_LS_KEY);
+  const m = raw == null ? NaN : parseInt(raw, 10);
+  return Number.isFinite(m) && m > 0 ? m * 60 * 1000 : 15 * 60 * 1000;
+}
+
 function buildGroupDivider(title, count) {
   const countSpan = (count == null)
     ? ''
@@ -929,29 +941,75 @@ function controlSummary(c, opts) {
     : controlSummarySensorAllScopes(scopes, allAreas);
 }
 
-// Bucket controls when filtering by a specific area. Returns three
-// arrays based on the smallest reach-index of the filter area in each
-// control's scopes:
-//   primary   = filter area appears in scope 0
-//   other     = filter area appears in scope 1+ (not 0)
-//   livesOnly = control's home area equals the filter, but no scope
-//               reaches it (physically located there, doesn't target it)
+// Bucket controls when filtering by a specific area. Returns four
+// arrays — bucketing rules differ between switches (reach-index based)
+// and sensors/cameras/contact (mode based; reach index is irrelevant).
+//
+//   Switch:   scope 0 hits the area              → direct
+//             scope 1+ hits the area, scope 0 doesn't → indirect
+//             lives here, no scope reaches it    → doesntReach
+//   Sensor*:  any non-alert scope hits the area  → direct
+//             alert scope hits the area, no non-alert does → alerts
+//             lives here, no scope reaches it    → doesntReach
+//
+// Each control appears in exactly one bucket. Precedence inside each
+// type: direct > indirect/alerts > doesntReach.
 function bucketControlsForArea(controls, filterAreaId, currentAreaName) {
-  const primary = [];
-  const other = [];
-  const livesOnly = [];
+  const direct = [];
+  const indirect = [];
+  const alerts = [];
+  const doesntReach = [];
+  const livesHere = (c) => currentAreaName != null
+    ? c.area_name === currentAreaName
+    : c.area_id === filterAreaId;
   for (const c of controls) {
-    let smallest = -1;
-    (c.scopes || []).forEach(function (s, idx) {
-      if ((s.areas || []).includes(filterAreaId) && smallest === -1) smallest = idx;
-    });
-    if (smallest === 0) primary.push(c);
-    else if (smallest > 0) other.push(c);
-    else if (currentAreaName != null
-             ? c.area_name === currentAreaName
-             : c.area_id === filterAreaId) livesOnly.push(c);
+    const scopes = c.scopes || [];
+    if (c.category === 'switch') {
+      let smallest = -1;
+      scopes.forEach(function (s, idx) {
+        if ((s.areas || []).includes(filterAreaId) && smallest === -1) smallest = idx;
+      });
+      if (smallest === 0) direct.push(c);
+      else if (smallest > 0) indirect.push(c);
+      else if (livesHere(c)) doesntReach.push(c);
+    } else {
+      const hasDirect = scopes.some(s =>
+        (s.mode === 'on' || s.mode === 'on_only' || s.mode === 'on_off')
+        && (s.areas || []).includes(filterAreaId));
+      const hasAlert = scopes.some(s =>
+        s.mode === 'alert' && (s.areas || []).includes(filterAreaId));
+      if (hasDirect) direct.push(c);
+      else if (hasAlert) alerts.push(c);
+      else if (livesHere(c)) doesntReach.push(c);
+    }
   }
-  return { primary, other, livesOnly };
+  return { direct, indirect, alerts, doesntReach };
+}
+
+// Summary line for the "Doesn't reach <area>" bucket. Switches use the
+// standard non-area-filtered form (their reach-list is naturally an
+// area enumeration). Sensors use a dedicated form: union of areas
+// reached by on/on_off scopes, falling back to alert areas if there
+// are no on/on_off scopes that reach anywhere.
+function controlSummaryDoesntReach(c, allAreas) {
+  if (c.category === 'switch') {
+    return controlSummary(c, { allAreas: allAreas, deviceAreaId: c.area_id });
+  }
+  const scopes = c.scopes || [];
+  const onAreas = new Set();
+  const alertAreas = new Set();
+  for (const s of scopes) {
+    if (!s.mode || s.mode === 'disabled') continue;
+    const areas = s.areas || [];
+    if (s.mode === 'on' || s.mode === 'on_only' || s.mode === 'on_off') {
+      areas.forEach(a => onAreas.add(a));
+    } else if (s.mode === 'alert') {
+      areas.forEach(a => alertAreas.add(a));
+    }
+  }
+  const list = onAreas.size > 0 ? Array.from(onAreas) : Array.from(alertAreas);
+  if (!list.length) return '';
+  return '<span class="primary">' + controlSummaryFormatAreasList(list, allAreas) + '</span>';
 }
 
 // =============================================================================
