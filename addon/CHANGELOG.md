@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.286
+- **`reach 1 +3` → `reach 1 (+3)`.** Parens disambiguate the `+N` partner count so it doesn't read as "reach 1 and 3" (especially next to the dot-joined `reach 1 · reach 3 +3` form). Multi-reach now reads `reach 1 (+3) · reach 3 (+3)`.
+- **`Lives here only` bucket header → `Doesn't reach <area>`.** Direct, names the problem, no jargon. Same label format on /switches (uses the active area filter) and area-details (uses the page's area). Inside-context still implicit (the page or filter pins what "here" means).
+
 ## 1.2.285
 - **Area-details Controls card now mirrors the /switches area-filtered view.** Same 3-bucket grouping (`Main reach` / `Other reaches` / `Lives here only`) replaces the old `In <area>` / `Reaches <area>` split. Same summary line format below the name (`→ 5m Master` / `→ on/off 3 · on 2 · alert 5` / `→ reach 1` etc.). Right side shows the device's home area (skipped in the "Lives here only" bucket since it'd be redundant with the page). Per-row chevron removed (matches /switches). No filter or sort UI on this card — the card is itself the filter; sort is recency within each bucket.
 - **`controlSummary()` and `bucketControlsForArea()` extracted to `shared.js`.** Both pages call the same helpers — single source of truth for "what does this control do" formatting. CSS for `.ctrl-card-summary` / `.lead` / `.primary` / `.secondary` moved to `shared.css` so the styling stays in lockstep too.

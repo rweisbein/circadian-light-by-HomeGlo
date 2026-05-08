@@ -880,7 +880,7 @@ function controlSummarySwitchAreaFiltered(scopes, filterAreaId) {
     if (!list.includes(filterAreaId)) return;
     const reachNum = idx + 1;
     const partners = list.filter(a => a !== filterAreaId).length;
-    segs.push(partners > 0 ? 'reach ' + reachNum + ' +' + partners : 'reach ' + reachNum);
+    segs.push(partners > 0 ? 'reach ' + reachNum + ' (+' + partners + ')' : 'reach ' + reachNum);
   });
   if (!segs.length) return '';
   return '<span class="primary">' + segs.join(' · ') + '</span>';

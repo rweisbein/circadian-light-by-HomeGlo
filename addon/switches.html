@@ -1375,7 +1375,7 @@
           inner += buckets.other.map(c => renderControlCard(c, 'all')).join('');
         }
         if (buckets.livesOnly.length) {
-          inner += buildGroupDivider('Lives here only', buckets.livesOnly.length);
+          inner += buildGroupDivider('Doesn’t reach ' + areaFilter, buckets.livesOnly.length);
           inner += buckets.livesOnly.map(c => renderControlCard(c, 'all')).join('');
         }
         cardListHtml = '<div class="ctrl-card-list">' + inner + '</div>';

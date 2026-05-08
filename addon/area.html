@@ -6083,7 +6083,7 @@
         for (const c of buckets.other) html += renderControlRow(c, currentAreaId, false);
       }
       if (buckets.livesOnly.length) {
-        if (showHeaders) html += buildGroupDivider('Lives here only', buckets.livesOnly.length);
+        if (showHeaders) html += buildGroupDivider('Doesn’t reach ' + currentAreaName, buckets.livesOnly.length);
         // Hide right-side home area in this group — it's redundant with
         // the page (every row's home area equals the current area).
         for (const c of buckets.livesOnly) html += renderControlRow(c, currentAreaId, true);
