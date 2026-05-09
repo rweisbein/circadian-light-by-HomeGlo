@@ -132,6 +132,9 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
    rendered in default color (`.hl`) so it visually pops.
    ============================================================================= */
 .ctrl-card-summary {
+  /* Spans body+area columns on row 2 of the row's grid layout — set
+     by both /switches and area-details rows. */
+  grid-area: summary;
   font-size: 0.8rem;
   color: var(--text, #e2e8f0);
   opacity: 0.85;
@@ -148,7 +151,12 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
   flex-wrap: wrap;
 }
 .ctrl-card-summary .areas { color: var(--muted2, #64748b); }
-.ctrl-card-summary .areas .hl { color: var(--text, #e2e8f0); }
+/* Filter-area highlight: same color as the prominent label, bold weight
+   so it pops within the muted area list without leaning on accent color. */
+.ctrl-card-summary .areas .hl {
+  color: var(--text, #e2e8f0);
+  font-weight: 600;
+}
 
 /* =============================================================================
    View segmented control — single mode-picker for a page (e.g., home page

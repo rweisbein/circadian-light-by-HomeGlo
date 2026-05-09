@@ -715,11 +715,19 @@
     }
 
     /* Single row inside the grouped card */
+    /* Two-row grid: top row holds pulse / icon / name / area-name aligned
+       horizontally; bottom row's summary lines span the body+area columns
+       so reach/mode lines have full row width on mobile (instead of being
+       squeezed by the right-side area name column). */
     .ctrl-card-row {
       display: grid;
-      grid-template-columns: 16px 22px 1fr auto auto;
+      grid-template-columns: 16px 22px 1fr auto;
+      grid-template-areas:
+        "pulse icon title area"
+        ".     .    summary summary";
       align-items: center;
-      gap: 10px;
+      column-gap: 10px;
+      row-gap: 2px;
       padding: 12px 14px;
       cursor: pointer;
       transition: background 0.12s;
@@ -729,18 +737,22 @@
     }
     .ctrl-card-row:hover { background: rgba(255, 255, 255, 0.05); }
     .ctrl-card-row.is-stale { opacity: 0.55; }
-    .ctrl-card-pulse { display: flex; align-items: center; justify-content: center; }
-    .ctrl-card-icon { display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 1rem; }
-    .ctrl-card-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-    .ctrl-card-title { display: flex; align-items: center; gap: 6px; font-size: 0.95rem; font-weight: 600; color: var(--text); flex-wrap: wrap; }
+    .ctrl-card-pulse { grid-area: pulse; display: flex; align-items: center; justify-content: center; }
+    .ctrl-card-icon { grid-area: icon; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 1rem; }
+    .ctrl-card-title { grid-area: title; display: flex; align-items: center; gap: 6px; font-size: 0.95rem; font-weight: 600; color: var(--text); flex-wrap: wrap; min-width: 0; }
     .ctrl-card-title-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .ctrl-card-sub { font-size: 0.78rem; color: var(--muted); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .ctrl-card-sub .glozone { opacity: 0.7; }
     .ctrl-card-sub .area { color: var(--muted); }
     .ctrl-card-sub .meta-bullet { color: var(--muted2); }
-    /* Right-side prominent field (per-view emphasis). For ALL view, the
-       primary is a 2-line stack: bold relative-time on top, muted action
-       verb beneath. Mirrors the 2-line card body on the left. */
+    /* Right-side prominent field (per-view emphasis). Top-aligned with
+       the title row so multi-line summaries underneath can span the
+       full body+area width (mobile: more horizontal room for the area
+       lists in the summary). For ALL view, the primary is a 2-line
+       stack: bold relative-time on top, muted action verb beneath. */
+    .ctrl-card-pri,
+    .ctrl-card-pri-muted,
+    .ctrl-card-pri-stack { grid-area: area; align-self: center; }
     .ctrl-card-pri { font-size: 0.95rem; font-weight: 600; color: var(--text); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .ctrl-card-pri-muted { font-size: 0.85rem; color: var(--muted); font-weight: 500; }
     .ctrl-card-pri-stack {
@@ -1486,18 +1498,20 @@
       const summaryLine = summaryHtml
         ? '<div class="ctrl-card-summary">' + summaryHtml + '</div>'
         : '';
+      // Grid layout — title (name+badges) and primary (right-side area)
+      // sit on row 1; summary lines span the lower row at full body+area
+      // width. Summary is appended as a top-level grid child so it can
+      // address grid-area "summary" directly.
       return ''
         + '<div class="' + rowClass + '" onclick="editControl(\'' + safeId + '\')">'
         +   '<div class="ctrl-card-pulse">' + pulseHtml + '</div>'
         +   '<div class="ctrl-card-icon" title="' + formatCategory(c.category) + '">' + icon + '</div>'
-        +   '<div class="ctrl-card-body">'
-        +     '<div class="ctrl-card-title">'
-        +       '<span class="ctrl-card-title-text">' + c.name + '</span>'
-        +       badges.join(' ')
-        +     '</div>'
-        +     summaryLine
+        +   '<div class="ctrl-card-title">'
+        +     '<span class="ctrl-card-title-text">' + c.name + '</span>'
+        +     badges.join(' ')
         +   '</div>'
         +   primaryHtml
+        +   summaryLine
         + '</div>';
     }
 

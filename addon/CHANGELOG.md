@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.297
+- **Multi-line summary spans full row width.** Row layout switched from flex to a 2-row grid: top row holds pulse / icon / name / area-name (top-aligned); bottom row's summary lines span the body+area columns. On mobile, this gives reach/mode area lists the full row width to wrap into instead of being squeezed by the right-side area column. Applies to /switches and area-details.
+- **Filter-area highlight now bold.** When area-filtered, the filter area name within each summary's area list renders in `font-weight: 600` (default text color, brighter than the muted area list around it). Quick visual scan finds where the filter area is hit, without leaning on accent color.
+
 ## 1.2.296
 - **2-step diagnostic log.** When an area's lights are physically off and a turn-on lands at a CT close to our tracked `last_sent_kelvin` (so the per-purpose 2-step gate skips), we now log a `[2step] <area>/<filter>: skipped off→on (prev_ct=…K @ <age>, target=…K, Δ=…K < …K)` line. The `@ <age>` annotation (e.g., `4h ago`) helps spot stale state — long gaps since our last write mean another actor (cross-addon ZHA pollution, manual ZCL command, automation) may have touched the bulbs since, and our gate is operating on outdated info. Same diagnostic in the batch path — fires once per batch group when every area's prev_ct is within threshold but at least one area is off. New `last_sent_kelvin_at` field on area state + `state.format_age_short()` helper.
 

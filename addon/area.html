@@ -950,14 +950,31 @@
     .tune-controls-card.is-open .tune-brightness-body { max-height: 6000px; opacity: 1; padding-bottom: 8px; }
 
     /* Controls list inside Controls card */
-    .ctrl-list-row { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--line); cursor: pointer; transition: background 0.1s; }
+    /* Two-row grid: top row holds pulse / icon / name / area aligned;
+       bottom row's summary spans body+area columns so reach/mode lines
+       have full width on mobile. */
+    .ctrl-list-row {
+      display: grid;
+      grid-template-columns: 12px auto 1fr auto;
+      grid-template-areas:
+        "pulse icon name area"
+        ".     .    summary summary";
+      align-items: center;
+      column-gap: 10px;
+      row-gap: 2px;
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--line);
+      cursor: pointer;
+      transition: background 0.1s;
+    }
     .ctrl-list-row:last-child { border-bottom: none; }
     .ctrl-list-row:active { background: rgba(255,255,255,0.04); }
-    .ctrl-list-icon { flex-shrink: 0; color: var(--muted); display: flex; align-items: center; }
-    .ctrl-list-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .ctrl-fresh-dot-slot { grid-area: pulse; }
+    .ctrl-list-icon { grid-area: icon; flex-shrink: 0; color: var(--muted); display: flex; align-items: center; }
+    .ctrl-list-info { grid-area: name; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
     .ctrl-list-name { font-size: var(--font-value); font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .ctrl-list-name .ctrl-paused-badge { font-size: var(--font-caps); font-weight: 400; color: #f90; background: rgba(255,153,0,0.12); padding: 1px 5px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
-    .ctrl-list-area { flex-shrink: 0; font-size: var(--font-body); color: var(--muted); text-align: right; white-space: nowrap; }
+    .ctrl-list-area { grid-area: area; flex-shrink: 0; font-size: var(--font-body); color: var(--muted); text-align: right; white-space: nowrap; align-self: center; }
     .ctrl-list-divider { border-top: 1px solid var(--line); margin: 0; }
     /* Recently active pinned strip */
     /* In/Reaches headers now use the shared `.group-divider` from
@@ -6043,14 +6060,16 @@
       const rightArea = homeAreaName
         ? `<span class="ctrl-list-area">${homeAreaName}</span>`
         : '';
+      // Grid layout — summary lives as a top-level grid child so it can
+      // span the body+area columns on row 2 (full row width on mobile).
       return `<div class="ctrl-list-row" onclick="window.location.href='${basePath}/control/${encodedId}?from=area&id=${areaIdParam}'">`
         + `<span class="ctrl-fresh-dot-slot">${dotHtml}</span>`
         + `<span class="ctrl-list-icon">${icon}</span>`
         + `<span class="ctrl-list-info">`
         +   `<span class="ctrl-list-name">${ctrl.name}${pausedBadge}</span>`
-        +   summaryLine
         + `</span>`
         + rightArea
+        + summaryLine
         + `</div>`;
     }
 
