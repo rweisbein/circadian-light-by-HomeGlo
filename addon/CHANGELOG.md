@@ -1,5 +1,14 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.301
+- **Controls toolbar pass — vocabulary + per-filter × clears.**
+  - View pill default `ALL` → `CONTROLS`. The bare word "ALL" was reading as "tap me to clear filters" once filters were applied; "CONTROLS" labels the pill as the page-mode picker without that overlap. Same change on the cheatsheet pill bar so the two pages stay in lockstep.
+  - **Type filter is now a native `<select>`** matching the area-filter pattern (was an icon-only custom popover with funnel glyph). Loses the inline category icons next to options, gains: native iOS / Android picker, keyboard a11y, and visual symmetry with the area dropdown. The funnel icon read as "filter UI is here" rather than "currently no type filter, click to set one" — switching to text labels (`All types` / `Switch` / `Motion` / etc.) removes that ambiguity.
+  - **Per-filter `×` clears** for area + type. Renders inline next to each select only when its filter is active. Mirrors the search field's existing `×` pattern, so all three filters now expose a one-tap clear.
+  - **Width cap on area + type selects (140px)** with browser-ellipsis truncation when names overflow. Native dropdown still sizes options to full content width when open, so long names stay readable. Closed state stays compact, leaving room for the per-filter `×` clears.
+  - **Search `×` color: accent → muted** to match area + type clears. All three `×`s are now visually identical (muted, brighter on hover); "everyone knows what an `×` is" — accent color isn't carrying weight here.
+  - **Bulk `Clear` link retired.** With per-filter `×`s, the global "Clear" was redundant. ≤2 filters is one click each via `×`; 3 filters is three clicks vs the old one-click — accepted as the trade for simpler vocabulary.
+
 ## 1.2.300
 - **HomeGlo Lab: "Read-only ZHA" toggle** for dual-addon setups (dev + prod on the same Home Assistant). When ON, this addon's `sync_zha_groups` returns early — no membership writes during startup, daily 4 AM sync, or manual "Sync devices". The addon still reads group state and dispatches to existing groups, just doesn't author them. Prevents the dev/prod race documented in `reference_dual_addon_zha_pollution.md` where two instances with different filter configs clobber each other's group memberships and the loser's cached view diverges from reality. Per-instance setting (each addon decides for itself), defaults OFF (no behavior change unless explicitly opted in by the secondary instance).
 

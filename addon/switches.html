@@ -601,11 +601,12 @@
       transform: translateY(-50%);
       background: none;
       border: none;
-      color: var(--accent);
+      color: var(--muted);
       cursor: pointer;
       font-size: 0.95rem;
       padding: 2px 4px;
     }
+    .ctrl-toolbar .ctrl-search-clear:hover { color: var(--text); }
     .ctrl-toolbar .ctrl-icon-btn {
       width: 34px;
       height: 34px;
@@ -634,62 +635,34 @@
       cursor: pointer;
       box-sizing: border-box;
     }
-    /* Area select stretches to fill the filter row; sort select stays
-       intrinsic width on the organize row. */
-    .ctrl-toolbar select#ctrl-area-filter {
-      flex: 1 1 auto;
+    /* Area + type selects share the same closed-state cap (140px). Most
+       area / type names fit; longer names truncate with the browser's
+       ellipsis when closed. Native dropdowns size options to their full
+       content when open, so longer names are still readable on selection. */
+    .ctrl-toolbar select#ctrl-area-filter,
+    .ctrl-toolbar select#ctrl-type-filter {
+      flex: 0 1 auto;
       min-width: 0;
-      max-width: 220px;
+      max-width: 140px;
       text-overflow: ellipsis;
     }
-    .ctrl-toolbar select.ctrl-tb-select.is-active { border-color: var(--accent); }
-    .ctrl-toolbar .ctrl-result-count { color: var(--muted2); font-size: 0.78rem; margin-left: auto; }
-    .ctrl-toolbar .ctrl-clear-filters {
-      font-size: 0.78rem;
+    /* Inline clear for area filter — only rendered when a specific area
+       is selected. Borderless × in muted color, brighter on hover.
+       Mirrors the search-field × idiom but lives external to the select
+       (native <select> can't host inline children). */
+    .ctrl-toolbar .ctrl-area-clear {
+      background: none;
+      border: none;
       color: var(--muted);
       cursor: pointer;
-      text-decoration: underline;
-      text-underline-offset: 2px;
-      margin-left: auto;
+      font-size: 1.1rem;
+      padding: 0 4px;
+      line-height: 1;
       flex-shrink: 0;
     }
-    .ctrl-toolbar .ctrl-clear-filters:hover { color: var(--accent); }
-
-    /* Type filter: single icon trigger + popover dropdown. Mirrors the
-       view-segments idiom (icon when closed, icon+label when open). */
-    .ctrl-type-wrap { position: relative; }
-    .ctrl-type-popover {
-      position: absolute;
-      top: calc(100% + 4px);
-      right: 0;
-      min-width: 180px;
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 4px;
-      z-index: 30;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.35);
-      display: flex;
-      flex-direction: column;
-      gap: 1px;
-    }
-    .ctrl-type-option {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 10px;
-      border-radius: 6px;
-      color: var(--text);
-      font-size: 0.85rem;
-      cursor: pointer;
-      background: transparent;
-      border: none;
-      text-align: left;
-      font-family: inherit;
-    }
-    .ctrl-type-option:hover { background: rgba(255,255,255,0.06); }
-    .ctrl-type-option.is-active { background: rgba(255,255,255,0.10); color: var(--accent); }
-    .ctrl-type-option svg { flex-shrink: 0; }
+    .ctrl-toolbar .ctrl-area-clear:hover { color: var(--text); }
+    .ctrl-toolbar select.ctrl-tb-select.is-active { border-color: var(--accent); }
+    .ctrl-toolbar .ctrl-result-count { color: var(--muted2); font-size: 0.78rem; margin-left: auto; }
 
     /* Card list — single grouped container with thin internal dividers
        between rows. Avoids the nested-box look that came from per-card
@@ -853,7 +826,6 @@
     let fourthField = 'lastAction';
     let searchFilter = '';
     let _searchExpanded = false;
-    let _typePopoverOpen = false;
     let statusFilter = 'all';
     let pauseFilter = 'all';
     let lastActionFilter = 'all';
@@ -874,7 +846,7 @@
     let _viewSegHandle = null;
 
     const CONTROL_VIEWS = [
-      { value: 'all',        label: 'All' },
+      { value: 'all',        label: 'Controls' },
       { value: 'setup',      label: 'Setup' },
       { value: 'batteries',  label: 'Battery' },
       { value: 'paused',     label: 'Paused' },
@@ -1262,10 +1234,10 @@
         (viewHasUnassigned ? `<option value="unassigned"${areaFilter === 'unassigned' ? ' selected' : ''}>— Unassigned —</option>` : '') +
         viewAreas.map(a => `<option value="${a}"${areaFilter === a ? ' selected' : ''}>${a}</option>`).join('');
 
-      // Two-row toolbar — Row 1: filters (search + area + type chips).
-      // Row 2: organize (sort + count + clear). Sort selector only
-      // appears in ALL view; other views lock sort to their preset.
-      const isFiltered = searchFilter !== '' || areaFilter !== 'all' || categoryFilter !== 'all';
+      // Two-row toolbar — Row 1: filters (search + area + type, each
+      // with its own × clear). Row 2: organize (sort + count). Sort
+      // selector only appears in ALL view; other views lock sort to
+      // their preset.
       // "Sort:" prefix on both selector + locked-descriptor variants for
       // consistent reading. Locked descriptors use minimal phrasing —
       // "first" / "soonest" are implied by the sort axis itself.
@@ -1292,26 +1264,24 @@
       // Closed state: filter glyph (all types) or selected category icon.
       // Open: popover lists icon+label per category present in data.
       const TYPE_LABELS = { switch: 'Switch', motion_sensor: 'Motion', contact_sensor: 'Contact', camera: 'Camera', unknown: 'Other' };
+      // Type filter — native <select> matching the area-filter pattern.
+      // Same width-cap + × clear UX. Native picker on mobile, no custom
+      // popover. Loses the inline category icons next to options (native
+      // <option> can't host SVG), but gains consistency with area.
       const typeOrder = ['switch', 'motion_sensor', 'contact_sensor', 'camera', 'unknown'];
       const presentTypes = typeOrder.filter(t => categories.includes(t));
-      const typeTriggerIcon = categoryFilter === 'all' ? filterGlyphIcon() : categoryIcon(categoryFilter);
-      const typeTriggerTitle = categoryFilter === 'all' ? 'Filter by type' : (TYPE_LABELS[categoryFilter] || categoryFilter);
-      const typePopoverHtml = _typePopoverOpen
-        ? '<div class="ctrl-type-popover">'
-            + '<button class="ctrl-type-option' + (categoryFilter === 'all' ? ' is-active' : '') + '" data-type="all">'
-            +   filterGlyphIcon() + '<span>All types</span>'
-            + '</button>'
-            + presentTypes.map(t =>
-                '<button class="ctrl-type-option' + (categoryFilter === t ? ' is-active' : '') + '" data-type="' + t + '">'
-                  + categoryIcon(t) + '<span>' + (TYPE_LABELS[t] || t) + '</span>'
-                + '</button>'
-              ).join('')
-          + '</div>'
+      const typeOptions = '<option value="all">All types</option>'
+        + presentTypes.map(t =>
+            '<option value="' + t + '"' + (categoryFilter === t ? ' selected' : '') + '>'
+              + (TYPE_LABELS[t] || t)
+            + '</option>'
+          ).join('');
+      const typeFilterHtml = '<select class="ctrl-tb-select'
+        + (categoryFilter !== 'all' ? ' is-active' : '')
+        + '" id="ctrl-type-filter">' + typeOptions + '</select>';
+      const typeClearHtml = (categoryFilter !== 'all')
+        ? '<button class="ctrl-area-clear" id="ctrl-type-clear" title="Clear type filter">&times;</button>'
         : '';
-      const typeFilterHtml = '<div class="ctrl-type-wrap">'
-        + '<button class="ctrl-icon-btn' + (categoryFilter !== 'all' ? ' is-active' : '') + '" id="ctrl-type-trigger" title="' + typeTriggerTitle + '">' + typeTriggerIcon + '</button>'
-        + typePopoverHtml
-        + '</div>';
 
       // Search — collapse-to-icon by default; expand inline when active
       // (search term present) or when icon tapped.
@@ -1323,14 +1293,16 @@
           + '</div>'
         : '<button class="ctrl-icon-btn" id="ctrl-search-toggle" title="Search">' + searchGlyphIcon() + '</button>';
 
-      const clearHtml = isFiltered ? '<a class="ctrl-clear-filters" onclick="clearAllFilters()">Clear</a>' : '';
-
+      const areaClearHtml = (areaFilter !== 'all')
+        ? '<button class="ctrl-area-clear" id="ctrl-area-clear" title="Clear area filter">&times;</button>'
+        : '';
       const toolbarHtml = '<div class="ctrl-toolbar">'
         + '<div class="ctrl-toolbar-row">'
         +   searchHtml
         +   '<select class="ctrl-tb-select' + (areaFilter !== 'all' ? ' is-active' : '') + '" id="ctrl-area-filter">' + areaOptions + '</select>'
+        +   areaClearHtml
         +   typeFilterHtml
-        +   clearHtml
+        +   typeClearHtml
         + '</div>'
         + '<div class="ctrl-toolbar-row ctrl-toolbar-row-organize">'
         +   sortHtml
@@ -1515,16 +1487,6 @@
         + '</div>';
     }
 
-    // Clear all toolbar filters in one go (search + area + category).
-    // Wired by the "Clear" link in the toolbar when any filter is active.
-    function clearAllFilters() {
-      searchFilter = '';
-      areaFilter = 'all';
-      categoryFilter = 'all';
-      savePreferences();
-      renderControls();
-    }
-
     // Count phrase reflects active filters. Reads as a single English
     // sentence: "<n> <type-noun> [in <area> | without an area] [<verb>]".
     //   ALL view, unfiltered:        "12 controls"
@@ -1598,10 +1560,6 @@
 
     function searchGlyphIcon() {
       return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>`;
-    }
-
-    function filterGlyphIcon() {
-      return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 9v6l-4-2v-4z"/></svg>`;
     }
 
     function categoryIcon(category) {
@@ -1876,6 +1834,10 @@
           areaFilter = e.target.value;
           savePreferences();
           renderControls();
+        } else if (e.target.id === 'ctrl-type-filter') {
+          categoryFilter = e.target.value;
+          savePreferences();
+          renderControls();
         } else if (e.target.id === 'ctrl-sort-select') {
           // ALL view sort — three options. Map to internal sortColumn
           // semantics. "recent" = fourth+lastAction (most-recent first
@@ -1897,6 +1859,18 @@
         }
       });
       document.getElementById('controls-container').addEventListener('click', (e) => {
+        if (e.target.closest('#ctrl-area-clear')) {
+          areaFilter = 'all';
+          savePreferences();
+          renderControls();
+          return;
+        }
+        if (e.target.closest('#ctrl-type-clear')) {
+          categoryFilter = 'all';
+          savePreferences();
+          renderControls();
+          return;
+        }
         if (e.target.closest('#ctrl-search-clear')) {
           searchFilter = '';
           _searchExpanded = false;
@@ -1907,19 +1881,6 @@
         if (e.target.closest('#ctrl-search-toggle')) {
           _searchExpanded = true;
           renderControls(true);
-          return;
-        }
-        if (e.target.closest('#ctrl-type-trigger')) {
-          _typePopoverOpen = !_typePopoverOpen;
-          renderControls();
-          return;
-        }
-        const opt = e.target.closest && e.target.closest('.ctrl-type-option');
-        if (opt) {
-          categoryFilter = opt.dataset.type || 'all';
-          _typePopoverOpen = false;
-          savePreferences();
-          renderControls();
           return;
         }
       });
@@ -1942,13 +1903,6 @@
           _searchExpanded = false;
           renderControls();
         }, 0);
-      });
-      // Click outside type popover → close it.
-      document.addEventListener('click', (e) => {
-        if (_typePopoverOpen && !e.target.closest('.ctrl-type-wrap')) {
-          _typePopoverOpen = false;
-          renderControls();
-        }
       });
     }
 
