@@ -798,18 +798,18 @@ function controlSummaryAreaName(areaId, allAreas) {
   return a ? a.name : areaId;
 }
 
-// Format a list of area_ids alphabetically: 1-3 names spelled, +N for rest.
+// Format a list of area_ids alphabetically: 1-3 names spelled, (+N) for rest.
 function controlSummaryFormatAreasList(areaIds, allAreas) {
   if (!areaIds || !areaIds.length) return '';
   const names = areaIds.map(id => controlSummaryAreaName(id, allAreas));
   const sorted = [...names].sort((a, b) => a.localeCompare(b));
   if (sorted.length <= 3) return sorted.join(', ');
-  return sorted.slice(0, 3).join(', ') + ' + ' + (sorted.length - 3);
+  return sorted.slice(0, 3).join(', ') + ' (+' + (sorted.length - 3) + ')';
 }
 
 // Format a list of area_ids with priority ordering: the device's home area
 // first (if in the list), then the filtered area (if different and in the
-// list), then the natural scope order. Up to 3 names spelled, +N for rest.
+// list), then the natural scope order. Up to 3 names spelled, (+N) for rest.
 function controlSummaryFormatAreasListPrioritized(areaIds, allAreas, deviceAreaId, filterAreaId) {
   if (!areaIds || !areaIds.length) return '';
   const remaining = [...areaIds];
@@ -821,25 +821,12 @@ function controlSummaryFormatAreasListPrioritized(areaIds, allAreas, deviceAreaI
       remaining.splice(idx, 1);
     }
   };
-  if (deviceAreaId) take(deviceAreaId);
-  if (filterAreaId && filterAreaId !== deviceAreaId) take(filterAreaId);
+  if (filterAreaId) take(filterAreaId);
+  if (deviceAreaId && deviceAreaId !== filterAreaId) take(deviceAreaId);
   ordered.push(...remaining);
   const names = ordered.map(id => controlSummaryAreaName(id, allAreas));
   if (names.length <= 3) return names.join(', ');
-  return names.slice(0, 3).join(', ') + ' + ' + (names.length - 3);
-}
-
-// Compact label for one sensor scope's mode + duration.
-//   on_off:        "5m" / "30s" / "1h"  (mode implied by duration)
-//   on / on_only:  "on"
-//   alert:         "alert"
-function controlSummaryFormatSensorScopeLabel(scope) {
-  const mode = scope.mode;
-  if (mode === 'alert') return 'alert';
-  if (mode === 'on_only' || mode === 'on') return 'on';
-  const secs = scope.duration || 60;
-  if (secs < 60) return secs + 's';
-  return formatDurationRemaining(secs / 60, '');
+  return names.slice(0, 3).join(', ') + ' (+' + (names.length - 3) + ')';
 }
 
 function controlSummaryFormatSensorModeName(mode) {
@@ -849,30 +836,49 @@ function controlSummaryFormatSensorModeName(mode) {
   return mode;
 }
 
-// Aggregate sensor scopes by mode → "on/off 3 · on 2 · alert 5".
-// Per-mode count = unique-area count across scopes of that mode.
-function controlSummaryAggregateSensorScopes(scopes) {
-  const order = ['on_off', 'on_only', 'on', 'alert'];
-  const seenAreasByMode = {};
-  for (const s of scopes) {
+// Group sensor scopes by mode → { mode: Set<areaId>, ... }. on_only is
+// normalized to 'on' so the rendered label is consistent.
+function _ctrlSummaryGroupSensorScopes(scopes) {
+  const groups = {};
+  for (const s of scopes || []) {
     if (!s.mode || s.mode === 'disabled') continue;
-    if (!seenAreasByMode[s.mode]) seenAreasByMode[s.mode] = new Set();
-    for (const a of (s.areas || [])) seenAreasByMode[s.mode].add(a);
+    const key = (s.mode === 'on_only') ? 'on' : s.mode;
+    if (!groups[key]) groups[key] = new Set();
+    for (const a of (s.areas || [])) groups[key].add(a);
   }
-  const segs = [];
-  for (const mode of order) {
-    if (seenAreasByMode[mode]) {
-      segs.push(controlSummaryFormatSensorModeName(mode) + ' ' + seenAreasByMode[mode].size);
-    }
-  }
-  for (const mode in seenAreasByMode) {
-    if (!order.includes(mode)) {
-      segs.push(controlSummaryFormatSensorModeName(mode) + ' ' + seenAreasByMode[mode].size);
-    }
-  }
-  return segs.join(' · ');
+  return groups;
 }
 
+// Render one mode group: "<primary>mode</primary> <areas>area-list</areas>".
+function _ctrlSummaryRenderSensorGroup(mode, areaSet, allAreas) {
+  const modeLabel = controlSummaryFormatSensorModeName(mode);
+  const areasHtml = controlSummaryFormatAreasList(Array.from(areaSet), allAreas);
+  return '<span class="primary">' + modeLabel + '</span>'
+    + (areasHtml ? ' <span class="areas">' + areasHtml + '</span>' : '');
+}
+
+// Render a set of sensor scopes as "<group> · <group> · ..." with the
+// muted middle-dot separator wrapped in .areas so it visually belongs
+// with the muted area lists, not the prominent mode names.
+function _ctrlSummaryJoinSensorGroups(scopes, allAreas) {
+  const groups = _ctrlSummaryGroupSensorScopes(scopes);
+  const order = ['on_off', 'on', 'alert'];
+  const segs = [];
+  for (const mode of order) {
+    if (!groups[mode] || groups[mode].size === 0) continue;
+    segs.push(_ctrlSummaryRenderSensorGroup(mode, groups[mode], allAreas));
+  }
+  for (const mode in groups) {
+    if (!order.includes(mode) && groups[mode].size > 0) {
+      segs.push(_ctrlSummaryRenderSensorGroup(mode, groups[mode], allAreas));
+    }
+  }
+  if (!segs.length) return '';
+  return segs.join(' <span class="areas">·</span> ');
+}
+
+// Switch — no area filter. Reach 1 areas in primary; "+N reaches" suffix
+// in secondary (small + muted) when more scopes exist.
 function controlSummarySwitchAllScopes(scopes, allAreas, deviceAreaId) {
   const primary = scopes[0];
   if (!primary) return '';
@@ -880,45 +886,60 @@ function controlSummarySwitchAllScopes(scopes, allAreas, deviceAreaId) {
   const moreReaches = scopes.length - 1;
   let html = '<span class="primary">' + (areas || '&mdash;') + '</span>';
   if (moreReaches > 0) {
-    html += '<span class="secondary">+' + moreReaches + ' reach' + (moreReaches !== 1 ? 'es' : '') + '</span>';
+    html += ' <span class="secondary">+' + moreReaches + ' reach' + (moreReaches !== 1 ? 'es' : '') + '</span>';
   }
   return html;
 }
 
-function controlSummarySwitchAreaFiltered(scopes, filterAreaId) {
-  const segs = [];
-  scopes.forEach(function (s, idx) {
-    const list = s.areas || [];
-    if (!list.includes(filterAreaId)) return;
-    const reachNum = idx + 1;
-    const partners = list.filter(a => a !== filterAreaId).length;
-    segs.push(partners > 0 ? 'reach ' + reachNum + ' (+' + partners + ')' : 'reach ' + reachNum);
+// Format a list of reach indices as "reach N", "reach N & M",
+// "reach A, B & C".
+function _ctrlSummaryJoinReachLabels(labels) {
+  if (labels.length === 1) return labels[0];
+  if (labels.length === 2) return labels[0] + ' & ' + labels[1];
+  return labels.slice(0, -1).join(', ') + ' & ' + labels[labels.length - 1];
+}
+
+// Switch — area filter active. Two cases:
+//   Reach 1 matches the filter → primary reach 1 areas, plus a muted
+//     secondary suffix listing additional matching reaches by number
+//     (no partner counts; reach 1's areas already convey the partners).
+//   Reach 1 doesn't match (Indirect bucket) → all-muted summary, with
+//     partner counts for each matching reach since reach 1's prominent
+//     content isn't there to imply them.
+function controlSummarySwitchAreaFiltered(scopes, filterAreaId, allAreas, deviceAreaId) {
+  const matching = [];
+  scopes.forEach((s, idx) => {
+    if ((s.areas || []).includes(filterAreaId)) matching.push(idx);
   });
-  if (!segs.length) return '';
-  return '<span class="primary">' + segs.join(' · ') + '</span>';
+  if (!matching.length) return '';
+  if (matching[0] === 0) {
+    const reach1Areas = scopes[0].areas || [];
+    const areasFormatted = controlSummaryFormatAreasListPrioritized(reach1Areas, allAreas, deviceAreaId, filterAreaId);
+    let html = '<span class="primary">' + (areasFormatted || '&mdash;') + '</span>';
+    const others = matching.slice(1);
+    if (others.length > 0) {
+      const labels = others.map(i => 'reach ' + (i + 1));
+      html += ' <span class="secondary">+ ' + _ctrlSummaryJoinReachLabels(labels) + '</span>';
+    }
+    return html;
+  }
+  // Indirect: all matching reaches with partner counts, all muted same-size
+  const segs = matching.map(i => {
+    const partners = (scopes[i].areas || []).filter(a => a !== filterAreaId).length;
+    return partners > 0 ? 'reach ' + (i + 1) + ' (+' + partners + ')' : 'reach ' + (i + 1);
+  });
+  return '<span class="areas">' + _ctrlSummaryJoinReachLabels(segs) + '</span>';
 }
 
 function controlSummarySensorAllScopes(scopes, allAreas) {
-  const enabled = scopes.filter(s => s.mode && s.mode !== 'disabled');
-  if (!enabled.length) return '';
-  if (enabled.length === 1) {
-    const s = enabled[0];
-    const action = controlSummaryFormatSensorScopeLabel(s);
-    const targets = controlSummaryFormatAreasList(s.areas || [], allAreas);
-    return '<span class="primary">' + action + (targets ? ' ' + targets : '') + '</span>';
-  }
-  return '<span class="primary">' + controlSummaryAggregateSensorScopes(enabled) + '</span>';
+  return _ctrlSummaryJoinSensorGroups(scopes || [], allAreas);
 }
 
-function controlSummarySensorAreaFiltered(scopes, filterAreaId) {
-  const filtered = scopes.filter(s =>
+function controlSummarySensorAreaFiltered(scopes, filterAreaId, allAreas) {
+  const matching = (scopes || []).filter(s =>
     s.mode && s.mode !== 'disabled' && (s.areas || []).includes(filterAreaId)
   );
-  if (!filtered.length) return '';
-  if (filtered.length === 1) {
-    return '<span class="primary">' + controlSummaryFormatSensorScopeLabel(filtered[0]) + '</span>';
-  }
-  return '<span class="primary">' + controlSummaryAggregateSensorScopes(filtered) + '</span>';
+  return _ctrlSummaryJoinSensorGroups(matching, allAreas);
 }
 
 // Top-level dispatcher. opts = { allAreas, filterAreaId, deviceAreaId }.
@@ -933,11 +954,11 @@ function controlSummary(c, opts) {
   const deviceAreaId = opts.deviceAreaId || c.area_id || null;
   if (c.category === 'switch') {
     return filterAreaId
-      ? controlSummarySwitchAreaFiltered(scopes, filterAreaId)
+      ? controlSummarySwitchAreaFiltered(scopes, filterAreaId, allAreas, deviceAreaId)
       : controlSummarySwitchAllScopes(scopes, allAreas, deviceAreaId);
   }
   return filterAreaId
-    ? controlSummarySensorAreaFiltered(scopes, filterAreaId)
+    ? controlSummarySensorAreaFiltered(scopes, filterAreaId, allAreas)
     : controlSummarySensorAllScopes(scopes, allAreas);
 }
 
@@ -988,28 +1009,23 @@ function bucketControlsForArea(controls, filterAreaId, currentAreaName) {
 
 // Summary line for the "Doesn't reach <area>" bucket. Switches use the
 // standard non-area-filtered form (their reach-list is naturally an
-// area enumeration). Sensors use a dedicated form: union of areas
-// reached by on/on_off scopes, falling back to alert areas if there
-// are no on/on_off scopes that reach anywhere.
+// area enumeration). Sensors use the mode-prominent form, but with an
+// alert-only fallback: if any non-alert scopes have areas, only those
+// render (alert info hidden); if only alert scopes have areas, those
+// render. Same prominence rules (mode in primary, areas in muted).
 function controlSummaryDoesntReach(c, allAreas) {
   if (c.category === 'switch') {
     return controlSummary(c, { allAreas: allAreas, deviceAreaId: c.area_id });
   }
-  const scopes = c.scopes || [];
-  const onAreas = new Set();
-  const alertAreas = new Set();
-  for (const s of scopes) {
-    if (!s.mode || s.mode === 'disabled') continue;
-    const areas = s.areas || [];
-    if (s.mode === 'on' || s.mode === 'on_only' || s.mode === 'on_off') {
-      areas.forEach(a => onAreas.add(a));
-    } else if (s.mode === 'alert') {
-      areas.forEach(a => alertAreas.add(a));
-    }
-  }
-  const list = onAreas.size > 0 ? Array.from(onAreas) : Array.from(alertAreas);
-  if (!list.length) return '';
-  return '<span class="primary">' + controlSummaryFormatAreasList(list, allAreas) + '</span>';
+  const groups = _ctrlSummaryGroupSensorScopes(c.scopes || []);
+  const hasNonAlert = (groups.on_off && groups.on_off.size > 0)
+    || (groups.on && groups.on.size > 0);
+  const filtered = (c.scopes || []).filter(s => {
+    if (!s.mode || s.mode === 'disabled') return false;
+    if (s.mode === 'alert' && hasNonAlert) return false;
+    return true;
+  });
+  return _ctrlSummaryJoinSensorGroups(filtered, allAreas);
 }
 
 // =============================================================================

@@ -139,6 +139,11 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
   margin-top: 1px;
 }
 .ctrl-card-summary .lead { color: var(--muted2, #64748b); }
+/* Three tiers within a summary line:
+   .primary  — prominent (mode names for sensors, reach 1 areas for switches)
+   .areas    — muted color, full size (sensor area lists, indirect-reach summaries)
+   .secondary — muted + smaller (footnote suffixes like "+2 reaches", "+ reach 2 & 3") */
+.ctrl-card-summary .areas { color: var(--muted2, #64748b); }
 .ctrl-card-summary .secondary {
   color: var(--muted2, #64748b);
   font-size: 0.74rem;

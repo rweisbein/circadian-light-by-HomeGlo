@@ -1,5 +1,22 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.292
+- **Control summary line redesigned around font-prominence hierarchy.** Six unified rules now apply to both /switches and the area-details Controls card:
+  - **R1** — Always parens for partner counts: `Living, Kitchen, Master (+2)`, `reach 2 (+3)`. (Previously some places used `+ N` bare.)
+  - **R2** — Sensors always lead with mode name (`on/off`, `on`, `alert`).
+  - **R3** — Sensor durations (`5m`, `30s`) dropped from list summaries — detail page still shows them.
+  - **R4** — Area-filtered sensor summaries list partner area names (not aggregate counts). `on 4` is gone.
+  - **R5** — `Reach 1` is never labeled (its areas ARE the prominent content); reaches 2+ are explicit-and-muted only when relevant. Switch with reach 1 matching + extras: prominent reach 1 areas + muted "+ reach 2 & 3" suffix (no partner counts — reach 1's areas already imply them). Switch in Indirect bucket: muted "reach 2 (+2) & reach 4 (+3)" form (partner counts now included since reach 1's prominent content isn't there).
+  - **R6** — Three font tiers: `.primary` (prominent), `.areas` (muted same-size, for content like sensor area lists & indirect-reach summaries), `.secondary` (muted + smaller, for footnote-y suffixes like `+2 reaches` / `+ reach 3 & 4`). Mode-to-mode transitions in sensor multi-mode use a muted `·` separator between groups instead of `+`.
+- **Examples** of the new format:
+  - Switch unfiltered, scope[0] = `[Living, Kitchen]`, 3 scopes total → `→` **Living, Kitchen** *+2 reaches*
+  - Switch filter=Kitchen, scope[0]=`[Kitchen, Living]` only match → `→` **Kitchen, Living**
+  - Switch filter=Kitchen, scope[0] AND scope[2] match → `→` **Kitchen, A, B** *+ reach 3*
+  - Switch filter=Kitchen, only scope[1] matches (Indirect) → `→` *reach 2 (+1)*
+  - Sensor 1 scope `on_off [Master]` → `→` **on/off** *Master*
+  - Sensor 2 scopes mixed → `→` **on/off** *Living* · **on** *Master*
+  - Sensor filter=Kitchen, 2 matching scopes mixed → `→` **on/off** *Kitchen, Living* · **on** *Kitchen, Master*
+
 ## 1.2.291
 - **Area-details Controls card no longer clips long lists.** `max-height: 800px` (set when lists were shorter) replaced with 6000px — matches the existing auto-sched-card--auto pattern and accommodates Kitchens with many controls in all 4 buckets.
 
