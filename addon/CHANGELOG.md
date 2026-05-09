@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.302
+- **Fix: Lab settings now actually persist.** `read_only_zha`, `controls_pulse_window_hours`, `card_freshness_minutes`, and `experimental_tick_mode` were being sent to `/api/config` but silently dropped — the save endpoint ignores keys not in `GLOBAL_SETTINGS` and these never got added when introduced. All four added to the allowed-list now. The card-freshness setting was working anyway because we shadow it to localStorage; the others were re-defaulting on every restart. read_only_zha is the one that prompted the fix (toggling it didn't survive a reload).
+
 ## 1.2.301
 - **Controls toolbar pass — vocabulary + per-filter × clears.**
   - View pill default `ALL` → `CONTROLS`. The bare word "ALL" was reading as "tap me to clear filters" once filters were applied; "CONTROLS" labels the pill as the page-mode picker without that overlap. Same change on the cheatsheet pill bar so the two pages stay in lockstep.

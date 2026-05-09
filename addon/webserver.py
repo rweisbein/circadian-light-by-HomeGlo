@@ -2005,6 +2005,10 @@ class LightDesignerServer:
         "home_slider_mode",  # Homepage slider: "brightness", "step", or "color" (default "brightness")
         "home_buttons_mode",  # Homepage up/down buttons: "step", "bright", or "color" (default "step")
         "rhythm_cursor_step_min",  # Cursor chip ←/→ step amount in minutes (default 5)
+        "controls_pulse_window_hours",  # HomeGlo Lab: pulse-dot fade window for controls list (default 6h)
+        "card_freshness_minutes",  # HomeGlo Lab: collapsible-card state TTL before reset to defaults (default 15m)
+        "read_only_zha",  # HomeGlo Lab: skip ZHA group sync entirely (defer to another addon instance)
+        "experimental_tick_mode",  # HomeGlo Lab: experimental periodic-tick command mode ("both"/"skip"/"bri"/"ct")
     }
 
     def _migrate_to_glozone_format(self, config: dict) -> dict:
