@@ -91,6 +91,26 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
   vertical-align: middle;
   flex-shrink: 0;
 }
+/* "Very recent" dots (last N min, Lab `controls_recent_window_minutes`,
+   default 5) get a strong glow + slow breathing animation. Three-stop
+   box-shadow gives a tight inner highlight, mid-range glow, and a
+   broad soft corona that's visible across the row. Pulse dots' inline
+   `animation-delay` is computed against absolute time mod period (4s),
+   so all dots stay in phase across page renders (no flash on re-render). */
+.pulse-dot.is-recent {
+  box-shadow: 0 0 6px #22c55e, 0 0 18px #22c55e, 0 0 32px rgba(34, 197, 94, 0.55);
+  animation: pulse-breathe 4s ease-in-out infinite;
+}
+@keyframes pulse-breathe {
+  0%, 100% {
+    box-shadow: 0 0 6px #22c55e, 0 0 18px #22c55e, 0 0 32px rgba(34, 197, 94, 0.55);
+    transform: scale(1.15);
+  }
+  50% {
+    box-shadow: 0 0 10px #22c55e, 0 0 30px #22c55e, 0 0 56px rgba(34, 197, 94, 0.65);
+    transform: scale(1.5);
+  }
+}
 
 /* Grouping divider — header that splits a list into named buckets with an
    optional count. Typography-led: bold, brighter title with generous
@@ -103,7 +123,10 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
   align-items: baseline;
   gap: 8px;
   padding: 6px 14px 8px;
-  margin-top: 28px;
+  /* Effective gap above section title ≈ 24px (row padding-bottom 12px
+     + this margin 6px + divider padding-top 6px). The visual gap is
+     additive across all three; tuning just margin alone misleads. */
+  margin-top: 6px;
 }
 .group-divider:first-child {
   margin-top: 4px;

@@ -751,10 +751,24 @@ function pulseOpacity(lastTouchedSeconds, windowHours) {
 
 // Build the pulse-dot HTML. Returns empty string if invisible (so callers can
 // render an empty slot for layout stability — see ctrl-fresh-dot-slot etc.).
+// "Recent" controls (touched within the recentTouchedWindowMs Lab window —
+// default 5 min) get an extra `is-recent` class for the glow + breathing
+// animation defined in shared.css. The `animation-delay: -X.Xs` per element
+// is computed against absolute time mod animation period, so all dots stay
+// in phase across page renders (no flash on re-render).
 function buildPulseDot(lastTouchedSeconds, windowHours) {
   const op = pulseOpacity(lastTouchedSeconds, windowHours);
   if (op <= 0) return '';
-  return '<span class="pulse-dot" style="opacity: ' + op.toFixed(2) + ';" aria-hidden="true"></span>';
+  const recent = isRecentlyTouched(lastTouchedSeconds);
+  const cls = recent ? 'pulse-dot is-recent' : 'pulse-dot';
+  // Animation period (seconds) — must match shared.css `pulse-breathe`
+  // duration. Sync via absolute-time-derived delay so re-renders pick up
+  // the same phase.
+  const periodSec = 4;
+  const delay = recent
+    ? ' animation-delay: -' + ((Date.now() / 1000) % periodSec).toFixed(2) + 's;'
+    : '';
+  return '<span class="' + cls + '" style="opacity: ' + op.toFixed(2) + ';' + delay + '" aria-hidden="true"></span>';
 }
 
 // =============================================================================
@@ -773,6 +787,25 @@ function cardFreshnessMs() {
   const raw = localStorage.getItem(_CARD_FRESHNESS_LS_KEY);
   const m = raw == null ? NaN : parseInt(raw, 10);
   return Number.isFinite(m) && m > 0 ? m * 60 * 1000 : 15 * 60 * 1000;
+}
+
+// HomeGlo Lab: how recently a control must have been touched to get
+// the "very recent" emphasis (glow + breathing animation on the pulse
+// dot). Default 5 min. Same localStorage-shadow pattern.
+const _RECENT_WINDOW_LS_KEY = 'homeglo_recent_window_min';
+function recentTouchedWindowMs() {
+  const raw = localStorage.getItem(_RECENT_WINDOW_LS_KEY);
+  const m = raw == null ? NaN : parseInt(raw, 10);
+  return Number.isFinite(m) && m > 0 ? m * 60 * 1000 : 5 * 60 * 1000;
+}
+
+// True when a control's lastTouched timestamp falls within the recent
+// window. Used to add an `is-recent` class on pulse dots for the
+// glow + breathing emphasis.
+function isRecentlyTouched(lastTouchedSeconds) {
+  if (!lastTouchedSeconds) return false;
+  const ageMs = Date.now() - lastTouchedSeconds * 1000;
+  return ageMs >= 0 && ageMs <= recentTouchedWindowMs();
 }
 
 function buildGroupDivider(title, count) {
@@ -798,33 +831,31 @@ function controlSummaryAreaName(areaId, allAreas) {
   return a ? a.name : areaId;
 }
 
-// Format an area list with: filter-area pinned first (and HL-wrapped),
-// device-home pinned second (if different + present), rest alphabetical,
-// capped at 6 names with "(+N)" overflow for the rest. Used inline within
-// each summary-line's .areas span.
+// Format an area list. Sort: home-area-order (areaOrder map) first,
+// then alphabetical for areas not in that map, then `(+N)` overflow at
+// 6 names. Filter area (if set) is HL-wrapped wherever it lands —
+// position not pinned, so every row shows areas in the same canonical
+// order regardless of filter (eyes build muscle memory).
 function controlSummaryFormatAreasList(areaIds, allAreas, opts) {
   opts = opts || {};
   if (!areaIds || !areaIds.length) return '';
   const filterAreaId = opts.filterAreaId || null;
-  const deviceAreaId = opts.deviceAreaId || null;
-  const remaining = [...areaIds];
-  const ordered = [];
-  const take = (id) => {
-    const idx = remaining.indexOf(id);
-    if (idx >= 0) {
-      ordered.push(id);
-      remaining.splice(idx, 1);
-    }
+  const areaOrder = opts.areaOrder || null;
+  const sortKey = (id) => {
+    if (areaOrder && id in areaOrder) return [0, areaOrder[id], ''];
+    return [1, 0, controlSummaryAreaName(id, allAreas).toLowerCase()];
   };
-  if (filterAreaId) take(filterAreaId);
-  if (deviceAreaId && deviceAreaId !== filterAreaId) take(deviceAreaId);
-  remaining.sort((a, b) =>
-    controlSummaryAreaName(a, allAreas).localeCompare(controlSummaryAreaName(b, allAreas))
-  );
-  ordered.push(...remaining);
+  const sorted = [...areaIds].sort((a, b) => {
+    const ka = sortKey(a), kb = sortKey(b);
+    if (ka[0] !== kb[0]) return ka[0] - kb[0];
+    if (ka[1] !== kb[1]) return ka[1] - kb[1];
+    if (ka[2] < kb[2]) return -1;
+    if (ka[2] > kb[2]) return 1;
+    return 0;
+  });
   const CAP = 6;
-  const visible = ordered.slice(0, CAP);
-  const overflow = ordered.length - CAP;
+  const visible = sorted.slice(0, CAP);
+  const overflow = sorted.length - CAP;
   const parts = visible.map(id => {
     const name = controlSummaryAreaName(id, allAreas);
     return (filterAreaId && id === filterAreaId)
@@ -866,13 +897,14 @@ function _ctrlSummaryLine(label, areasHtml) {
 }
 
 // Sensor — render one summary-line per non-empty mode group, in canonical
-// order (on_off, on, alert). Each line's area list pins the filter area
-// (if set) to the front and HL-wraps it.
-function _ctrlSummaryRenderSensor(scopes, allAreas, filterAreaId) {
+// order (on_off, on, alert). Each line's area list is sorted in canonical
+// home-area order (via opts.areaOrder), with the filter area HL-wrapped
+// wherever it falls.
+function _ctrlSummaryRenderSensor(scopes, allAreas, filterAreaId, areaOrder) {
   const groups = _ctrlSummaryGroupSensorScopes(scopes);
   const order = ['on_off', 'on', 'alert'];
   const lines = [];
-  const opts = { filterAreaId: filterAreaId };
+  const opts = { filterAreaId: filterAreaId, areaOrder: areaOrder };
   const renderGroup = (mode) => {
     const areasHtml = controlSummaryFormatAreasList(Array.from(groups[mode]), allAreas, opts);
     lines.push(_ctrlSummaryLine(controlSummaryFormatSensorModeName(mode), areasHtml));
@@ -890,16 +922,16 @@ function _ctrlSummaryRenderSensor(scopes, allAreas, filterAreaId) {
 // every scope, even non-matching ones in area-filtered context — the
 // bucket header conveys WHY the control is here; the summary shows what
 // the device does overall.
-function _ctrlSummaryRenderSwitch(scopes, allAreas, filterAreaId, deviceAreaId) {
+function _ctrlSummaryRenderSwitch(scopes, allAreas, filterAreaId, deviceAreaId, areaOrder) {
   if (!scopes || !scopes.length) return '';
-  const opts = { filterAreaId: filterAreaId, deviceAreaId: deviceAreaId };
+  const opts = { filterAreaId: filterAreaId, areaOrder: areaOrder };
   return scopes.map((s, idx) => {
     const areasHtml = controlSummaryFormatAreasList(s.areas || [], allAreas, opts);
     return _ctrlSummaryLine('reach ' + (idx + 1), areasHtml);
   }).join('');
 }
 
-// Top-level dispatcher. opts = { allAreas, filterAreaId, deviceAreaId }.
+// Top-level dispatcher. opts = { allAreas, filterAreaId, deviceAreaId, areaOrder }.
 // Returns multi-line HTML (concatenated `<div class="summary-line">…</div>`).
 // Caller wraps with `<div class="ctrl-card-summary">…</div>`.
 function controlSummary(c, opts) {
@@ -909,28 +941,31 @@ function controlSummary(c, opts) {
   const allAreas = opts.allAreas || [];
   const filterAreaId = opts.filterAreaId || null;
   const deviceAreaId = opts.deviceAreaId || c.area_id || null;
+  const areaOrder = opts.areaOrder || null;
   if (c.category === 'switch') {
-    return _ctrlSummaryRenderSwitch(scopes, allAreas, filterAreaId, deviceAreaId);
+    return _ctrlSummaryRenderSwitch(scopes, allAreas, filterAreaId, deviceAreaId, areaOrder);
   }
-  return _ctrlSummaryRenderSensor(scopes, allAreas, filterAreaId);
+  return _ctrlSummaryRenderSensor(scopes, allAreas, filterAreaId, areaOrder);
 }
 
-// Bucket controls when filtering by a specific area. Returns four
-// arrays — bucketing rules differ between switches (reach-index based)
-// and sensors/cameras/contact (mode based; reach index is irrelevant).
+// Bucket controls when filtering by a specific area. Returns five
+// arrays splitting switches and sensors into separate categories
+// (different concepts: switch press vs presence trigger).
 //
-//   Switch:   scope 0 hits the area              → direct
-//             scope 1+ hits the area, scope 0 doesn't → indirect
-//             lives here, no scope reaches it    → doesntReach
-//   Sensor*:  any non-alert scope hits the area  → direct
+//   Switch:   scope 0 hits the area               → switchDirect
+//             scope 1+ hits the area, scope 0 doesn't → switchIndirect
+//             lives here, no scope reaches it     → doesntReach
+//   Sensor*:  any non-alert scope hits the area   → presence
 //             alert scope hits the area, no non-alert does → alerts
-//             lives here, no scope reaches it    → doesntReach
+//             lives here, no scope reaches it     → doesntReach
 //
-// Each control appears in exactly one bucket. Precedence inside each
-// type: direct > indirect/alerts > doesntReach.
+// Each control appears in exactly one bucket. Sensor with BOTH
+// on/on_off AND alert scopes hitting the filter lands in `presence`
+// (presence wins precedence over alerts).
 function bucketControlsForArea(controls, filterAreaId, currentAreaName) {
-  const direct = [];
-  const indirect = [];
+  const switchDirect = [];
+  const switchIndirect = [];
+  const presence = [];
   const alerts = [];
   const doesntReach = [];
   const livesHere = (c) => currentAreaName != null
@@ -943,21 +978,21 @@ function bucketControlsForArea(controls, filterAreaId, currentAreaName) {
       scopes.forEach(function (s, idx) {
         if ((s.areas || []).includes(filterAreaId) && smallest === -1) smallest = idx;
       });
-      if (smallest === 0) direct.push(c);
-      else if (smallest > 0) indirect.push(c);
+      if (smallest === 0) switchDirect.push(c);
+      else if (smallest > 0) switchIndirect.push(c);
       else if (livesHere(c)) doesntReach.push(c);
     } else {
-      const hasDirect = scopes.some(s =>
+      const hasPresence = scopes.some(s =>
         (s.mode === 'on' || s.mode === 'on_only' || s.mode === 'on_off')
         && (s.areas || []).includes(filterAreaId));
       const hasAlert = scopes.some(s =>
         s.mode === 'alert' && (s.areas || []).includes(filterAreaId));
-      if (hasDirect) direct.push(c);
+      if (hasPresence) presence.push(c);
       else if (hasAlert) alerts.push(c);
       else if (livesHere(c)) doesntReach.push(c);
     }
   }
-  return { direct, indirect, alerts, doesntReach };
+  return { switchDirect, switchIndirect, presence, alerts, doesntReach };
 }
 
 // Summary for the "Doesn't reach <area>" bucket. Switches use the standard
@@ -965,9 +1000,9 @@ function bucketControlsForArea(controls, filterAreaId, currentAreaName) {
 // alert-only fallback: if any non-alert mode has areas, alert lines are
 // hidden (the user cares about what the device does, alerts secondary);
 // if only alert scopes have any areas, alert lines do render.
-function controlSummaryDoesntReach(c, allAreas) {
+function controlSummaryDoesntReach(c, allAreas, areaOrder) {
   if (c.category === 'switch') {
-    return controlSummary(c, { allAreas: allAreas, deviceAreaId: c.area_id });
+    return controlSummary(c, { allAreas: allAreas, deviceAreaId: c.area_id, areaOrder: areaOrder });
   }
   const groups = _ctrlSummaryGroupSensorScopes(c.scopes || []);
   const hasNonAlert = (groups.on_off && groups.on_off.size > 0)
@@ -977,7 +1012,7 @@ function controlSummaryDoesntReach(c, allAreas) {
     if (s.mode === 'alert' && hasNonAlert) return false;
     return true;
   });
-  return _ctrlSummaryRenderSensor(filtered, allAreas, null);
+  return _ctrlSummaryRenderSensor(filtered, allAreas, null, areaOrder);
 }
 
 // =============================================================================

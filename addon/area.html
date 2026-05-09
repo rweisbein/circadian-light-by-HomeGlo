@@ -6005,16 +6005,34 @@
       return icons[category] || '';
     }
 
-    // Sort: most-recent activity first within each bucket (matches the
-    // /switches default sort). Paused controls don't get a separate sink
-    // — bucketing already puts them next to peers in the right group.
+    // Build the home-area-order map from glozones: { area_id: index }
+    // in zone-order × area-within-zone order. Used as primary sort key
+    // for controls (and threaded into controlSummary so the in-row
+    // area lists also display in canonical order).
+    function _getAreaOrderMap() {
+      const map = {};
+      let idx = 0;
+      const zones = (cachedGlozones && cachedGlozones.zones) || {};
+      for (const zoneName of Object.keys(zones)) {
+        const list = (zones[zoneName] && zones[zoneName].areas) || [];
+        for (const a of list) {
+          const aid = (typeof a === 'object') ? a.id : a;
+          if (aid && !(aid in map)) map[aid] = idx++;
+        }
+      }
+      return map;
+    }
+
+    // Sort by home-area-order (primary), then control name (secondary).
+    // "Sort by Location" semantics: rooms cluster in their canonical
+    // order, controls within a room cluster alphabetically.
     function sortAreaControls(controls) {
+      const order = _getAreaOrderMap();
       return [...controls].sort((a, b) => {
-        const ta = (a.last_action && a.last_action.timestamp) || '';
-        const tb = (b.last_action && b.last_action.timestamp) || '';
-        if (ta > tb) return -1;
-        if (ta < tb) return 1;
-        return a.name.localeCompare(b.name);
+        const oa = order[a.area_id] ?? 99999;
+        const ob = order[b.area_id] ?? 99999;
+        if (oa !== ob) return oa - ob;
+        return (a.name || '').localeCompare(b.name || '');
       });
     }
 
@@ -6046,12 +6064,14 @@
       const encodedId = encodeURIComponent(ctrl.id);
       const areaIdParam = selectedArea ? encodeURIComponent(selectedArea.area_id) : '';
       const dotHtml = buildPulseDot(controlLastActionSec(ctrl), controlsPulseWindowHours());
+      const areaOrder = _getAreaOrderMap();
       const summary = opts.doesntReach
-        ? controlSummaryDoesntReach(ctrl, areas)
+        ? controlSummaryDoesntReach(ctrl, areas, areaOrder)
         : controlSummary(ctrl, {
             allAreas: areas,
             filterAreaId: currentAreaId,
             deviceAreaId: ctrl.area_id,
+            areaOrder: areaOrder,
           });
       const summaryLine = summary
         ? `<div class="ctrl-card-summary">${summary}</div>`
@@ -6093,22 +6113,29 @@
       const currentAreaName = selectedArea ? selectedArea.name : '';
       const sorted = sortAreaControls(areaControls);
       const buckets = bucketControlsForArea(sorted, currentAreaId, currentAreaName);
-      // Headers only render when 2+ buckets have content — a single bucket
-      // is just "the controls", and the card title already names that.
+      // Headers only render when 2+ buckets have content — a single
+      // bucket is just "the controls", and the card title already names
+      // that. 5 buckets total: switchDirect / switchIndirect / presence
+      // / alerts / doesntReach (matches /switches single-area view).
       const populatedBuckets =
-        (buckets.direct.length > 0 ? 1 : 0)
-        + (buckets.indirect.length > 0 ? 1 : 0)
+        (buckets.switchDirect.length > 0 ? 1 : 0)
+        + (buckets.switchIndirect.length > 0 ? 1 : 0)
+        + (buckets.presence.length > 0 ? 1 : 0)
         + (buckets.alerts.length > 0 ? 1 : 0)
         + (buckets.doesntReach.length > 0 ? 1 : 0);
       const showHeaders = populatedBuckets >= 2;
       let html = '';
-      if (buckets.direct.length) {
-        if (showHeaders) html += buildGroupDivider('Direct reach to ' + currentAreaName, buckets.direct.length);
-        for (const c of buckets.direct) html += renderControlRow(c, currentAreaId, {});
+      if (buckets.switchDirect.length) {
+        if (showHeaders) html += buildGroupDivider(currentAreaName + ' in reach 1', buckets.switchDirect.length);
+        for (const c of buckets.switchDirect) html += renderControlRow(c, currentAreaId, {});
       }
-      if (buckets.indirect.length) {
-        if (showHeaders) html += buildGroupDivider('Indirect reach to ' + currentAreaName, buckets.indirect.length);
-        for (const c of buckets.indirect) html += renderControlRow(c, currentAreaId, {});
+      if (buckets.switchIndirect.length) {
+        if (showHeaders) html += buildGroupDivider(currentAreaName + ' in reach 2+', buckets.switchIndirect.length);
+        for (const c of buckets.switchIndirect) html += renderControlRow(c, currentAreaId, {});
+      }
+      if (buckets.presence.length) {
+        if (showHeaders) html += buildGroupDivider('Presence triggers ' + currentAreaName, buckets.presence.length);
+        for (const c of buckets.presence) html += renderControlRow(c, currentAreaId, {});
       }
       if (buckets.alerts.length) {
         if (showHeaders) html += buildGroupDivider('Alerts ' + currentAreaName, buckets.alerts.length);

@@ -923,7 +923,7 @@
 
 
     <!-- App Section -->
-    <div class="settings-section">
+    <div class="settings-section collapsed">
       <div class="section-header" data-section-key="app">App</div>
       <div class="section-content">
         <div class="form-row">
@@ -1004,7 +1004,7 @@
     </div>
 
     <!-- Light Behavior Section (was Light Effects + Feedback Cues) -->
-    <div class="settings-section">
+    <div class="settings-section collapsed">
       <div class="section-header" data-section-key="lightbehavior">Light Behavior</div>
       <div class="section-content">
         <div class="form-row">
@@ -1157,7 +1157,7 @@
     </div>
 
     <!-- Controls Section -->
-    <div class="settings-section">
+    <div class="settings-section collapsed">
       <div class="section-header" data-section-key="controls">Controls</div>
       <div class="section-content">
         <div class="form-row">
@@ -1213,7 +1213,7 @@
     </div>
 
     <!-- Quirky Hardware Section -->
-    <div class="settings-section">
+    <div class="settings-section collapsed">
       <div class="section-header" data-section-key="quirkyhardware">Quirky Hardware</div>
       <div class="section-content">
 
@@ -1314,7 +1314,7 @@
     </div>
 
     <!-- Light Filters Section -->
-    <div class="settings-section">
+    <div class="settings-section collapsed">
       <div class="section-header" data-section-key="lightpurposes">Light Purposes</div>
       <div class="section-content">
         <div id="filter-presets-container">
@@ -1361,6 +1361,17 @@
           </label>
           <div class="form-control">
             <input type="number" class="form-input" id="card-freshness-minutes" min="1" max="720" step="1" value="15" style="width: 80px;">
+            <span class="form-hint">minutes</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            Recent-touched window
+            <span class="info-icon">i<span class="info-tooltip">How recently a control must have been triggered to show the "very recent" emphasis (glow + slow breathing animation on the green pulse dot). Outside this window the dot still fades over the longer Pulse window above. Used on the controls list and area-details Controls card.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="controls-recent-window-minutes" min="1" max="120" step="1" value="5" style="width: 80px;">
             <span class="form-hint">minutes</span>
           </div>
         </div>
@@ -1594,10 +1605,12 @@
           document.getElementById('experimental-tick-mode').value = config.experimental_tick_mode ?? 'both';
           document.getElementById('controls-pulse-window-hours').value = config.controls_pulse_window_hours ?? 6;
           document.getElementById('card-freshness-minutes').value = config.card_freshness_minutes ?? 15;
+          document.getElementById('controls-recent-window-minutes').value = config.controls_recent_window_minutes ?? 5;
           document.getElementById('read-only-zha').checked = !!config.read_only_zha;
           // Shadow into localStorage so card-persistence pages can read
           // it synchronously on init (before they fetch /api/config).
           localStorage.setItem('homeglo_card_freshness_min', String(config.card_freshness_minutes ?? 15));
+          localStorage.setItem('homeglo_recent_window_min', String(config.controls_recent_window_minutes ?? 5));
         }
       } catch (err) {
         console.error('Error loading settings:', err);
@@ -1650,11 +1663,13 @@
         experimental_tick_mode: document.getElementById('experimental-tick-mode').value || 'both',
         controls_pulse_window_hours: parseFloat(document.getElementById('controls-pulse-window-hours').value) || 6,
         card_freshness_minutes: parseInt(document.getElementById('card-freshness-minutes').value, 10) || 15,
+        controls_recent_window_minutes: parseInt(document.getElementById('controls-recent-window-minutes').value, 10) || 5,
         read_only_zha: document.getElementById('read-only-zha').checked
       };
-      // Shadow card-freshness into localStorage so other pages can read
-      // it synchronously at init.
+      // Shadow Lab values to localStorage so pages can read them
+      // synchronously at init (before /api/config fetch resolves).
       localStorage.setItem('homeglo_card_freshness_min', String(settings.card_freshness_minutes));
+      localStorage.setItem('homeglo_recent_window_min', String(settings.controls_recent_window_minutes));
 
       try {
         const response = await fetch('./api/config', {
@@ -2232,6 +2247,7 @@
     document.getElementById('experimental-tick-mode').addEventListener('change', saveSettings);
     document.getElementById('controls-pulse-window-hours').addEventListener('blur', saveSettings);
     document.getElementById('card-freshness-minutes').addEventListener('blur', saveSettings);
+    document.getElementById('controls-recent-window-minutes').addEventListener('blur', saveSettings);
     document.getElementById('read-only-zha').addEventListener('change', saveSettings);
 
     // Location functions
@@ -2464,8 +2480,15 @@
       document.querySelectorAll('.section-header[data-section-key]').forEach(header => {
         const key = header.dataset.sectionKey;
         const section = header.parentElement;
-        // Restore stored state
-        if (localStorage.getItem('settings_section_' + key + '_collapsed') === 'true') {
+        // Apply stored state. Sections render `.collapsed` by default in
+        // HTML (except Main) so the page never shows them open and then
+        // collapses (avoids flicker). Stored 'false' = user explicitly
+        // opened → remove .collapsed. Stored 'true' or no value = stay
+        // at HTML default.
+        const stored = localStorage.getItem('settings_section_' + key + '_collapsed');
+        if (stored === 'false') {
+          section.classList.remove('collapsed');
+        } else if (stored === 'true') {
           section.classList.add('collapsed');
         }
         header.addEventListener('click', (e) => {

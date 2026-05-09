@@ -1,5 +1,26 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.303
+- **Sort by Location now uses home-area-order** (the order rooms appear on the home page) as the primary key, control name as the secondary. Both `/switches` and the area-details Controls card. Default sort changed from `Recent` → `Location`.
+- **Areas in summary lines no longer pinned to filter position** — they render in canonical home-area-order in every row, regardless of which area you're filtered to. The bold-pill highlight tells you where the filter area is; muscle memory takes over for everything else (reads in the same order every time).
+- **Area filter dropdown reorganized**:
+  - Sorted by home-area-order (was alphabetical).
+  - **Zones included as selectable options** (`Zone: Main` etc.).
+  - Areas indented under their zone (NBSP-prefix; works in `<option>` text).
+  - Selecting a zone filters to controls *located in* the zone — pure location filter, no reach semantics. Output groups by home-area with sub-dividers.
+- **5-bucket grouping** when filtered to a single area. Splits switches and sensors into separate categories since they're conceptually different (manual press vs presence trigger):
+  - `Kitchen in reach 1` (switches scope[0])
+  - `Kitchen in reach 2+` (switches scope[1+] only)
+  - `Presence triggers Kitchen` (sensors with on/on_off)
+  - `Alerts Kitchen` (sensors with alert-only)
+  - `Doesn't reach Kitchen` (lives here, no scope reaches)
+  Sensor with both on/on_off AND alert hitting filter lands in `Presence` (presence wins).
+- **Recent-touched emphasis on pulse dot.** New HomeGlo Lab setting `controls_recent_window_minutes` (default 5). Within that window, the green dot gets a strong 3-stop glow + slow breathing animation (4s loop) so eyes can pick out "this just happened" at a glance vs the longer fade window. Animation phase is synced via absolute-time-derived `animation-delay` so re-renders never cause flicker / out-of-phase reset.
+- **Filter freshness window** now driven by `card_freshness_minutes` Lab setting (default 15min), was hardcoded 5min. Filters in `controls_ui` sessionStorage clear after the freshness window like cards do.
+- **Settings page flicker fix.** Non-Main sections now render `class="settings-section collapsed"` in HTML so the page never opens-then-collapses. JS removes `.collapsed` for sections the user explicitly opened (stored value `'false'`). Avoids the "see all open then snap closed" pop the user kept hitting.
+- **Section divider gap right-sized.** `.group-divider` margin-top reduced 28px → 6px. The effective gap above section titles is additive (row padding-bottom 12px + divider margin 6px + divider padding-top 6px = 24px effective) — comment in the CSS makes that math obvious so the next person doesn't tune just one knob in isolation.
+- **`controls_recent_window_minutes` added to backend `GLOBAL_SETTINGS`** so the Lab value persists across restarts.
+
 ## 1.2.302
 - **Fix: Lab settings now actually persist.** `read_only_zha`, `controls_pulse_window_hours`, `card_freshness_minutes`, and `experimental_tick_mode` were being sent to `/api/config` but silently dropped — the save endpoint ignores keys not in `GLOBAL_SETTINGS` and these never got added when introduced. All four added to the allowed-list now. The card-freshness setting was working anyway because we shadow it to localStorage; the others were re-defaulting on every restart. read_only_zha is the one that prompted the fix (toggling it didn't survive a reload).
 

@@ -819,8 +819,8 @@
     let controls = [];
     let allAreas = [];
     let allGlozones = [];
-    let sortColumn = 'fourth';
-    let sortAsc = false;
+    let sortColumn = 'area';
+    let sortAsc = true;
     let categoryFilter = 'all';
     let areaFilter = 'all';
     let fourthField = 'lastAction';
@@ -936,8 +936,11 @@
         const raw = sessionStorage.getItem('controls_ui');
         if (raw) {
           const prefs = JSON.parse(raw);
-          // Expire preferences after 5 minutes
-          if (!prefs.saved_at || Date.now() - prefs.saved_at > 300000) {
+          // Expire prefs after the HomeGlo Lab card-freshness window
+          // (default 15 min). Filters live in sessionStorage so they
+          // already clear on tab close; this clears stale filters
+          // within the same session too.
+          if (!prefs.saved_at || Date.now() - prefs.saved_at > cardFreshnessMs()) {
             sessionStorage.removeItem('controls_ui');
             return;
           }
@@ -1054,7 +1057,15 @@
         categoryFilter = 'all';
         filtersReset = true;
       }
-      if (areaFilter !== 'all' && areaFilter !== 'unassigned' && !areas.includes(areaFilter)) {
+      // Validate area filter — accepts 'all', 'unassigned', a zone (`zone:<id>`),
+      // or an area name. Reset to 'all' if the saved value no longer applies.
+      if (areaFilter.startsWith('zone:')) {
+        const zid = areaFilter.slice(5);
+        if (!allGlozones.some(z => z.id === zid)) {
+          areaFilter = 'all';
+          filtersReset = true;
+        }
+      } else if (areaFilter !== 'all' && areaFilter !== 'unassigned' && !areas.includes(areaFilter)) {
         areaFilter = 'all';
         filtersReset = true;
       }
@@ -1091,11 +1102,19 @@
         }
         if (categoryFilter !== 'all' && c.category !== categoryFilter) return false;
         if (areaFilter === 'unassigned' && c.area_name) return false;
-        if (areaFilter !== 'all' && areaFilter !== 'unassigned') {
-          // Widen the area filter to include reach: a control matches if
-          // it LIVES in the filtered area, or any of its scopes REACHES
-          // that area. Mirrors the area-details Controls card model
-          // (In/Reaches). The render then splits into those two groups.
+        if (areaFilter.startsWith('zone:')) {
+          // Zone filter — pure location filter. Include the control if
+          // its home area belongs to the zone. No reach semantics
+          // (zones span multiple areas; "Direct reach to Zone" doesn't
+          // mean anything coherent).
+          const zoneId = areaFilter.slice(5);
+          const zone = allGlozones.find(z => z.id === zoneId);
+          if (!zone || !zone.areaIds.includes(c.area_id)) return false;
+        } else if (areaFilter !== 'all' && areaFilter !== 'unassigned') {
+          // Single-area filter — widen to include reach: a control
+          // matches if it LIVES in the area, or any scope REACHES it.
+          // The render then splits into Direct/Indirect/Presence/Alerts
+          // /Doesn't-reach buckets.
           const targetAreaId = (allAreas.find(a => a.name === areaFilter) || {}).area_id;
           const isIn = c.area_name === areaFilter;
           const reaches = targetAreaId && (c.scopes || []).some(s => (s.areas || []).includes(targetAreaId));
@@ -1204,13 +1223,20 @@
         if (valA < valB) return sortAsc ? -1 : 1;
         if (valA > valB) return sortAsc ? 1 : -1;
 
-        // Secondary sort by custom area order (when primary values are equal)
+        // Secondary sort by custom area order (when primary values are equal,
+        // and primary isn't already area). Then by control name as the silent
+        // final tiebreaker — gives "Sort: Location" a stable, predictable
+        // order ("home-area-sort, then alphabetical name").
         if (sortColumn !== 'area') {
           const areaA = customAreaOrder[a.area_id] ?? 99999;
           const areaB = customAreaOrder[b.area_id] ?? 99999;
           if (areaA < areaB) return -1;
           if (areaA > areaB) return 1;
         }
+        const nameA = (a.name || '').toLowerCase();
+        const nameB = (b.name || '').toLowerCase();
+        if (nameA < nameB) return -1;
+        if (nameA > nameB) return 1;
         return 0;
       });
 
@@ -1228,11 +1254,56 @@
           return !!c.inactive;
         return true;  // ALL
       };
-      const viewAreas = [...new Set(controls.filter(viewMatches).map(c => c.area_name).filter(Boolean))].sort();
-      const viewHasUnassigned = controls.filter(viewMatches).some(c => !c.area_name);
-      const areaOptions = `<option value="all">All areas</option>` +
-        (viewHasUnassigned ? `<option value="unassigned"${areaFilter === 'unassigned' ? ' selected' : ''}>— Unassigned —</option>` : '') +
-        viewAreas.map(a => `<option value="${a}"${areaFilter === a ? ' selected' : ''}>${a}</option>`).join('');
+      const matchingForView = controls.filter(viewMatches);
+      const viewAreaSet = new Set(matchingForView.map(c => c.area_name).filter(Boolean));
+      const viewHasUnassigned = matchingForView.some(c => !c.area_name);
+      // Map area-name → area_id (from allAreas registry) so we can
+      // resolve names back to ids for the zone-membership logic below.
+      const nameToId = {};
+      for (const a of (allAreas || [])) {
+        if (a && a.name) nameToId[a.name] = a.area_id;
+      }
+      // Build dropdown options interleaved by zone:
+      //   All areas
+      //   Unassigned (if any)
+      //   Zone A
+      //     Area1 in A   ← indented (NBSPs prefix)
+      //     Area2 in A
+      //   Zone B
+      //     Area1 in B
+      //   ...
+      //   Areas not in any zone (rare; appended at end, no indent)
+      const viewZones = (allGlozones || []).filter(z =>
+        z.areaIds.some(aid => {
+          const name = (allAreas.find(a => a.area_id === aid) || {}).name;
+          return name && viewAreaSet.has(name);
+        })
+      );
+      const sel = (val) => areaFilter === val ? ' selected' : '';
+      const seenAreaNames = new Set();
+      const indent = '  ';
+      const optionParts = ['<option value="all">All areas</option>'];
+      if (viewHasUnassigned) optionParts.push(`<option value="unassigned"${sel('unassigned')}>— Unassigned —</option>`);
+      for (const z of viewZones) {
+        const zVal = 'zone:' + z.id;
+        optionParts.push(`<option value="${zVal}"${sel(zVal)}>Zone: ${z.name}</option>`);
+        for (const aid of z.areaIds) {
+          const name = (allAreas.find(a => a.area_id === aid) || {}).name;
+          if (name && viewAreaSet.has(name) && !seenAreaNames.has(name)) {
+            seenAreaNames.add(name);
+            optionParts.push(`<option value="${name}"${sel(name)}>${indent}${name}</option>`);
+          }
+        }
+      }
+      // Areas with no zone assignment (rare) — append at the end with
+      // no indent, sorted alphabetically.
+      const orphanedAreas = [...viewAreaSet]
+        .filter(name => !seenAreaNames.has(name))
+        .sort((a, b) => a.localeCompare(b));
+      for (const name of orphanedAreas) {
+        optionParts.push(`<option value="${name}"${sel(name)}>${name}</option>`);
+      }
+      const areaOptions = optionParts.join('');
 
       // Two-row toolbar — Row 1: filters (search + area + type, each
       // with its own × clear). Row 2: organize (sort + count). Sort
@@ -1253,9 +1324,9 @@
           : (sortColumn === 'area') ? 'area' : 'recent';
         sortHtml = '<label style="margin-right:6px;">Sort:</label>'
           + '<select class="ctrl-tb-select" id="ctrl-sort-select">'
+          + '<option value="area"' + (sortVal === 'area' ? ' selected' : '') + '>Location</option>'
           + '<option value="recent"' + (sortVal === 'recent' ? ' selected' : '') + '>Recent</option>'
           + '<option value="name"' + (sortVal === 'name' ? ' selected' : '') + '>Name</option>'
-          + '<option value="area"' + (sortVal === 'area' ? ' selected' : '') + '>Location</option>'
           + '</select>';
       }
       const searchEsc = searchFilter.replace(/"/g, '&quot;');
@@ -1341,19 +1412,48 @@
           inner += forever.map(c => renderControlCard(c, 'paused')).join('');
         }
         cardListHtml = '<div class="ctrl-card-list">' + inner + '</div>';
+      } else if (currentView === 'all' && areaFilter.startsWith('zone:')) {
+        // Zone filter — flat list of controls whose home area is in the
+        // zone. Group by home area in canonical home-area-sort, with
+        // each home-area divider labeled with the area name + count.
+        const groupMap = new Map();
+        for (const c of sorted) {
+          const k = c.area_name || '— Unassigned —';
+          if (!groupMap.has(k)) groupMap.set(k, []);
+          groupMap.get(k).push(c);
+        }
+        const groupedNames = [...groupMap.keys()].sort((a, b) => {
+          const oa = customAreaOrder[(allAreas.find(x => x.name === a) || {}).area_id] ?? 99999;
+          const ob = customAreaOrder[(allAreas.find(x => x.name === b) || {}).area_id] ?? 99999;
+          if (oa !== ob) return oa - ob;
+          return a.localeCompare(b);
+        });
+        let inner = '';
+        for (const name of groupedNames) {
+          const list = groupMap.get(name);
+          inner += buildGroupDivider(name, list.length);
+          inner += list.map(c => renderControlCard(c, 'all')).join('');
+        }
+        cardListHtml = '<div class="ctrl-card-list">' + inner + '</div>';
       } else if (currentView === 'all' && areaFilter !== 'all' && areaFilter !== 'unassigned') {
-        // Area filter active — 4-bucket grouping (shared with the
-        // area-details Controls card via bucketControlsForArea).
+        // Single-area filter — 5-bucket grouping (shared with area-details
+        // Controls card via bucketControlsForArea). Switches and sensors
+        // get separate categories: switch reach 1 / switch reach 2+ /
+        // presence triggers / alerts / doesn't reach.
         const targetAreaId = (allAreas.find(a => a.name === areaFilter) || {}).area_id;
         const buckets = bucketControlsForArea(sorted, targetAreaId, areaFilter);
         let inner = '';
-        if (buckets.direct.length) {
-          inner += buildGroupDivider('Direct reach to ' + areaFilter, buckets.direct.length);
-          inner += buckets.direct.map(c => renderControlCard(c, 'all')).join('');
+        if (buckets.switchDirect.length) {
+          inner += buildGroupDivider(areaFilter + ' in reach 1', buckets.switchDirect.length);
+          inner += buckets.switchDirect.map(c => renderControlCard(c, 'all')).join('');
         }
-        if (buckets.indirect.length) {
-          inner += buildGroupDivider('Indirect reach to ' + areaFilter, buckets.indirect.length);
-          inner += buckets.indirect.map(c => renderControlCard(c, 'all')).join('');
+        if (buckets.switchIndirect.length) {
+          inner += buildGroupDivider(areaFilter + ' in reach 2+', buckets.switchIndirect.length);
+          inner += buckets.switchIndirect.map(c => renderControlCard(c, 'all')).join('');
+        }
+        if (buckets.presence.length) {
+          inner += buildGroupDivider('Presence triggers ' + areaFilter, buckets.presence.length);
+          inner += buckets.presence.map(c => renderControlCard(c, 'all')).join('');
         }
         if (buckets.alerts.length) {
           inner += buildGroupDivider('Alerts ' + areaFilter, buckets.alerts.length);
@@ -1465,7 +1565,7 @@
       // line ("reach 1: ...", "on/off: ..."). The summary helpers in
       // shared.js produce the inner divs; we just provide the wrapper.
       const summaryHtml = opts.doesntReach
-        ? controlSummaryDoesntReach(c, allAreas)
+        ? controlSummaryDoesntReach(c, allAreas, customAreaOrder)
         : pageControlSummary(c);
       const summaryLine = summaryHtml
         ? '<div class="ctrl-card-summary">' + summaryHtml + '</div>'
@@ -1506,7 +1606,9 @@
       const noun = isOne ? nouns[0] : nouns[1];
       const areaPart = (areaFilter === 'all') ? ''
         : (areaFilter === 'unassigned') ? ' without an area'
-        : ' in ' + areaFilter;
+        : (areaFilter.startsWith('zone:'))
+          ? ' in zone ' + ((allGlozones.find(z => z.id === areaFilter.slice(5)) || {}).name || areaFilter.slice(5))
+          : ' in ' + areaFilter;
       let verb = '';
       if (currentView === 'setup') verb = isOne ? ' needs setup' : ' need setup';
       else if (currentView === 'batteries') verb = isOne ? ' has battery' : ' have battery';
@@ -1519,11 +1621,17 @@
     // card). Page-local wrapper to thread allAreas + the active filter.
     function getFilterAreaId() {
       if (areaFilter === 'all' || areaFilter === 'unassigned') return null;
+      if (areaFilter.startsWith('zone:')) return null;  // zone filter has no single highlight target
       const a = (allAreas || []).find(x => x.name === areaFilter);
       return a ? a.area_id : null;
     }
     function pageControlSummary(c) {
-      return controlSummary(c, { allAreas: allAreas, filterAreaId: getFilterAreaId(), deviceAreaId: c.area_id });
+      return controlSummary(c, {
+        allAreas: allAreas,
+        filterAreaId: getFilterAreaId(),
+        deviceAreaId: c.area_id,
+        areaOrder: customAreaOrder,
+      });
     }
 
     function getStatusSubtitle(ctrl) {
