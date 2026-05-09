@@ -947,11 +947,13 @@ function controlSummarySensorAllScopes(scopes, allAreas) {
   return _ctrlSummaryJoinSensorGroups(scopes || [], allAreas);
 }
 
+// Sensor — area-filtered. We show ALL scopes (not just the ones touching
+// the filter area). The bucket label already conveys WHY the control is
+// in this group; the summary's job is to show what the device does
+// overall. The filter area is pinned to the front of each mode group's
+// area list for visibility.
 function controlSummarySensorAreaFiltered(scopes, filterAreaId, allAreas) {
-  const matching = (scopes || []).filter(s =>
-    s.mode && s.mode !== 'disabled' && (s.areas || []).includes(filterAreaId)
-  );
-  return _ctrlSummaryJoinSensorGroups(matching, allAreas, filterAreaId);
+  return _ctrlSummaryJoinSensorGroups(scopes || [], allAreas, filterAreaId);
 }
 
 // Top-level dispatcher. opts = { allAreas, filterAreaId, deviceAreaId }.

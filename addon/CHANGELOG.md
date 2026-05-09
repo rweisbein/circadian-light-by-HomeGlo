@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.294
+- **Sensor summaries in area-filtered context now show ALL scopes**, not just those touching the filter area. Previously, "Entry motion" on SunOffice's Alerts bucket showed only `→ alert SunOffice, Living, Master (+1)` and hid the `on/off Entry` + `on Dining, Entry, Kitchen` scopes — because those didn't touch SunOffice. The bucket label conveys WHY the control is in this group; the summary's job is to show what the device does overall. Filter area still pins to the front of each mode group's area list (so it stays visible across the 3-name cap). Now reads: `→ on/off Entry · on Dining, Entry, Kitchen · alert SunOffice, Living, Master (+1)`.
+
 ## 1.2.293
 - **Filter area now pinned to front of sensor area lists** (bug fix). On the area-details Controls card and `/switches` area-filtered view, when a sensor's matching scope had 4+ areas, the filter area could fall past the 3-name cap into "(+N)" and disappear from the row — e.g., on SunOffice's Alerts bucket, an alert hitting `[Living, Master, Master Bath, SunOffice]` rendered as `alert Living, Master, Master Bath (+1)` with SunOffice invisible. Sensors now use the same prioritized formatter switches already used: filter area first, then alphabetical, then cap. Switches' formatter also alphabetizes the remainder now (was using natural scope order; alphabetical is more predictable).
 
