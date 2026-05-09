@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.298
+- **Filter-area highlight bump**: `.ctrl-card-summary .areas .hl` from `font-weight: 600` to `700` plus `letter-spacing: 0.2px`. 600 didn't carry enough visual weight at 0.8rem under the parent's 0.85 opacity — filter area looked the same prominence as the label. Full bold + tracking gives it unmistakable lift.
+
 ## 1.2.297
 - **Multi-line summary spans full row width.** Row layout switched from flex to a 2-row grid: top row holds pulse / icon / name / area-name (top-aligned); bottom row's summary lines span the body+area columns. On mobile, this gives reach/mode area lists the full row width to wrap into instead of being squeezed by the right-side area column. Applies to /switches and area-details.
 - **Filter-area highlight now bold.** When area-filtered, the filter area name within each summary's area list renders in `font-weight: 600` (default text color, brighter than the muted area list around it). Quick visual scan finds where the filter area is hit, without leaning on accent color.
