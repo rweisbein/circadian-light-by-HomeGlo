@@ -798,23 +798,15 @@ function controlSummaryAreaName(areaId, allAreas) {
   return a ? a.name : areaId;
 }
 
-// Format a list of area_ids alphabetically: 1-3 names spelled, (+N) for rest.
-function controlSummaryFormatAreasList(areaIds, allAreas) {
+// Format an area list with: filter-area pinned first (and HL-wrapped),
+// device-home pinned second (if different + present), rest alphabetical,
+// capped at 6 names with "(+N)" overflow for the rest. Used inline within
+// each summary-line's .areas span.
+function controlSummaryFormatAreasList(areaIds, allAreas, opts) {
+  opts = opts || {};
   if (!areaIds || !areaIds.length) return '';
-  const names = areaIds.map(id => controlSummaryAreaName(id, allAreas));
-  const sorted = [...names].sort((a, b) => a.localeCompare(b));
-  if (sorted.length <= 3) return sorted.join(', ');
-  return sorted.slice(0, 3).join(', ') + ' (+' + (sorted.length - 3) + ')';
-}
-
-// Format a list of area_ids with priority ordering: filter area first
-// (if set), then device's home area (if different and present), then
-// the rest sorted alphabetically. Up to 3 names spelled, (+N) for rest.
-// Critical for the cap to land correctly — without prioritization the
-// filter area can fall past the 3-name cap into "(+N)" purgatory and
-// disappear from the visible row.
-function controlSummaryFormatAreasListPrioritized(areaIds, allAreas, deviceAreaId, filterAreaId) {
-  if (!areaIds || !areaIds.length) return '';
+  const filterAreaId = opts.filterAreaId || null;
+  const deviceAreaId = opts.deviceAreaId || null;
   const remaining = [...areaIds];
   const ordered = [];
   const take = (id) => {
@@ -830,9 +822,18 @@ function controlSummaryFormatAreasListPrioritized(areaIds, allAreas, deviceAreaI
     controlSummaryAreaName(a, allAreas).localeCompare(controlSummaryAreaName(b, allAreas))
   );
   ordered.push(...remaining);
-  const names = ordered.map(id => controlSummaryAreaName(id, allAreas));
-  if (names.length <= 3) return names.join(', ');
-  return names.slice(0, 3).join(', ') + ' (+' + (names.length - 3) + ')';
+  const CAP = 6;
+  const visible = ordered.slice(0, CAP);
+  const overflow = ordered.length - CAP;
+  const parts = visible.map(id => {
+    const name = controlSummaryAreaName(id, allAreas);
+    return (filterAreaId && id === filterAreaId)
+      ? '<span class="hl">' + name + '</span>'
+      : name;
+  });
+  let result = parts.join(', ');
+  if (overflow > 0) result += ' (+' + overflow + ')';
+  return result;
 }
 
 function controlSummaryFormatSensorModeName(mode) {
@@ -855,110 +856,52 @@ function _ctrlSummaryGroupSensorScopes(scopes) {
   return groups;
 }
 
-// Render one mode group: "<primary>mode</primary> <areas>area-list</areas>".
-// When filterAreaId is set (area-filtered context), the filter area is
-// pinned to the front of the area list so it can't fall past the 3-name
-// cap and disappear into "(+N)".
-function _ctrlSummaryRenderSensorGroup(mode, areaSet, allAreas, filterAreaId) {
-  const modeLabel = controlSummaryFormatSensorModeName(mode);
-  const arr = Array.from(areaSet);
-  const areasHtml = filterAreaId
-    ? controlSummaryFormatAreasListPrioritized(arr, allAreas, null, filterAreaId)
-    : controlSummaryFormatAreasList(arr, allAreas);
-  return '<span class="primary">' + modeLabel + '</span>'
-    + (areasHtml ? ' <span class="areas">' + areasHtml + '</span>' : '');
+// Render one summary line: "<label>: <areas>". Label is in default text
+// (prominent); area list is muted. Empty areas render as "—".
+function _ctrlSummaryLine(label, areasHtml) {
+  return '<div class="summary-line">'
+    + '<span>' + label + ':</span>'
+    + ' <span class="areas">' + (areasHtml || '&mdash;') + '</span>'
+    + '</div>';
 }
 
-// Render a set of sensor scopes as "<group> · <group> · ..." with the
-// muted middle-dot separator wrapped in .areas so it visually belongs
-// with the muted area lists, not the prominent mode names.
-function _ctrlSummaryJoinSensorGroups(scopes, allAreas, filterAreaId) {
+// Sensor — render one summary-line per non-empty mode group, in canonical
+// order (on_off, on, alert). Each line's area list pins the filter area
+// (if set) to the front and HL-wraps it.
+function _ctrlSummaryRenderSensor(scopes, allAreas, filterAreaId) {
   const groups = _ctrlSummaryGroupSensorScopes(scopes);
   const order = ['on_off', 'on', 'alert'];
-  const segs = [];
+  const lines = [];
+  const opts = { filterAreaId: filterAreaId };
+  const renderGroup = (mode) => {
+    const areasHtml = controlSummaryFormatAreasList(Array.from(groups[mode]), allAreas, opts);
+    lines.push(_ctrlSummaryLine(controlSummaryFormatSensorModeName(mode), areasHtml));
+  };
   for (const mode of order) {
-    if (!groups[mode] || groups[mode].size === 0) continue;
-    segs.push(_ctrlSummaryRenderSensorGroup(mode, groups[mode], allAreas, filterAreaId));
+    if (groups[mode] && groups[mode].size > 0) renderGroup(mode);
   }
   for (const mode in groups) {
-    if (!order.includes(mode) && groups[mode].size > 0) {
-      segs.push(_ctrlSummaryRenderSensorGroup(mode, groups[mode], allAreas, filterAreaId));
-    }
+    if (!order.includes(mode) && groups[mode].size > 0) renderGroup(mode);
   }
-  if (!segs.length) return '';
-  return segs.join(' <span class="areas">·</span> ');
+  return lines.join('');
 }
 
-// Switch — no area filter. Reach 1 areas in primary; "+N reaches" suffix
-// in secondary (small + muted) when more scopes exist.
-function controlSummarySwitchAllScopes(scopes, allAreas, deviceAreaId) {
-  const primary = scopes[0];
-  if (!primary) return '';
-  const areas = controlSummaryFormatAreasListPrioritized(primary.areas || [], allAreas, deviceAreaId, null);
-  const moreReaches = scopes.length - 1;
-  let html = '<span class="primary">' + (areas || '&mdash;') + '</span>';
-  if (moreReaches > 0) {
-    html += ' <span class="secondary">+' + moreReaches + ' reach' + (moreReaches !== 1 ? 'es' : '') + '</span>';
-  }
-  return html;
-}
-
-// Format a list of reach indices as "reach N", "reach N & M",
-// "reach A, B & C".
-function _ctrlSummaryJoinReachLabels(labels) {
-  if (labels.length === 1) return labels[0];
-  if (labels.length === 2) return labels[0] + ' & ' + labels[1];
-  return labels.slice(0, -1).join(', ') + ' & ' + labels[labels.length - 1];
-}
-
-// Switch — area filter active. Two cases:
-//   Reach 1 matches the filter → primary reach 1 areas, plus a muted
-//     secondary suffix listing additional matching reaches by number
-//     (no partner counts; reach 1's areas already convey the partners).
-//   Reach 1 doesn't match (Indirect bucket) → all-muted summary, with
-//     partner counts for each matching reach since reach 1's prominent
-//     content isn't there to imply them.
-function controlSummarySwitchAreaFiltered(scopes, filterAreaId, allAreas, deviceAreaId) {
-  const matching = [];
-  scopes.forEach((s, idx) => {
-    if ((s.areas || []).includes(filterAreaId)) matching.push(idx);
-  });
-  if (!matching.length) return '';
-  if (matching[0] === 0) {
-    const reach1Areas = scopes[0].areas || [];
-    const areasFormatted = controlSummaryFormatAreasListPrioritized(reach1Areas, allAreas, deviceAreaId, filterAreaId);
-    let html = '<span class="primary">' + (areasFormatted || '&mdash;') + '</span>';
-    const others = matching.slice(1);
-    if (others.length > 0) {
-      const labels = others.map(i => 'reach ' + (i + 1));
-      html += ' <span class="secondary">+ ' + _ctrlSummaryJoinReachLabels(labels) + '</span>';
-    }
-    return html;
-  }
-  // Indirect: all matching reaches with partner counts, all muted same-size
-  const segs = matching.map(i => {
-    const partners = (scopes[i].areas || []).filter(a => a !== filterAreaId).length;
-    return partners > 0 ? 'reach ' + (i + 1) + ' (+' + partners + ')' : 'reach ' + (i + 1);
-  });
-  return '<span class="areas">' + _ctrlSummaryJoinReachLabels(segs) + '</span>';
-}
-
-function controlSummarySensorAllScopes(scopes, allAreas) {
-  return _ctrlSummaryJoinSensorGroups(scopes || [], allAreas);
-}
-
-// Sensor — area-filtered. We show ALL scopes (not just the ones touching
-// the filter area). The bucket label already conveys WHY the control is
-// in this group; the summary's job is to show what the device does
-// overall. The filter area is pinned to the front of each mode group's
-// area list for visibility.
-function controlSummarySensorAreaFiltered(scopes, filterAreaId, allAreas) {
-  return _ctrlSummaryJoinSensorGroups(scopes || [], allAreas, filterAreaId);
+// Switch — render one summary-line per scope ("reach N: areas"). Includes
+// every scope, even non-matching ones in area-filtered context — the
+// bucket header conveys WHY the control is here; the summary shows what
+// the device does overall.
+function _ctrlSummaryRenderSwitch(scopes, allAreas, filterAreaId, deviceAreaId) {
+  if (!scopes || !scopes.length) return '';
+  const opts = { filterAreaId: filterAreaId, deviceAreaId: deviceAreaId };
+  return scopes.map((s, idx) => {
+    const areasHtml = controlSummaryFormatAreasList(s.areas || [], allAreas, opts);
+    return _ctrlSummaryLine('reach ' + (idx + 1), areasHtml);
+  }).join('');
 }
 
 // Top-level dispatcher. opts = { allAreas, filterAreaId, deviceAreaId }.
-// Returns the inner HTML for the summary line (excluding the leading glyph
-// — callers wrap with `<div class="ctrl-card-summary"><span class="lead">→</span>...</div>`).
+// Returns multi-line HTML (concatenated `<div class="summary-line">…</div>`).
+// Caller wraps with `<div class="ctrl-card-summary">…</div>`.
 function controlSummary(c, opts) {
   opts = opts || {};
   const scopes = c.scopes || [];
@@ -967,13 +910,9 @@ function controlSummary(c, opts) {
   const filterAreaId = opts.filterAreaId || null;
   const deviceAreaId = opts.deviceAreaId || c.area_id || null;
   if (c.category === 'switch') {
-    return filterAreaId
-      ? controlSummarySwitchAreaFiltered(scopes, filterAreaId, allAreas, deviceAreaId)
-      : controlSummarySwitchAllScopes(scopes, allAreas, deviceAreaId);
+    return _ctrlSummaryRenderSwitch(scopes, allAreas, filterAreaId, deviceAreaId);
   }
-  return filterAreaId
-    ? controlSummarySensorAreaFiltered(scopes, filterAreaId, allAreas)
-    : controlSummarySensorAllScopes(scopes, allAreas);
+  return _ctrlSummaryRenderSensor(scopes, allAreas, filterAreaId);
 }
 
 // Bucket controls when filtering by a specific area. Returns four
@@ -1021,12 +960,11 @@ function bucketControlsForArea(controls, filterAreaId, currentAreaName) {
   return { direct, indirect, alerts, doesntReach };
 }
 
-// Summary line for the "Doesn't reach <area>" bucket. Switches use the
-// standard non-area-filtered form (their reach-list is naturally an
-// area enumeration). Sensors use the mode-prominent form, but with an
-// alert-only fallback: if any non-alert scopes have areas, only those
-// render (alert info hidden); if only alert scopes have areas, those
-// render. Same prominence rules (mode in primary, areas in muted).
+// Summary for the "Doesn't reach <area>" bucket. Switches use the standard
+// (no-filter) form. Sensors use the standard sensor form, but with an
+// alert-only fallback: if any non-alert mode has areas, alert lines are
+// hidden (the user cares about what the device does, alerts secondary);
+// if only alert scopes have any areas, alert lines do render.
 function controlSummaryDoesntReach(c, allAreas) {
   if (c.category === 'switch') {
     return controlSummary(c, { allAreas: allAreas, deviceAreaId: c.area_id });
@@ -1039,7 +977,7 @@ function controlSummaryDoesntReach(c, allAreas) {
     if (s.mode === 'alert' && hasNonAlert) return false;
     return true;
   });
-  return _ctrlSummaryJoinSensorGroups(filtered, allAreas);
+  return _ctrlSummaryRenderSensor(filtered, allAreas, null);
 }
 
 // =============================================================================

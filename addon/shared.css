@@ -103,7 +103,7 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
   align-items: baseline;
   gap: 8px;
   padding: 6px 14px 8px;
-  margin-top: 18px;
+  margin-top: 28px;
 }
 .group-divider:first-child {
   margin-top: 4px;
@@ -122,32 +122,33 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
 }
 
 /* =============================================================================
-   Control summary line — "what this control does", a third body line on
-   list rows. The leading "→" glyph (muted) labels the row as an
-   action/effect descriptor. Used on /switches and the area-details
-   Controls card. The `controlSummary()` helper in shared.js generates
-   the inner spans (.primary / .secondary).
+   Control summary — "what this control does", multi-line. Each scope (for
+   switches) or each mode group (for sensors) renders as its own line:
+       reach 1: Kitchen, Living
+       reach 2: Master
+   The label ("reach N", "on/off", "on", "alert") renders in default text
+   color; the area list after the colon is muted. When an area filter is
+   active, the filter area is pinned to the front of each area list AND
+   rendered in default color (`.hl`) so it visually pops.
    ============================================================================= */
 .ctrl-card-summary {
   font-size: 0.8rem;
   color: var(--text, #e2e8f0);
   opacity: 0.85;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 12px;
+  margin-top: 2px;
+}
+.ctrl-card-summary .summary-line {
+  display: flex;
+  align-items: baseline;
   gap: 6px;
   flex-wrap: wrap;
-  margin-top: 1px;
 }
-.ctrl-card-summary .lead { color: var(--muted2, #64748b); }
-/* Three tiers within a summary line:
-   .primary  — prominent (mode names for sensors, reach 1 areas for switches)
-   .areas    — muted color, full size (sensor area lists, indirect-reach summaries)
-   .secondary — muted + smaller (footnote suffixes like "+2 reaches", "+ reach 2 & 3") */
 .ctrl-card-summary .areas { color: var(--muted2, #64748b); }
-.ctrl-card-summary .secondary {
-  color: var(--muted2, #64748b);
-  font-size: 0.74rem;
-}
+.ctrl-card-summary .areas .hl { color: var(--text, #e2e8f0); }
 
 /* =============================================================================
    View segmented control — single mode-picker for a page (e.g., home page

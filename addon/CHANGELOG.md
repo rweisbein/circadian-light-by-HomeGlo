@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.295
+- **Control summary is now multi-line.** Each scope (switches) or mode group (sensors) renders as its own indented line under the control name. Switches: `reach 1: areas`, `reach 2: areas`, etc. Sensors: `on/off: areas`, `on: areas`, `alert: areas`. Filter area is pinned to the front of every area list AND highlighted (default text color over the muted area list). Leading `→` glyph dropped — the per-line label provides its own structure. Bucket dividers got a bigger top margin (28px) so section breaks stay distinct against the taller rows.
+- **Format unified across filtered and unfiltered.** Same shape regardless of context. Reach 1 always labeled (`reach 1: ...`) — no more implicit-reach-1 special case. All scopes shown, no more `+N reaches` / `+ reach 2 & 3` afterthoughts. The bucket header conveys filter context; the summary body conveys what the control does overall.
+- **Area lists capped at 6 names** (was 3) with `(+N)` overflow for the rest. Common area lists fit fully; only outliers truncate.
+- **Removed**: `controlSummaryFormatAreasListPrioritized` (consolidated into `controlSummaryFormatAreasList`), `.ctrl-card-summary .lead` and `.secondary` CSS classes (no longer used).
+
 ## 1.2.294
 - **Sensor summaries in area-filtered context now show ALL scopes**, not just those touching the filter area. Previously, "Entry motion" on SunOffice's Alerts bucket showed only `→ alert SunOffice, Living, Master (+1)` and hid the `on/off Entry` + `on Dining, Entry, Kitchen` scopes — because those didn't touch SunOffice. The bucket label conveys WHY the control is in this group; the summary's job is to show what the device does overall. Filter area still pins to the front of each mode group's area list (so it stays visible across the 3-name cap). Now reads: `→ on/off Entry · on Dining, Entry, Kitchen · alert SunOffice, Living, Master (+1)`.
 

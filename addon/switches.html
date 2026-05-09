@@ -1477,14 +1477,14 @@
       const safeId = c.id.replace(/'/g, "\\'");
       // "What this controls" summary — the most useful sub-line per the
       // user's framing. Replaces the old area+zone location line. The
-      // Leading "→" acts as an "action/effect" descriptor for the row.
-      // Internal arrow inside the body is dropped to avoid duplication
-      // (sensor single-scope renders as "5m Master" — adjacency).
+      // Multi-line summary: each scope/mode group renders as its own
+      // line ("reach 1: ...", "on/off: ..."). The summary helpers in
+      // shared.js produce the inner divs; we just provide the wrapper.
       const summaryHtml = opts.doesntReach
         ? controlSummaryDoesntReach(c, allAreas)
         : pageControlSummary(c);
       const summaryLine = summaryHtml
-        ? '<div class="ctrl-card-summary"><span class="lead">&rarr;</span>' + summaryHtml + '</div>'
+        ? '<div class="ctrl-card-summary">' + summaryHtml + '</div>'
         : '';
       return ''
         + '<div class="' + rowClass + '" onclick="editControl(\'' + safeId + '\')">'
