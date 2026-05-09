@@ -151,13 +151,15 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
   flex-wrap: wrap;
 }
 .ctrl-card-summary .areas { color: var(--muted2, #64748b); }
-/* Filter-area highlight: full bold + slight letter-spacing so it pops
-   within the muted area list. 600 didn't carry enough visual weight at
+/* Filter-area highlight: rectangular pill behind the area name. The
+   background carries the emphasis where font-weight bumps couldn't at
    0.8rem under the parent's 0.85 opacity. */
 .ctrl-card-summary .areas .hl {
   color: var(--text, #e2e8f0);
-  font-weight: 700;
-  letter-spacing: 0.2px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 1px 6px;
+  border-radius: 3px;
 }
 
 /* =============================================================================

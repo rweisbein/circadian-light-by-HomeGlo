@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.299
+- **Filter-area highlight switched from bold to a background pill.** Bold weight (even 700 + letter-spacing) didn't carry enough visual contrast at 0.8rem under the parent's 0.85 opacity — filter area still read at the same prominence as the label. New treatment: 15% white background pill behind the filter area name (`background: rgba(255,255,255,0.15)`, 1px×6px padding, 3px border-radius). Reads as "this is highlighted" without leaning on accent color. Verified working on macOS Safari before ship.
+
 ## 1.2.298
 - **Filter-area highlight bump**: `.ctrl-card-summary .areas .hl` from `font-weight: 600` to `700` plus `letter-spacing: 0.2px`. 600 didn't carry enough visual weight at 0.8rem under the parent's 0.85 opacity — filter area looked the same prominence as the label. Full bold + tracking gives it unmistakable lift.
 
