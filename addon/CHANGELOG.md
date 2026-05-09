@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.296
+- **2-step diagnostic log.** When an area's lights are physically off and a turn-on lands at a CT close to our tracked `last_sent_kelvin` (so the per-purpose 2-step gate skips), we now log a `[2step] <area>/<filter>: skipped off→on (prev_ct=…K @ <age>, target=…K, Δ=…K < …K)` line. The `@ <age>` annotation (e.g., `4h ago`) helps spot stale state — long gaps since our last write mean another actor (cross-addon ZHA pollution, manual ZCL command, automation) may have touched the bulbs since, and our gate is operating on outdated info. Same diagnostic in the batch path — fires once per batch group when every area's prev_ct is within threshold but at least one area is off. New `last_sent_kelvin_at` field on area state + `state.format_age_short()` helper.
+
 ## 1.2.295
 - **Control summary is now multi-line.** Each scope (switches) or mode group (sensors) renders as its own indented line under the control name. Switches: `reach 1: areas`, `reach 2: areas`, etc. Sensors: `on/off: areas`, `on: areas`, `alert: areas`. Filter area is pinned to the front of every area list AND highlighted (default text color over the muted area list). Leading `→` glyph dropped — the per-line label provides its own structure. Bucket dividers got a bigger top margin (28px) so section breaks stay distinct against the taller rows.
 - **Format unified across filtered and unfiltered.** Same shape regardless of context. Reach 1 always labeled (`reach 1: ...`) — no more implicit-reach-1 special case. All scopes shown, no more `+N reaches` / `+ reach 2 & 3` afterthoughts. The bucket header conveys filter context; the summary body conveys what the control does overall.

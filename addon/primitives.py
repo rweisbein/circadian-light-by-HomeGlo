@@ -4358,6 +4358,27 @@ class CircadianLightPrimitives:
                             any_ct_exceeded = True
                             break
 
+                    # Diagnostic: log when an off→on press skips batch
+                    # 2-step because every area's prev_ct is close to
+                    # target. The bulbs are physically off; if their
+                    # actual stored CT diverges from our tracked values
+                    # (e.g., cross-addon pollution), they'll wake at a
+                    # different color and visibly arc to target.
+                    if not any_ct_exceeded:
+                        off_areas = [
+                            a for a in matching if not state.get_is_on(a)
+                        ]
+                        if off_areas:
+                            ages = ", ".join(
+                                f"{a}@{state.format_age_short(state.get_last_sent_kelvin_at(a))}"
+                                for a in off_areas
+                            )
+                            logger.info(
+                                f"[2step] batch {purpose_norm}_{cap}: skipped off→on for "
+                                f"{off_areas} (target={ct}K, all prev_ct within "
+                                f"{ct_threshold}K — {ages})"
+                            )
+
                     if any_ct_exceeded:
                         # Current state must match across all areas for batched 2-step
                         current_states = {}

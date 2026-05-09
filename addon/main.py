@@ -3974,6 +3974,23 @@ class HomeAssistantWebSocketClient:
                 if current_ct is not None:
                     ct_diff = abs(kelvin - current_ct)
                     if ct_diff < ct_threshold:
+                        # Diagnostic: log when off→on skips 2-step. The
+                        # bulb is physically off; if its actual stored CT
+                        # diverges from our tracked `prev_ct` (e.g., from
+                        # cross-addon pollution), it'll wake at a different
+                        # color and visibly arc to target. The "@ X ago"
+                        # timestamp helps spot stale state — a long gap
+                        # since our last write means more chance another
+                        # actor has written to the bulb since.
+                        if is_off and log_periodic:
+                            age = state.format_age_short(
+                                state.get_last_sent_kelvin_at(area_id)
+                            )
+                            logger.info(
+                                f"[2step] {area_id}/{filter_name}: skipped off→on "
+                                f"(prev_ct={current_ct}K @ {age}, target={kelvin}K, "
+                                f"Δ={ct_diff}K < {ct_threshold}K)"
+                            )
                         continue
                 else:
                     # Unknown CT: always force 2-step (can't verify color safety)
