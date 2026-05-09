@@ -897,12 +897,13 @@ function _ctrlSummaryLine(label, areasHtml) {
 }
 
 // Sensor — render one summary-line per non-empty mode group, in canonical
-// order (on_off, on, alert). Each line's area list is sorted in canonical
-// home-area order (via opts.areaOrder), with the filter area HL-wrapped
-// wherever it falls.
+// order (on, on/off, alert — `on` is higher-priority signal: stays on
+// while presence detected; `on/off` adds a timer; `alert` is passive).
+// Each line's area list is sorted in canonical home-area order (via
+// opts.areaOrder), with the filter area HL-wrapped wherever it falls.
 function _ctrlSummaryRenderSensor(scopes, allAreas, filterAreaId, areaOrder) {
   const groups = _ctrlSummaryGroupSensorScopes(scopes);
-  const order = ['on_off', 'on', 'alert'];
+  const order = ['on', 'on_off', 'alert'];
   const lines = [];
   const opts = { filterAreaId: filterAreaId, areaOrder: areaOrder };
   const renderGroup = (mode) => {
@@ -918,16 +919,21 @@ function _ctrlSummaryRenderSensor(scopes, allAreas, filterAreaId, areaOrder) {
   return lines.join('');
 }
 
-// Switch — render one summary-line per scope ("reach N: areas"). Includes
-// every scope, even non-matching ones in area-filtered context — the
-// bucket header conveys WHY the control is here; the summary shows what
-// the device does overall.
+// Switch — render one summary-line per scope. Multi-scope: bare ordinal
+// label ("1: areas", "2: areas") to distinguish reaches. Single-scope:
+// drop the label entirely — there's no "2:" to pair with, so "1:" is
+// pure noise. Includes every scope (even non-matching) in area-filtered
+// context — bucket header conveys the reach context.
 function _ctrlSummaryRenderSwitch(scopes, allAreas, filterAreaId, deviceAreaId, areaOrder) {
   if (!scopes || !scopes.length) return '';
   const opts = { filterAreaId: filterAreaId, areaOrder: areaOrder };
+  if (scopes.length === 1) {
+    const areasHtml = controlSummaryFormatAreasList(scopes[0].areas || [], allAreas, opts);
+    return '<div class="summary-line"><span class="areas">' + (areasHtml || '&mdash;') + '</span></div>';
+  }
   return scopes.map((s, idx) => {
     const areasHtml = controlSummaryFormatAreasList(s.areas || [], allAreas, opts);
-    return _ctrlSummaryLine('reach ' + (idx + 1), areasHtml);
+    return _ctrlSummaryLine(String(idx + 1), areasHtml);
   }).join('');
 }
 

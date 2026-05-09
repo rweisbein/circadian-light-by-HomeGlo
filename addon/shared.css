@@ -167,11 +167,13 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
   padding-left: 12px;
   margin-top: 2px;
 }
+/* Block flow (not flex) so the label + area list wrap as one
+   continuous text run — avoids the double-wrap (label on its own
+   line + area list wrapping internally) that flex-wrap caused. The
+   single space between label and areas spans is the natural break
+   point; longer area lists wrap mid-content. */
 .ctrl-card-summary .summary-line {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  flex-wrap: wrap;
+  line-height: 1.45;
 }
 .ctrl-card-summary .areas { color: var(--muted2, #64748b); }
 /* Filter-area highlight: rectangular pill behind the area name. The

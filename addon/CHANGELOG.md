@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.304
+- **Sensor mode order: `on` before `on/off`.** "On" is the higher-priority signal (stays on while presence detected; on/off adds a timer; alert is passive). Final order in summaries: `on:` → `on/off:` → `alert:`.
+- **Double-wrap on long alert lists fixed.** `.summary-line` was `display: flex` with `flex-wrap: wrap`, which caused the label and area-list spans to BOTH wrap independently when the area list was long (label on its own line + area-list wrapping internally). Switched to natural block flow with `line-height: 1.45` — single content stream wraps mid-list per word breaks.
+- **Switch summary labels: `reach 1:` / `reach 2:` → bare `1:` / `2:`.** Bucket header conveys reach context when filtered; "reach" repeated across multi-scope rows added noise without information. Compact ordinals match the same one-token-then-colon rhythm as sensor mode labels.
+- **Single-scope switches drop the ordinal label entirely.** "1:" only earns its keep when there's a "2:" to differentiate against. For a switch with one reach, the area list is the entire content; the label is pure structural noise. Multi-scope keeps `1:`, `2:`.
+
 ## 1.2.303
 - **Sort by Location now uses home-area-order** (the order rooms appear on the home page) as the primary key, control name as the secondary. Both `/switches` and the area-details Controls card. Default sort changed from `Recent` → `Location`.
 - **Areas in summary lines no longer pinned to filter position** — they render in canonical home-area-order in every row, regardless of which area you're filtered to. The bold-pill highlight tells you where the filter area is; muscle memory takes over for everything else (reads in the same order every time).
