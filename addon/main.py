@@ -6880,6 +6880,23 @@ class HomeAssistantWebSocketClient:
             registry: Pre-fetched RegistryData. If None, fetches all registries once.
         """
         try:
+            # Read-only ZHA mode (HomeGlo Lab setting): skip ZHA group
+            # writes entirely. Used in dev/dual-addon setups where another
+            # instance owns ZHA group membership and this addon should
+            # passively observe (read state, dispatch to existing groups)
+            # without writing/syncing membership. Without this, two
+            # addons with different filter configs race on the daily 4 AM
+            # sync (and on startup / "Sync devices") and clobber each
+            # other's group state.
+            raw_config_for_gate = glozone.load_config_from_files()
+            if raw_config_for_gate.get("read_only_zha", False):
+                if not quiet:
+                    logger.info(
+                        "ZHA group sync skipped — read_only_zha enabled "
+                        "(HomeGlo Lab). Another addon instance owns ZHA groups."
+                    )
+                return
+
             if not quiet:
                 logger.info("=" * 60)
                 logger.info("Starting ZHA group sync process")

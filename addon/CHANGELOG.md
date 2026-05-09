@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.300
+- **HomeGlo Lab: "Read-only ZHA" toggle** for dual-addon setups (dev + prod on the same Home Assistant). When ON, this addon's `sync_zha_groups` returns early — no membership writes during startup, daily 4 AM sync, or manual "Sync devices". The addon still reads group state and dispatches to existing groups, just doesn't author them. Prevents the dev/prod race documented in `reference_dual_addon_zha_pollution.md` where two instances with different filter configs clobber each other's group memberships and the loser's cached view diverges from reality. Per-instance setting (each addon decides for itself), defaults OFF (no behavior change unless explicitly opted in by the secondary instance).
+
 ## 1.2.299
 - **Filter-area highlight switched from bold to a background pill.** Bold weight (even 700 + letter-spacing) didn't carry enough visual contrast at 0.8rem under the parent's 0.85 opacity — filter area still read at the same prominence as the label. New treatment: 15% white background pill behind the filter area name (`background: rgba(255,255,255,0.15)`, 1px×6px padding, 3px border-radius). Reads as "this is highlighted" without leaning on accent color. Verified working on macOS Safari before ship.
 
