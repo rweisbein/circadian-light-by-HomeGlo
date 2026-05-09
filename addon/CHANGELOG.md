@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.293
+- **Filter area now pinned to front of sensor area lists** (bug fix). On the area-details Controls card and `/switches` area-filtered view, when a sensor's matching scope had 4+ areas, the filter area could fall past the 3-name cap into "(+N)" and disappear from the row — e.g., on SunOffice's Alerts bucket, an alert hitting `[Living, Master, Master Bath, SunOffice]` rendered as `alert Living, Master, Master Bath (+1)` with SunOffice invisible. Sensors now use the same prioritized formatter switches already used: filter area first, then alphabetical, then cap. Switches' formatter also alphabetizes the remainder now (was using natural scope order; alphabetical is more predictable).
+
 ## 1.2.292
 - **Control summary line redesigned around font-prominence hierarchy.** Six unified rules now apply to both /switches and the area-details Controls card:
   - **R1** — Always parens for partner counts: `Living, Kitchen, Master (+2)`, `reach 2 (+3)`. (Previously some places used `+ N` bare.)

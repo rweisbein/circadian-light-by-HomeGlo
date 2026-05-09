@@ -807,9 +807,12 @@ function controlSummaryFormatAreasList(areaIds, allAreas) {
   return sorted.slice(0, 3).join(', ') + ' (+' + (sorted.length - 3) + ')';
 }
 
-// Format a list of area_ids with priority ordering: the device's home area
-// first (if in the list), then the filtered area (if different and in the
-// list), then the natural scope order. Up to 3 names spelled, (+N) for rest.
+// Format a list of area_ids with priority ordering: filter area first
+// (if set), then device's home area (if different and present), then
+// the rest sorted alphabetically. Up to 3 names spelled, (+N) for rest.
+// Critical for the cap to land correctly — without prioritization the
+// filter area can fall past the 3-name cap into "(+N)" purgatory and
+// disappear from the visible row.
 function controlSummaryFormatAreasListPrioritized(areaIds, allAreas, deviceAreaId, filterAreaId) {
   if (!areaIds || !areaIds.length) return '';
   const remaining = [...areaIds];
@@ -823,6 +826,9 @@ function controlSummaryFormatAreasListPrioritized(areaIds, allAreas, deviceAreaI
   };
   if (filterAreaId) take(filterAreaId);
   if (deviceAreaId && deviceAreaId !== filterAreaId) take(deviceAreaId);
+  remaining.sort((a, b) =>
+    controlSummaryAreaName(a, allAreas).localeCompare(controlSummaryAreaName(b, allAreas))
+  );
   ordered.push(...remaining);
   const names = ordered.map(id => controlSummaryAreaName(id, allAreas));
   if (names.length <= 3) return names.join(', ');
@@ -850,9 +856,15 @@ function _ctrlSummaryGroupSensorScopes(scopes) {
 }
 
 // Render one mode group: "<primary>mode</primary> <areas>area-list</areas>".
-function _ctrlSummaryRenderSensorGroup(mode, areaSet, allAreas) {
+// When filterAreaId is set (area-filtered context), the filter area is
+// pinned to the front of the area list so it can't fall past the 3-name
+// cap and disappear into "(+N)".
+function _ctrlSummaryRenderSensorGroup(mode, areaSet, allAreas, filterAreaId) {
   const modeLabel = controlSummaryFormatSensorModeName(mode);
-  const areasHtml = controlSummaryFormatAreasList(Array.from(areaSet), allAreas);
+  const arr = Array.from(areaSet);
+  const areasHtml = filterAreaId
+    ? controlSummaryFormatAreasListPrioritized(arr, allAreas, null, filterAreaId)
+    : controlSummaryFormatAreasList(arr, allAreas);
   return '<span class="primary">' + modeLabel + '</span>'
     + (areasHtml ? ' <span class="areas">' + areasHtml + '</span>' : '');
 }
@@ -860,17 +872,17 @@ function _ctrlSummaryRenderSensorGroup(mode, areaSet, allAreas) {
 // Render a set of sensor scopes as "<group> · <group> · ..." with the
 // muted middle-dot separator wrapped in .areas so it visually belongs
 // with the muted area lists, not the prominent mode names.
-function _ctrlSummaryJoinSensorGroups(scopes, allAreas) {
+function _ctrlSummaryJoinSensorGroups(scopes, allAreas, filterAreaId) {
   const groups = _ctrlSummaryGroupSensorScopes(scopes);
   const order = ['on_off', 'on', 'alert'];
   const segs = [];
   for (const mode of order) {
     if (!groups[mode] || groups[mode].size === 0) continue;
-    segs.push(_ctrlSummaryRenderSensorGroup(mode, groups[mode], allAreas));
+    segs.push(_ctrlSummaryRenderSensorGroup(mode, groups[mode], allAreas, filterAreaId));
   }
   for (const mode in groups) {
     if (!order.includes(mode) && groups[mode].size > 0) {
-      segs.push(_ctrlSummaryRenderSensorGroup(mode, groups[mode], allAreas));
+      segs.push(_ctrlSummaryRenderSensorGroup(mode, groups[mode], allAreas, filterAreaId));
     }
   }
   if (!segs.length) return '';
@@ -939,7 +951,7 @@ function controlSummarySensorAreaFiltered(scopes, filterAreaId, allAreas) {
   const matching = (scopes || []).filter(s =>
     s.mode && s.mode !== 'disabled' && (s.areas || []).includes(filterAreaId)
   );
-  return _ctrlSummaryJoinSensorGroups(matching, allAreas);
+  return _ctrlSummaryJoinSensorGroups(matching, allAreas, filterAreaId);
 }
 
 // Top-level dispatcher. opts = { allAreas, filterAreaId, deviceAreaId }.
