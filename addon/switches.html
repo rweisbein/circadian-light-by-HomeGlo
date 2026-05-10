@@ -1441,10 +1441,11 @@
         cardListHtml = '<div class="ctrl-card-list">' + inner + '</div>';
       } else if (currentView === 'all' && (areaFilter === 'all' || areaFilter.startsWith('zone:')) && sortColumn === 'fourth' && fourthField === 'lastAction') {
         // Browse view (no area filter OR zone filter) + Sort: Recent →
-        // group by recency time bucket (Today / Yesterday / Past week
-        // / Past month / Past year / Prior / Never used). Within each
-        // bucket, controls stay in `sorted` order (already most-recent
-        // first via the global sort).
+        // group by recency time bucket. Each bucket header is collapsible.
+        // Today is sub-divided into Last hour / Earlier today (only when
+        // both populated). Bucket state persists in localStorage with the
+        // card-freshness window (stale → reset to all-expanded).
+        _maybeResetTimeBucketStateIfStale();
         const groupMap = new Map();
         for (const c of sorted) {
           const ts = c.last_action && c.last_action.timestamp;
@@ -1456,8 +1457,38 @@
         for (const bucket of CONTROLS_TIME_BUCKETS) {
           const list = groupMap.get(bucket.key);
           if (!list || !list.length) continue;
-          inner += buildGroupDivider(bucket.label, list.length, bucket.descriptor);
-          inner += list.map(c => renderControlCard(c, 'all')).join('');
+          const collapsed = _timeBucketCollapsed(bucket.key);
+          inner += buildGroupDivider(bucket.label, list.length, bucket.descriptor, {
+            bucketKey: bucket.key,
+            collapsed: collapsed,
+          });
+          // Bucket body — wraps the rows for animated collapse.
+          let bodyHtml = '';
+          if (bucket.key === 'today') {
+            // Sub-bucket Today: Last hour vs Earlier today. Last hour =
+            // rolling 60min from now (intersected with today's items).
+            // Sub-dividers only render if BOTH sub-groups are populated.
+            const lastHour = [];
+            const earlier = [];
+            const oneHourAgo = Date.now() - 60 * 60 * 1000;
+            for (const c of list) {
+              const ts = c.last_action && c.last_action.timestamp;
+              const tsMs = ts ? new Date(ts).getTime() : 0;
+              if (tsMs >= oneHourAgo) lastHour.push(c);
+              else earlier.push(c);
+            }
+            if (lastHour.length && earlier.length) {
+              bodyHtml += '<div class="group-subdivider">Last hour <span class="group-subdivider-count">(' + lastHour.length + ')</span></div>';
+              bodyHtml += lastHour.map(c => renderControlCard(c, 'all')).join('');
+              bodyHtml += '<div class="group-subdivider">Earlier today <span class="group-subdivider-count">(' + earlier.length + ')</span></div>';
+              bodyHtml += earlier.map(c => renderControlCard(c, 'all')).join('');
+            } else {
+              bodyHtml += list.map(c => renderControlCard(c, 'all')).join('');
+            }
+          } else {
+            bodyHtml += list.map(c => renderControlCard(c, 'all')).join('');
+          }
+          inner += '<div class="ctrl-bucket-body' + (collapsed ? ' is-collapsed' : '') + '" data-bucket-key="' + bucket.key + '">' + bodyHtml + '</div>';
         }
         cardListHtml = '<div class="ctrl-card-list">' + inner + '</div>';
       } else if (currentView === 'all' && (areaFilter === 'all' || areaFilter.startsWith('zone:')) && sortColumn === 'area') {
@@ -1605,6 +1636,31 @@
         +   primaryHtml
         +   summaryLine
         + '</div>';
+    }
+
+    // Time-bucket collapsible state — per-bucket flag in localStorage,
+    // shared timestamp for the freshness reset (uses the same Lab
+    // window as cards: card_freshness_minutes, default 15min).
+    const _BUCKET_TS_KEY = 'ctrl_timebucket_ts';
+    function _maybeResetTimeBucketStateIfStale() {
+      const ts = parseInt(localStorage.getItem(_BUCKET_TS_KEY) || '0', 10);
+      if (!ts || Date.now() - ts > cardFreshnessMs()) {
+        Object.keys(localStorage).forEach(k => {
+          if (k.startsWith('ctrl_timebucket_') && k !== _BUCKET_TS_KEY) {
+            localStorage.removeItem(k);
+          }
+        });
+        localStorage.setItem(_BUCKET_TS_KEY, String(Date.now()));
+      }
+    }
+    function _timeBucketCollapsed(key) {
+      return localStorage.getItem('ctrl_timebucket_' + key + '_collapsed') === 'true';
+    }
+    function _toggleTimeBucket(key) {
+      const cur = _timeBucketCollapsed(key);
+      if (cur) localStorage.removeItem('ctrl_timebucket_' + key + '_collapsed');
+      else localStorage.setItem('ctrl_timebucket_' + key + '_collapsed', 'true');
+      localStorage.setItem(_BUCKET_TS_KEY, String(Date.now()));
     }
 
     // Count phrase reflects active filters. Reads as a single English
@@ -1987,6 +2043,20 @@
         }
       });
       document.getElementById('controls-container').addEventListener('click', (e) => {
+        // Collapsible time-bucket header (Today / Yesterday / etc).
+        // Toggle the divider's chevron + the matching body's animated
+        // collapse, persist to localStorage with the freshness window.
+        const bucketDiv = e.target.closest('.group-divider.is-collapsible');
+        if (bucketDiv) {
+          const key = bucketDiv.dataset.bucketKey;
+          if (key) {
+            const body = document.querySelector('.ctrl-bucket-body[data-bucket-key="' + key + '"]');
+            bucketDiv.classList.toggle('is-collapsed');
+            if (body) body.classList.toggle('is-collapsed');
+            _toggleTimeBucket(key);
+            return;
+          }
+        }
         if (e.target.closest('#ctrl-area-clear')) {
           areaFilter = 'all';
           savePreferences();

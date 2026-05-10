@@ -144,12 +144,76 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
   font-variant-numeric: tabular-nums;
 }
 /* Optional inline descriptor next to a divider title — used by the
-   recency-bucket headers ("Past week (used 2–7 days ago)") to clarify
-   the bucket's boundary semantics without enlarging the title. */
+   recency-bucket headers ("Past week  used 2–7 days ago") to clarify
+   the bucket's boundary semantics without enlarging the title. Muted
+   color carries the "secondary info" cue — no parens (count already
+   uses parens; doubling marks felt redundant). */
 .group-divider-descriptor {
   font-size: 0.78rem;
   color: var(--muted2, #64748b);
   font-weight: 400;
+}
+
+/* Collapsible bucket dividers — clickable chevron toggle on the entire
+   header row. Used by the recency time-buckets on the controls page;
+   the consuming page adds a click handler that toggles `.is-collapsed`
+   on this divider AND on the matching `.ctrl-bucket-body`, then
+   persists state to localStorage. */
+.group-divider.is-collapsible {
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  border-radius: 6px;
+  transition: background 0.12s;
+}
+.group-divider.is-collapsible:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.group-divider-chevron {
+  display: inline-block;
+  font-size: 0.95rem;
+  color: var(--muted2, #64748b);
+  /* Default = expanded → chevron points down (90° rotation). Collapsed
+     state un-rotates it back to its natural rightward point. */
+  transform: rotate(90deg);
+  transition: transform 0.2s ease;
+  width: 12px;
+  text-align: center;
+}
+.group-divider.is-collapsed .group-divider-chevron {
+  transform: rotate(0deg);
+}
+
+/* Animated body container around bucket rows. max-height ceiling is
+   generous (6000px) so even busy days fit without clipping; the
+   transition still feels snappy because content rarely fills it. */
+.ctrl-bucket-body {
+  max-height: 6000px;
+  opacity: 1;
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.25s ease;
+}
+.ctrl-bucket-body.is-collapsed {
+  max-height: 0;
+  opacity: 0;
+}
+
+/* Sub-divider for nested grouping (e.g., "Last hour" / "Earlier today"
+   inside the Today bucket). Smaller, muted — clearly subordinate to
+   the parent group header without indenting (typography carries the
+   hierarchy). */
+.group-subdivider {
+  font-size: 0.78rem;
+  color: var(--muted, #94a3b8);
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  padding: 8px 14px 4px;
+}
+.group-subdivider-count {
+  color: var(--muted2, #64748b);
+  font-weight: 400;
+  margin-left: 4px;
+  font-variant-numeric: tabular-nums;
 }
 
 /* =============================================================================

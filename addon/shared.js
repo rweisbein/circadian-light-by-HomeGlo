@@ -808,13 +808,32 @@ function isRecentlyTouched(lastTouchedSeconds) {
   return ageMs >= 0 && ageMs <= recentTouchedWindowMs();
 }
 
-function buildGroupDivider(title, count, descriptor) {
+function buildGroupDivider(title, count, descriptor, opts) {
+  opts = opts || {};
   const countSpan = (count == null)
     ? ''
     : '<span class="group-divider-count">(' + count + ')</span>';
+  // Descriptor renders without parens — muted lighter color carries the
+  // "this is secondary info" cue; double-marking with parens AND lighter
+  // text was overkill (especially since the count already uses parens).
   const descSpan = descriptor
-    ? '<span class="group-divider-descriptor">(' + descriptor + ')</span>'
+    ? '<span class="group-divider-descriptor">' + descriptor + '</span>'
     : '';
+  // Optional collapsible variant: caller provides a bucketKey, we add
+  // a chevron + cursor-pointer + `is-collapsible` class. Click handler
+  // lives in the consuming page (toggles the matching `.ctrl-bucket-body`
+  // by data-bucket-key + persists state).
+  if (opts.bucketKey) {
+    const initiallyCollapsed = !!opts.collapsed;
+    return '<div class="group-divider is-collapsible'
+      + (initiallyCollapsed ? ' is-collapsed' : '')
+      + '" data-bucket-key="' + opts.bucketKey + '">'
+      + '<span class="group-divider-chevron">&rsaquo;</span>'
+      + '<span class="group-divider-title">' + title + '</span>'
+      + descSpan
+      + countSpan
+      + '</div>';
+  }
   return '<div class="group-divider">'
     + '<span class="group-divider-title">' + title + '</span>'
     + descSpan
