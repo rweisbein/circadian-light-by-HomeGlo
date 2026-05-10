@@ -1392,6 +1392,36 @@
         cardListHtml = '<div class="ctrl-card-empty">' + (controls.length > 0
           ? 'No controls match the current filters.'
           : 'No controls found. Click Update to scan Home Assistant.') + '</div>';
+      } else if (currentView === 'batteries') {
+        // Battery view — group by battery percentage tier (Critical /
+        // Low / Medium / Good). Within bucket: existing "lowest first"
+        // sort preserved by `sorted`. Each header collapsible (state
+        // shared with the recency buckets via _BUCKET_TS_KEY but with
+        // a `battery_` prefix in the bucket key).
+        _maybeResetBucketStateIfStale();
+        const groupMap = new Map();
+        for (const c of sorted) {
+          const v = c.battery && c.battery.value;
+          const key = controlsBatteryBucket(v);
+          if (!key) continue;
+          if (!groupMap.has(key)) groupMap.set(key, []);
+          groupMap.get(key).push(c);
+        }
+        let inner = '';
+        for (const bucket of CONTROLS_BATTERY_BUCKETS) {
+          const list = groupMap.get(bucket.key);
+          if (!list || !list.length) continue;
+          const fullKey = 'battery_' + bucket.key;
+          const collapsed = _bucketCollapsed(fullKey);
+          inner += buildGroupDivider(bucket.label, list.length, bucket.descriptor, {
+            bucketKey: fullKey,
+            collapsed: collapsed,
+          });
+          inner += '<div class="ctrl-bucket-body' + (collapsed ? ' is-collapsed' : '') + '" data-bucket-key="' + fullKey + '">'
+            + list.map(c => renderControlCard(c, 'batteries')).join('')
+            + '</div>';
+        }
+        cardListHtml = '<div class="ctrl-card-list">' + inner + '</div>';
       } else if (currentView === 'paused') {
         // Scheduled = has an inactive_until timestamp (whether expired or
         // future). Forever = no until-date or 'forever' sentinel.
@@ -1445,7 +1475,7 @@
         // Today is sub-divided into Last hour / Earlier today (only when
         // both populated). Bucket state persists in localStorage with the
         // card-freshness window (stale → reset to all-expanded).
-        _maybeResetTimeBucketStateIfStale();
+        _maybeResetBucketStateIfStale();
         const groupMap = new Map();
         for (const c of sorted) {
           const ts = c.last_action && c.last_action.timestamp;
@@ -1457,7 +1487,7 @@
         for (const bucket of CONTROLS_TIME_BUCKETS) {
           const list = groupMap.get(bucket.key);
           if (!list || !list.length) continue;
-          const collapsed = _timeBucketCollapsed(bucket.key);
+          const collapsed = _bucketCollapsed(bucket.key);
           inner += buildGroupDivider(bucket.label, list.length, bucket.descriptor, {
             bucketKey: bucket.key,
             collapsed: collapsed,
@@ -1638,28 +1668,32 @@
         + '</div>';
     }
 
-    // Time-bucket collapsible state — per-bucket flag in localStorage,
-    // shared timestamp for the freshness reset (uses the same Lab
-    // window as cards: card_freshness_minutes, default 15min).
-    const _BUCKET_TS_KEY = 'ctrl_timebucket_ts';
-    function _maybeResetTimeBucketStateIfStale() {
+    // Bucket collapse/expand state — generic across bucket types
+    // (recency time-buckets, battery percentage buckets, future
+    // bucket types). One localStorage namespace `ctrl_bucket_*`,
+    // one shared freshness timestamp. Bucket keys must be unique
+    // across types — convention: time-buckets use plain keys
+    // ('today', 'yesterday'); other bucket types use a type prefix
+    // ('battery_critical', 'battery_low').
+    const _BUCKET_TS_KEY = 'ctrl_bucket_ts';
+    function _maybeResetBucketStateIfStale() {
       const ts = parseInt(localStorage.getItem(_BUCKET_TS_KEY) || '0', 10);
       if (!ts || Date.now() - ts > cardFreshnessMs()) {
         Object.keys(localStorage).forEach(k => {
-          if (k.startsWith('ctrl_timebucket_') && k !== _BUCKET_TS_KEY) {
+          if (k.startsWith('ctrl_bucket_') && k !== _BUCKET_TS_KEY) {
             localStorage.removeItem(k);
           }
         });
         localStorage.setItem(_BUCKET_TS_KEY, String(Date.now()));
       }
     }
-    function _timeBucketCollapsed(key) {
-      return localStorage.getItem('ctrl_timebucket_' + key + '_collapsed') === 'true';
+    function _bucketCollapsed(key) {
+      return localStorage.getItem('ctrl_bucket_' + key + '_collapsed') === 'true';
     }
-    function _toggleTimeBucket(key) {
-      const cur = _timeBucketCollapsed(key);
-      if (cur) localStorage.removeItem('ctrl_timebucket_' + key + '_collapsed');
-      else localStorage.setItem('ctrl_timebucket_' + key + '_collapsed', 'true');
+    function _toggleBucket(key) {
+      const cur = _bucketCollapsed(key);
+      if (cur) localStorage.removeItem('ctrl_bucket_' + key + '_collapsed');
+      else localStorage.setItem('ctrl_bucket_' + key + '_collapsed', 'true');
       localStorage.setItem(_BUCKET_TS_KEY, String(Date.now()));
     }
 
@@ -2053,7 +2087,7 @@
             const body = document.querySelector('.ctrl-bucket-body[data-bucket-key="' + key + '"]');
             bucketDiv.classList.toggle('is-collapsed');
             if (body) body.classList.toggle('is-collapsed');
-            _toggleTimeBucket(key);
+            _toggleBucket(key);
             return;
           }
         }

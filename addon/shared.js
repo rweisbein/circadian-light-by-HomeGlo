@@ -816,6 +816,8 @@ function buildGroupDivider(title, count, descriptor, opts) {
   // Descriptor renders without parens — muted lighter color carries the
   // "this is secondary info" cue; double-marking with parens AND lighter
   // text was overkill (especially since the count already uses parens).
+  // Order: title → count → descriptor. Reads as "what / how many /
+  // what window" left-to-right.
   const descSpan = descriptor
     ? '<span class="group-divider-descriptor">' + descriptor + '</span>'
     : '';
@@ -830,14 +832,14 @@ function buildGroupDivider(title, count, descriptor, opts) {
       + '" data-bucket-key="' + opts.bucketKey + '">'
       + '<span class="group-divider-chevron">&rsaquo;</span>'
       + '<span class="group-divider-title">' + title + '</span>'
-      + descSpan
       + countSpan
+      + descSpan
       + '</div>';
   }
   return '<div class="group-divider">'
     + '<span class="group-divider-title">' + title + '</span>'
-    + descSpan
     + countSpan
+    + descSpan
     + '</div>';
 }
 
@@ -867,12 +869,31 @@ function controlsTimeBucket(ts) {
 const CONTROLS_TIME_BUCKETS = [
   { key: 'today',     label: 'Today',      descriptor: null },
   { key: 'yesterday', label: 'Yesterday',  descriptor: null },
-  { key: 'pastweek',  label: 'Past week',  descriptor: 'used 2–7 days ago' },
-  { key: 'pastmonth', label: 'Past month', descriptor: 'used 8–30 days ago' },
-  { key: 'pastyear',  label: 'Past year',  descriptor: 'used 1–12 months ago' },
+  { key: 'pastweek',  label: 'Past week',  descriptor: '2–7 days ago' },
+  { key: 'pastmonth', label: 'Past month', descriptor: '8–30 days ago' },
+  { key: 'pastyear',  label: 'Past year',  descriptor: '1–12 months ago' },
   { key: 'prior',     label: 'Prior',      descriptor: null },
   { key: 'never',     label: 'Never used', descriptor: null },
 ];
+
+// Battery percentage bucketing for the BATTERY view on the controls
+// list. Critical / Low / Medium / Good — answers "how many devices
+// need new batteries?" at a glance. Within-bucket sort matches the
+// view's existing "lowest first" rule.
+const CONTROLS_BATTERY_BUCKETS = [
+  { key: 'critical', label: 'Critical', descriptor: '0–10%',  max: 10 },
+  { key: 'low',      label: 'Low',      descriptor: '11–25%', max: 25 },
+  { key: 'medium',   label: 'Medium',   descriptor: '26–50%', max: 50 },
+  { key: 'good',     label: 'Good',     descriptor: '51–100%', max: 100 },
+];
+
+function controlsBatteryBucket(value) {
+  if (value == null) return null;
+  for (const b of CONTROLS_BATTERY_BUCKETS) {
+    if (value <= b.max) return b.key;
+  }
+  return 'good';  // safety net for >100 weirdness
+}
 
 // =============================================================================
 // Control summary — "what this control does", scopes-driven. Shared between
