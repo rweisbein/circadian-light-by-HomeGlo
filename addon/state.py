@@ -174,8 +174,15 @@ def update_area(area_id: str, updates: Dict[str, Any]) -> None:
 def set_is_circadian(area_id: str, is_circadian_val: bool) -> None:
     """Set whether Circadian Light controls an area.
 
-    This preserves all settings (midpoints, frozen_at, is_on, etc.).
-    Settings persist across circadian_off → circadian_on cycles.
+    Most settings persist across circadian_off → circadian_on cycles
+    (midpoints, frozen_at, is_on, overrides, etc.). EXCEPTION:
+    `last_sent_kelvin` (and its timestamp) is cleared on transition
+    True → False, because turning circadian off explicitly signals
+    "I'm giving up control of this area" — another addon, an
+    automation, or a user might touch the bulb while we're not
+    watching. On re-enable, the next 2-step gate sees prev_kelvin
+    as unknown and forces 2-step to safely re-establish color
+    (rather than skipping 2-step on a stale / now-wrong CT memory).
 
     Args:
         area_id: The area ID
@@ -187,12 +194,20 @@ def set_is_circadian(area_id: str, is_circadian_val: bool) -> None:
     if area_id not in _state:
         _state[area_id] = _get_default_area_state()
 
-    update_area(area_id, {"is_circadian": is_circadian_val})
+    updates = {"is_circadian": is_circadian_val}
+    if was_circadian and not is_circadian_val:
+        # Forget the bulb's CT — see docstring.
+        updates["last_sent_kelvin"] = None
+        updates["last_sent_kelvin_at"] = None
+    update_area(area_id, updates)
 
     if is_circadian_val and not was_circadian:
         logger.info(f"Circadian Light enabled for area {area_id}")
     elif not is_circadian_val and was_circadian:
-        logger.info(f"Circadian Light disabled for area {area_id}")
+        logger.info(
+            f"Circadian Light disabled for area {area_id} "
+            f"(cleared last_sent_kelvin so re-enable forces 2-step)"
+        )
 
 
 def set_frozen_at(area_id: str, frozen_at: Optional[float]) -> None:

@@ -1,5 +1,19 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.305
+- **Sort: Recent now groups by recency time bucket** (not flat). Buckets: `Today` / `Yesterday` / `Past week` (used 2–7 days ago) / `Past month` (used 8–30 days ago) / `Past year` (used 1–12 months ago) / `Prior` / `Never used`. Calendar-day boundaries (a control used at 11pm yesterday lands in `Yesterday`, not "today" via rolling 24h). Within each bucket: most-recent first. Empty buckets don't render. Applies in Browse view (no filter) AND zone-filter view.
+- **Default sort flipped back to Recent.** With the new time buckets, Recent has the same scannable structure that Location-grouping was providing — and answers "what's been used lately" more directly. Location-as-default earlier in the thread was tied to "Location is the only structured option"; Recent is now equally structured AND more dynamic. Sort dropdown also reordered so `Recent` appears first.
+- **Sort drives grouping** in Browse / zone views:
+  - `Sort: Recent` → time buckets
+  - `Sort: Location` → home-area dividers
+  - `Sort: Name` → flat alphabetical
+  Single-area-filter view is unchanged — the 5 reach buckets are reach SEMANTICS, not a sort/group choice, so they always show.
+- **Bucket header vocabulary simplified** (single-area filter view). Was: `Kitchen in reach 1` / `Kitchen in reach 2+` / `Presence triggers Kitchen` / `Alerts Kitchen` / `Doesn't reach Kitchen`. Now: `Reach 1` / `Reach 2+` / `Presence` / `Alert` / `Doesn't reach <area>`. Areas dropped from most headers — the bolded filter-area highlight in each row's summary carries the context. Area name kept on `Doesn't reach <area>` because that bucket's whole point is the contrast.
+- **`buildGroupDivider(title, count, descriptor)`** — third arg added for an optional inline descriptor (used by recency buckets to clarify boundaries: "Past week (used 2–7 days ago)"). Renders muted, smaller font, parens included.
+- **Pill default label `Controls` → `Browse`.** "Controls" was redundant with the nav label and described content rather than the view-mode picker's purpose. "Browse" is parallel to `Setup` / `Battery` / `Paused` / `Cheatsheet` (all single-word view modes) and reads as "the default browsing mode" — sets up the contrast cleanly.
+- **Single-scope switch labels restored.** Brief experiment showed bare area lists (no `1:` for one-scope switches) felt inconsistent with multi-scope rows. Always show the ordinal label now — every switch row reads `1: …` / `2: …` / etc.
+- **Circadian-off clears `last_sent_kelvin` for that area** (state.py). When a user toggles circadian off, they're explicitly handing control to another addon / automation / themselves. The bulb's CT may change while we're not watching. On re-enable, the 2-step gate now sees `prev_kelvin = None` → forces 2-step (`# Unknown CT: always force 2-step` branch) so the bulb wakes cleanly to the new target color, instead of skipping 2-step on a stale memory.
+
 ## 1.2.304
 - **Sensor mode order: `on` before `on/off`.** "On" is the higher-priority signal (stays on while presence detected; on/off adds a timer; alert is passive). Final order in summaries: `on:` → `on/off:` → `alert:`.
 - **Double-wrap on long alert lists fixed.** `.summary-line` was `display: flex` with `flex-wrap: wrap`, which caused the label and area-list spans to BOTH wrap independently when the area list was long (label on its own line + area-list wrapping internally). Switched to natural block flow with `line-height: 1.45` — single content stream wraps mid-list per word breaks.

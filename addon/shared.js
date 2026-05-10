@@ -808,15 +808,52 @@ function isRecentlyTouched(lastTouchedSeconds) {
   return ageMs >= 0 && ageMs <= recentTouchedWindowMs();
 }
 
-function buildGroupDivider(title, count) {
+function buildGroupDivider(title, count, descriptor) {
   const countSpan = (count == null)
     ? ''
     : '<span class="group-divider-count">(' + count + ')</span>';
+  const descSpan = descriptor
+    ? '<span class="group-divider-descriptor">(' + descriptor + ')</span>'
+    : '';
   return '<div class="group-divider">'
     + '<span class="group-divider-title">' + title + '</span>'
+    + descSpan
     + countSpan
     + '</div>';
 }
+
+// Map a control's last-action timestamp to a recency bucket key. Calendar-
+// day boundaries (in user's local timezone) so a control used at 11pm
+// yesterday lands in 'yesterday' (not 'today' via rolling 24h).
+function controlsTimeBucket(ts) {
+  if (!ts) return 'never';
+  const t = new Date(ts);
+  if (isNaN(t.getTime())) return 'never';
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tDay = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+  const dayDiff = Math.floor((today.getTime() - tDay.getTime()) / 86400000);
+  if (dayDiff <= 0) return 'today';
+  if (dayDiff === 1) return 'yesterday';
+  if (dayDiff <= 7) return 'pastweek';
+  if (dayDiff <= 30) return 'pastmonth';
+  if (dayDiff <= 365) return 'pastyear';
+  return 'prior';
+}
+
+// Ordered list of recency buckets with display label + optional descriptor
+// (parenthetical reminder of what days each bucket covers, since "past
+// week" implicitly excludes today/yesterday). Pages iterate this in order
+// to render only populated buckets.
+const CONTROLS_TIME_BUCKETS = [
+  { key: 'today',     label: 'Today',      descriptor: null },
+  { key: 'yesterday', label: 'Yesterday',  descriptor: null },
+  { key: 'pastweek',  label: 'Past week',  descriptor: 'used 2–7 days ago' },
+  { key: 'pastmonth', label: 'Past month', descriptor: 'used 8–30 days ago' },
+  { key: 'pastyear',  label: 'Past year',  descriptor: 'used 1–12 months ago' },
+  { key: 'prior',     label: 'Prior',      descriptor: null },
+  { key: 'never',     label: 'Never used', descriptor: null },
+];
 
 // =============================================================================
 // Control summary — "what this control does", scopes-driven. Shared between
@@ -919,18 +956,15 @@ function _ctrlSummaryRenderSensor(scopes, allAreas, filterAreaId, areaOrder) {
   return lines.join('');
 }
 
-// Switch — render one summary-line per scope. Multi-scope: bare ordinal
-// label ("1: areas", "2: areas") to distinguish reaches. Single-scope:
-// drop the label entirely — there's no "2:" to pair with, so "1:" is
-// pure noise. Includes every scope (even non-matching) in area-filtered
-// context — bucket header conveys the reach context.
+// Switch — render one summary-line per scope ("1: areas", "2: areas").
+// Bare ordinal (no "reach" prefix) — bucket header conveys the reach
+// context when filtered, and repetition across multi-scope rows hurt
+// readability more than it helped. Always show the ordinal even for
+// single-scope switches: keeps every switch row visually consistent
+// (scopes are always numbered, regardless of how many there are).
 function _ctrlSummaryRenderSwitch(scopes, allAreas, filterAreaId, deviceAreaId, areaOrder) {
   if (!scopes || !scopes.length) return '';
   const opts = { filterAreaId: filterAreaId, areaOrder: areaOrder };
-  if (scopes.length === 1) {
-    const areasHtml = controlSummaryFormatAreasList(scopes[0].areas || [], allAreas, opts);
-    return '<div class="summary-line"><span class="areas">' + (areasHtml || '&mdash;') + '</span></div>';
-  }
   return scopes.map((s, idx) => {
     const areasHtml = controlSummaryFormatAreasList(s.areas || [], allAreas, opts);
     return _ctrlSummaryLine(String(idx + 1), areasHtml);

@@ -143,6 +143,14 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
   font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
+/* Optional inline descriptor next to a divider title — used by the
+   recency-bucket headers ("Past week (used 2–7 days ago)") to clarify
+   the bucket's boundary semantics without enlarging the title. */
+.group-divider-descriptor {
+  font-size: 0.78rem;
+  color: var(--muted2, #64748b);
+  font-weight: 400;
+}
 
 /* =============================================================================
    Control summary — "what this control does", multi-line. Each scope (for

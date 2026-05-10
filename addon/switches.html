@@ -819,8 +819,8 @@
     let controls = [];
     let allAreas = [];
     let allGlozones = [];
-    let sortColumn = 'area';
-    let sortAsc = true;
+    let sortColumn = 'fourth';
+    let sortAsc = false;
     let categoryFilter = 'all';
     let areaFilter = 'all';
     let fourthField = 'lastAction';
@@ -846,7 +846,7 @@
     let _viewSegHandle = null;
 
     const CONTROL_VIEWS = [
-      { value: 'all',        label: 'Controls' },
+      { value: 'all',        label: 'Browse' },
       { value: 'setup',      label: 'Setup' },
       { value: 'batteries',  label: 'Battery' },
       { value: 'paused',     label: 'Paused' },
@@ -944,7 +944,7 @@
             sessionStorage.removeItem('controls_ui');
             return;
           }
-          sortColumn = prefs.sort_column || 'area';
+          sortColumn = prefs.sort_column || 'fourth';
           if (sortColumn === 'lastAction' || sortColumn === 'lux') sortColumn = 'fourth';
           sortAsc = prefs.sort_asc !== false;
           categoryFilter = prefs.category_filter || 'all';
@@ -1324,8 +1324,8 @@
           : (sortColumn === 'area') ? 'area' : 'recent';
         sortHtml = '<label style="margin-right:6px;">Sort:</label>'
           + '<select class="ctrl-tb-select" id="ctrl-sort-select">'
-          + '<option value="area"' + (sortVal === 'area' ? ' selected' : '') + '>Location</option>'
           + '<option value="recent"' + (sortVal === 'recent' ? ' selected' : '') + '>Recent</option>'
+          + '<option value="area"' + (sortVal === 'area' ? ' selected' : '') + '>Location</option>'
           + '<option value="name"' + (sortVal === 'name' ? ' selected' : '') + '>Name</option>'
           + '</select>';
       }
@@ -1412,10 +1412,58 @@
           inner += forever.map(c => renderControlCard(c, 'paused')).join('');
         }
         cardListHtml = '<div class="ctrl-card-list">' + inner + '</div>';
-      } else if (currentView === 'all' && areaFilter.startsWith('zone:')) {
-        // Zone filter — flat list of controls whose home area is in the
-        // zone. Group by home area in canonical home-area-sort, with
-        // each home-area divider labeled with the area name + count.
+      } else if (currentView === 'all' && areaFilter !== 'all' && areaFilter !== 'unassigned' && !areaFilter.startsWith('zone:')) {
+        // Single-area filter — 5 reach buckets (always; reach semantics
+        // are the dominant structure here regardless of sort).
+        const targetAreaId = (allAreas.find(a => a.name === areaFilter) || {}).area_id;
+        const buckets = bucketControlsForArea(sorted, targetAreaId, areaFilter);
+        let inner = '';
+        if (buckets.switchDirect.length) {
+          inner += buildGroupDivider('Reach 1', buckets.switchDirect.length);
+          inner += buckets.switchDirect.map(c => renderControlCard(c, 'all')).join('');
+        }
+        if (buckets.switchIndirect.length) {
+          inner += buildGroupDivider('Reach 2+', buckets.switchIndirect.length);
+          inner += buckets.switchIndirect.map(c => renderControlCard(c, 'all')).join('');
+        }
+        if (buckets.presence.length) {
+          inner += buildGroupDivider('Presence', buckets.presence.length);
+          inner += buckets.presence.map(c => renderControlCard(c, 'all')).join('');
+        }
+        if (buckets.alerts.length) {
+          inner += buildGroupDivider('Alert', buckets.alerts.length);
+          inner += buckets.alerts.map(c => renderControlCard(c, 'all')).join('');
+        }
+        if (buckets.doesntReach.length) {
+          inner += buildGroupDivider('Doesn’t reach ' + areaFilter, buckets.doesntReach.length);
+          inner += buckets.doesntReach.map(c => renderControlCard(c, 'all', { doesntReach: true })).join('');
+        }
+        cardListHtml = '<div class="ctrl-card-list">' + inner + '</div>';
+      } else if (currentView === 'all' && (areaFilter === 'all' || areaFilter.startsWith('zone:')) && sortColumn === 'fourth' && fourthField === 'lastAction') {
+        // Browse view (no area filter OR zone filter) + Sort: Recent →
+        // group by recency time bucket (Today / Yesterday / Past week
+        // / Past month / Past year / Prior / Never used). Within each
+        // bucket, controls stay in `sorted` order (already most-recent
+        // first via the global sort).
+        const groupMap = new Map();
+        for (const c of sorted) {
+          const ts = c.last_action && c.last_action.timestamp;
+          const key = controlsTimeBucket(ts);
+          if (!groupMap.has(key)) groupMap.set(key, []);
+          groupMap.get(key).push(c);
+        }
+        let inner = '';
+        for (const bucket of CONTROLS_TIME_BUCKETS) {
+          const list = groupMap.get(bucket.key);
+          if (!list || !list.length) continue;
+          inner += buildGroupDivider(bucket.label, list.length, bucket.descriptor);
+          inner += list.map(c => renderControlCard(c, 'all')).join('');
+        }
+        cardListHtml = '<div class="ctrl-card-list">' + inner + '</div>';
+      } else if (currentView === 'all' && (areaFilter === 'all' || areaFilter.startsWith('zone:')) && sortColumn === 'area') {
+        // Browse view (no area filter OR zone filter) + Sort: Location →
+        // group by home area in canonical home-area-sort. Each divider
+        // labeled with the area name + count.
         const groupMap = new Map();
         for (const c of sorted) {
           const k = c.area_name || '— Unassigned —';
@@ -1435,37 +1483,9 @@
           inner += list.map(c => renderControlCard(c, 'all')).join('');
         }
         cardListHtml = '<div class="ctrl-card-list">' + inner + '</div>';
-      } else if (currentView === 'all' && areaFilter !== 'all' && areaFilter !== 'unassigned') {
-        // Single-area filter — 5-bucket grouping (shared with area-details
-        // Controls card via bucketControlsForArea). Switches and sensors
-        // get separate categories: switch reach 1 / switch reach 2+ /
-        // presence triggers / alerts / doesn't reach.
-        const targetAreaId = (allAreas.find(a => a.name === areaFilter) || {}).area_id;
-        const buckets = bucketControlsForArea(sorted, targetAreaId, areaFilter);
-        let inner = '';
-        if (buckets.switchDirect.length) {
-          inner += buildGroupDivider(areaFilter + ' in reach 1', buckets.switchDirect.length);
-          inner += buckets.switchDirect.map(c => renderControlCard(c, 'all')).join('');
-        }
-        if (buckets.switchIndirect.length) {
-          inner += buildGroupDivider(areaFilter + ' in reach 2+', buckets.switchIndirect.length);
-          inner += buckets.switchIndirect.map(c => renderControlCard(c, 'all')).join('');
-        }
-        if (buckets.presence.length) {
-          inner += buildGroupDivider('Presence triggers ' + areaFilter, buckets.presence.length);
-          inner += buckets.presence.map(c => renderControlCard(c, 'all')).join('');
-        }
-        if (buckets.alerts.length) {
-          inner += buildGroupDivider('Alerts ' + areaFilter, buckets.alerts.length);
-          inner += buckets.alerts.map(c => renderControlCard(c, 'all')).join('');
-        }
-        if (buckets.doesntReach.length) {
-          inner += buildGroupDivider('Doesn’t reach ' + areaFilter, buckets.doesntReach.length);
-          inner += buckets.doesntReach.map(c => renderControlCard(c, 'all', { doesntReach: true })).join('');
-        }
-        cardListHtml = '<div class="ctrl-card-list">' + inner + '</div>';
       } else {
-        // Flat list — no grouping.
+        // Flat list — no grouping. Covers: Sort: Name in Browse/zone
+        // view, the Unassigned filter, and any non-Browse view.
         cardListHtml = '<div class="ctrl-card-list">' + sorted.map(c => renderControlCard(c, currentView)).join('') + '</div>';
       }
 
