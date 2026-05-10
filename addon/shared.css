@@ -1,0 +1,282 @@
+/* ==========================================================================
+   shared.css — canonical styles inlined into every page by serve_page().
+   Keep this file small. Anything page-specific stays in the page's <style>.
+   Relies on CSS variables defined in each page's :root (--line, --text,
+   --font-value, etc.).
+   ========================================================================== */
+
+/* Disable text selection on UI chrome by default. Settings/control surfaces
+   shouldn't highlight when you click-drag over labels, sliders, headers, etc.
+   Re-enabled below on elements where selection is actually useful: form
+   inputs, info tooltips (so users can copy text out of them), and any
+   element opted in via `.is-selectable`. */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Sub-section: flat, always-visible grouping within a card.
+   Use when a card has multiple labeled regions but doesn't need each region
+   to be its own collapsible/bordered mini-card. Every sub-section gets:
+   - A clear top divider that visually separates it from siblings or intro content
+   - A bold title that reads as a section label
+   - A body with a left indent so the contents read as "below the title" */
+.sub-section {
+  margin-top: 16px;
+  padding-top: 14px;
+  /* Brighter than var(--line) so it's clearly visible on any card bg
+     (dark home cards, light area-tinted cards, etc.). */
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+.sub-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0 10px;
+  user-select: none;
+}
+.sub-section-title {
+  font-size: var(--font-value, 0.95rem);
+  font-weight: 700;
+  color: var(--text, #e2e8f0);
+  letter-spacing: 0.01em;
+}
+.sub-section-body {
+  padding-left: 20px;
+}
+
+/* Sub-sub-section: lighter nested grouping inside a .sub-section.
+   Use when a sub-section has a logical inner cluster of fields that
+   benefits from a label + soft separator without competing visually
+   with the parent .sub-section title. */
+.sub-sub-section {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.sub-sub-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 0 8px;
+  user-select: none;
+}
+.sub-sub-section-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.sub-sub-section-body {
+  padding-left: 16px;
+}
+
+/* Pulse dot — small green dot for recent-activity indication. Opacity
+   is set inline by buildPulseDot() (decays linearly over a configured
+   window). Green maps to the "alive/recently active" semantic familiar
+   from device LEDs and presence indicators (vs blue's "new/unread"
+   meaning, which read as "recently added" not "recently used"). */
+.pulse-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+/* "Very recent" dots (last N min, Lab `controls_recent_window_minutes`,
+   default 5) get a strong glow + slow breathing animation. Three-stop
+   box-shadow gives a tight inner highlight, mid-range glow, and a
+   broad soft corona that's visible across the row. Pulse dots' inline
+   `animation-delay` is computed against absolute time mod period (4s),
+   so all dots stay in phase across page renders (no flash on re-render). */
+.pulse-dot.is-recent {
+  box-shadow: 0 0 6px #22c55e, 0 0 18px #22c55e, 0 0 32px rgba(34, 197, 94, 0.55);
+  animation: pulse-breathe 4s ease-in-out infinite;
+}
+@keyframes pulse-breathe {
+  0%, 100% {
+    box-shadow: 0 0 6px #22c55e, 0 0 18px #22c55e, 0 0 32px rgba(34, 197, 94, 0.55);
+    transform: scale(1.15);
+  }
+  50% {
+    box-shadow: 0 0 10px #22c55e, 0 0 30px #22c55e, 0 0 56px rgba(34, 197, 94, 0.65);
+    transform: scale(1.5);
+  }
+}
+
+/* Grouping divider — header that splits a list into named buckets with an
+   optional count. Typography-led: bold, brighter title with generous
+   vertical breathing room. No top rule — that competed with row dividers
+   below and made the header feel like just another separator. The
+   spacing + type contrast is what carries the grouping. Used for in/reach
+   on area-filtered views, scheduled/permanent on PAUSED, etc. */
+.group-divider {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 14px 8px;
+  /* Effective gap above section title ≈ 24px (row padding-bottom 12px
+     + this margin 6px + divider padding-top 6px). The visual gap is
+     additive across all three; tuning just margin alone misleads. */
+  margin-top: 6px;
+}
+.group-divider:first-child {
+  margin-top: 4px;
+}
+.group-divider-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text, #e2e8f0);
+  letter-spacing: 0;
+}
+.group-divider-count {
+  font-size: 0.82rem;
+  color: var(--muted2, #64748b);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+/* Optional inline descriptor next to a divider title — used by the
+   recency-bucket headers ("Past week (used 2–7 days ago)") to clarify
+   the bucket's boundary semantics without enlarging the title. */
+.group-divider-descriptor {
+  font-size: 0.78rem;
+  color: var(--muted2, #64748b);
+  font-weight: 400;
+}
+
+/* =============================================================================
+   Control summary — "what this control does", multi-line. Each scope (for
+   switches) or each mode group (for sensors) renders as its own line:
+       reach 1: Kitchen, Living
+       reach 2: Master
+   The label ("reach N", "on/off", "on", "alert") renders in default text
+   color; the area list after the colon is muted. When an area filter is
+   active, the filter area is pinned to the front of each area list AND
+   rendered in default color (`.hl`) so it visually pops.
+   ============================================================================= */
+.ctrl-card-summary {
+  /* Spans body+area columns on row 2 of the row's grid layout — set
+     by both /switches and area-details rows. */
+  grid-area: summary;
+  font-size: 0.8rem;
+  color: var(--text, #e2e8f0);
+  opacity: 0.85;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 12px;
+  margin-top: 2px;
+}
+/* Block flow (not flex) so the label + area list wrap as one
+   continuous text run — avoids the double-wrap (label on its own
+   line + area list wrapping internally) that flex-wrap caused. The
+   single space between label and areas spans is the natural break
+   point; longer area lists wrap mid-content. */
+.ctrl-card-summary .summary-line {
+  line-height: 1.45;
+}
+.ctrl-card-summary .areas { color: var(--muted2, #64748b); }
+/* Filter-area highlight: rectangular pill behind the area name. The
+   background carries the emphasis where font-weight bumps couldn't at
+   0.8rem under the parent's 0.85 opacity. */
+.ctrl-card-summary .areas .hl {
+  color: var(--text, #e2e8f0);
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+/* =============================================================================
+   View segmented control — single mode-picker for a page (e.g., home page
+   AREAS / 'ON' FIRST / REORDER, or future controls page ALL / SETUP / etc.).
+   Collapsed-by-default: only the active pill shows. Clicking the pill drops
+   a vertical popover with the other modes stacked below. Each instance
+   manages its own active state + click-to-expand JS in the consuming page.
+   ============================================================================= */
+.view-segments {
+  position: relative;
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid rgba(255,255,255,0.22);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.04);
+}
+.view-segment {
+  border: 0;
+  background: transparent;
+  color: var(--muted, #94a3b8);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 5px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, box-shadow 0.18s ease;
+  white-space: nowrap;
+  font-family: inherit;
+}
+.view-segment:hover { color: var(--text, #e2e8f0); background: rgba(255,255,255,0.06); }
+/* Active = filled white pill with black text — matches the inversion
+   idiom used on power buttons. */
+.view-segment.active { background: #fff; color: #000; }
+.view-segment.active:hover { background: rgba(255,255,255,0.94); color: #000; }
+/* Affordance hint: subtle white outline glow on the active pill when
+   hovered in the collapsed state — tells users it's clickable. */
+.view-segments:not(.is-expanded):hover .view-segment.active {
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.18);
+}
+/* Vertical popover with the other modes — appears below the active pill
+   when expanded. Right-aligned to the trigger so it never spills past
+   the page edge. */
+.view-segments-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  display: none;
+  flex-direction: column;
+  gap: 3px;
+  padding: 5px;
+  background: rgba(20, 20, 22, 0.98);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  z-index: 50;
+  min-width: 100%;
+}
+.view-segments.is-expanded .view-segments-popover {
+  display: flex;
+  animation: viewSegPopIn 0.16s ease-out;
+}
+@keyframes viewSegPopIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+/* Popover items render at the same look as the bar pills, but full width
+   within the popover and left-aligned text since each row is a discrete
+   menu item. */
+.view-segments-popover .view-segment {
+  width: 100%;
+  text-align: left;
+  padding: 7px 14px;
+}
+/* Active item INSIDE the popover gets a subtle highlight rather than the
+   full white-fill — reads as "currently selected" (like a native menu's
+   checkmark row) without duplicating the bar pill's strong inversion. */
+.view-segments-popover .view-segment.active {
+  background: rgba(255,255,255,0.10);
+  color: var(--text, #e2e8f0);
+}
+.view-segments-popover .view-segment.active:hover {
+  background: rgba(255,255,255,0.15);
+  color: var(--text, #e2e8f0);
+}

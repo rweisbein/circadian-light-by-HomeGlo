@@ -187,6 +187,24 @@ class CircadianLightPrimitives:
         except Exception:
             return 1.0
 
+    def _get_freeze_hold_at_dim(self) -> float:
+        """Get the wait time between the freeze-feedback dip and restore phases.
+
+        Lights hold at 1% for limit_speed + this value before restoring. Decoupled
+        from `two_step_delay` (which is tuned for ZHA reliability on 2-step turn-ons
+        and is much longer than the animation needs).
+        Reads from global config, defaults to 0.2 seconds (2 tenths).
+
+        Returns:
+            Hold duration in seconds
+        """
+        try:
+            raw_config = glozone.load_config_from_files()
+            tenths = raw_config.get("freeze_hold_at_dim", 2)
+            return tenths / 10.0
+        except Exception:
+            return 0.2
+
     def _is_limit_bounce_enabled(self) -> bool:
         """Check if limit bounce visual feedback is enabled."""
         try:
@@ -3966,12 +3984,12 @@ class CircadianLightPrimitives:
         # Propagate to all areas in the zone
         affected_areas = []
         for target_area_id in zone_areas:
-            # Clear boost state if boosted (zone push overrides boost)
-            if state.is_boosted(target_area_id):
-                state.clear_boost(target_area_id)
-                logger.debug(f"Cleared boost for area {target_area_id}")
-
-            # Copy state to target area
+            # Boost is intentionally preserved across zone pushes — a boosted
+            # area should follow the zone's curve shifts (warmer/cooler/brighter)
+            # but stay boosted on top. The pipeline re-applies boost_brightness
+            # over whatever curve value the new midpoint produces.
+            #
+            # Copy general runtime state to target area
             state.update_area(target_area_id, runtime_state)
             logger.debug(f"Copied state to area {target_area_id}")
 
@@ -4339,6 +4357,27 @@ class CircadianLightPrimitives:
                         if last_ct is None or abs(ct - last_ct) >= ct_threshold:
                             any_ct_exceeded = True
                             break
+
+                    # Diagnostic: log when an off→on press skips batch
+                    # 2-step because every area's prev_ct is close to
+                    # target. The bulbs are physically off; if their
+                    # actual stored CT diverges from our tracked values
+                    # (e.g., cross-addon pollution), they'll wake at a
+                    # different color and visibly arc to target.
+                    if not any_ct_exceeded:
+                        off_areas = [
+                            a for a in matching if not state.get_is_on(a)
+                        ]
+                        if off_areas:
+                            ages = ", ".join(
+                                f"{a}@{state.format_age_short(state.get_last_sent_kelvin_at(a))}"
+                                for a in off_areas
+                            )
+                            logger.info(
+                                f"[2step] batch {purpose_norm}_{cap}: skipped off→on for "
+                                f"{off_areas} (target={ct}K, all prev_ct within "
+                                f"{ct_threshold}K — {ages})"
+                            )
 
                     if any_ct_exceeded:
                         # Current state must match across all areas for batched 2-step

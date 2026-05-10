@@ -10,6 +10,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Circadian Light - Home</title>
+  <link rel="stylesheet" href="./shared.css">
   <style>
     :root {
       --bg: #000;
@@ -690,13 +691,21 @@
       background: rgba(50,50,50,0.9);
     }
 
+    /* Active row button (area-row power) — high-contrast inversion (white fill,
+       black icon) reads as "lit up" without relying on the orange accent.
+       Dark border keeps the button's edge visible on light-tinted card
+       backgrounds (e.g. cream tint when warm CT × high brightness). */
     .row-btn.active {
-      background: rgba(60,60,60,0.9);
-      color: var(--text);
-      border-color: var(--accent);
+      background: #fff;
+      color: #000;
+      border-color: rgba(0,0,0,0.4);
+    }
+    .row-btn.active:hover {
+      background: rgba(255,255,255,0.92);
+      border-color: rgba(0,0,0,0.55);
     }
 
-    /* Power button — reduced visual weight: hollow circle off, filled amber on */
+    /* Zone-level power button — same inversion idiom, hollow off / solid white on. */
     .row-controls-left .row-btn {
       border-radius: 50%;
       background: transparent;
@@ -708,13 +717,13 @@
       background: rgba(255,255,255,0.08);
     }
     .row-controls-left .row-btn.active {
-      background: rgba(0, 0, 0, 0.4);
-      border-color: rgba(0, 0, 0, 0.3);
-      color: var(--accent);
+      background: #fff;
+      border-color: rgba(0,0,0,0.4);
+      color: #000;
     }
     .row-controls-left .row-btn.active:hover {
-      background: rgba(0, 0, 0, 0.55);
-      border-color: rgba(0, 0, 0, 0.45);
+      background: rgba(255,255,255,0.92);
+      border-color: rgba(0,0,0,0.55);
     }
     .row-controls-left .row-btn svg {
       width: 13px;
@@ -1047,23 +1056,9 @@
     .nav-overflow-item:hover { color: var(--text); background: rgba(255,255,255,0.05); }
     .nav-overflow-item.active { color: var(--text); }
 
-    /* View mode links — filter pill (On) */
-    .view-toggle {
-      font-size: 0.72rem;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      color: var(--muted);
-      background: transparent;
-      border: 1px solid rgba(255,255,255,0.22);
-      border-radius: 999px;
-      cursor: pointer;
-      transition: all 0.15s;
-      padding: 3px 11px;
-      white-space: nowrap;
-    }
-    .view-toggle:hover { border-color: rgba(255,255,255,0.4); color: var(--text); }
-    .view-toggle.active { color: var(--accent); border-color: currentColor; background: transparent; }
-    .view-toggle.active:hover { color: var(--accent); filter: brightness(1.12); }
+    /* Home page view segments — see `.view-segments` in shared.css. Same
+       component used by the Controls page; consumers manage their own
+       active state + click-to-expand JS. */
 
     /* Edit mode styles */
     .edit-toolbar { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
@@ -1180,6 +1175,23 @@
       font-weight: 700;
       color: var(--text);
       letter-spacing: 0.01em;
+      cursor: text;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: background 0.15s;
+    }
+    .home-name-heading:hover { background: rgba(255,255,255,0.06); }
+    .home-name-input {
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 0.01em;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--accent);
+      border-radius: 4px;
+      padding: 2px 4px;
+      outline: none;
+      font-family: inherit;
     }
 
     .drag-handle { color: var(--muted2); font-size: 1.1rem; cursor: grab; user-select: none; }
@@ -1230,6 +1242,10 @@
     let areaStatus = {};
     let zoneStates = {};
     let viewMode = 'custom'; // 'custom', 'alpha', 'onoff'
+    // Whether the view-segments pill bar is expanded (showing all options)
+    // vs. collapsed (showing only the active pill). Reset on render-time
+    // by using a module variable so periodic re-renders preserve state.
+    let _viewSegExpanded = false;
     let cachedConfig = null;
     let cachedSunTimes = null; // { sunrise, sunset, solarNoon, solarMid } in local hours
     let currentMode = 'view'; // 'view' | 'organize'
@@ -1237,6 +1253,7 @@
     let homeRefreshTimer = null;     // Home page card refresh timer
     let homeTickTimer = null;        // 1s home page timer countdown tick
     let sliderDragging = false;      // Guards renderAreas during row button actions
+    let homeNameEditing = false;     // Guards renderAreas while inline-editing the home name
 
     // ============================================================
     // Circadian Calculation Functions (for row shading)
@@ -1619,6 +1636,33 @@
       return `<a href="${href}" class="timer-alarm" style="text-decoration:none; color:inherit;">${arrow} ${text}${relative}</a>`;
     }
 
+    // Wall-clock-sync any pulsing animations within `root`.
+    //
+    // Setting `animation-delay: -<offset>s` (offset = now % duration) makes the
+    // CSS animation start at the phase it would be at if it had been running
+    // since wall-clock 0. After a DOM rebuild (renderAreas → innerHTML or
+    // updateHomeTimers' sig-change branch) the new element resumes at the
+    // same wall-clock phase as the one it replaced, so the rebuild is
+    // invisible — no jump in the breath cycle.
+    //
+    // The dataset.pulseSynced flag makes this idempotent: re-setting
+    // animation-delay on a running animation would itself cause a phase jump,
+    // so we only ever sync each element once.
+    function syncPulsesToWallClock(root) {
+      const els = root.querySelectorAll('.timer-fade, .timer-motion, .timer-warning, .timer-boost, .timer-boost-flash');
+      const now = Date.now();
+      for (const el of els) {
+        if (el.dataset.pulseSynced) continue;
+        const cs = getComputedStyle(el);
+        const durStr = (cs.animationDuration || '').split(',')[0].trim();
+        const dur = parseFloat(durStr) * 1000;
+        if (!dur || isNaN(dur)) continue;
+        const offset = (now % dur) / 1000;
+        el.style.animationDelay = `-${offset.toFixed(3)}s`;
+        el.dataset.pulseSynced = '1';
+      }
+    }
+
     function updateHomeTimers() {
       // Update active status (row 1) and schedule (row 3) separately
       // Active status: fade, motion, boost, frozen (current state)
@@ -1684,6 +1728,7 @@
           // Structure changed — full rebuild
           el.innerHTML = parts.join('');
           el.setAttribute('data-sig', sig);
+          syncPulsesToWallClock(el);
         } else {
           // Same structure — update text only (preserves animations)
           const children = el.children;
@@ -2344,8 +2389,55 @@
       setTimeout(() => crossZoneMove(areaId, sourceZone, targetZone), 350);
     }
 
+    // Click-to-edit home name. Span swaps to a text input; blur or Enter
+    // commits to /api/config; Escape cancels. Updates cachedConfig in place
+    // so the next render picks up the new value without a full refetch.
+    async function editHomeName(spanEl) {
+      homeNameEditing = true;  // pause renderAreas() so periodic refresh doesn't clobber the input
+      const current = spanEl.textContent;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'home-name-input';
+      input.value = current === 'Your home' ? '' : current;
+      input.placeholder = 'Your home';
+      spanEl.replaceWith(input);
+      input.focus();
+      input.select();
+
+      let committed = false;
+      const commit = async (save) => {
+        if (committed) return;
+        committed = true;
+        const newName = save ? (input.value.trim() || '') : current;
+        const span = document.createElement('span');
+        span.className = 'home-name-heading';
+        span.id = 'home-name-heading';
+        span.title = 'Click to rename';
+        span.onclick = () => editHomeName(span);
+        span.textContent = newName || 'Your home';
+        input.replaceWith(span);
+        homeNameEditing = false;  // re-enable renderAreas
+        if (save && newName !== current) {
+          if (cachedConfig) cachedConfig.home_name = newName;
+          try {
+            await fetch('./api/config', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ home_name: newName }),
+            });
+          } catch (e) { console.error('Save home name failed:', e); }
+        }
+      };
+      input.addEventListener('blur', () => commit(true));
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+        else if (e.key === 'Escape') { e.preventDefault(); commit(false); }
+      });
+    }
+
     function renderAreas() {
       if (sliderDragging) return; // Don't re-render while user is dragging
+      if (homeNameEditing) return; // Don't re-render while inline-editing home name
       const container = document.getElementById('areas-container');
 
       // Merge area data with status
@@ -2354,6 +2446,7 @@
         return {
           ...area,
           is_on: status.is_on || false,
+          is_circadian: status.is_circadian !== false,  // default true when undefined
           brightness: status.is_on ? (status.actual_brightness ?? status.brightness ?? 0) : 0,
           kelvin: status.kelvin || 4000,
           frozen: status.frozen || false,
@@ -2437,25 +2530,38 @@
 
       // Build toolbar HTML
       const homeName = cachedConfig?.home_name || 'Your home';
-      let html;
-      if (currentMode === 'organize') {
-        html = `
-          <div class="edit-toolbar">
-            <span style="font-size: 1rem; font-weight: 600; color: var(--text);">Organize${homeName ? ': ' + homeName : ''}</span>
-            <span style="flex: 1;"></span>
-            <a href="#" class="edit-toolbar-link" onclick="event.preventDefault(); exitMode()" style="color: var(--accent); font-weight: 600;">Done</a>
+      // Unified toolbar across all modes — segmented control is always
+      // visible and *is* the mode switcher. No separate Done link; clicking
+      // a different pill exits the current mode.
+      const viewValue = currentMode === 'organize'
+        ? 'organize'
+        : (viewMode === 'onoff' ? 'onoff' : 'home');
+      const VIEWS = [
+        { value: 'home',     label: 'All' },
+        { value: 'onoff',    label: '&lsquo;On&rsquo; first' },
+        { value: 'organize', label: 'Reorder' },
+      ];
+      const activeView = VIEWS.find(v => v.value === viewValue) || VIEWS[0];
+      const expandedClass = _viewSegExpanded ? ' is-expanded' : '';
+      // Popover lists ALL views (including the active one with subtle
+      // highlight). Like a native menu with a checkmark on the selected
+      // row — bar pill is the trigger, popover is the menu.
+      const popoverItems = VIEWS
+        .map(v => {
+          const cls = v.value === viewValue ? 'view-segment active' : 'view-segment';
+          return `<button class="${cls}" data-view="${v.value}">${v.label}</button>`;
+        })
+        .join('');
+      let html = `
+        <div class="home-toolbar" style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+          <span class="home-name-heading" id="home-name-heading" ondblclick="editHomeName(this)" title="Double-click (or tap and hold) to rename" style="touch-action: manipulation;">${homeName || ''}</span>
+          <span style="flex: 1;"></span>
+          <div class="view-segments${expandedClass}" id="home-view-segments" role="tablist" title="Page mode">
+            <button class="view-segment active" data-view="${activeView.value}">${activeView.label}</button>
+            <div class="view-segments-popover">${popoverItems}</div>
           </div>
-        `;
-      } else {
-        html = `
-          <div class="home-toolbar" style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-            <span class="home-name-heading">${homeName || ''}</span>
-            <button class="view-toggle ${viewMode === 'onoff' ? 'active' : ''}" data-view-toggle title="Group by on/off state">On</button>
-            <span style="flex: 1;"></span>
-            <a href="#" class="edit-toolbar-link" id="organize-link" style="padding-left: 8px;">Organize</a>
-          </div>
-        `;
-      }
+        </div>
+      `;
 
       const renderZoneGroup = (zoneName, areasInZone, zoneIndex, totalZones, { allOff = false } = {}) => {
         const isCollapsed = collapsedState[zoneName] || false;
@@ -2564,9 +2670,11 @@
           }
         }
 
-        // Power button: only show if one or more areas in zone have lights on.
+        // Power button: only show if one or more areas in the zone are
+        // effectively on — circadian-disabled areas don't count, since the
+        // power button only does something for areas under our control.
         // When hidden, a spacer preserves the centered-title layout.
-        const zoneOnAreas = sorted.filter(a => a.is_on);
+        const zoneOnAreas = sorted.filter(a => a.is_on && a.is_circadian);
         const zonePowerBtn = zoneOnAreas.length > 0
           ? `<div class="row-controls-left"><button class="row-btn active" onclick="event.stopPropagation(); confirmZonePowerOff('${escapedZoneName}')" title="Turn off all in '${zoneName}'">${powerIconSvg}</button></div>`
           : `<div class="row-controls-left" style="visibility: hidden;" aria-hidden="true"><button class="row-btn" tabindex="-1">${powerIconSvg}</button></div>`;
@@ -2618,9 +2726,13 @@
           <a href="#" onclick="event.preventDefault(); createZoneFromEdit()" style="font-size: 0.85rem; color: var(--accent); text-decoration: none;">+ New Zone</a>
         </div>`;
       } else if (viewMode === 'onoff') {
-        // Group by on/off first, then by zone within each
-        const onAreas = filtered.filter(a => a.is_on);
-        const offAreas = filtered.filter(a => !a.is_on);
+        // Group by on/off first, then by zone within each. Areas with circadian
+        // disabled are bucketed with off areas — even though their lights might
+        // be physically on, they're not under our control. (We don't mutate
+        // `is_on` itself; it's a display-only adjustment for this filter.)
+        const isEffectivelyOn = (a) => a.is_on && a.is_circadian;
+        const onAreas = filtered.filter(isEffectivelyOn);
+        const offAreas = filtered.filter(a => !isEffectivelyOn(a));
 
         const renderOnOffSection = (sectionAreas, allOff = false) => {
           if (sectionAreas.length === 0) return '';
@@ -2697,6 +2809,7 @@
       initRowSliders();
       updateAllSliderFills();
       updateHomeTimers();
+      syncPulsesToWallClock(container);
       initStickyHeaders();
     }
 
@@ -3016,19 +3129,85 @@ function updateSliderFill(el) {
 
     function setupEventListeners() {
       document.getElementById('areas-container').addEventListener('click', (e) => {
-        if (e.target.id === 'organize-link') { e.preventDefault(); enterOrganizeMode(); }
         if (e.target.id === 'add-zone-link') { e.preventDefault(); createZoneFromEdit(); }
       });
 
-      // View mode toggle click
+      // Home view segments — collapsed-by-default mode picker. Clicking
+      // the active pill expands the popover; clicking any other pill in
+      // the popover switches mode (which may include exiting/entering
+      // Reorder mode) and collapses.
       document.getElementById('areas-container').addEventListener('click', (e) => {
-        if (e.target.hasAttribute('data-view-toggle')) {
-          viewMode = viewMode === 'onoff' ? 'custom' : 'onoff';
-          e.target.classList.toggle('active', viewMode === 'onoff');
-          savePreferences();
+        const seg = e.target.closest('.view-segment');
+        if (!seg) return;
+        const segContainer = seg.closest('.view-segments');
+        const isActive = seg.classList.contains('active');
+
+        // Collapsed → expand on first click of the active pill.
+        if (!_viewSegExpanded) {
+          _viewSegExpanded = true;
+          if (segContainer) segContainer.classList.add('is-expanded');
+          return;
+        }
+
+        // Expanded — handle the selection.
+        _viewSegExpanded = false;
+        const v = seg.dataset.view;
+
+        // Clicking the active pill while expanded → just collapse, no-op.
+        if (isActive) {
+          if (segContainer) segContainer.classList.remove('is-expanded');
+          return;
+        }
+
+        // Switching INTO Reorder.
+        if (v === 'organize') {
+          enterOrganizeMode();
+          return;
+        }
+
+        // Switching to Home or On areas first — set sort, then exit
+        // Reorder mode if we were in it (exitMode reloads + re-renders;
+        // otherwise we render directly).
+        viewMode = (v === 'onoff') ? 'onoff' : 'custom';
+        savePreferences();
+        if (currentMode === 'organize') {
+          exitMode();
+        } else {
           renderAreas();
         }
       });
+
+      // Outside-click → collapse the segment popover (no mode change).
+      document.addEventListener('click', (e) => {
+        if (!_viewSegExpanded) return;
+        if (e.target.closest('.view-segments')) return;
+        _viewSegExpanded = false;
+        document.querySelector('.view-segments')?.classList.remove('is-expanded');
+      });
+
+      // Long-press on the home name → enter rename mode (mobile equivalent
+      // of double-click; both gestures route through editHomeName).
+      // ~600ms hold; cancelled if the finger moves or lifts early.
+      let _renameLongPressTimer = null;
+      let _renameTouchTarget = null;
+      const cancelLongPress = () => {
+        if (_renameLongPressTimer) clearTimeout(_renameLongPressTimer);
+        _renameLongPressTimer = null;
+        _renameTouchTarget = null;
+      };
+      const ac = document.getElementById('areas-container');
+      ac.addEventListener('touchstart', (e) => {
+        const nameEl = e.target.closest('#home-name-heading');
+        if (!nameEl) return;
+        _renameTouchTarget = nameEl;
+        _renameLongPressTimer = setTimeout(() => {
+          if (_renameTouchTarget) editHomeName(_renameTouchTarget);
+          _renameTouchTarget = null;
+        }, 600);
+      }, { passive: true });
+      ac.addEventListener('touchend', cancelLongPress);
+      ac.addEventListener('touchmove', cancelLongPress);
+      ac.addEventListener('touchcancel', cancelLongPress);
 
       // Slider fill updates (delegated)
       document.getElementById('areas-container').addEventListener('input', (e) => {

@@ -669,3 +669,466 @@ async function openAreaPicker(options = {}) {
 
   }); // end Promise
 }
+
+// =============================================================================
+// Duration picker — shared between sky-clarity override (settings) and control
+// pause (controls list). Six options: 5 min / 1 hour / 4 hours / Day / Week /
+// Forever. Pause uses all six; sky clarity uses all six.
+// =============================================================================
+
+const DURATION_OPTIONS = [
+  { value: '5',       label: '5 min',  minutes: 5 },
+  { value: '60',      label: '1 hour', minutes: 60 },
+  { value: '240',     label: '4 hours', minutes: 240 },
+  { value: '1440',    label: 'Day',    minutes: 1440 },
+  { value: '10080',   label: 'Week',   minutes: 10080 },
+  { value: 'forever', label: 'Forever', minutes: null },
+];
+
+const DURATION_DEFAULT = '240';  // 4 hours — common case for both flows.
+
+// Resolve a picker value to actual minutes, or null for "forever" (no expiry).
+function durationValueToMinutes(value) {
+  if (value === 'forever' || value == null) return null;
+  const n = parseInt(value, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+// Compact single-unit countdown display — drops smaller units once a
+// larger one is meaningful (3h instead of "3h 15m"; minutes don't matter
+// at that scale, same with hours vs days). Returns 'forever' for null
+// (matches the duration picker's "Forever" option for consistency
+// between the picker and active-state countdown displays).
+// Examples with default suffix='left': "25m left", "3h left", "5d left".
+// Pass suffix='' for unsuffixed form when the caller wraps with its own
+// prefix (e.g., "unpause in 3h").
+function formatDurationRemaining(minutes, suffix) {
+  if (minutes === null || minutes === undefined) return 'forever';
+  if (suffix === undefined) suffix = 'left';
+  const m = Math.max(0, Math.round(minutes));
+  let unit;
+  if (m < 60) unit = m + 'm';
+  else {
+    const h = Math.round(m / 60);
+    if (h < 24) unit = h + 'h';
+    else {
+      const d = Math.round(h / 24);
+      if (d < 7) unit = d + 'd';
+      else unit = Math.round(d / 7) + 'w';
+    }
+  }
+  return suffix ? unit + ' ' + suffix : unit;
+}
+
+// Build the <option> markup for a duration <select>. Pass excludeForever to
+// hide the "Forever" option (kept for future flexibility — not currently
+// used anywhere, both pickers now include Forever).
+function buildDurationOptions(selectedValue, excludeForever) {
+  const opts = excludeForever
+    ? DURATION_OPTIONS.filter(o => o.value !== 'forever')
+    : DURATION_OPTIONS;
+  return opts
+    .map(o => `<option value="${o.value}"${o.value === selectedValue ? ' selected' : ''}>${o.label}</option>`)
+    .join('');
+}
+
+// =============================================================================
+// Pulse dot — small white dot indicating recent control activity. Opacity
+// fades linearly from 1 to 0 over a configured window (default 6 hours).
+// Same color throughout — only brightness/decay reads as the signal.
+// Used on area-details Controls card and (future) main controls list.
+// =============================================================================
+
+// Returns 0..1 opacity. lastTouchedSeconds is epoch seconds; null/undefined
+// means "never touched". windowHours over which the dot decays to invisible.
+function pulseOpacity(lastTouchedSeconds, windowHours) {
+  if (!lastTouchedSeconds || !windowHours || windowHours <= 0) return 0;
+  const nowSec = Date.now() / 1000;
+  const elapsedH = Math.max(0, (nowSec - lastTouchedSeconds) / 3600);
+  if (elapsedH >= windowHours) return 0;
+  return 1 - (elapsedH / windowHours);
+}
+
+// Build the pulse-dot HTML. Returns empty string if invisible (so callers can
+// render an empty slot for layout stability — see ctrl-fresh-dot-slot etc.).
+// "Recent" controls (touched within the recentTouchedWindowMs Lab window —
+// default 5 min) get an extra `is-recent` class for the glow + breathing
+// animation defined in shared.css. The `animation-delay: -X.Xs` per element
+// is computed against absolute time mod animation period, so all dots stay
+// in phase across page renders (no flash on re-render).
+function buildPulseDot(lastTouchedSeconds, windowHours) {
+  const op = pulseOpacity(lastTouchedSeconds, windowHours);
+  if (op <= 0) return '';
+  const recent = isRecentlyTouched(lastTouchedSeconds);
+  const cls = recent ? 'pulse-dot is-recent' : 'pulse-dot';
+  // Animation period (seconds) — must match shared.css `pulse-breathe`
+  // duration. Sync via absolute-time-derived delay so re-renders pick up
+  // the same phase.
+  const periodSec = 4;
+  const delay = recent
+    ? ' animation-delay: -' + ((Date.now() / 1000) % periodSec).toFixed(2) + 's;'
+    : '';
+  return '<span class="' + cls + '" style="opacity: ' + op.toFixed(2) + ';' + delay + '" aria-hidden="true"></span>';
+}
+
+// =============================================================================
+// Grouping divider — header that splits a list into named buckets with an
+// optional count. See `.group-divider` in shared.css. Use anywhere a list
+// has named subdivisions: in/reach on area-filtered views, scheduled/permanent
+// on the PAUSED control view, etc. Pass count=null to omit the parenthetical.
+// =============================================================================
+// HomeGlo Lab: how long card-state localStorage persists before
+// resetting to defaults. Pages with collapsible cards (area, control,
+// rhythm-design) read this at init time — synchronous via the
+// localStorage shadow that settings.html writes whenever the Lab
+// value changes. Default 15 min.
+const _CARD_FRESHNESS_LS_KEY = 'homeglo_card_freshness_min';
+function cardFreshnessMs() {
+  const raw = localStorage.getItem(_CARD_FRESHNESS_LS_KEY);
+  const m = raw == null ? NaN : parseInt(raw, 10);
+  return Number.isFinite(m) && m > 0 ? m * 60 * 1000 : 15 * 60 * 1000;
+}
+
+// HomeGlo Lab: how recently a control must have been touched to get
+// the "very recent" emphasis (glow + breathing animation on the pulse
+// dot). Default 5 min. Same localStorage-shadow pattern.
+const _RECENT_WINDOW_LS_KEY = 'homeglo_recent_window_min';
+function recentTouchedWindowMs() {
+  const raw = localStorage.getItem(_RECENT_WINDOW_LS_KEY);
+  const m = raw == null ? NaN : parseInt(raw, 10);
+  return Number.isFinite(m) && m > 0 ? m * 60 * 1000 : 5 * 60 * 1000;
+}
+
+// True when a control's lastTouched timestamp falls within the recent
+// window. Used to add an `is-recent` class on pulse dots for the
+// glow + breathing emphasis.
+function isRecentlyTouched(lastTouchedSeconds) {
+  if (!lastTouchedSeconds) return false;
+  const ageMs = Date.now() - lastTouchedSeconds * 1000;
+  return ageMs >= 0 && ageMs <= recentTouchedWindowMs();
+}
+
+function buildGroupDivider(title, count, descriptor) {
+  const countSpan = (count == null)
+    ? ''
+    : '<span class="group-divider-count">(' + count + ')</span>';
+  const descSpan = descriptor
+    ? '<span class="group-divider-descriptor">(' + descriptor + ')</span>'
+    : '';
+  return '<div class="group-divider">'
+    + '<span class="group-divider-title">' + title + '</span>'
+    + descSpan
+    + countSpan
+    + '</div>';
+}
+
+// Map a control's last-action timestamp to a recency bucket key. Calendar-
+// day boundaries (in user's local timezone) so a control used at 11pm
+// yesterday lands in 'yesterday' (not 'today' via rolling 24h).
+function controlsTimeBucket(ts) {
+  if (!ts) return 'never';
+  const t = new Date(ts);
+  if (isNaN(t.getTime())) return 'never';
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tDay = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+  const dayDiff = Math.floor((today.getTime() - tDay.getTime()) / 86400000);
+  if (dayDiff <= 0) return 'today';
+  if (dayDiff === 1) return 'yesterday';
+  if (dayDiff <= 7) return 'pastweek';
+  if (dayDiff <= 30) return 'pastmonth';
+  if (dayDiff <= 365) return 'pastyear';
+  return 'prior';
+}
+
+// Ordered list of recency buckets with display label + optional descriptor
+// (parenthetical reminder of what days each bucket covers, since "past
+// week" implicitly excludes today/yesterday). Pages iterate this in order
+// to render only populated buckets.
+const CONTROLS_TIME_BUCKETS = [
+  { key: 'today',     label: 'Today',      descriptor: null },
+  { key: 'yesterday', label: 'Yesterday',  descriptor: null },
+  { key: 'pastweek',  label: 'Past week',  descriptor: 'used 2–7 days ago' },
+  { key: 'pastmonth', label: 'Past month', descriptor: 'used 8–30 days ago' },
+  { key: 'pastyear',  label: 'Past year',  descriptor: 'used 1–12 months ago' },
+  { key: 'prior',     label: 'Prior',      descriptor: null },
+  { key: 'never',     label: 'Never used', descriptor: null },
+];
+
+// =============================================================================
+// Control summary — "what this control does", scopes-driven. Shared between
+// the controls list page (/switches) and the area-details Controls card. The
+// page passes its `allAreas` registry plus optional `filterAreaId` (when
+// scoped to one area) and `deviceAreaId` (the control's home area, used for
+// switch reach prioritization).
+// =============================================================================
+
+function controlSummaryAreaName(areaId, allAreas) {
+  const a = (allAreas || []).find(x => x.area_id === areaId);
+  return a ? a.name : areaId;
+}
+
+// Format an area list. Sort: home-area-order (areaOrder map) first,
+// then alphabetical for areas not in that map, then `(+N)` overflow at
+// 6 names. Filter area (if set) is HL-wrapped wherever it lands —
+// position not pinned, so every row shows areas in the same canonical
+// order regardless of filter (eyes build muscle memory).
+function controlSummaryFormatAreasList(areaIds, allAreas, opts) {
+  opts = opts || {};
+  if (!areaIds || !areaIds.length) return '';
+  const filterAreaId = opts.filterAreaId || null;
+  const areaOrder = opts.areaOrder || null;
+  const sortKey = (id) => {
+    if (areaOrder && id in areaOrder) return [0, areaOrder[id], ''];
+    return [1, 0, controlSummaryAreaName(id, allAreas).toLowerCase()];
+  };
+  const sorted = [...areaIds].sort((a, b) => {
+    const ka = sortKey(a), kb = sortKey(b);
+    if (ka[0] !== kb[0]) return ka[0] - kb[0];
+    if (ka[1] !== kb[1]) return ka[1] - kb[1];
+    if (ka[2] < kb[2]) return -1;
+    if (ka[2] > kb[2]) return 1;
+    return 0;
+  });
+  const CAP = 6;
+  const visible = sorted.slice(0, CAP);
+  const overflow = sorted.length - CAP;
+  const parts = visible.map(id => {
+    const name = controlSummaryAreaName(id, allAreas);
+    return (filterAreaId && id === filterAreaId)
+      ? '<span class="hl">' + name + '</span>'
+      : name;
+  });
+  let result = parts.join(', ');
+  if (overflow > 0) result += ' (+' + overflow + ')';
+  return result;
+}
+
+function controlSummaryFormatSensorModeName(mode) {
+  if (mode === 'on_off') return 'on/off';
+  if (mode === 'on_only' || mode === 'on') return 'on';
+  if (mode === 'alert') return 'alert';
+  return mode;
+}
+
+// Group sensor scopes by mode → { mode: Set<areaId>, ... }. on_only is
+// normalized to 'on' so the rendered label is consistent.
+function _ctrlSummaryGroupSensorScopes(scopes) {
+  const groups = {};
+  for (const s of scopes || []) {
+    if (!s.mode || s.mode === 'disabled') continue;
+    const key = (s.mode === 'on_only') ? 'on' : s.mode;
+    if (!groups[key]) groups[key] = new Set();
+    for (const a of (s.areas || [])) groups[key].add(a);
+  }
+  return groups;
+}
+
+// Render one summary line: "<label>: <areas>". Label is in default text
+// (prominent); area list is muted. Empty areas render as "—".
+function _ctrlSummaryLine(label, areasHtml) {
+  return '<div class="summary-line">'
+    + '<span>' + label + ':</span>'
+    + ' <span class="areas">' + (areasHtml || '&mdash;') + '</span>'
+    + '</div>';
+}
+
+// Sensor — render one summary-line per non-empty mode group, in canonical
+// order (on, on/off, alert — `on` is higher-priority signal: stays on
+// while presence detected; `on/off` adds a timer; `alert` is passive).
+// Each line's area list is sorted in canonical home-area order (via
+// opts.areaOrder), with the filter area HL-wrapped wherever it falls.
+function _ctrlSummaryRenderSensor(scopes, allAreas, filterAreaId, areaOrder) {
+  const groups = _ctrlSummaryGroupSensorScopes(scopes);
+  const order = ['on', 'on_off', 'alert'];
+  const lines = [];
+  const opts = { filterAreaId: filterAreaId, areaOrder: areaOrder };
+  const renderGroup = (mode) => {
+    const areasHtml = controlSummaryFormatAreasList(Array.from(groups[mode]), allAreas, opts);
+    lines.push(_ctrlSummaryLine(controlSummaryFormatSensorModeName(mode), areasHtml));
+  };
+  for (const mode of order) {
+    if (groups[mode] && groups[mode].size > 0) renderGroup(mode);
+  }
+  for (const mode in groups) {
+    if (!order.includes(mode) && groups[mode].size > 0) renderGroup(mode);
+  }
+  return lines.join('');
+}
+
+// Switch — render one summary-line per scope ("1: areas", "2: areas").
+// Bare ordinal (no "reach" prefix) — bucket header conveys the reach
+// context when filtered, and repetition across multi-scope rows hurt
+// readability more than it helped. Always show the ordinal even for
+// single-scope switches: keeps every switch row visually consistent
+// (scopes are always numbered, regardless of how many there are).
+function _ctrlSummaryRenderSwitch(scopes, allAreas, filterAreaId, deviceAreaId, areaOrder) {
+  if (!scopes || !scopes.length) return '';
+  const opts = { filterAreaId: filterAreaId, areaOrder: areaOrder };
+  return scopes.map((s, idx) => {
+    const areasHtml = controlSummaryFormatAreasList(s.areas || [], allAreas, opts);
+    return _ctrlSummaryLine(String(idx + 1), areasHtml);
+  }).join('');
+}
+
+// Top-level dispatcher. opts = { allAreas, filterAreaId, deviceAreaId, areaOrder }.
+// Returns multi-line HTML (concatenated `<div class="summary-line">…</div>`).
+// Caller wraps with `<div class="ctrl-card-summary">…</div>`.
+function controlSummary(c, opts) {
+  opts = opts || {};
+  const scopes = c.scopes || [];
+  if (!scopes.length) return '';
+  const allAreas = opts.allAreas || [];
+  const filterAreaId = opts.filterAreaId || null;
+  const deviceAreaId = opts.deviceAreaId || c.area_id || null;
+  const areaOrder = opts.areaOrder || null;
+  if (c.category === 'switch') {
+    return _ctrlSummaryRenderSwitch(scopes, allAreas, filterAreaId, deviceAreaId, areaOrder);
+  }
+  return _ctrlSummaryRenderSensor(scopes, allAreas, filterAreaId, areaOrder);
+}
+
+// Bucket controls when filtering by a specific area. Returns five
+// arrays splitting switches and sensors into separate categories
+// (different concepts: switch press vs presence trigger).
+//
+//   Switch:   scope 0 hits the area               → switchDirect
+//             scope 1+ hits the area, scope 0 doesn't → switchIndirect
+//             lives here, no scope reaches it     → doesntReach
+//   Sensor*:  any non-alert scope hits the area   → presence
+//             alert scope hits the area, no non-alert does → alerts
+//             lives here, no scope reaches it     → doesntReach
+//
+// Each control appears in exactly one bucket. Sensor with BOTH
+// on/on_off AND alert scopes hitting the filter lands in `presence`
+// (presence wins precedence over alerts).
+function bucketControlsForArea(controls, filterAreaId, currentAreaName) {
+  const switchDirect = [];
+  const switchIndirect = [];
+  const presence = [];
+  const alerts = [];
+  const doesntReach = [];
+  const livesHere = (c) => currentAreaName != null
+    ? c.area_name === currentAreaName
+    : c.area_id === filterAreaId;
+  for (const c of controls) {
+    const scopes = c.scopes || [];
+    if (c.category === 'switch') {
+      let smallest = -1;
+      scopes.forEach(function (s, idx) {
+        if ((s.areas || []).includes(filterAreaId) && smallest === -1) smallest = idx;
+      });
+      if (smallest === 0) switchDirect.push(c);
+      else if (smallest > 0) switchIndirect.push(c);
+      else if (livesHere(c)) doesntReach.push(c);
+    } else {
+      const hasPresence = scopes.some(s =>
+        (s.mode === 'on' || s.mode === 'on_only' || s.mode === 'on_off')
+        && (s.areas || []).includes(filterAreaId));
+      const hasAlert = scopes.some(s =>
+        s.mode === 'alert' && (s.areas || []).includes(filterAreaId));
+      if (hasPresence) presence.push(c);
+      else if (hasAlert) alerts.push(c);
+      else if (livesHere(c)) doesntReach.push(c);
+    }
+  }
+  return { switchDirect, switchIndirect, presence, alerts, doesntReach };
+}
+
+// Summary for the "Doesn't reach <area>" bucket. Switches use the standard
+// (no-filter) form. Sensors use the standard sensor form, but with an
+// alert-only fallback: if any non-alert mode has areas, alert lines are
+// hidden (the user cares about what the device does, alerts secondary);
+// if only alert scopes have any areas, alert lines do render.
+function controlSummaryDoesntReach(c, allAreas, areaOrder) {
+  if (c.category === 'switch') {
+    return controlSummary(c, { allAreas: allAreas, deviceAreaId: c.area_id, areaOrder: areaOrder });
+  }
+  const groups = _ctrlSummaryGroupSensorScopes(c.scopes || []);
+  const hasNonAlert = (groups.on_off && groups.on_off.size > 0)
+    || (groups.on && groups.on.size > 0);
+  const filtered = (c.scopes || []).filter(s => {
+    if (!s.mode || s.mode === 'disabled') return false;
+    if (s.mode === 'alert' && hasNonAlert) return false;
+    return true;
+  });
+  return _ctrlSummaryRenderSensor(filtered, allAreas, null, areaOrder);
+}
+
+// =============================================================================
+// View segments bar — shared mode-picker component used on the home page,
+// controls list, and cheatsheet. Each consuming page mounts it via this
+// function with its own views array + onSelect callback. The component
+// manages its own collapsed/expanded state internally.
+//
+// IMPORTANT: call this exactly ONCE per page load. To update the active
+// value later, call the returned handle's setActive(value) method —
+// don't re-call setupViewSegments. Re-mounting would stack additional
+// document click handlers (one per call), and stale handlers fighting
+// over state caused the "pill jumps to All before I click" bug.
+//
+// Options:
+//   containerId: id of an existing <div class="view-segments"> in the DOM
+//   views:       [{ value, label }, ...] in display order
+//   active:      value of the currently-active view
+//   onSelect:    (value) => void — called when user picks a non-active view
+//
+// Returns: { setActive(value) } handle for updating the active view.
+// =============================================================================
+function setupViewSegments(opts) {
+  const container = document.getElementById(opts.containerId);
+  if (!container) return null;
+  let expanded = false;
+  let active = opts.active;
+
+  function render() {
+    const activeView = opts.views.find(v => v.value === active) || opts.views[0];
+    container.classList.toggle('is-expanded', expanded);
+    container.innerHTML =
+      '<button class="view-segment active" data-view="' + activeView.value + '">' + activeView.label + '</button>'
+      + '<div class="view-segments-popover">'
+      + opts.views.map(v => {
+          const cls = v.value === active ? 'view-segment active' : 'view-segment';
+          return '<button class="' + cls + '" data-view="' + v.value + '">' + v.label + '</button>';
+        }).join('')
+      + '</div>';
+  }
+
+  render();
+
+  // Click handling: outside-click collapses; bar-pill toggles expanded;
+  // active-in-popover collapses (no switch); inactive-in-popover triggers
+  // onSelect. The handler reads `active` from the closure each call, so
+  // updating active via setActive() does NOT need to re-bind.
+  document.addEventListener('click', function (e) {
+    const seg = e.target.closest && e.target.closest('.view-segment');
+    const segContainer = e.target.closest && e.target.closest('#' + opts.containerId);
+    if (!segContainer && expanded) {
+      expanded = false;
+      render();
+      return;
+    }
+    if (!seg || !segContainer) return;
+    const isActive = seg.classList.contains('active');
+    if (!expanded) {
+      expanded = true;
+      render();
+      return;
+    }
+    if (isActive) {
+      expanded = false;
+      render();
+      return;
+    }
+    expanded = false;
+    if (opts.onSelect) opts.onSelect(seg.dataset.view);
+  });
+
+  return {
+    setActive: function (v) {
+      active = v;
+      expanded = false;
+      render();
+    },
+  };
+}

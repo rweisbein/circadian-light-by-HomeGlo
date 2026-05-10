@@ -635,8 +635,7 @@ class HomeAssistantWebSocketClient:
         scoped_areas = sensor_config.areas
         if self.live_design_areas:
             filtered = [
-                ac for ac in scoped_areas
-                if ac.area_id not in self.live_design_areas
+                ac for ac in scoped_areas if ac.area_id not in self.live_design_areas
             ]
             if len(filtered) < len(scoped_areas):
                 suppressed = sorted(
@@ -898,8 +897,7 @@ class HomeAssistantWebSocketClient:
         scoped_areas = sensor_config.areas
         if self.live_design_areas:
             filtered = [
-                ac for ac in scoped_areas
-                if ac.area_id not in self.live_design_areas
+                ac for ac in scoped_areas if ac.area_id not in self.live_design_areas
             ]
             if len(filtered) < len(scoped_areas):
                 suppressed = sorted(
@@ -1095,8 +1093,7 @@ class HomeAssistantWebSocketClient:
         scoped_areas = sensor_config.areas
         if self.live_design_areas:
             filtered = [
-                ac for ac in scoped_areas
-                if ac.area_id not in self.live_design_areas
+                ac for ac in scoped_areas if ac.area_id not in self.live_design_areas
             ]
             if len(filtered) < len(scoped_areas):
                 suppressed = sorted(
@@ -2352,7 +2349,10 @@ class HomeAssistantWebSocketClient:
 
         elif main_action == "freeze_toggle":
             await self.primitives.freeze_toggle_multiple(areas, "switch")
-            await self._feedback_cue(switch_id, "freeze")
+            # Post-toggle state determines which feedback variant to play.
+            # All areas in a reach toggle together, so the first area's state is representative.
+            freeze_on = bool(areas) and state.is_frozen(areas[0])
+            await self._feedback_cue(switch_id, "freeze", freeze_on=freeze_on)
 
         elif main_action == "glo_up":
             # Push area settings to GloZone (atomic - zone only, not to other areas)
@@ -2887,6 +2887,7 @@ class HomeAssistantWebSocketClient:
         bounce_type: str = "step",
         scope_number: int = 1,
         sun_dimming_hint: bool = False,
+        freeze_on: bool = True,
     ) -> None:
         """Unified feedback cue — hits all areas in the active reach.
 
@@ -3011,18 +3012,34 @@ class HomeAssistantWebSocketClient:
                 )
 
             elif cue_type == "freeze":
+                # Restore-phase transition differs by direction:
+                #   freeze_on  → snap back (0s) — confirms "now locked"
+                #   freeze_off → slow rise (freeze_off_rise setting) — confirms "now unlocked"
+                # Dip phase uses limit_speed in both cases.
+                restore_transition = (
+                    0 if freeze_on else self.primitives._get_freeze_off_rise()
+                )
+                # Hold-at-1% duration before restore. Settings-driven so user
+                # can tune the dip-and-restore cadence without touching code.
+                hold_at_dim = self.primitives._get_freeze_hold_at_dim()
 
                 def freeze_phase1(t):
                     return {"brightness": 1, "transition": limit_speed}
 
                 def freeze_restore(t):
-                    return {"brightness": t["cached_bri"], "transition": limit_speed}
+                    return {
+                        "brightness": t["cached_bri"],
+                        "transition": restore_transition,
+                    }
 
                 await self._send_feedback_phase(targets, freeze_phase1)
-                await asyncio.sleep(limit_speed + two_step_delay)
+                await asyncio.sleep(limit_speed + hold_at_dim)
                 await self._send_feedback_phase(targets, freeze_restore)
 
-                logger.info(f"Feedback freeze: {len(targets)} area(s)")
+                logger.info(
+                    f"Feedback freeze ({'on' if freeze_on else 'off'}, restore={restore_transition}s): "
+                    f"{len(targets)} area(s)"
+                )
 
             elif cue_type == "reach":
                 # Determine per-area flash behavior based on sun exposure
@@ -3611,6 +3628,8 @@ class HomeAssistantWebSocketClient:
         delay. Each call resets the counter and delay timer.
         """
         self._last_light_action_time = time.time()
+        # Driven by the Lab card's `post_action_burst_count` (currently surfaced
+        # only in HomeGlo's developer-mode Lab tab; not user-facing). Default 1.
         try:
             raw_config = glozone.load_config_from_files()
             burst_count = int(raw_config.get("post_action_burst_count", 1))
@@ -3626,6 +3645,7 @@ class HomeAssistantWebSocketClient:
         ):
             self._pending_post_action_delay.cancel()
 
+        # Driven by Lab card's `post_switch_refresh` (tenths of a second).
         try:
             raw_config = glozone.load_config_from_files()
             tenths = raw_config.get("post_switch_refresh", 30)
@@ -3954,6 +3974,23 @@ class HomeAssistantWebSocketClient:
                 if current_ct is not None:
                     ct_diff = abs(kelvin - current_ct)
                     if ct_diff < ct_threshold:
+                        # Diagnostic: log when off→on skips 2-step. The
+                        # bulb is physically off; if its actual stored CT
+                        # diverges from our tracked `prev_ct` (e.g., from
+                        # cross-addon pollution), it'll wake at a different
+                        # color and visibly arc to target. The "@ X ago"
+                        # timestamp helps spot stale state — a long gap
+                        # since our last write means more chance another
+                        # actor has written to the bulb since.
+                        if is_off and log_periodic:
+                            age = state.format_age_short(
+                                state.get_last_sent_kelvin_at(area_id)
+                            )
+                            logger.info(
+                                f"[2step] {area_id}/{filter_name}: skipped off→on "
+                                f"(prev_ct={current_ct}K @ {age}, target={kelvin}K, "
+                                f"Δ={ct_diff}K < {ct_threshold}K)"
+                            )
                         continue
                 else:
                     # Unknown CT: always force 2-step (can't verify color safety)
@@ -4007,7 +4044,10 @@ class HomeAssistantWebSocketClient:
                 else:
                     # Dimming: phase 1 = dim to target brightness (keep OLD color)
                     def _add_p1_dim(entity_id, cap_type):
-                        p1 = {"transition": p1_transition, "brightness_pct": filtered_bri}
+                        p1 = {
+                            "transition": p1_transition,
+                            "brightness_pct": filtered_bri,
+                        }
                         # No color data — keep current color during dim
                         phase1_tasks.append(
                             self.call_service(
@@ -4158,8 +4198,65 @@ class HomeAssistantWebSocketClient:
                         )
                 continue
 
-            # Pipeline already includes CT compensation
-            comp_brightness = filtered_bri
+            # Pipeline already includes CT compensation.
+            # Floor to 1% — we only reach this branch when should_off was
+            # False (purpose did not cross its off_threshold), so the bulb
+            # should stay ON. Sending brightness_pct=0 in a turn_on call is
+            # interpreted inconsistently across bulbs (some treat it as
+            # "off", some as "minimum + transition") and lets the bulb's
+            # state diverge from our cached state, which then breaks the
+            # next brightening command. 1% is the safe minimum.
+            comp_brightness = max(1, filtered_bri)
+
+            # Diagnostic: read prior cached values BEFORE updating the
+            # cache, so we can log what (if anything) actually changed
+            # this tick. Helps spot redundant turn_on commands and
+            # tiny-delta oscillations that read as visible bouncing.
+            _prior = state.get_last_sent_purpose(area_id, filter_name) or {}
+            _prior_bri = _prior.get("brightness")
+            _prior_k = _prior.get("kelvin")
+
+            # Experimental tick command mode (Lab) — used to identify
+            # which element of the periodic turn_on causes some bulbs to
+            # visibly bounce. Modes:
+            #   "both"      (default) — current behavior
+            #   "skip"               — skip turn_on if both bri and ct
+            #                          unchanged (within 1% / 25K)
+            #   "bri_only"           — when ct unchanged within 25K, drop
+            #                          color_temp_kelvin / xy_color from
+            #                          the payload (send brightness only)
+            #   "ct_only"            — when bri unchanged within 1%, drop
+            #                          brightness_pct from the payload
+            #                          (send color/CT only)
+            _new_k = kelvin or 0
+            _bri_changed = (_prior_bri is None) or (
+                abs(comp_brightness - _prior_bri) >= 1
+            )
+            _ct_changed = (_prior_k is None) or (abs(_new_k - _prior_k) >= 25)
+            _tick_mode = raw_cfg.get("experimental_tick_mode", "both")
+            _tick_skip = False
+            _tick_emit_bri = True
+            _tick_emit_color = True
+            if _tick_mode == "skip":
+                if not _bri_changed and not _ct_changed:
+                    _tick_skip = True
+            elif _tick_mode == "bri_only":
+                if not _ct_changed:
+                    _tick_emit_color = False
+            elif _tick_mode == "ct_only":
+                if not _bri_changed:
+                    _tick_emit_bri = False
+            if _tick_skip:
+                if log_periodic:
+                    logger.info(
+                        f"[tick-skip] {area_id}/{filter_name}: "
+                        f"bri={comp_brightness}% ct={_new_k}K (both unchanged within tolerance)"
+                    )
+                # Still cache so the prior-value tracking stays accurate
+                state.set_last_sent_purpose(
+                    area_id, filter_name, comp_brightness, _new_k, is_off=should_off
+                )
+                continue
 
             # Cache per-purpose last-sent values
             state.set_last_sent_purpose(
@@ -4171,20 +4268,35 @@ class HomeAssistantWebSocketClient:
             )
 
             if log_periodic:
+                # Show prior values inline so we can see deltas (or lack
+                # thereof) at a glance. "(=)" marks a no-change tick,
+                # which means we're sending a redundant turn_on.
+                _new_k = kelvin or 0
+                _bri_tag = (
+                    "(=)"
+                    if _prior_bri is not None and _prior_bri == comp_brightness
+                    else f"(was {_prior_bri}%)"
+                )
+                _k_tag = (
+                    "(=)"
+                    if _prior_k is not None and _prior_k == _new_k
+                    else f"(was {_prior_k}K)"
+                )
                 parts = [f"area={area_brightness}%"]
-                parts.append(f"{filter_name}→{filtered_bri}%")
-                parts.append(f"{kelvin}K")
+                parts.append(
+                    f"{filter_name}→{filtered_bri}%→sent {comp_brightness}% {_bri_tag}"
+                )
+                parts.append(f"{_new_k}K {_k_tag}")
                 logger.info(f"[Pipeline] {area_id}: {' → '.join(parts)}")
 
             filt_norm = filter_name.replace(" ", "_").lower()
 
             # Color-capable lights in this filter
             if lights_by_cap["color"]:
-                color_data = {
-                    "transition": transition,
-                    "brightness_pct": comp_brightness,
-                }
-                if include_color and xy is not None:
+                color_data = {"transition": transition}
+                if _tick_emit_bri:
+                    color_data["brightness_pct"] = comp_brightness
+                if _tick_emit_color and include_color and xy is not None:
                     color_data["xy_color"] = list(xy)
 
                 zha_group = group_candidates.get(f"zha_group_{filt_norm}_color")
@@ -4232,8 +4344,10 @@ class HomeAssistantWebSocketClient:
 
             # CT-only lights in this filter
             if lights_by_cap["ct"]:
-                ct_data = {"transition": transition, "brightness_pct": comp_brightness}
-                if include_color and kelvin is not None:
+                ct_data = {"transition": transition}
+                if _tick_emit_bri:
+                    ct_data["brightness_pct"] = comp_brightness
+                if _tick_emit_color and include_color and kelvin is not None:
                     # Use the highest min_color_temp_kelvin from the CT lights
                     # so the value is valid for all members (fallback 2000K)
                     ct_floor = 2000
@@ -4283,8 +4397,9 @@ class HomeAssistantWebSocketClient:
                         )
                     )
 
-            # Brightness-only lights in this filter
-            if lights_by_cap["brightness"]:
+            # Brightness-only lights in this filter — only emit when the
+            # tick mode allows brightness. Otherwise nothing to send.
+            if lights_by_cap["brightness"] and _tick_emit_bri:
                 bri_data = {"transition": transition, "brightness_pct": comp_brightness}
                 if log_periodic:
                     logger.info(
@@ -4354,10 +4469,13 @@ class HomeAssistantWebSocketClient:
 
                         # Color lights
                         sdata = {"transition": transition}
-                        if not is_dimming:
-                            # Brightening: send brightness + color
-                            sdata["brightness_pct"] = comp_bri
-                        # Dimming: brightness already at target from phase 1, just add color
+                        # Always include brightness — even on dim phase 2 where
+                        # phase 1 already dimmed. Some bulbs/integrations
+                        # interpret a CT-only `light.turn_on` at near-zero
+                        # brightness as "(re)ignite," producing a brief
+                        # brightness bump. The redundant brightness suppresses
+                        # that without changing visual state.
+                        sdata["brightness_pct"] = comp_bri
                         if include_color and xy is not None:
                             sdata["xy_color"] = list(xy)
                         zha_group = group_candidates.get(
@@ -4377,8 +4495,8 @@ class HomeAssistantWebSocketClient:
                         # CT lights
                         zha_ct = group_candidates.get(f"zha_group_{filt_norm_p2}_ct")
                         ct_data = {"transition": transition}
-                        if not is_dimming:
-                            ct_data["brightness_pct"] = comp_bri
+                        # Always include brightness (see sdata comment above).
+                        ct_data["brightness_pct"] = comp_bri
                         if include_color and kelvin:
                             ct_data["color_temp_kelvin"] = max(2000, kelvin)
                         if zha_ct:
@@ -5723,10 +5841,16 @@ class HomeAssistantWebSocketClient:
             logger.warning("refresh_event not yet initialized, skipping signal")
 
     def handle_outdoor_override(self, condition=None, duration_minutes=60):
-        """Set or clear outdoor override. Called by webserver settings page."""
+        """Set or clear outdoor override. Called by webserver settings page.
+        duration_minutes=None means "forever" — passed through to lux_tracker.
+        """
         if condition:
-            lux_tracker.set_override(condition, int(duration_minutes))
-            logger.info(f"Outdoor override set: {condition} for {duration_minutes}min")
+            duration = None if duration_minutes is None else int(duration_minutes)
+            lux_tracker.set_override(condition, duration)
+            logger.info(
+                f"Outdoor override set: {condition} for "
+                f"{'forever' if duration is None else f'{duration}min'}"
+            )
         else:
             lux_tracker.clear_override()
             logger.info("Outdoor override cleared")
@@ -6371,23 +6495,14 @@ class HomeAssistantWebSocketClient:
                             log_periodic = False
                     else:
                         log_periodic = False
-                    # Periodic transition speed (day/night) — values in seconds
-                    periodic_transition_day = float(
-                        raw_config.get("periodic_transition_day", 1)
-                    )
-                    periodic_transition_night = float(
-                        raw_config.get("periodic_transition_night", 1)
-                    )
-                    sun_elev = lux_tracker.compute_sun_elevation()
-                    periodic_transition = (
-                        periodic_transition_day
-                        if sun_elev > 0
-                        else periodic_transition_night
-                    )
+                    # Hardcoded — used to be day/night separate values but the
+                    # difference rarely mattered in practice and the UI was
+                    # confusing. 1s is smooth enough across both phases.
+                    periodic_transition = 1.0
                 except Exception:
                     refresh_interval = 30
                     log_periodic = False
-                    periodic_transition = 2.0
+                    periodic_transition = 1.0
                 self._log_periodic = log_periodic
 
                 # Choose wait timeout: short during burst, normal otherwise
@@ -6444,7 +6559,9 @@ class HomeAssistantWebSocketClient:
                         ]
                         if skipped:
                             circadian_areas = [
-                                a for a in circadian_areas if a not in self.live_design_areas
+                                a
+                                for a in circadian_areas
+                                if a not in self.live_design_areas
                             ]
                             logger.debug(f"Skipping Live Design areas: {skipped}")
 
@@ -6608,6 +6725,61 @@ class HomeAssistantWebSocketClient:
         except Exception as e:
             logger.error(f"[sync] Error during sync: {e}")
 
+    async def run_controls_sync(self):
+        """Run controls-only sync: refresh device + entity registries.
+
+        Lightweight alternative to run_manual_sync() for picking up newly
+        paired controls (switches, motion sensors, contact sensors, cameras).
+        Skips the light capability cache rebuild, ZHA group sync, and power-
+        recovery apply — so it's safe to run frequently right after pairing
+        without disturbing existing lights or ZHA groups.
+
+        The Controls page reads from self.device_registry / self.entity_registry,
+        so refreshing those is sufficient to make new controls appear.
+        """
+        try:
+            logger.info("[sync-controls] Starting controls registry refresh")
+
+            await self.get_states()
+
+            device_result = await self.send_message_wait_response(
+                {"type": "config/device_registry/list"}
+            )
+            devices = device_result if isinstance(device_result, list) else []
+            entity_result = await self.send_message_wait_response(
+                {"type": "config/entity_registry/list"}
+            )
+            entities = entity_result if isinstance(entity_result, list) else []
+
+            if not devices or not entities:
+                logger.error(
+                    "[sync-controls] Empty registry response — aborting "
+                    "(WebSocket may be degraded)"
+                )
+                return
+
+            self.device_registry.clear()
+            for device in devices:
+                if isinstance(device, dict):
+                    device_id = device.get("id")
+                    if device_id:
+                        self.device_registry[device_id] = device
+
+            self.entity_registry.clear()
+            for entity in entities:
+                if isinstance(entity, dict):
+                    entity_id = entity.get("entity_id")
+                    if entity_id:
+                        self.entity_registry[entity_id] = entity
+
+            logger.info(
+                f"[sync-controls] Refreshed registries: "
+                f"{len(self.device_registry)} devices, "
+                f"{len(self.entity_registry)} entities"
+            )
+        except Exception as e:
+            logger.error(f"[sync-controls] Error: {e}", exc_info=True)
+
     def _refresh_group_entity_mappings(self):
         """Re-scan cached_states for grouped light entities and update area_group_map.
 
@@ -6708,6 +6880,23 @@ class HomeAssistantWebSocketClient:
             registry: Pre-fetched RegistryData. If None, fetches all registries once.
         """
         try:
+            # Read-only ZHA mode (HomeGlo Lab setting): skip ZHA group
+            # writes entirely. Used in dev/dual-addon setups where another
+            # instance owns ZHA group membership and this addon should
+            # passively observe (read state, dispatch to existing groups)
+            # without writing/syncing membership. Without this, two
+            # addons with different filter configs race on the daily 4 AM
+            # sync (and on startup / "Sync devices") and clobber each
+            # other's group state.
+            raw_config_for_gate = glozone.load_config_from_files()
+            if raw_config_for_gate.get("read_only_zha", False):
+                if not quiet:
+                    logger.info(
+                        "ZHA group sync skipped — read_only_zha enabled "
+                        "(HomeGlo Lab). Another addon instance owns ZHA groups."
+                    )
+                return
+
             if not quiet:
                 logger.info("=" * 60)
                 logger.info("Starting ZHA group sync process")

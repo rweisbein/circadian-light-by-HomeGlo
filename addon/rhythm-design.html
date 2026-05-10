@@ -5,6 +5,7 @@
 <title>Circadian Light - Rhythm Zone</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<link rel="stylesheet" href="./shared.css">
 <style>
 :root {
   --bg: #000;
@@ -74,11 +75,8 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 .rhythm-card-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.35s ease, opacity 0.25s ease; padding: 0 14px; }
 .rhythm-card.is-open .rhythm-card-body { max-height: 1200px; opacity: 1; padding-bottom: 14px; }
 
-/* Sub-section: flat, always-visible grouping within a card */
-.sub-section-header { display: flex; align-items: center; gap: 6px; padding: 8px 0; user-select: none; }
-.sub-section-title { font-size: var(--font-value); font-weight: 600; color: var(--text); }
-/* Sleep card: Wake and Bed stacked, separated by a divider */
-#rhythm-sleep-body .sub-section + .sub-section { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+/* Sub-section base styles live in shared.css (inlined by serve_page).
+   Only page-specific overrides belong here. */
 
 /* Sleep card header summary (two-line stack) */
 .rhythm-sleep-summary { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
@@ -385,9 +383,7 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 /* Sleep sub-section: time-rows AND Brightness/Speed rows share one left-aligned value column.
    Col 1 (210px) fits the day-pill block (7 × 24px + 6 × 3px = 186px) plus a buffer; col 2 starts
    "a bit after Sunday" so 7:00a / 8:00a / 25% / 8: snappy all left-align in the same column. */
-/* Indent Wake/Bed body content so the section headers stay prominent and the
-   four-row stack reads as belonging to its parent section. */
-.sub-section-body { padding-left: 20px; }
+/* `.sub-section-body { padding-left: 20px; }` lives in shared.css. */
 .sub-section-body .tune-control-row {
   grid-template-columns: 210px 1fr;
   gap: 0 12px;
@@ -416,8 +412,8 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 /* Brightness-card sensitivity slider: full-width to match min/max gradient */
 .brightness-sensitivity-group > .tune-slider-row { max-width: none; padding-left: 14px; padding-right: 14px; }
 .brightness-sensitivity-group > .tune-slider-row input[type=range] { width: 100%; }
-/* Narrow brightness-card gradient to match .tune-control-row horizontal padding (16px L, 14px R) */
-#rhythm-brightness-body > .ct-gradient-wrap { margin-left: 16px; margin-right: 14px; }
+/* Brightness gradient narrowing now handled by `.ct-gradient-wrap--inset` on the
+   container element itself (consistent with Night/Day color sliders). */
 
 /* Brightness "Sun impact" sub-section: divider above for equal weight; label + value inline left-aligned */
 .bri-sub-section { margin-top: 18px; padding-top: 6px; border-top: 1px solid var(--line); }
@@ -1137,9 +1133,19 @@ input[type=range]::-moz-range-thumb {
 /* Interactive color gradient (ported from tune.html + handle additions) */
 /* Color gradient layout: cursor above, gradient, ticks, labels+K below */
 .ct-gradient-wrap { margin-top: 8px; position: relative; }
-.ct-cursor-layer { position: relative; height: 36px; margin-bottom: 2px; }
-.ct-cursor-pill { position: absolute; top: 0; transform: translateX(-50%); padding: 2px 8px; border-radius: 8px; border: 1.5px solid #fdfdfd; font-size: var(--font-body); font-weight: 600; white-space: nowrap; pointer-events: none; }
-.ct-cursor-dot { position: absolute; bottom: 0; height: 14px; border-left: 1px dotted rgba(255,255,255,0.4); pointer-events: none; }
+/* Inset variant: narrower than the parent container (used for sub-section sliders
+   so the slider feels visually inset from the section header above it).
+   Default = 32px L / 24px R from the parent's content edge. Inside a
+   `.sub-section-body` (which already provides 20px left padding) the wrap's
+   left padding is reduced so the total indent stays consistent across cards. */
+.ct-gradient-wrap--inset { padding-left: 32px; padding-right: 24px; }
+.sub-section-body > .ct-gradient-wrap--inset { padding-left: 12px; }
+
+/* Live readout above the gradient — one label per handle, anchored at its
+   thumb position. Replaces the old "K below name" row, which doubled the
+   vertical footprint and visually conflated handle K-value with axis tick K-value. */
+.ct-handle-readouts { position: relative; height: 16px; margin-bottom: 2px; }
+.ct-handle-readout { position: absolute; top: 0; transform: translateX(-50%); font-size: var(--font-body); font-weight: 600; color: var(--text); white-space: nowrap; pointer-events: none; font-variant-numeric: tabular-nums; }
 .ct-gradient-bar { height: 12px; border-radius: 6px; position: relative; overflow: visible; }
 .ct-grey-left, .ct-grey-right { position: absolute; top: 0; height: 100%; background: rgba(0,0,0,0.72); pointer-events: none; z-index: 1; }
 .ct-grey-left { left: 0; border-radius: 6px 0 0 6px; }
@@ -1168,17 +1174,18 @@ input[type=range]::-moz-range-thumb {
 .ct-axis-tick .ct-axis-label { color: var(--muted2); }
 /* Ref labels: prominent, interactive look */
 .ct-axis-ref .ct-axis-label { color: var(--text); font-weight: 600; font-size: var(--font-body); }
+.ct-axis-ref .ct-axis-label.ct-axis-static { color: var(--muted); font-weight: 400; }
 .ct-axis-ref .ct-axis-label.ct-draggable { cursor: grab; user-select: none; transition: color 0.15s; }
 .ct-axis-ref .ct-axis-label.ct-draggable:hover { color: var(--accent); }
 .ct-axis-ref .ct-axis-label.ct-draggable:active { cursor: grabbing; color: var(--accent); }
 /* K values row below labels */
-.ct-axis-kval { position: relative; height: 14px; }
-.ct-axis-kval .ct-axis-label { color: var(--muted); font-weight: 400; font-size: var(--font-caps); }
 /* Draggable handles on gradient bar */
 .ct-handle { position: absolute; top: -16px; width: 44px; height: 44px; transform: translateX(-50%); cursor: grab; z-index: 5; touch-action: none; }
 .ct-handle:active, .ct-handle.dragging { cursor: grabbing; }
-.ct-handle-thumb { position: absolute; left: 50%; top: 50%; width: 14px; height: 20px; border-radius: 5px; background: rgba(255,255,255,0.9); border: 1px solid rgba(0,0,0,0.3); transform: translate(-50%, -50%); box-shadow: 0 1px 4px rgba(0,0,0,0.5); pointer-events: none; transition: background 0.15s; }
-.ct-handle:hover .ct-handle-thumb, .ct-handle.dragging .ct-handle-thumb { background: #fff; box-shadow: 0 0 8px rgba(255,255,255,0.6); }
+/* Pill-shaped grabbable thumb modeled on home-page area-card slider thumb (~44px wide)
+   so it's mobile-friendly. Background may be set inline to a CT/brightness-derived color. */
+.ct-handle-thumb { position: absolute; left: 50%; top: 50%; width: 32px; height: 19px; border-radius: 9px 9px 6px 6px; background: rgba(255,255,255,0.9); border: 1px solid rgba(0,0,0,0.4); transform: translate(-50%, -50%); box-shadow: 0 1px 4px rgba(0,0,0,0.5); pointer-events: none; transition: box-shadow 0.15s; }
+.ct-handle:hover .ct-handle-thumb, .ct-handle.dragging .ct-handle-thumb { box-shadow: 0 0 8px rgba(255,255,255,0.6); }
 
 /* Lock checkbox for range controls */
 .lock-checkbox-wrap {
@@ -1236,13 +1243,9 @@ input[type=range]::-moz-range-thumb {
   align-items: center;
   gap: 10px;
 }
-/* Tooltip on color-rule header info-icon: anchor left so it extends right into the card body
-   (header icons sit at the left of the card; right-anchoring would push the tooltip off-screen left) */
-.color-rule-stack-label .info-tooltip {
-  left: 0;
-  right: auto;
-  transform: none;
-}
+/* Anchor overrides removed — tooltip is now position:fixed with JS-driven
+   coords that clamp to the viewport, which fixes clipping inside the
+   brightness card's overflow:hidden ancestor (and any future ones). */
 .color-rule-stack-label select {
   padding: 4px 8px;
   border-radius: 6px;
@@ -1283,11 +1286,15 @@ input[type=range]::-moz-range-thumb {
 }
 .info-tooltip {
   display: none;
-  position: absolute;
-  top: 24px;
-  left: 50%;
-  transform: translateX(-50%);
+  /* position: fixed so the tooltip can escape every clipping ancestor —
+     rhythm-card uses overflow:hidden for the collapse animation, which
+     would otherwise crop the tooltip at the card edges. JS sets coords
+     on open and clamps to the viewport. */
+  position: fixed;
+  top: -9999px;
+  left: -9999px;
   width: 280px;
+  max-width: calc(100vw - 40px);
   padding: 10px 12px;
   background: rgba(30,30,35,0.98);
   border: 1px solid rgba(255,255,255,0.2);
@@ -1299,11 +1306,14 @@ input[type=range]::-moz-range-thumb {
   text-transform: none;
   letter-spacing: 0;
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  z-index: 100;
+  z-index: 1000;
 }
 .info-tooltip.is-open {
   display: block;
 }
+/* (removed: previous override pinned this tooltip to the icon's right
+   edge to avoid card clipping. JS positioning + position:fixed handles
+   viewport clamping universally now.) */
 .color-rule-toggle input[type=checkbox] {
   width: 16px;
   height: 16px;
@@ -1808,6 +1818,68 @@ input[type=range]::-moz-range-thumb {
   cursor: pointer; transition: all 0.15s;
 }
 .section-save-btn:hover { opacity: 0.9; }
+
+/* Sticky "unsaved changes" banner — shown above the cards whenever any section
+   is dirty. Card-level orange dots tell the user *which* card is dirty; the
+   banner's job is just to surface the global commit/revert affordance. */
+.dirty-banner {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  background: rgba(254, 172, 96, 0.12);
+  border-bottom: 1px solid rgba(254, 172, 96, 0.4);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  font-size: var(--font-body);
+}
+.dirty-banner.is-active { display: flex; }
+.dirty-banner-label { color: var(--muted); font-weight: 500; flex: 1; }
+.dirty-banner-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.dirty-banner-cancel {
+  padding: 4px 12px; border-radius: 6px; border: 1px solid var(--line);
+  background: transparent; color: var(--muted); font-size: var(--font-body); cursor: pointer;
+}
+.dirty-banner-cancel:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+.dirty-banner-save {
+  padding: 4px 14px; border-radius: 6px; border: 1px solid var(--accent);
+  background: var(--accent); color: #000; font-size: var(--font-body); font-weight: 600; cursor: pointer;
+}
+.dirty-banner-save:hover { opacity: 0.9; }
+
+/* Card-level dirty marker — small accent dot before the card title */
+.rhythm-card.is-dirty .rhythm-card-title::before {
+  content: '';
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-right: 6px;
+  vertical-align: middle;
+}
+/* Header Reset button — orange-tinted to tie visually to the dot + the
+   banner's accent treatment. Sits between the title and the summary value:
+   layout becomes chevron · dot+title · Reset · ←auto gap→ · val. */
+.rhythm-card-reset {
+  display: none;
+  margin-left: 8px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(254, 172, 96, 0.5);
+  background: rgba(254, 172, 96, 0.12);
+  color: var(--accent);
+  font-size: var(--font-body);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.rhythm-card-reset:hover { background: rgba(254, 172, 96, 0.22); border-color: var(--accent); }
+.rhythm-card.is-dirty .rhythm-card-reset { display: inline-flex; align-items: center; }
 </style>
 </head>
 <body>
@@ -1852,6 +1924,13 @@ input[type=range]::-moz-range-thumb {
 
 <div class="container">
   <div id="save-status"></div>
+  <div class="dirty-banner" id="dirty-banner" role="region" aria-label="Unsaved changes">
+    <span class="dirty-banner-label">Unsaved</span>
+    <div class="dirty-banner-actions">
+      <button type="button" class="dirty-banner-cancel" onclick="cancelAllChanges()">Cancel all</button>
+      <button type="button" class="dirty-banner-save" onclick="saveZoneSettings()">Save all</button>
+    </div>
+  </div>
 
   <!-- Chart -->
   <div class="section-block" id="chart-section">
@@ -1912,6 +1991,7 @@ input[type=range]::-moz-range-thumb {
     <div class="rhythm-card-header" onclick="toggleRhythmCard('rhythm-sleep-card', 'rhythm_sleep_expanded')">
       <span class="rhythm-card-chevron" id="rhythm-sleep-chevron">&#x203A;</span>
       <span class="rhythm-card-title">Sleep</span>
+      <button type="button" class="rhythm-card-reset" onclick="event.stopPropagation(); cancelSleepChanges()">Reset</button>
       <span class="rhythm-card-val" id="rhythm-sleep-val">9:00p &ndash; 7:00a</span>
       <div class="rhythm-sleep-summary" id="rhythm-sleep-summary" style="display:none">
         <div class="rhythm-sleep-summary-row">
@@ -2086,10 +2166,6 @@ input[type=range]::-moz-range-thumb {
       <!-- Hidden fields for ascend/descend (set by sleep pattern) -->
       <input type="range" id="ascend-start" min="0" max="24" step="0.5" value="3" style="display:none">
       <input type="range" id="descend-start" min="0" max="36" step="0.5" value="12" style="display:none">
-      <div class="section-actions" id="sleep-section-actions">
-        <button class="section-cancel-btn" onclick="cancelSleepChanges()">Cancel</button>
-        <button class="section-save-btn" onclick="saveZoneSettings()">Save</button>
-      </div>
     </div>
   </div>
 
@@ -2098,10 +2174,11 @@ input[type=range]::-moz-range-thumb {
     <div class="rhythm-card-header" onclick="toggleRhythmCard('rhythm-brightness-card', 'rhythm_brightness_expanded')">
       <span class="rhythm-card-chevron">&#x203A;</span>
       <span class="rhythm-card-title">Brightness</span>
+      <button type="button" class="rhythm-card-reset" onclick="event.stopPropagation(); cancelBrightnessChanges()">Reset</button>
       <span class="rhythm-card-val" id="rhythm-brightness-val">1 – 100%</span>
     </div>
     <div class="rhythm-card-body" id="rhythm-brightness-body">
-      <div id="rhythm-bri-gradient-container" class="ct-gradient-wrap"></div>
+      <div id="rhythm-bri-gradient-container" class="ct-gradient-wrap ct-gradient-wrap--inset"></div>
       <input type="hidden" id="brightness-min" value="1">
       <input type="hidden" id="brightness-max" value="100">
       <div class="bri-sub-section">
@@ -2110,14 +2187,14 @@ input[type=range]::-moz-range-thumb {
             <label class="color-rule-label">Sun dimming</label>
             <div class="color-rule-controls">
               <div class="color-rule-toggle"><input type="checkbox" id="brightness-sensitivity-enabled" checked></div>
-              <span class="info-icon" data-tooltip="brightness-sensitivity-info">i<span class="info-tooltip" id="brightness-sensitivity-info">How aggressively brightness pulls back when sun is high. Higher = more dimming on bright sunny days.</span></span>
+              <span class="info-icon" data-tooltip="brightness-sensitivity-info">i<span class="info-tooltip" id="brightness-sensitivity-info">Dims lights based on sun intensity so they don't fight the daylight already in the room. Each area's Sun exposure setting controls how aggressively it dims so that bright rooms with lots of windows pull back more than dim interior ones.</span></span>
             </div>
           </div>
           <div class="color-rule-stack-body" id="brightness-sensitivity-body">
             <div class="reveal-group brightness-sensitivity-group">
               <div class="tune-control-row">
                 <span class="tune-control-left">
-                  <span class="tune-control-label">Sun impact</span>
+                  <span class="tune-control-label">Strength</span>
                   <span class="tune-control-reset" id="reset-brightness-sensitivity" data-default="5">reset</span>
                 </span>
                 <span class="tune-control-impact" id="brightness-sensitivity-text">1.00: standard</span>
@@ -2129,10 +2206,6 @@ input[type=range]::-moz-range-thumb {
           </div>
         </div>
       </div>
-      <div class="section-actions" id="brightness-section-actions">
-        <button class="section-cancel-btn" onclick="cancelBrightnessChanges()">Cancel</button>
-        <button class="section-save-btn" onclick="saveZoneSettings()">Save</button>
-      </div>
     </div>
   </div>
 
@@ -2140,22 +2213,26 @@ input[type=range]::-moz-range-thumb {
   <div class="rhythm-card" id="rhythm-color-card">
     <div class="rhythm-card-header" onclick="toggleRhythmCard('rhythm-color-card', 'rhythm_color_expanded')">
       <span class="rhythm-card-chevron">&#x203A;</span>
-      <span class="rhythm-card-title">Color temperature</span>
+      <span class="rhythm-card-title">Color temp</span>
+      <button type="button" class="rhythm-card-reset" onclick="event.stopPropagation(); cancelColorChanges()">Reset</button>
       <span class="rhythm-card-val" id="rhythm-color-val">500 – 6500 K</span>
     </div>
     <div class="rhythm-card-body" id="rhythm-color-body">
-      <!-- Interactive color gradient -->
-      <div id="rhythm-ct-gradient-container" class="ct-gradient-wrap"></div>
       <input type="hidden" id="color-min" value="500">
       <input type="hidden" id="color-max" value="6500">
 
-      <div class="color-rule-grid">
-        <div class="color-rule-stack" data-color-row="night">
+      <div class="sub-section">
+        <div class="sub-section-header">
+          <span class="sub-section-title">Night</span>
+        </div>
+        <div class="sub-section-body">
+          <div id="rhythm-ct-night-gradient" class="ct-gradient-wrap ct-gradient-wrap--inset"></div>
+          <div class="color-rule-stack" data-color-row="night">
           <div class="color-rule-stack-label">
             <label class="color-rule-label">Night warming</label>
             <div class="color-rule-controls">
               <div class="color-rule-toggle"><input type="checkbox" id="warm-night-enabled"></div>
-              <span class="info-icon" data-tooltip="warm-night-info">i<span class="info-tooltip" id="warm-night-info">Caps color temperature when sun isn't up; if your curve is cool (high K) between sunset and sunrise, this warms it.</span></span>
+              <span class="info-icon" data-tooltip="warm-night-info">i<span class="info-tooltip" id="warm-night-info">Caps color temperature when the sun is below the horizon (night). If your curve runs cool (high K) at any point between sunset and sunrise, this warms those moments back to a softer range. Especially useful in winter at higher latitudes, where dark hours stretch into your evening routine.</span></span>
             </div>
           </div>
           <input type="hidden" id="warm-night-mode" value="all">
@@ -2201,17 +2278,37 @@ input[type=range]::-moz-range-thumb {
             </div>
           </div>
         </div>
+        </div><!-- /sub-section-body Night -->
+      </div><!-- /sub-section Night -->
 
-        <div class="color-rule-stack" data-color-row="daylight">
+      <div class="sub-section">
+        <div class="sub-section-header">
+          <span class="sub-section-title">Day</span>
+        </div>
+        <div class="sub-section-body">
+          <div id="rhythm-ct-day-gradient" class="ct-gradient-wrap ct-gradient-wrap--inset"></div>
+          <div class="color-rule-stack" data-color-row="daylight">
           <div class="color-rule-stack-label">
             <label class="color-rule-label">Sun cooling</label>
             <div class="color-rule-controls">
               <div class="color-rule-toggle"><input type="checkbox" id="daylight-enabled" checked></div>
-              <span class="info-icon" data-tooltip="daylight-info">i<span class="info-tooltip" id="daylight-info">Pushes color toward a cooler target during the day based on outdoor brightness and sun elevation.</span></span>
+              <span class="info-icon" data-tooltip="daylight-info">i<span class="info-tooltip" id="daylight-info">Pushes light cooler during the day based on sun intensity, mimicking natural light indoors.</span></span>
             </div>
           </div>
           <input type="hidden" id="daylight-cct" value="5500">
           <div class="color-rule-stack-body" id="daylight-body">
+            <div class="reveal-group">
+              <div class="tune-control-row">
+                <span class="tune-control-left">
+                  <span class="tune-control-label">Strength</span>
+                  <span class="tune-control-reset" id="reset-color-sensitivity" data-default="5">reset</span>
+                </span>
+                <span class="tune-control-impact" id="color-sensitivity-text">1.00: standard</span>
+              </div>
+              <div class="tune-slider-row">
+                <input type="range" id="color-sensitivity" min="0" max="8" step="1" value="5">
+              </div>
+            </div>
             <div class="reveal-group">
               <div class="tune-control-row">
                 <span class="tune-control-left">
@@ -2250,25 +2347,10 @@ input[type=range]::-moz-range-thumb {
                 <input type="range" id="daylight-fade" min="0" max="300" step="30" value="60">
               </div>
             </div>
-            <div class="reveal-group">
-              <div class="tune-control-row">
-                <span class="tune-control-left">
-                  <span class="tune-control-label">Sun impact</span>
-                  <span class="tune-control-reset" id="reset-color-sensitivity" data-default="5">reset</span>
-                </span>
-                <span class="tune-control-impact" id="color-sensitivity-text">1.00: standard</span>
-              </div>
-              <div class="tune-slider-row">
-                <input type="range" id="color-sensitivity" min="0" max="8" step="1" value="5">
-              </div>
-            </div>
           </div>
         </div>
-      </div>
-      <div class="section-actions" id="color-section-actions">
-        <button class="section-cancel-btn" onclick="cancelColorChanges()">Cancel</button>
-        <button class="section-save-btn" onclick="saveZoneSettings()">Save</button>
-      </div>
+        </div><!-- /sub-section-body Day -->
+      </div><!-- /sub-section Day -->
     </div>
   </div>
 
@@ -2341,15 +2423,15 @@ const ACTIVITY_PRESETS = {
 };
 
 const SENSITIVITY_STEPS = [
-  { label: "None",     multiplier: 0.00 },
-  { label: "Minimal",  multiplier: 0.10 },
-  { label: "Low",      multiplier: 0.25 },
-  { label: "Medium",   multiplier: 0.50 },
-  { label: "Moderate", multiplier: 0.75 },
-  { label: "Standard", multiplier: 1.00 },
-  { label: "High",     multiplier: 1.25 },
-  { label: "Strong",   multiplier: 1.50 },
-  { label: "Maximum",  multiplier: 2.00 },
+  { label: "None",      multiplier: 0.00 },
+  { label: "Minimal",   multiplier: 0.10 },
+  { label: "Low",       multiplier: 0.25 },
+  { label: "Medium",    multiplier: 0.50 },
+  { label: "High",      multiplier: 0.75 },
+  { label: "Full",      multiplier: 1.00 },
+  { label: "Amplified", multiplier: 1.25 },
+  { label: "Intense",   multiplier: 1.50 },
+  { label: "Maximum",   multiplier: 2.00 },
 ];
 
 function findClosestSensitivityStep(value) {
@@ -2962,7 +3044,14 @@ function updateColorGradients() {
 }
 
 function renderColorGradient() {
-  const container = document.getElementById('rhythm-ct-gradient-container');
+  // Dispatcher — renders the Night and Day sub-section sliders.
+  renderCTSlider('night');
+  renderCTSlider('day');
+}
+
+function renderCTSlider(role) {
+  const containerId = role === 'night' ? 'rhythm-ct-night-gradient' : 'rhythm-ct-day-gradient';
+  const container = document.getElementById(containerId);
   if (!container || !config) return;
 
   const minK = config.min_color_temp;
@@ -2972,32 +3061,46 @@ function renderColorGradient() {
   const dayEnabled = config.daylight_enabled !== false;
   const dayCct = config.daylight_cct;
 
-  // Cursor = color at cursor position (updates live during drag)
-  const currentK = (typeof calculateColorAtHour === 'function' && typeof cursorHour === 'number')
-    ? calculateColorAtHour(cursorHour, true) : null;
+  // Role determines which 1-or-2 handles appear and which range gets greyed.
+  let handles, leftGreyEnd, rightGreyStart;
+  if (role === 'night') {
+    handles = [{ name: 'warmest', k: minK, label: 'warmest' }];
+    if (warmEnabled) {
+      handles.push({ name: 'night-max', k: warmTarget, label: 'coolest' });
+    }
+    leftGreyEnd = minK;
+    rightGreyStart = warmEnabled ? warmTarget : maxK;
+  } else {
+    // Day-slider left handle relabels based on sun cooling: with sun cooling on it's
+    // "dark day" (the warm anchor under no-sun); off, it's the only cool handle so just "coolest".
+    const dayLeftLabel = dayEnabled ? 'dark day' : 'coolest';
+    handles = [{ name: 'coolest-base', k: maxK, label: dayLeftLabel }];
+    if (dayEnabled) {
+      handles.push({ name: 'coolest-day', k: dayCct, label: 'coolest' });
+    }
+    // Day gradient is lit from night warmest (minK) up through the day cool target,
+    // since sleep-hour daylight can be warmer than the "warmest day" handle.
+    leftGreyEnd = minK;
+    rightGreyStart = dayEnabled ? dayCct : maxK;
+  }
 
-  // Build gradient stops (always 500–6500K)
+  // Full 500-6500K gradient (consistent across both sliders).
   const stops = [];
   for (let i = 0; i <= 9; i++) {
     stops.push(cctToRGB(CT_SYSTEM_MIN + CT_SPAN * (i / 9)));
   }
   const gradStyle = 'background:linear-gradient(to right,' + stops.join(',') + ');';
 
-  // Grey overlays
-  const effectiveCool = dayEnabled ? Math.max(maxK, dayCct) : maxK;
-  const greyLeftPct = ctPct(minK);
-  const greyRightPct = 100 - ctPct(effectiveCool);
+  // Grey overlays mark out-of-range parts of the spectrum for this role.
+  const greyLeftPct = ctPct(leftGreyEnd);
+  const greyRightPct = 100 - ctPct(rightGreyStart);
   let greyHtml = '';
   if (greyLeftPct > 0.5) greyHtml += '<div class="ct-grey-left" style="width:' + greyLeftPct + '%;"></div>';
   if (greyRightPct > 0.5) greyHtml += '<div class="ct-grey-right" style="width:' + greyRightPct + '%;"></div>';
 
-  // Layer structure: ticks, ref labels, K values (below gradient)
-  // Cursor is ABOVE gradient
   const refLayerIdx = 1;
-  const barH = 12;
   const layerH = 15;
   const gapH = 2;
-
   function pipHtml(pct, cls, targetLayer) {
     const dotH = gapH + (targetLayer * layerH) + 7;
     return '<div class="ct-pip ' + cls + '" style="left:' + pct + '%;">'
@@ -3005,49 +3108,27 @@ function renderColorGradient() {
       + '<div class="ct-pip-line ct-pip-dot" style="height:' + dotH + 'px;"></div>'
       + '</div>';
   }
-
-  // Ref pip lines (dotted connectors to labels below)
   let pipsHtml = '';
-  if (currentK != null) pipsHtml += pipHtml(ctPct(currentK), 'ct-pip-now', 0);
-  pipsHtml += pipHtml(ctPct(minK), 'ct-pip-ref', refLayerIdx);
-  if (warmEnabled) pipsHtml += pipHtml(ctPct(warmTarget), 'ct-pip-ref', refLayerIdx);
-  pipsHtml += pipHtml(ctPct(maxK), 'ct-pip-ref', refLayerIdx);
-  if (dayEnabled) pipsHtml += pipHtml(ctPct(dayCct), 'ct-pip-ref', refLayerIdx);
+  for (const h of handles) {
+    pipsHtml += pipHtml(ctPct(h.k), 'ct-pip-ref', refLayerIdx);
+  }
 
-  // Draggable handles on gradient bar
+  // Handles colored by their CT value so each handle visually shows the
+  // selected color \u2014 replaces the old cursor-pill-on-bar idea.
   let handlesHtml = '';
-  handlesHtml += '<div class="ct-handle" data-handle="warmest" style="left:' + ctPct(minK) + '%;"><div class="ct-handle-thumb"></div></div>';
-  if (warmEnabled) {
-    handlesHtml += '<div class="ct-handle" data-handle="night-max" style="left:' + ctPct(warmTarget) + '%;"><div class="ct-handle-thumb"></div></div>';
-  }
-  handlesHtml += '<div class="ct-handle" data-handle="coolest-base" style="left:' + ctPct(maxK) + '%;"><div class="ct-handle-thumb"></div></div>';
-  if (dayEnabled) {
-    handlesHtml += '<div class="ct-handle" data-handle="coolest-day" style="left:' + ctPct(dayCct) + '%;"><div class="ct-handle-thumb"></div></div>';
+  for (const h of handles) {
+    const handleColor = cctToRGB(Math.round(h.k));
+    handlesHtml += '<div class="ct-handle" data-handle="' + h.name + '" style="left:' + ctPct(h.k) + '%;">'
+      + '<div class="ct-handle-thumb" style="background:' + handleColor + ';"></div>'
+      + '</div>';
   }
 
-  // --- Cursor layer (ABOVE gradient) ---
   function refStyle(pct) {
     if (pct <= 2) return 'left:' + pct + '%;transform:none;';
     if (pct >= 98) return 'left:' + pct + '%;transform:translateX(-100%);';
     return 'left:' + pct + '%;';
   }
-  let cursorLayerHtml = '';
-  if (currentK != null) {
-    const cursorColor = cctToRGB(Math.round(currentK));
-    const cursorText = readableTextColor(cursorColor);
-    const cursorPct = ctPct(currentK);
-    let cursorPos = 'left:' + cursorPct + '%;';
-    if (cursorPct <= 2) cursorPos += 'transform:none;';
-    else if (cursorPct >= 98) cursorPos += 'transform:translateX(-100%);';
-    else cursorPos += 'transform:translateX(-50%);';
-    const cursorTimeStr = typeof cursorHour === 'number' ? fmtTime(cursorHour) + ' \u00b7 ' : '';
-    cursorLayerHtml = '<div class="ct-cursor-layer">'
-      + '<span class="ct-cursor-pill" style="' + cursorPos + 'background:' + cursorColor + ';color:' + cursorText + ';">' + cursorTimeStr + Math.round(currentK) + 'K</span>'
-      + '<span class="ct-cursor-dot" style="left:' + cursorPct + '%;"></span>'
-      + '</div>';
-  }
 
-  // --- Layers below gradient ---
   // Layer 1: K tick marks
   let ticks = [{ k: CT_SYSTEM_MIN, pct: 0, label: CT_SYSTEM_MIN + 'K', edge: 'left' }];
   for (let k = 1000; k < CT_SYSTEM_MAX; k += 1000) {
@@ -3064,41 +3145,38 @@ function renderColorGradient() {
   }
   const layer1 = '<div class="ct-axis ct-axis-tick">' + ticksHtml + '</div>';
 
-  // Layer 2: Reference labels (draggable)
+  // Layer 2: Reference labels (draggable, handle names below the bar)
   let refHtml = '';
-  refHtml += '<span class="ct-axis-label ct-draggable" data-handle="warmest" style="' + refStyle(ctPct(minK)) + '">warmest</span>';
-  if (warmEnabled) {
-    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="night-max" style="' + refStyle(ctPct(warmTarget)) + '">coolest<span class="ct-label-colon">: </span><span class="ct-label-sub">night</span></span>';
+  for (const h of handles) {
+    const labelHtml = h.subLabel
+      ? h.label + '<span class="ct-label-colon">: </span><span class="ct-label-sub">' + h.subLabel + '</span>'
+      : h.label;
+    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="' + h.name + '" style="' + refStyle(ctPct(h.k)) + '">' + labelHtml + '</span>';
   }
-  if (dayEnabled) {
-    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-base" style="' + refStyle(ctPct(maxK)) + '">coolest<span class="ct-label-colon">: </span><span class="ct-label-sub">no-sun</span></span>';
-    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-day" style="' + refStyle(ctPct(dayCct)) + '">coolest<span class="ct-label-colon">: </span><span class="ct-label-sub">sunny</span></span>';
-  } else {
-    refHtml += '<span class="ct-axis-label ct-draggable" data-handle="coolest-base" style="' + refStyle(ctPct(maxK)) + '">coolest</span>';
+  // Static (non-draggable) edge labels — mark the boundary where the gradient
+  // transitions between colored and grey, when that edge isn't already pinned
+  // by a draggable handle.
+  // Night with night-warming OFF: "coolest" sits at the right grey boundary (= maxK).
+  // Day with night-warmest below day-warmest: "warmest" sits at the left grey boundary (= minK).
+  if (role === 'night' && !warmEnabled) {
+    refHtml += '<span class="ct-axis-label ct-axis-static" style="' + refStyle(ctPct(maxK)) + '">coolest</span>';
+  } else if (role === 'day' && minK < maxK) {
+    refHtml += '<span class="ct-axis-label ct-axis-static" style="' + refStyle(ctPct(minK)) + '">warmest</span>';
   }
   const layer2 = '<div class="ct-axis ct-axis-ref">' + refHtml + '</div>';
 
-  // Layer 3: K values below labels
-  let kvalHtml = '';
-  kvalHtml += '<span class="ct-axis-label" style="' + refStyle(ctPct(minK)) + '">' + minK + 'K</span>';
-  if (warmEnabled) {
-    kvalHtml += '<span class="ct-axis-label" style="' + refStyle(ctPct(warmTarget)) + '">' + warmTarget + 'K</span>';
+  // Live readouts above the bar \u2014 one K value per handle, anchored at thumb.
+  let readoutsHtml = '';
+  for (const h of handles) {
+    readoutsHtml += '<span class="ct-handle-readout" style="' + refStyle(ctPct(h.k)) + '">' + Math.round(h.k) + 'K</span>';
   }
-  if (dayEnabled) {
-    kvalHtml += '<span class="ct-axis-label" style="' + refStyle(ctPct(maxK)) + '">' + maxK + 'K</span>';
-    kvalHtml += '<span class="ct-axis-label" style="' + refStyle(ctPct(dayCct)) + '">' + dayCct + 'K</span>';
-  } else {
-    kvalHtml += '<span class="ct-axis-label" style="' + refStyle(ctPct(maxK)) + '">' + maxK + 'K</span>';
-  }
-  const layer3 = '<div class="ct-axis ct-axis-kval">' + kvalHtml + '</div>';
 
-  container.innerHTML = cursorLayerHtml
+  container.innerHTML = '<div class="ct-handle-readouts">' + readoutsHtml + '</div>'
     + '<div class="ct-gradient-bar" style="' + gradStyle + '">'
     + greyHtml + pipsHtml + handlesHtml
     + '</div>'
-    + '<div class="ct-layers">' + layer1 + layer2 + layer3 + '</div>';
+    + '<div class="ct-layers">' + layer1 + layer2 + '</div>';
 
-  // Attach drag listeners
   attachHandleDragListeners(container);
 }
 
@@ -3206,10 +3284,6 @@ function renderBrightnessGradient() {
   const minB = config.min_brightness;
   const maxB = config.max_brightness;
 
-  // Cursor brightness (updates live during drag)
-  const cursorBri = (typeof calculateBrightnessAtHour === 'function' && typeof cursorHour === 'number')
-    ? Math.round(calculateBrightnessAtHour(cursorHour) * 100) : null;
-
   // Fixed gradient: dark to white
   const gradStyle = 'background:linear-gradient(to right,#111,#fff);';
 
@@ -3232,35 +3306,18 @@ function renderBrightnessGradient() {
   }
 
   let pipsHtml = '';
-  if (cursorBri != null) pipsHtml += pipHtml(briPct(cursorBri), 'ct-pip-now', 0);
   pipsHtml += pipHtml(briPct(minB), 'ct-pip-ref', refLayerIdx);
   pipsHtml += pipHtml(briPct(maxB), 'ct-pip-ref', refLayerIdx);
 
-  // Handles
+  // Handles colored by their brightness value (greyscale: dark for dim, white for bright).
   let handlesHtml = '';
-  handlesHtml += '<div class="ct-handle" data-handle="dimmest" style="left:' + briPct(minB) + '%;"><div class="ct-handle-thumb"></div></div>';
-  handlesHtml += '<div class="ct-handle" data-handle="brightest" style="left:' + briPct(maxB) + '%;"><div class="ct-handle-thumb"></div></div>';
+  handlesHtml += '<div class="ct-handle" data-handle="dimmest" style="left:' + briPct(minB) + '%;"><div class="ct-handle-thumb" style="background:' + briToGrey(minB) + ';"></div></div>';
+  handlesHtml += '<div class="ct-handle" data-handle="brightest" style="left:' + briPct(maxB) + '%;"><div class="ct-handle-thumb" style="background:' + briToGrey(maxB) + ';"></div></div>';
 
-  // Cursor pill (above gradient)
   function refStyle(pct) {
     if (pct <= 2) return 'left:' + pct + '%;transform:none;';
     if (pct >= 98) return 'left:' + pct + '%;transform:translateX(-100%);';
     return 'left:' + pct + '%;';
-  }
-  let cursorLayerHtml = '';
-  if (cursorBri != null) {
-    const bg = briToGrey(cursorBri);
-    const fg = readableTextColor(bg);
-    const pct = briPct(cursorBri);
-    let pos = 'left:' + pct + '%;';
-    if (pct <= 2) pos += 'transform:none;';
-    else if (pct >= 98) pos += 'transform:translateX(-100%);';
-    else pos += 'transform:translateX(-50%);';
-    const briTimeStr = typeof cursorHour === 'number' ? fmtTime(cursorHour) + ' \u00b7 ' : '';
-    cursorLayerHtml = '<div class="ct-cursor-layer">'
-      + '<span class="ct-cursor-pill" style="' + pos + 'background:' + bg + ';color:' + fg + ';">' + briTimeStr + cursorBri + '%</span>'
-      + '<span class="ct-cursor-dot" style="left:' + pct + '%;"></span>'
-      + '</div>';
   }
 
   // Layer 1: Tick marks
@@ -3281,23 +3338,22 @@ function renderBrightnessGradient() {
   }
   const layer1 = '<div class="ct-axis ct-axis-tick">' + ticksHtml + '</div>';
 
-  // Layer 2: Ref labels (draggable)
+  // Layer 2: Ref labels (draggable, handle names below the bar)
   let refHtml = '';
   refHtml += '<span class="ct-axis-label ct-draggable" data-handle="dimmest" style="' + refStyle(briPct(minB)) + '">dimmest</span>';
   refHtml += '<span class="ct-axis-label ct-draggable" data-handle="brightest" style="' + refStyle(briPct(maxB)) + '">brightest</span>';
   const layer2 = '<div class="ct-axis ct-axis-ref">' + refHtml + '</div>';
 
-  // Layer 3: % values below labels
-  let valHtml = '';
-  valHtml += '<span class="ct-axis-label" style="' + refStyle(briPct(minB)) + '">' + minB + '%</span>';
-  valHtml += '<span class="ct-axis-label" style="' + refStyle(briPct(maxB)) + '">' + maxB + '%</span>';
-  const layer3 = '<div class="ct-axis ct-axis-kval">' + valHtml + '</div>';
+  // Live readouts above the bar — % per handle, anchored at thumb.
+  let readoutsHtml = '';
+  readoutsHtml += '<span class="ct-handle-readout" style="' + refStyle(briPct(minB)) + '">' + minB + '%</span>';
+  readoutsHtml += '<span class="ct-handle-readout" style="' + refStyle(briPct(maxB)) + '">' + maxB + '%</span>';
 
-  container.innerHTML = cursorLayerHtml
+  container.innerHTML = '<div class="ct-handle-readouts">' + readoutsHtml + '</div>'
     + '<div class="ct-gradient-bar" style="' + gradStyle + '">'
     + greyHtml + pipsHtml + handlesHtml
     + '</div>'
-    + '<div class="ct-layers">' + layer1 + layer2 + layer3 + '</div>';
+    + '<div class="ct-layers">' + layer1 + layer2 + '</div>';
 
   attachBriHandleDragListeners(container);
 }
@@ -3391,7 +3447,9 @@ function formatHour(h) {
   }
   const suffix = hr < 12 ? 'a' : 'p';
   const hr12 = hr === 0 ? 12 : (hr > 12 ? hr - 12 : hr);
-  return min === 0 ? `${hr12}:00${suffix}` : `${hr12}:${min.toString().padStart(2, '0')}${suffix}`;
+  // Drop ":00" at the top of the hour ("9p" instead of "9:00p") — tighter
+  // visually and easier to scan; non-zero minutes keep the full form.
+  return min === 0 ? `${hr12}${suffix}` : `${hr12}:${min.toString().padStart(2, '0')}${suffix}`;
 }
 
 function fmtTime(h) {
@@ -5165,11 +5223,49 @@ function getBrightnessWord(val) {
   return 'Very bright';
 }
 
+// Card-state persistence — open/closed state is saved per card and
+// restored on next visit. After the HomeGlo Lab card-freshness window
+// passes (default 15min), the next visit resets all cards to collapsed.
+const _RHYTHM_CARDS_TS_KEY = 'rhythm_cards_ts';
+const _RHYTHM_CARDS_TTL_MS = cardFreshnessMs();
+const _RHYTHM_CARD_KEYS = [
+  'rhythm_sleep_expanded',
+  'rhythm_brightness_expanded',
+  'rhythm_color_expanded',
+];
+
+function _resetRhythmCardsIfStale() {
+  const tsRaw = localStorage.getItem(_RHYTHM_CARDS_TS_KEY);
+  const ts = tsRaw ? parseInt(tsRaw, 10) : 0;
+  const now = Date.now();
+  if (ts && (now - ts) <= _RHYTHM_CARDS_TTL_MS) return;
+  for (const key of _RHYTHM_CARD_KEYS) localStorage.setItem(key, 'false');
+  localStorage.setItem(_RHYTHM_CARDS_TS_KEY, String(now));
+}
+
+function _applyRhythmCardStates() {
+  const cards = [
+    ['rhythm-sleep-card', 'rhythm_sleep_expanded'],
+    ['rhythm-brightness-card', 'rhythm_brightness_expanded'],
+    ['rhythm-color-card', 'rhythm_color_expanded'],
+  ];
+  for (const [cardId, key] of cards) {
+    const card = document.getElementById(cardId);
+    if (!card) continue;
+    const v = localStorage.getItem(key);
+    if (v === 'true') card.classList.add('is-open');
+    else card.classList.remove('is-open');
+  }
+}
+
 function toggleRhythmCard(cardId, storageKey) {
   const card = document.getElementById(cardId);
   if (!card) return;
-  // Multi-open: just toggle this card; siblings stay as they were.
   card.classList.toggle('is-open');
+  if (storageKey) {
+    localStorage.setItem(storageKey, String(card.classList.contains('is-open')));
+    localStorage.setItem(_RHYTHM_CARDS_TS_KEY, String(Date.now()));
+  }
 }
 
 function initAutoHideSliders() {
@@ -5676,7 +5772,10 @@ function setupEventListeners() {
   // Tap-to-reveal sliders
   initAutoHideSliders();
 
-  // All rhythm cards start collapsed (no localStorage restore)
+  // Card-state persistence (HomeGlo Lab freshness setting). Reset to
+  // defaults if stale, then apply saved open/closed to each card.
+  _resetRhythmCardsIfStale();
+  _applyRhythmCardStates();
 
   // Cool day sliders (sensitivity, start, end, fade)
   ['color-sensitivity', 'brightness-sensitivity', 'daylight-start', 'daylight-end', 'daylight-fade'].forEach(id => {
@@ -5730,6 +5829,29 @@ function setupEventListeners() {
     }
   });
 
+  // Position a fixed-position tooltip relative to its info icon, clamped
+  // to the viewport. Mirrors settings.html#positionInfoTooltip.
+  function positionInfoTooltip(icon, tooltip) {
+    if (!tooltip) return;
+    // Measure without revealing
+    const prevDisp = tooltip.style.display;
+    const prevVis = tooltip.style.visibility;
+    tooltip.style.visibility = 'hidden';
+    tooltip.style.display = 'block';
+    const tipW = tooltip.offsetWidth;
+    const tipH = tooltip.offsetHeight;
+    tooltip.style.display = prevDisp;
+    tooltip.style.visibility = prevVis;
+    const r = icon.getBoundingClientRect();
+    let top = r.bottom + 8;
+    if (top + tipH > window.innerHeight - 10) {
+      top = Math.max(10, r.top - tipH - 8);  // flip above when below clips
+    }
+    const left = Math.max(10, Math.min(r.left - 4, window.innerWidth - tipW - 10));
+    tooltip.style.top = top + 'px';
+    tooltip.style.left = left + 'px';
+  }
+
   // Info icon click handlers - toggle tooltip visibility
   document.querySelectorAll('.info-icon').forEach(icon => {
     icon.addEventListener('click', (e) => {
@@ -5740,7 +5862,11 @@ function setupEventListeners() {
       document.querySelectorAll('.info-tooltip').forEach(t => {
         if (t.id !== tooltipId) t.classList.remove('is-open');
       });
-      tooltip?.classList.toggle('is-open');
+      if (tooltip) {
+        const willOpen = !tooltip.classList.contains('is-open');
+        tooltip.classList.toggle('is-open');
+        if (willOpen) positionInfoTooltip(icon, tooltip);
+      }
     });
   });
 
@@ -6831,16 +6957,38 @@ function cancelSleepChanges() { revertFields(SLEEP_FIELDS); }
 function cancelColorChanges() { revertFields(COLOR_FIELDS); }
 function cancelBrightnessChanges() { revertFields(BRIGHTNESS_FIELDS); }
 
+// Global "Cancel all" — revert every section's fields to the saved snapshot.
+function cancelAllChanges() {
+  cancelSleepChanges();
+  cancelColorChanges();
+  cancelBrightnessChanges();
+}
+
+// Section metadata — each card's dirty-tracking field set + the rhythm-card
+// element that gets the `is-dirty` class (drives the dot + the header Reset
+// button visibility, both via CSS).
+const RHYTHM_SECTIONS = [
+  { name: 'Sleep',             fields: () => SLEEP_FIELDS,       cardId: 'rhythm-sleep-card' },
+  { name: 'Color temperature', fields: () => COLOR_FIELDS,       cardId: 'rhythm-color-card' },
+  { name: 'Brightness',        fields: () => BRIGHTNESS_FIELDS,  cardId: 'rhythm-brightness-card' },
+];
+
 function updateSectionDirtyState() {
-  const toggle = (id, fields) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    if (isSectionDirty(fields)) el.classList.add('has-changes');
-    else el.classList.remove('has-changes');
-  };
-  toggle('sleep-section-actions', SLEEP_FIELDS);
-  toggle('color-section-actions', COLOR_FIELDS);
-  toggle('brightness-section-actions', BRIGHTNESS_FIELDS);
+  const banner = document.getElementById('dirty-banner');
+  if (!banner) return;
+
+  let anyDirty = false;
+  for (const sec of RHYTHM_SECTIONS) {
+    const dirty = isSectionDirty(sec.fields());
+    const cardEl = document.getElementById(sec.cardId);
+    if (cardEl) cardEl.classList.toggle('is-dirty', dirty);
+    if (dirty) anyDirty = true;
+  }
+
+  // Banner: visible only when at least one section is dirty. The per-card
+  // dot + header Reset tell the user *which* card; the banner's job is the
+  // global action.
+  banner.classList.toggle('is-active', anyDirty);
 }
 
 function updateSliderFill(el) {

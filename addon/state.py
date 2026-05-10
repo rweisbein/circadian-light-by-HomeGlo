@@ -14,6 +14,7 @@ State is:
 import json
 import logging
 import os
+import time
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -47,6 +48,7 @@ def _get_default_area_state() -> Dict[str, Any]:
         "color_override_set_at": None,  # Hour when color override set (for decay)
         # Last-sent values (for 2-step detection and state tracking)
         "last_sent_kelvin": None,  # Kelvin we last sent (persists through on/off)
+        "last_sent_kelvin_at": None,  # Unix timestamp when last_sent_kelvin was last written. Diagnostic for stale-state debugging (e.g., cross-addon ZHA pollution).
         "last_sent_brightness": None,  # Area-level brightness % (post curve+boost+sun_bright+area_factor+override, pre-filter)
         # Boost state
         "boost_started_from_off": False,  # If true, turn off when boost ends; else restore circadian
@@ -172,8 +174,15 @@ def update_area(area_id: str, updates: Dict[str, Any]) -> None:
 def set_is_circadian(area_id: str, is_circadian_val: bool) -> None:
     """Set whether Circadian Light controls an area.
 
-    This preserves all settings (midpoints, frozen_at, is_on, etc.).
-    Settings persist across circadian_off → circadian_on cycles.
+    Most settings persist across circadian_off → circadian_on cycles
+    (midpoints, frozen_at, is_on, overrides, etc.). EXCEPTION:
+    `last_sent_kelvin` (and its timestamp) is cleared on transition
+    True → False, because turning circadian off explicitly signals
+    "I'm giving up control of this area" — another addon, an
+    automation, or a user might touch the bulb while we're not
+    watching. On re-enable, the next 2-step gate sees prev_kelvin
+    as unknown and forces 2-step to safely re-establish color
+    (rather than skipping 2-step on a stale / now-wrong CT memory).
 
     Args:
         area_id: The area ID
@@ -185,12 +194,20 @@ def set_is_circadian(area_id: str, is_circadian_val: bool) -> None:
     if area_id not in _state:
         _state[area_id] = _get_default_area_state()
 
-    update_area(area_id, {"is_circadian": is_circadian_val})
+    updates = {"is_circadian": is_circadian_val}
+    if was_circadian and not is_circadian_val:
+        # Forget the bulb's CT — see docstring.
+        updates["last_sent_kelvin"] = None
+        updates["last_sent_kelvin_at"] = None
+    update_area(area_id, updates)
 
     if is_circadian_val and not was_circadian:
         logger.info(f"Circadian Light enabled for area {area_id}")
     elif not is_circadian_val and was_circadian:
-        logger.info(f"Circadian Light disabled for area {area_id}")
+        logger.info(
+            f"Circadian Light disabled for area {area_id} "
+            f"(cleared last_sent_kelvin so re-enable forces 2-step)"
+        )
 
 
 def set_frozen_at(area_id: str, frozen_at: Optional[float]) -> None:
@@ -278,13 +295,42 @@ def is_frozen(area_id: str) -> bool:
 
 
 def set_last_sent_kelvin(area_id: str, kelvin: int) -> None:
-    """Store the kelvin we last sent to this area (persists through on/off)."""
-    update_area(area_id, {"last_sent_kelvin": kelvin})
+    """Store the kelvin we last sent to this area (persists through on/off).
+    Also stamps `last_sent_kelvin_at` so the 2-step diagnostic can show how
+    fresh the tracked value is (helps spot stale state when cross-addon
+    pollution or external commands have written to the bulbs since)."""
+    update_area(area_id, {
+        "last_sent_kelvin": kelvin,
+        "last_sent_kelvin_at": time.time(),
+    })
 
 
 def get_last_sent_kelvin(area_id: str) -> Optional[int]:
     """Get the kelvin we last sent to this area."""
     return get_area(area_id).get("last_sent_kelvin")
+
+
+def get_last_sent_kelvin_at(area_id: str) -> Optional[float]:
+    """Get the Unix timestamp when last_sent_kelvin was last written, or
+    None if never set. Used by the 2-step diagnostic log."""
+    return get_area(area_id).get("last_sent_kelvin_at")
+
+
+def format_age_short(timestamp: Optional[float]) -> str:
+    """Compact age formatter for diagnostic logs: "5s ago", "3m ago",
+    "2h ago", "4d ago". Returns "never" for None."""
+    if timestamp is None:
+        return "never"
+    diff = time.time() - timestamp
+    if diff < 0:
+        return "future"
+    if diff < 60:
+        return f"{int(diff)}s ago"
+    if diff < 3600:
+        return f"{int(diff / 60)}m ago"
+    if diff < 86400:
+        return f"{int(diff / 3600)}h ago"
+    return f"{int(diff / 86400)}d ago"
 
 
 def set_last_sent_brightness(area_id: str, brightness: int) -> None:
@@ -365,6 +411,7 @@ def reset_area(area_id: str) -> None:
         # frozen_at is NOT preserved - reset clears it
         # last_sent_kelvin IS preserved - it's a physical bulb fact, not runtime state
         "last_sent_kelvin": current.get("last_sent_kelvin"),
+        "last_sent_kelvin_at": current.get("last_sent_kelvin_at"),
     }
 
     _state[area_id] = _get_default_area_state()
@@ -386,6 +433,7 @@ def reset_all_areas() -> None:
             "is_on": current.get("is_on", False),
             "frozen_at": current.get("frozen_at"),  # Preserve frozen state
             "last_sent_kelvin": current.get("last_sent_kelvin"),  # Physical bulb fact
+            "last_sent_kelvin_at": current.get("last_sent_kelvin_at"),
         }
         _state[area_id] = _get_default_area_state()
         _state[area_id].update(preserved)

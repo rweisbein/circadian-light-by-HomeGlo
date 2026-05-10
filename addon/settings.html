@@ -4,8 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Circadian Light - Settings</title>
+  <link rel="stylesheet" href="./shared.css">
   <style>
     :root {
+      /* Tell native form controls (select, scrollbar, calendar popups) to render
+         in dark mode. Without this, Safari/WebKit picks light-mode defaults on
+         a dark page and the <select> dropdown text renders with low contrast
+         until the user first interacts with the page. */
+      color-scheme: dark;
       --bg: #000;
       --panel: #111;
       --card: #1a1a1a;
@@ -172,7 +178,7 @@
     .section-header-left {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       flex: 1;
     }
 
@@ -184,7 +190,9 @@
       padding: 0 14px 14px 14px;
       max-height: 6000px;
       opacity: 1;
-      overflow: hidden;
+      /* overflow:visible by default so info tooltips can escape past card
+         edges. Collapse/expand animations re-apply overflow:hidden via JS
+         + the .collapsed selector below to keep the slide animation clean. */
       transition: max-height 0.3s ease, opacity 0.2s, padding-bottom 0.2s;
     }
 
@@ -192,9 +200,11 @@
       max-height: 0;
       opacity: 0;
       padding-bottom: 0;
+      overflow: hidden;
     }
 
-    .section-content.disabled {
+    .section-content.disabled,
+    .sub-section-body.disabled {
       opacity: 0.5;
       pointer-events: none;
     }
@@ -203,6 +213,10 @@
     .form-row {
       display: flex;
       align-items: center;
+      /* Gap between the label (which often ends in an info-icon) and the
+         form-control. Keeps the (i) from butting against the input/control
+         when the label content fills its min-width. */
+      gap: 14px;
       margin-bottom: 16px;
     }
 
@@ -216,7 +230,9 @@
       color: var(--muted);
       display: flex;
       align-items: center;
-      gap: 6px;
+      /* Wider gap so the info icon gets breathing room from the label text
+         on its left and the input control on its right. */
+      gap: 10px;
     }
 
     .form-control {
@@ -227,7 +243,10 @@
     }
 
     .form-input {
-      padding: 10px 12px;
+      /* Trimmed vertical padding so number/time inputs don't tower over
+         native <select> elements (which respect color-scheme:dark height
+         from the OS rather than our padding). */
+      padding: 6px 12px;
       background: var(--panel);
       border: 1px solid var(--line);
       border-radius: 6px;
@@ -269,7 +288,7 @@
       font-size: 10px;
       font-style: italic;
       color: rgba(255,255,255,0.5);
-      cursor: help;
+      cursor: pointer;
       transition: all 0.15s ease;
       flex-shrink: 0;
     }
@@ -281,24 +300,29 @@
 
     .info-tooltip {
       display: none;
-      position: absolute;
-      top: 24px;
-      left: 50%;
-      transform: translateX(-50%);
+      /* Position fixed (relative to viewport) so the tooltip can escape every
+         clipping ancestor — section-content overflow during collapse anim,
+         viewport bottom, etc. Coords are set by `positionInfoTooltip` in JS
+         on hover/click; CSS just shows/hides via the rules below. */
+      position: fixed;
+      top: -9999px;
+      left: -9999px;
       background: var(--panel);
       border: 1px solid var(--line);
       border-radius: 8px;
       padding: 12px;
       width: 280px;
+      max-width: calc(100vw - 40px);
       font-size: 0.8rem;
       font-style: normal;
       color: var(--muted);
       line-height: 1.5;
-      z-index: 100;
+      z-index: 1000;
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
 
-    .info-icon:hover .info-tooltip {
+    .info-icon:hover .info-tooltip,
+    .info-icon.is-tooltip-open .info-tooltip {
       display: block;
     }
 
@@ -521,6 +545,210 @@
       color: var(--danger);
       background: rgba(239, 68, 68, 0.1);
     }
+
+    /* Outdoor brightness chip — sun icon + percent.
+       Color is intentionally muted/neutral (yellow-tint icon) regardless
+       of source; the popover exposes the source + math. */
+    .outdoor-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s;
+    }
+    .outdoor-chip:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255,255,255,0.2); }
+    .outdoor-chip[aria-expanded="true"] { background: rgba(255, 255, 255, 0.10); border-color: rgba(255,255,255,0.25); }
+    /* Yellow sun on the chip itself. The popover's Clarity icon uses
+       weather-appropriate glyphs and stays in the default text color. */
+    .outdoor-chip-icon { display: inline-flex; font-size: 0.95rem; line-height: 1; color: #fbbf24; }
+    .outdoor-chip-popover[hidden] { display: none; }
+    .outdoor-chip-popover {
+      position: absolute;
+      z-index: 50;
+      min-width: 260px;
+      max-width: 360px;
+      padding: 10px 14px;
+      background: rgba(20, 20, 22, 0.98);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      font-size: 0.85rem;
+      line-height: 1.4;
+      color: var(--text);
+      -webkit-user-select: text;
+      user-select: text;
+      /* 4-column grid:
+           [op]   [label]      [number]   [extras]
+         All percentages share the [number] column so they align vertically
+         as a math formula. Condition word, icon, override badge + countdown
+         + clear link all live in the [extras] column to the right.
+         minmax(max-content, ...) on the label column prevents bold labels
+         like "Sun intensity" from wrapping when the extras column gets wide. */
+      display: grid;
+      grid-template-columns: 14px minmax(max-content, 1fr) auto auto;
+      column-gap: 10px;
+      row-gap: 4px;
+      align-items: baseline;
+    }
+    .outdoor-chip-popover .ocp-label { white-space: nowrap; }
+    .outdoor-chip-popover .ocp-op {
+      color: var(--muted, #94a3b8);
+      text-align: center;
+      font-size: 0.85rem;
+    }
+    .outdoor-chip-popover .ocp-label { color: var(--muted, #94a3b8); }
+    .outdoor-chip-popover .ocp-value {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    /* Math-formula divider: short, only spans the label + number columns
+       (not the op gutter on the left or the extras column on the right). */
+    .outdoor-chip-popover .ocp-divider {
+      grid-column: 2 / 4;
+      margin: 4px 0;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    /* Section divider above the override picker: full width to clearly
+       separate the picker section from the formula above. */
+    .outdoor-chip-popover .ocp-section-divider {
+      grid-column: 1 / -1;
+      margin: 8px 0 6px;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    /* Bold styling for the Sun intensity total row. (Replaces previous
+       `.ocp-total .ocp-label` selectors that relied on display:contents,
+       which was unreliable in WebKit and broke column placement.) */
+    .outdoor-chip-popover .ocp-label-total { color: var(--text); font-weight: 600; }
+    .outdoor-chip-popover .ocp-num-total { font-weight: 600; }
+
+    /* Number column: all percentages right-align here so they stack as a
+       math formula. */
+    .outdoor-chip-popover .ocp-num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    /* Extras column: condition + icon on line 1; override badge +
+       countdown + clear (or just an "override" toggle link) on line 2. */
+    .outdoor-chip-popover .ocp-extras {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      align-items: flex-start;
+      min-width: 0;
+    }
+    .outdoor-chip-popover .ocp-extras-line {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .outdoor-chip-popover .ocp-extras-meta {
+      font-size: 0.75rem;
+      color: var(--muted, #94a3b8);
+      gap: 4px;
+    }
+    .outdoor-chip-popover .ocp-cond-word {
+      color: var(--muted, #94a3b8);
+      font-size: 0.8rem;
+    }
+    .outdoor-chip-popover .ocp-cond-icon { font-size: 0.95rem; }
+    .outdoor-chip-popover .ocp-tag-override {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 8px;
+      background: rgba(245, 158, 11, 0.18);
+      color: var(--warning, #f59e0b);
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+
+    /* Override controls — full-width row spanning all 3 grid columns. */
+    .ocp-override {
+      grid-column: 1 / -1;
+      margin-top: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .ocp-override-header {
+      font-size: 0.78rem;
+      color: var(--muted, #94a3b8);
+      letter-spacing: 0.02em;
+    }
+    /* Header row inside the override picker section: title on the left,
+       cancel link on the right. */
+    .ocp-override-section-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .ocp-override-section-title {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text, #e2e8f0);
+    }
+    .ocp-override-controls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .ocp-override select {
+      flex: 1 1 auto;
+      min-width: 90px;
+      padding: 4px 6px;
+      background: var(--panel, #111);
+      border: 1px solid var(--line, #334155);
+      border-radius: 4px;
+      color: var(--text, #e2e8f0);
+      font: inherit;
+      font-size: 0.8rem;
+    }
+    .ocp-override button {
+      padding: 4px 10px;
+      border: 1px solid var(--line, #334155);
+      border-radius: 4px;
+      background: rgba(255,255,255,0.05);
+      color: var(--text, #e2e8f0);
+      font: inherit;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    .ocp-override button:hover { background: rgba(255,255,255,0.10); }
+    .ocp-override button.ocp-clear { color: var(--warning, #f59e0b); }
+    .ocp-override-active {
+      font-size: 0.78rem;
+      color: var(--warning, #f59e0b);
+    }
+    /* Simplified active-override row: single muted line, quiet text-button. */
+    .ocp-override-active-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding: 2px 0;
+    }
+    .ocp-override-active-text {
+      font-size: 0.8rem;
+      color: var(--muted, #94a3b8);
+    }
+    .ocp-link-btn {
+      background: none;
+      border: none;
+      padding: 2px 4px;
+      color: var(--muted, #94a3b8);
+      font: inherit;
+      font-size: 0.78rem;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .ocp-link-btn:hover { color: var(--text, #e2e8f0); }
   </style>
 </head>
 <body>
@@ -546,38 +774,9 @@
       <h1 class="page-title">Settings</h1>
     </div>
 
-    <!-- General Section -->
+    <!-- Main Section -->
     <div class="settings-section">
-      <div class="section-header" data-section-key="general">General</div>
-      <div class="section-content">
-        <div class="form-row">
-          <label class="form-label">
-            Home name
-            <span class="info-icon">i<span class="info-tooltip">A display name for your home, shown as a heading on the home page.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="text" class="form-input" id="home-name" placeholder="Your home" style="width: 200px;">
-          </div>
-        </div>
-
-        <div class="form-row">
-          <label class="form-label">
-            Recover from power failure
-            <span class="info-icon">i<span class="info-tooltip">Controls what lights do after a power outage. 'Bright' turns lights on at full brightness. 'Last state' restores whatever state lights were in before the outage. Applied to all lights at add-on startup.</span></span>
-          </label>
-          <div class="form-control">
-            <select class="form-input" id="power-recovery" style="width: 200px;">
-              <option value="bright">Bright</option>
-              <option value="last_state">Last state</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Refresh Section -->
-    <div class="settings-section">
-      <div class="section-header" data-section-key="refresh">Refresh</div>
+      <div class="section-header" data-section-key="main">Main</div>
       <div class="section-content">
         <div class="form-row">
           <label class="form-label">
@@ -592,48 +791,28 @@
 
         <div class="form-row">
           <label class="form-label">
-            Post-switch refresh
-            <span class="info-icon">i<span class="info-tooltip">After a switch press, delay this long then run a full circadian refresh to catch any lights that missed the initial command. Each subsequent press resets the timer. Replaces per-command nudge with a single authoritative re-send.</span></span>
+            Power fail recovery
+            <span class="info-icon">i<span class="info-tooltip">Controls what lights do after a power outage. 'Bright' turns lights on at full brightness. 'Last state' restores whatever state lights were in before the outage. Applied to all lights at add-on startup.</span></span>
           </label>
           <div class="form-control">
-            <input type="number" class="form-input" id="post-switch-refresh" min="10" max="100" step="5" value="30" style="width: 80px;">
-            <span class="form-hint">tenths of a second</span>
+            <select class="form-input" id="power-recovery" style="width: 200px;">
+              <option value="bright">Bright</option>
+              <option value="last_state">Last state</option>
+            </select>
           </div>
         </div>
 
         <div class="form-row">
           <label class="form-label">
-            Post-switch burst count
-            <span class="info-icon">i<span class="info-tooltip">Number of shortened tick refreshes after a switch action. These catch lights that missed the initial command. Set to 0 to disable burst refreshes entirely (only the normal periodic tick will refresh).</span></span>
+            Sync devices
+            <span class="info-icon">i<span class="info-tooltip">Re-scans Home Assistant. <b>Sync controls</b> is fast and safe — picks up newly paired switches, motion sensors, contact sensors, and cameras. <b>Sync lights</b> is heavier — rebuilds light capability cache and ZHA groups; use after adding a new bulb. The full nightly sync runs automatically at the scheduled time.</span></span>
           </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="post-action-burst-count" min="0" max="3" step="1" value="1" style="width: 80px;">
-            <span class="form-hint">0-3 refreshes</span>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <label class="form-label">
-            Periodic transition speed
-            <span class="info-icon">i<span class="info-tooltip">How smoothly lights transition during periodic circadian updates. Day speed applies when the sun is up, night speed when the sun is down. Higher values = slower, smoother transitions.</span></span>
-          </label>
-          <div class="form-control">
-            <span class="form-hint" style="margin-left: 0;">day</span>
-            <input type="number" class="form-input" id="periodic-transition-day" min="0" max="120" step="1" style="width: 60px;">
-            <span class="form-hint">night</span>
-            <input type="number" class="form-input" id="periodic-transition-night" min="0" max="120" step="1" value="1" style="width: 60px;">
-            <span class="form-hint">seconds</span>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <label class="form-label">
-            Home page refresh
-            <span class="info-icon">i<span class="info-tooltip">How often the home page area cards refresh to show current brightness, color temperature, and on/off state. Lower values show changes faster but increase browser network activity. The area modal always refreshes every 1 second regardless of this setting.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="home-refresh-interval" min="2" max="60" step="1" value="10" style="width: 80px;">
-            <span class="form-hint">seconds (2-60)</span>
+          <div class="form-control" style="display:flex; align-items:center; gap:10px; flex-wrap: wrap;">
+            <button type="button" class="btn" id="sync-controls-btn" onclick="syncControls()" style="padding: 6px 16px; cursor: pointer;">Sync controls</button>
+            <button type="button" class="btn" id="sync-devices-btn" onclick="syncDevices()" style="padding: 6px 16px; cursor: pointer;">Sync lights</button>
+            <span style="color:#888;">daily at</span>
+            <input type="time" class="form-input" id="daily-sync-time" value="04:00" style="width: 100px;">
+            <span class="form-hint" id="sync-status"></span>
           </div>
         </div>
 
@@ -656,81 +835,187 @@
           </div>
         </div>
 
-        <div class="form-row" style="margin-top: 10px;">
-          <label class="form-label">
-            Sync devices
-            <span class="info-icon">i<span class="info-tooltip">Re-scans Home Assistant for new or moved lights, areas, and ZHA devices. Runs automatically at the scheduled time daily. Click Sync now to run immediately.</span></span>
-          </label>
-          <div class="form-control" style="display:flex; align-items:center; gap:10px;">
-            <button type="button" class="btn" id="sync-devices-btn" onclick="syncDevices()" style="padding: 6px 16px; cursor: pointer;">Sync now</button>
-            <span style="color:#888;">daily at</span>
-            <input type="time" class="form-input" id="daily-sync-time" value="04:00" style="width: 100px;">
-            <span class="form-hint" id="sync-status"></span>
+        <div class="sub-section">
+          <div class="sub-section-header">
+            <span class="sub-section-title">Sun</span>
+            <span class="info-icon">i<span class="info-tooltip">Sun intensity source plus the location used for sunrise / sunset calculations.</span></span>
+          </div>
+          <div class="sub-section-body" id="location-fields">
+            <div class="form-row">
+              <label class="form-label">
+                Intensity
+                <span class="info-icon">i<span class="info-tooltip">Source for Circadian Light to determine sun's intensity, used for Sun dimming and Sun cooling — cooling lights on sunny days to enhance the feeling of natural light indoors, and dimming lights in areas of the home with sun exposure.</span></span>
+              </label>
+              <div class="form-control" style="display: flex; gap: 12px; align-items: center;">
+                <select class="form-input" id="outdoor-brightness-source" style="width: 220px;">
+                  <option value="lux">Brightness sensor (coming soon)</option>
+                  <option value="weather">Sun position &#xd7; sky clarity</option>
+                  <option value="angle">Sun position</option>
+                </select>
+                <button type="button" id="outdoor-status-chip" class="outdoor-chip" aria-expanded="false" title="Click for breakdown">
+                  <span class="outdoor-chip-icon" id="outdoor-chip-icon" aria-hidden="true">&#x2600;</span>
+                  <span id="outdoor-chip-pct">--%</span>
+                </button>
+                <div id="outdoor-chip-popover" class="outdoor-chip-popover" hidden></div>
+              </div>
+            </div>
+            <div id="lux-settings-group" style="display: none;">
+              <div class="form-row">
+                <label class="form-label">
+                  Brightness sensor
+                  <span class="info-icon">i<span class="info-tooltip">Pick any illuminance sensor — a dedicated lux sensor, or a motion sensor or camera that exposes a lux reading. The reading isn't wired up to sun intensity yet (coming soon), but you can select your sensor now so it's ready.</span></span>
+                </label>
+                <div class="form-control">
+                  <select class="form-input" id="outdoor-lux-sensor" style="width: 280px;">
+                    <option value="">None</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="sub-sub-section">
+              <div class="sub-sub-section-header">
+                <span class="sub-sub-section-title">Location</span>
+                <span class="info-icon">i<span class="info-tooltip">Used for sunrise / sunset calculations. By default, follows your Home Assistant configuration. Uncheck "Use Home Assistant's location" to specify lat/long/timezone manually.</span></span>
+              </div>
+              <div class="sub-sub-section-body">
+                <div class="form-row">
+                  <label class="form-label">Use Home Assistant's location</label>
+                  <div class="form-control">
+                    <label class="checkbox-label">
+                      <input type="checkbox" id="use-ha-location" checked>
+                    </label>
+                  </div>
+                </div>
+                <div class="form-row" id="lat-long-row">
+                  <label class="form-label">Lat / Long</label>
+                  <div class="form-control" style="display: flex; align-items: center; gap: 8px;">
+                    <input type="number" class="form-input" id="latitude" step="0.0001" placeholder="40.71" disabled style="width: 110px;">
+                    <input type="number" class="form-input" id="longitude" step="0.0001" placeholder="-74.00" disabled style="width: 110px;">
+                  </div>
+                </div>
+                <div class="form-row" id="timezone-row">
+                  <label class="form-label">Timezone</label>
+                  <div class="form-control">
+                    <select class="form-input" id="timezone" disabled style="width: 200px;">
+                      <option value="US/Eastern">US/Eastern</option>
+                      <option value="US/Central">US/Central</option>
+                      <option value="US/Mountain">US/Mountain</option>
+                      <option value="US/Pacific">US/Pacific</option>
+                      <option value="US/Alaska">US/Alaska</option>
+                      <option value="US/Hawaii">US/Hawaii</option>
+                      <option value="Europe/London">Europe/London</option>
+                      <option value="Europe/Paris">Europe/Paris</option>
+                      <option value="Europe/Berlin">Europe/Berlin</option>
+                      <option value="Asia/Tokyo">Asia/Tokyo</option>
+                      <option value="Asia/Shanghai">Asia/Shanghai</option>
+                      <option value="Australia/Sydney">Australia/Sydney</option>
+                      <option value="UTC">UTC</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Controls Section -->
-    <div class="settings-section">
-      <div class="section-header" data-section-key="controls">Controls</div>
+
+    <!-- App Section -->
+    <div class="settings-section collapsed">
+      <div class="section-header" data-section-key="app">App</div>
       <div class="section-content">
         <div class="form-row">
           <label class="form-label">
-            Multi-click
-            <span class="info-icon">i<span class="info-tooltip">For switches controlled by a hub that doesn't support double-clicks, triple-clicks, etc. (e.g. the Philips Hue Hub), enabling turns on Circadian Light detection of multi-clicks. Single-click actions will be delayed by the multi-click speed while waiting for additional clicks.</span></span>
+            Confirm zone pushes
+            <span class="info-icon">i<span class="info-tooltip">When enabled, shows a confirmation before pushing light settings to an entire Rhythm Zone (Full Send, GloDown, Zone Power Off). When disabled, these actions execute immediately.</span></span>
           </label>
           <div class="form-control">
             <label class="checkbox-label">
-              <input type="checkbox" id="multi-click-enabled">
+              <input type="checkbox" id="confirm-zone-pushes">
             </label>
-            <span id="multi-click-speed-group" style="display: flex; align-items: center; gap: 8px; margin-left: 12px;">
-              <span class="form-hint" style="margin-left: 0;">Speed</span>
-              <input type="number" class="form-input" id="multi-click-speed" min="1" max="100" step="0.1" value="15" style="width: 60px;">
-              <span class="form-hint">tenths of a second</span>
-            </span>
           </div>
         </div>
 
-        <div class="form-row">
-          <label class="form-label">
-            Long-press repeat interval
-            <span class="info-icon">i<span class="info-tooltip">How fast brightness changes when holding up/down buttons on a switch. Lower values = faster ramping.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="long-press-repeat-interval" min="1" max="100" step="0.1" value="7" style="width: 80px;">
-            <span class="form-hint">tenths of a second</span>
+        <div class="sub-section">
+          <div class="sub-section-header">
+            <span class="sub-section-title">Homepage</span>
+          </div>
+          <div class="sub-section-body">
+            <div class="form-row">
+              <label class="form-label">
+                Slider
+                <span class="info-icon">i<span class="info-tooltip">What the area row slider controls on the home page. Circadian moves along the full curve (brightness + color). Brightness adjusts brightness only.</span></span>
+              </label>
+              <div class="form-control">
+                <select class="form-input" id="home-slider-mode" style="width: 140px;">
+                  <option value="brightness">Brightness</option>
+                  <option value="step">Circadian</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <label class="form-label">
+                Up/down buttons
+                <span class="info-icon">i<span class="info-tooltip">What the stacked up/down buttons do on each area row. Circadian steps along the full curve. Brightness adjusts brightness only. Color adjusts color only. Zone actions: Up = Glo Up (push this area's state up to its zone); Down = Glo Down (pull the zone's state back into this area).</span></span>
+              </label>
+              <div class="form-control">
+                <select class="form-input" id="home-buttons-mode" style="width: 140px;">
+                  <option value="step">Circadian</option>
+                  <option value="bright">Brightness</option>
+                  <option value="color">Color</option>
+                  <option value="zone">Zone actions</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="form-row">
-          <label class="form-label">
-            Step increments
-            <span class="info-icon">i<span class="info-tooltip">Number of steps between minimum and maximum when pressing up/down buttons on a switch. Fewer steps = bigger jumps. Applies to Circadian, Bright, and Color controls across all zones. Minutes value is the fallback time-shift used by the Adjust-card arrows when circadian step is already at max/min (plateau).</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="max-dim-steps" min="1" max="50" step="1" value="10" style="width: 60px;">
-            <span class="form-hint">steps</span>
-            <input type="number" class="form-input" id="step-fallback-minutes" min="1" max="180" step="1" value="30" style="width: 60px; margin-left: 12px;">
-            <span class="form-hint">minutes</span>
+        <div class="sub-section">
+          <div class="sub-section-header">
+            <span class="sub-section-title">Rhythm chart</span>
+          </div>
+          <div class="sub-section-body">
+            <div class="form-row">
+              <label class="form-label">
+                Cursor step
+                <span class="info-icon">i<span class="info-tooltip">How much the &larr; / &rarr; buttons on the rhythm-zone chart cursor advance the cursor each tap. Smaller values let you fine-tune what lights look like at a specific moment; larger values let you skim through the day faster.</span></span>
+              </label>
+              <div class="form-control">
+                <select class="form-input" id="rhythm-cursor-step-min" style="width: 100px;">
+                  <option value="1">1 min</option>
+                  <option value="2">2 min</option>
+                  <option value="3">3 min</option>
+                  <option value="4">4 min</option>
+                  <option value="5" selected>5 min</option>
+                  <option value="10">10 min</option>
+                  <option value="12">12 min</option>
+                  <option value="15">15 min</option>
+                  <option value="30">30 min</option>
+                  <option value="60">60 min</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Light Effects Section -->
-    <div class="settings-section">
-      <div class="section-header" data-section-key="lighteffects">Light Effects</div>
+    <!-- Light Behavior Section (was Light Effects + Feedback Cues) -->
+    <div class="settings-section collapsed">
+      <div class="section-header" data-section-key="lightbehavior">Light Behavior</div>
       <div class="section-content">
         <div class="form-row">
           <label class="form-label">
-            Power speed
+            Speed
             <span class="info-icon">i<span class="info-tooltip">How fast lights smoothly turn on or off when Circadian Light controls them.</span></span>
           </label>
           <div class="form-control">
-            <span class="form-hint" style="margin-left: 0;">on</span>
+            <span class="form-hint" style="margin-left: 0;">power on</span>
             <input type="number" class="form-input" id="turn-on-transition" min="0" max="100" step="0.1" value="3" style="width: 60px;">
-            <span class="form-hint">off</span>
+            <span class="form-hint">power off</span>
             <input type="number" class="form-input" id="turn-off-transition" min="0" max="100" step="0.1" value="3" style="width: 60px;">
             <span class="form-hint">tenths of a second</span>
           </div>
@@ -747,17 +1032,10 @@
           </div>
         </div>
 
-      </div>
-    </div>
-
-    <!-- Feedback Cues Section -->
-    <div class="settings-section">
-      <div class="section-header" data-section-key="feedbackcues">Feedback Cues</div>
-      <div class="section-content">
         <div class="form-row">
           <label class="form-label">
-            Restrict to primary area
-            <span class="info-icon">i<span class="info-tooltip">When enabled, feedback cues (bounce, freeze, reach) only show on the primary (starred) area in each reach. When disabled, all areas in the reach show feedback simultaneously.</span></span>
+            Visual feedback &mdash; one area only
+            <span class="info-icon">i<span class="info-tooltip">When enabled, visual feedback (bounce, freeze, reach) only shows on the primary (starred) area in each reach. When disabled, all areas in the reach show feedback simultaneously.</span></span>
           </label>
           <div class="form-control">
             <label class="checkbox-label">
@@ -766,317 +1044,277 @@
           </div>
         </div>
 
-        <div class="form-row">
-          <label class="form-label">
-            Motion warning time
-            <span class="info-icon">i<span class="info-tooltip">How long before the motion timer expires to trigger a warning dim. Set to 0 to disable motion warnings. The warning dims lights to alert you before they turn off.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="motion-warning-time" min="0" max="120" step="5" value="20" style="width: 80px;">
-            <span class="form-hint">seconds before off (0 = disabled)</span>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <label class="form-label">
-            Motion blink threshold
-            <span class="info-icon">i<span class="info-tooltip">At low brightness levels, a simple dim may not be noticeable. Below this threshold, the motion warning will briefly blink off (0% for 300ms) before dimming to ensure you notice. Formula: above threshold dims to 50% of current; below threshold blinks then dims to 3%.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="motion-blink-threshold" min="5" max="50" step="1" value="15" style="width: 80px;">
-            <span class="form-hint">% brightness</span>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <label class="form-label">
-            Reach feedback
-            <span class="info-icon">i<span class="info-tooltip">When enabled, changing reach scope flashes lights to indicate the new scope number. When disabled, reach changes are silent.</span></span>
-          </label>
-          <div class="form-control">
+        <div class="sub-section">
+          <div class="sub-section-header">
             <label class="checkbox-label">
               <input type="checkbox" id="reach-feedback-enabled" checked>
             </label>
+            <span class="sub-section-title">Reach visual feedback</span>
+            <span class="info-icon">i<span class="info-tooltip">When enabled, changing reach scope flashes lights to indicate the new scope number. When disabled, reach changes are silent.</span></span>
+          </div>
+          <div class="sub-section-body">
+            <div class="form-row" id="reach-daytime-threshold-row">
+              <label class="form-label">
+                Reach daytime threshold
+                <span class="info-icon">i<span class="info-tooltip">Below this brightness during daytime (when natural light is active), reach feedback flashes UP to 100% instead of dimming OFF, ensuring visibility in bright rooms.</span></span>
+              </label>
+              <div class="form-control">
+                <input type="number" class="form-input" id="reach-daytime-threshold" min="5" max="80" step="5" value="50" style="width: 80px;">
+                <span class="form-hint">% brightness</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="form-row" id="reach-daytime-threshold-row" style="padding-left: 20px;">
-          <label class="form-label">
-            Reach daytime threshold
-            <span class="info-icon">i<span class="info-tooltip">Below this brightness during daytime (when natural light is active), reach feedback flashes UP to 100% instead of dimming OFF, ensuring visibility in bright rooms.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="reach-daytime-threshold" min="5" max="80" step="5" value="50" style="width: 80px;">
-            <span class="form-hint">% brightness</span>
-          </div>
-        </div>
-
-        <div class="form-row" style="margin-top: 20px;">
-          <label class="form-label">
-            Freeze feedback
-            <span class="info-icon">i<span class="info-tooltip">When enabled, freezing/unfreezing lights shows a visual dip-and-restore cue. When disabled, freeze toggles are silent.</span></span>
-          </label>
-          <div class="form-control">
+        <div class="sub-section">
+          <div class="sub-section-header">
             <label class="checkbox-label">
               <input type="checkbox" id="freeze-feedback-enabled" checked>
             </label>
+            <span class="sub-section-title">Freeze visual feedback</span>
+            <span class="info-icon">i<span class="info-tooltip">When enabled, freezing/unfreezing lights shows a visual dip-and-restore cue. When disabled, freeze toggles are silent.</span></span>
+          </div>
+          <div class="sub-section-body">
+            <div class="form-row" id="freeze-hold-at-dim-row">
+              <label class="form-label">
+                Wait between 2 phases
+                <span class="info-icon">i<span class="info-tooltip">After the dip to 1%, how long to hold before the restore phase. Used for both freeze toggle on (snap back) and toggle off (slow rise). Shorter feels snappier; longer makes the dip more obvious.</span></span>
+              </label>
+              <div class="form-control">
+                <input type="number" class="form-input" id="freeze-hold-at-dim" min="0" max="50" step="1" value="2" style="width: 80px;">
+                <span class="form-hint">tenths of a second</span>
+              </div>
+            </div>
+            <div class="form-row" id="freeze-off-rise-row">
+              <label class="form-label">
+                Freeze off rise speed
+                <span class="info-icon">i<span class="info-tooltip">When unfreezing, lights rise back to circadian values over this amount of time. A slower rise gives a gentle visual confirmation that the area has been unfrozen.</span></span>
+              </label>
+              <div class="form-control">
+                <input type="number" class="form-input" id="freeze-off-rise" min="0" max="100" step="0.1" value="10" style="width: 80px;">
+                <span class="form-hint">tenths of a second</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="form-row" id="freeze-off-rise-row" style="padding-left: 20px;">
-          <label class="form-label">
-            Freeze off rise speed
-            <span class="info-icon">i<span class="info-tooltip">When unfreezing, lights rise back to circadian values over this amount of time. A slower rise gives a gentle visual confirmation that the area has been unfrozen.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="freeze-off-rise" min="0" max="100" step="0.1" value="10" style="width: 80px;">
-            <span class="form-hint">tenths of a second</span>
-          </div>
-        </div>
-
-        <div class="form-row" style="margin-top: 20px;">
-          <label class="form-label">
-            Bounce
-            <span class="info-icon">i<span class="info-tooltip">Visual brightness dip/flash used for limit bounce (hitting step limits) and motion alerts. Controls the base bounce percentages shared by both features.</span></span>
-          </label>
-          <div class="form-control">
+        <div class="sub-section">
+          <div class="sub-section-header">
             <label class="checkbox-label">
               <input type="checkbox" id="limit-bounce-enabled" checked>
             </label>
+            <span class="sub-section-title">Bounce visual feedback</span>
+            <span class="info-icon">i<span class="info-tooltip">Visual brightness dip/flash used for limit bounce (hitting step limits) and motion alerts. Controls the base bounce percentages shared by both features.</span></span>
           </div>
-        </div>
+          <div class="sub-section-body">
+            <div class="form-row" id="limit-bounce-max-row">
+              <label class="form-label">
+                Small bounce (max bright)
+                <span class="info-icon">i<span class="info-tooltip">How much to dip when brightness is high. Used as the base for limit bounce and alert bounce (alert intensity multiplies this).</span></span>
+              </label>
+              <div class="form-control">
+                <input type="number" class="form-input" id="limit-bounce-max-percent" min="5" max="50" step="1" value="25" style="width: 80px;">
+                <span class="form-hint">%</span>
+              </div>
+            </div>
 
-        <div class="form-row" id="limit-bounce-max-row" style="padding-left: 20px;">
-          <label class="form-label">
-            Small bounce (max bright)
-            <span class="info-icon">i<span class="info-tooltip">How much to dip when brightness is high. Used as the base for limit bounce and alert bounce (alert intensity multiplies this).</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="limit-bounce-max-percent" min="5" max="50" step="1" value="25" style="width: 80px;">
-            <span class="form-hint">%</span>
-          </div>
-        </div>
+            <div class="form-row" id="limit-bounce-min-row">
+              <label class="form-label">
+                Small bounce (min bright)
+                <span class="info-icon">i<span class="info-tooltip">How much to flash up when brightness is low. Used as the base for limit bounce and alert bounce (alert intensity multiplies this).</span></span>
+              </label>
+              <div class="form-control">
+                <input type="number" class="form-input" id="limit-bounce-min-percent" min="5" max="50" step="1" value="13" style="width: 80px;">
+                <span class="form-hint">%</span>
+              </div>
+            </div>
 
-        <div class="form-row" id="limit-bounce-min-row" style="padding-left: 20px;">
-          <label class="form-label">
-            Small bounce (min bright)
-            <span class="info-icon">i<span class="info-tooltip">How much to flash up when brightness is low. Used as the base for limit bounce and alert bounce (alert intensity multiplies this).</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="limit-bounce-min-percent" min="5" max="50" step="1" value="13" style="width: 80px;">
-            <span class="form-hint">%</span>
-          </div>
-        </div>
+            <div class="form-row" id="limit-bounce-speed-row">
+              <label class="form-label">
+                Limit bounce speed
+                <span class="info-icon">i<span class="info-tooltip">How fast the brightness bounces when hitting a step limit.</span></span>
+              </label>
+              <div class="form-control">
+                <input type="number" class="form-input" id="limit-warning-speed" min="0" max="100" step="0.1" value="3" style="width: 80px;">
+                <span class="form-hint">tenths of a second</span>
+              </div>
+            </div>
 
-        <div class="form-row" id="limit-bounce-speed-row" style="padding-left: 20px;">
-          <label class="form-label">
-            Limit bounce speed
-            <span class="info-icon">i<span class="info-tooltip">How fast the brightness bounces when hitting a step limit.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="limit-warning-speed" min="0" max="100" step="0.1" value="3" style="width: 80px;">
-            <span class="form-hint">tenths of a second</span>
-          </div>
-        </div>
-
-        <div class="form-row" id="alert-bounce-speed-row" style="padding-left: 20px;">
-          <label class="form-label">
-            Alert bounce speed
-            <span class="info-icon">i<span class="info-tooltip">How fast the brightness bounces for motion alert mode. Slower makes the alert more visible.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="alert-bounce-speed" min="1" max="50" step="1" value="10" style="width: 80px;">
-            <span class="form-hint">tenths of a second</span>
-          </div>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- Zigbee Improvements Section -->
-    <div class="settings-section">
-      <div class="section-header" data-section-key="zigbee">Zigbee Improvements</div>
-      <div class="section-content">
-
-        <div style="border-bottom:1px solid var(--line);margin-bottom:12px;padding-bottom:8px;">
-          <div style="font-size:0.8rem;color:var(--muted);font-weight:600;">2-step color arc reduction</div>
-        </div>
-
-        <div class="form-row">
-          <label class="form-label">
-            Brightness threshold
-            <span class="info-icon">i<span class="info-tooltip">Minimum brightness change (%) required to trigger 2-step. Below this threshold, color changes are sent directly (arc is less visible at low brightness). Applies to both off→on and already-on transitions.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="two-step-bri-threshold" min="0" max="50" step="1" value="15" style="width: 80px;">
-            <span class="form-hint">% brightness change</span>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <label class="form-label">
-            Delay between steps
-            <span class="info-icon">i<span class="info-tooltip">Pause between step 1 (set color at low brightness) and step 2 (transition to target brightness). Increase if lights drop the second command or show a brief wrong color.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="two-step-delay" min="0" max="20" step="0.1" value="5" style="width: 80px;">
-            <span class="form-hint">tenths of a second</span>
+            <div class="form-row" id="alert-bounce-speed-row">
+              <label class="form-label">
+                Alert bounce speed
+                <span class="info-icon">i<span class="info-tooltip">How fast the brightness bounces for motion alert mode. Slower makes the alert more visible.</span></span>
+              </label>
+              <div class="form-control">
+                <input type="number" class="form-input" id="alert-bounce-speed" min="1" max="50" step="1" value="10" style="width: 80px;">
+                <span class="form-hint">tenths of a second</span>
+              </div>
+            </div>
           </div>
         </div>
 
       </div>
     </div>
 
-    <!-- Outdoor Brightness Section -->
-    <div class="settings-section">
-      <div class="section-header" data-section-key="outdoorbrightness">
-        <div class="section-header-left">
-          Outdoor Brightness
-          <span class="info-icon">i<span class="info-tooltip">Controls how the system estimates outdoor light levels. Uses the highest-priority source available: manual override, lux sensor, weather entity, or sun angle estimate.</span></span>
-        </div>
-      </div>
+    <!-- Controls Section -->
+    <div class="settings-section collapsed">
+      <div class="section-header" data-section-key="controls">Controls</div>
       <div class="section-content">
         <div class="form-row">
           <label class="form-label">
-            Source
-            <span class="info-icon">i<span class="info-tooltip">Where outdoor brightness comes from. Lux sensor uses a hardware sensor. HA weather uses cloud coverage from an auto-detected weather entity. Sun angle uses a clear-sky estimate only.</span></span>
+            Long-press repeat timing
+            <span class="info-icon">i<span class="info-tooltip">How fast brightness changes when holding up/down buttons on a switch. Lower values = faster repeating.</span></span>
           </label>
-          <div class="form-control" style="display: flex; gap: 12px; align-items: center;">
-            <select class="form-input" id="outdoor-brightness-source" style="width: 180px;">
-              <option value="lux">Lux sensor</option>
-              <option value="weather">HA weather</option>
-              <option value="angle">Sun angle</option>
-            </select>
-            <span id="outdoor-status-badge" style="display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.82rem; font-weight: 500; background: rgba(255,255,255,0.08); color: var(--muted);">---</span>
-            <span id="outdoor-status-detail" class="form-hint"></span>
+          <div class="form-control">
+            <input type="number" class="form-input" id="long-press-repeat-interval" min="1" max="100" step="0.1" value="7" style="width: 80px;">
+            <span class="form-hint">tenths of a second</span>
           </div>
         </div>
-        <div id="lux-settings-group">
-          <div class="form-row">
-            <label class="form-label">
-              Sensor entity
-              <span class="info-icon">i<span class="info-tooltip">An outdoor illuminance sensor (e.g. sensor.outdoor_illuminance). Falls back to weather then angle if unavailable.</span></span>
-            </label>
-            <div class="form-control">
-              <select class="form-input" id="outdoor-lux-sensor" style="width: 280px;">
-                <option value="">None (disabled)</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-row">
-            <label class="form-label">
-              Smoothing interval
-              <span class="info-icon">i<span class="info-tooltip">EMA (exponential moving average) time constant in seconds. Higher values smooth out rapid lux changes (clouds passing). Set to 0 for no smoothing (raw values).</span></span>
-            </label>
-            <div class="form-control">
-              <input type="number" class="form-input" id="lux-smoothing-interval" min="0" max="3600" step="30" value="300" style="width: 80px;">
-              <span class="form-hint">s</span>
-            </div>
-          </div>
-          <div class="form-row">
-            <label class="form-label">
-              Learned ceiling
-              <span class="info-icon">i<span class="info-tooltip">Bright-day lux baseline (85th percentile of daytime readings). Learned automatically from 90 days of sensor history. You can override with a manual value.</span></span>
-            </label>
-            <div class="form-control">
-              <input type="number" class="form-input" id="lux-learned-ceiling" min="1" max="200000" step="100" placeholder="auto" style="width: 100px;">
-              <span class="form-hint">lux</span>
-            </div>
-          </div>
-          <div class="form-row">
-            <label class="form-label">
-              Learned floor
-              <span class="info-icon">i<span class="info-tooltip">Dark-day lux baseline (5th percentile of daytime readings). Learned automatically from 90 days of sensor history. You can override with a manual value.</span></span>
-            </label>
-            <div class="form-control">
-              <input type="number" class="form-input" id="lux-learned-floor" min="1" max="200000" step="10" placeholder="auto" style="width: 100px;">
-              <span class="form-hint">lux</span>
-            </div>
-          </div>
-        </div>
-        <div class="form-row" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line);">
+
+        <div class="form-row">
           <label class="form-label">
-            Manual override
-            <span class="info-icon">i<span class="info-tooltip">Temporarily override outdoor brightness estimation. Auto-reverts after the selected duration.</span></span>
+            Step increments
+            <span class="info-icon">i<span class="info-tooltip">Number of steps between minimum and maximum when pressing up/down buttons on a switch. Fewer steps = bigger jumps. Applies to Circadian, Bright, and Color controls across all zones.</span></span>
           </label>
-          <div class="form-control" style="display: flex; gap: 8px; align-items: center;">
-            <select class="form-input" id="override-condition" style="width: 160px;">
-              <option value="">Off</option>
-              <option value="sunny">Sunny</option>
-              <option value="mixed">Mixed</option>
-              <option value="cloudy">Cloudy</option>
-              <option value="dark">Dark</option>
-            </select>
-            <select class="form-input" id="override-duration" style="width: 100px;">
-              <option value="30">30 min</option>
-              <option value="60" selected>1 hour</option>
-              <option value="120">2 hours</option>
-              <option value="240">4 hours</option>
-            </select>
-            <button type="button" class="btn btn-sm" id="override-apply" style="display: none;">Apply</button>
-            <button type="button" class="btn btn-sm" id="override-clear" style="display: none; background: var(--danger); color: #fff;">Clear</button>
+          <div class="form-control">
+            <input type="number" class="form-input" id="max-dim-steps" min="1" max="50" step="1" value="10" style="width: 60px;">
+            <span class="form-hint">steps</span>
           </div>
         </div>
-        <div class="form-row" id="weather-condition-group" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); display: none;">
-          <label class="form-label">
-            Weather condition strengths
-            <span class="info-icon">i<span class="info-tooltip">How strongly each weather condition reduces outdoor brightness. 100% = full sun, 0% = complete darkness. These multiply the sun elevation factor to produce the final outdoor brightness estimate.</span></span>
-          </label>
-          <div class="form-control" id="weather-condition-sliders" style="display: flex; flex-direction: column; gap: 6px; width: 100%;"></div>
+
+        <div class="sub-section">
+          <div class="sub-section-header">
+            <span class="sub-section-title">Motion</span>
+          </div>
+          <div class="sub-section-body">
+            <div class="form-row">
+              <label class="form-label">
+                Warning time
+                <span class="info-icon">i<span class="info-tooltip">How long before the motion timer expires to trigger dimming as an alert the light is about to turn off. Set to 0 to disable motion warnings entirely.</span></span>
+              </label>
+              <div class="form-control">
+                <input type="number" class="form-input" id="motion-warning-time" min="0" max="120" step="5" value="20" style="width: 80px;">
+                <span class="form-hint">seconds</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <label class="form-label">
+                Warning blink threshold
+                <span class="info-icon">i<span class="info-tooltip">At low brightness levels, a simple dim may not be noticeable. Below this threshold, the motion warning briefly blinks off (0% for 300ms) before dimming to ensure you notice. Above the threshold dims to 50% of current; below blinks then dims to 3%.</span></span>
+              </label>
+              <div class="form-control">
+                <input type="number" class="form-input" id="motion-blink-threshold" min="5" max="50" step="1" value="15" style="width: 80px;">
+                <span class="form-hint">% brightness</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- CT Brightness Compensation Section -->
-    <div class="settings-section">
-      <div class="section-header" data-section-key="ctcomp">
-        <div class="section-header-left">
-          CT Brightness Compensation
-          <span class="info-icon">i<span class="info-tooltip">Compensates for brightness loss when Hue bulbs transition from efficient warm-white LEDs to less efficient RGB LEDs at very warm color temperatures. The "handover zone" is where this transition occurs.</span></span>
-        </div>
-        <label class="checkbox-label" style="font-weight: normal;">
-          <input type="checkbox" id="ct-comp-enabled">
-          <span style="font-size: 0.85rem;">Enabled</span>
-        </label>
-      </div>
-      <div class="section-content" id="ct-comp-content">
-        <div class="form-row">
-          <label class="form-label">
-            Handover begin
-            <span class="info-icon">i<span class="info-tooltip">The warmer (lower) end of the handover zone where RGB LEDs take over completely. Below this temperature, compensation is capped at the max factor.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="ct-comp-begin" min="500" max="2500" step="50" value="1650" style="width: 100px;">
-            <span class="form-hint">K</span>
+    <!-- Quirky Hardware Section -->
+    <div class="settings-section collapsed">
+      <div class="section-header" data-section-key="quirkyhardware">Quirky Hardware</div>
+      <div class="section-content">
+
+        <div class="sub-section">
+          <div class="sub-section-header">
+            <span class="sub-section-title">2-Step light adjustment</span>
+            <span class="info-icon">i<span class="info-tooltip">For bulbs that show a color 'arc' when turning on or adjusting brightness with a big color temperature change: splits the command into two steps — set color at low brightness, then set target brightness.</span></span>
+          </div>
+          <div class="sub-section-body">
+            <div class="form-row">
+              <label class="form-label">
+                Brightness delta
+                <span class="info-icon">i<span class="info-tooltip">Minimum brightness change (%) required to trigger 2-step. Below this delta, color changes are sent directly. Applies to both off→on and already-on transitions.</span></span>
+              </label>
+              <div class="form-control">
+                <input type="number" class="form-input" id="two-step-bri-threshold" min="0" max="50" step="1" value="15" style="width: 80px;">
+                <span class="form-hint">% brightness change</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <label class="form-label">
+                Delay between steps
+                <span class="info-icon">i<span class="info-tooltip">Pause between step 1 (set color at low brightness) and step 2 (transition to target brightness).</span></span>
+              </label>
+              <div class="form-control">
+                <input type="number" class="form-input" id="two-step-delay" min="0" max="20" step="0.1" value="5" style="width: 80px;">
+                <span class="form-hint">tenths of a second</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="form-row">
-          <label class="form-label">
-            Handover end
-            <span class="info-icon">i<span class="info-tooltip">The cooler (higher) end of the handover zone where warm-white LEDs are still efficient. Above this temperature, no compensation is applied.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="ct-comp-end" min="1500" max="3500" step="50" value="2250" style="width: 100px;">
-            <span class="form-hint">K</span>
+        <div class="sub-section">
+          <div class="sub-section-header">
+            <label class="checkbox-label">
+              <input type="checkbox" id="ct-comp-enabled">
+            </label>
+            <span class="sub-section-title">CT brightness compensation</span>
+            <span class="info-icon">i<span class="info-tooltip">Compensates for brightness loss when Hue bulbs transition from efficient warm-white LEDs to less efficient RGB LEDs at very warm color temperatures. The "handover zone" is where this transition occurs.</span></span>
+          </div>
+          <div class="sub-section-body" id="ct-comp-content">
+            <div class="form-row">
+              <label class="form-label">
+                Handover begin
+                <span class="info-icon">i<span class="info-tooltip">The warmer (lower) end of the handover zone where RGB LEDs take over completely. Below this temperature, compensation is capped at the max factor.</span></span>
+              </label>
+              <div class="form-control">
+                <input type="number" class="form-input" id="ct-comp-begin" min="500" max="2500" step="50" value="1650" style="width: 100px;">
+                <span class="form-hint">K</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <label class="form-label">
+                Handover end
+                <span class="info-icon">i<span class="info-tooltip">The cooler (higher) end of the handover zone where warm-white LEDs are still efficient. Above this temperature, no compensation is applied.</span></span>
+              </label>
+              <div class="form-control">
+                <input type="number" class="form-input" id="ct-comp-end" min="1500" max="3500" step="50" value="2250" style="width: 100px;">
+                <span class="form-hint">K</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <label class="form-label">
+                Max compensation
+                <span class="info-icon">i<span class="info-tooltip">The brightness multiplier applied at and below the handover begin temperature. 1.4 means brightness is boosted by 40% to counteract the perceived dimming.</span></span>
+              </label>
+              <div class="form-control">
+                <input type="number" class="form-input" id="ct-comp-factor" min="1.0" max="2.0" step="0.05" value="1.7" style="width: 100px;">
+                <span class="form-hint">× (1.0 = none, 1.4 = 40% boost)</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="form-row">
-          <label class="form-label">
-            Max compensation
-            <span class="info-icon">i<span class="info-tooltip">The brightness multiplier applied at and below the handover begin temperature. 1.4 means brightness is boosted by 40% to counteract the perceived dimming.</span></span>
-          </label>
-          <div class="form-control">
-            <input type="number" class="form-input" id="ct-comp-factor" min="1.0" max="2.0" step="0.05" value="1.7" style="width: 100px;">
-            <span class="form-hint">× (1.0 = none, 1.4 = 40% boost)</span>
+        <div class="sub-section">
+          <div class="sub-section-header">
+            <label class="checkbox-label">
+              <input type="checkbox" id="multi-click-enabled">
+            </label>
+            <span class="sub-section-title">Multi-click</span>
+            <span class="info-icon">i<span class="info-tooltip">For switches controlled by a hub that doesn't natively report multi-click events (e.g. the Philips Hue Hub). When enabled, single-click actions are delayed by the speed setting while waiting for additional clicks.</span></span>
+          </div>
+          <div class="sub-section-body" id="multi-click-content">
+            <div class="form-row" id="multi-click-speed-row">
+              <label class="form-label">
+                Speed
+                <span class="info-icon">i<span class="info-tooltip">How long to wait after a single click before deciding it's a single (vs. multi) click. Shorter = snappier single-click response, but a real multi-click sequence has less time between presses.</span></span>
+              </label>
+              <div class="form-control">
+                <input type="number" class="form-input" id="multi-click-speed" min="1" max="100" step="0.1" value="15" style="width: 80px;">
+                <span class="form-hint">tenths of a second</span>
+              </div>
+            </div>
           </div>
         </div>
+
       </div>
     </div>
 
     <!-- Light Filters Section -->
-    <div class="settings-section">
+    <div class="settings-section collapsed">
       <div class="section-header" data-section-key="lightpurposes">Light Purposes</div>
       <div class="section-content">
         <div id="filter-presets-container">
@@ -1091,48 +1329,101 @@
       </div>
     </div>
 
-    <!-- Sun Section -->
-    <div class="settings-section">
-      <div class="section-header" data-section-key="sun">Sun</div>
+
+    <!-- Lab Section — hidden by default. Triple-tap any section header to toggle.
+         Holds tweakable values that aren't yet stable enough to hardcode but
+         shouldn't surface to end users. Once a value is locked in, hardcode it
+         and remove the row. -->
+    <div class="settings-section" id="lab-section" style="display: none;">
+      <div class="section-header" data-section-key="lab" style="color: var(--accent);">
+        <div class="section-header-left">
+          HomeGlo light lab
+          <span class="info-icon">i<span class="info-tooltip">Internal tuning values that aren't yet stable enough to hardcode. Triple-tap any section header to lock the HomeGlo light lab card.</span></span>
+        </div>
+      </div>
       <div class="section-content">
-        <div class="location-section" id="location-section">
-          <div class="location-row">
-            <label class="checkbox-label">
-              <input type="checkbox" id="use-ha-location" checked>
-              <span>Use Home Assistant location</span>
-            </label>
-            <div class="location-fields" id="location-fields">
-              <div class="location-field">
-                <span class="field-label">Lat</span>
-                <input type="number" class="location-input" id="latitude" step="0.0001" placeholder="40.71" disabled>
-              </div>
-              <div class="location-field">
-                <span class="field-label">Long</span>
-                <input type="number" class="location-input" id="longitude" step="0.0001" placeholder="-74.00" disabled>
-              </div>
-              <div class="location-field">
-                <span class="field-label">TZ</span>
-                <select class="location-select" id="timezone" disabled>
-                  <option value="US/Eastern">US/Eastern</option>
-                  <option value="US/Central">US/Central</option>
-                  <option value="US/Mountain">US/Mountain</option>
-                  <option value="US/Pacific">US/Pacific</option>
-                  <option value="US/Alaska">US/Alaska</option>
-                  <option value="US/Hawaii">US/Hawaii</option>
-                  <option value="Europe/London">Europe/London</option>
-                  <option value="Europe/Paris">Europe/Paris</option>
-                  <option value="Europe/Berlin">Europe/Berlin</option>
-                  <option value="Asia/Tokyo">Asia/Tokyo</option>
-                  <option value="Asia/Shanghai">Asia/Shanghai</option>
-                  <option value="Australia/Sydney">Australia/Sydney</option>
-                  <option value="UTC">UTC</option>
-                </select>
-              </div>
-            </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            Pulse window
+            <span class="info-icon">i<span class="info-tooltip">How long the white pulse-dot next to recently-touched controls stays visible. Opacity fades linearly from full to invisible over this window. Used on the area-details Controls card and the main Controls list.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="controls-pulse-window-hours" min="0.25" max="48" step="0.25" value="6" style="width: 80px;">
+            <span class="form-hint">hours</span>
           </div>
         </div>
 
-        <div class="form-row" style="border-top:1px solid var(--line);margin-top:12px;padding-top:12px;">
+        <div class="form-row">
+          <label class="form-label">
+            Card freshness window
+            <span class="info-icon">i<span class="info-tooltip">How long collapsible-card open/closed state is remembered between visits. After this many minutes of inactivity, the next page load resets to defaults (e.g., area-details opens Adjust; control details opens Reach). Affects area-details, control-details, and rhythm-design pages.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="card-freshness-minutes" min="1" max="720" step="1" value="15" style="width: 80px;">
+            <span class="form-hint">minutes</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            Recent-touched window
+            <span class="info-icon">i<span class="info-tooltip">How recently a control must have been triggered to show the "very recent" emphasis (glow + slow breathing animation on the green pulse dot). Outside this window the dot still fades over the longer Pulse window above. Used on the controls list and area-details Controls card.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="controls-recent-window-minutes" min="1" max="120" step="1" value="5" style="width: 80px;">
+            <span class="form-hint">minutes</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            Read-only ZHA
+            <span class="info-icon">i<span class="info-tooltip">For dual-addon setups (dev + prod on the same Home Assistant). When ON, this addon will NOT sync ZHA group membership — it'll only read group state and dispatch to existing groups. The OTHER addon owns ZHA group membership in this case. Prevents the two addons from racing on the 4 AM daily sync (and on startup / "Sync devices") and clobbering each other's groups.</span></span>
+          </label>
+          <div class="form-control">
+            <label class="checkbox-label" style="margin-left: 0;">
+              <input type="checkbox" id="read-only-zha">
+              <span>Skip ZHA group sync (defer to another addon instance)</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            Tick command shape
+            <span class="info-icon">i<span class="info-tooltip">Experimental — what gets sent each periodic tick. <b>Both</b> = current (brightness + CT in one turn_on). <b>Skip</b> = no command if neither changed within tolerance (1% / 25K). <b>Bri only</b> = drop CT from payload when CT unchanged. <b>CT only</b> = drop brightness from payload when bri unchanged. Use to identify what part of a redundant command makes some bulbs visibly bounce.</span></span>
+          </label>
+          <div class="form-control">
+            <select class="form-input" id="experimental-tick-mode" style="width: 180px;">
+              <option value="both">Both (default)</option>
+              <option value="skip">Skip if no change</option>
+              <option value="bri_only">Bri only (when CT unchanged)</option>
+              <option value="ct_only">CT only (when bri unchanged)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            Step plateau shift
+            <span class="info-icon">i<span class="info-tooltip">When the up/down buttons are pressed at the brightness step plateau (max or min), the Adjust-card arrows shift the circadian curve by this many minutes per press instead.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="step-fallback-minutes" min="1" max="180" step="1" value="30" style="width: 80px;">
+            <span class="form-hint">minutes</span>
+          </div>
+        </div>
+
+        <div class="form-row" id="weather-condition-group" style="display: none;">
+          <label class="form-label">
+            Weather conditions sky clarity
+            <span class="info-icon">i<span class="info-tooltip">How clear each weather condition is. 100% = full sun, 0% = complete darkness. These multiply the sun elevation factor to produce the final sun intensity. Only relevant when Intensity source is "Sun position &#xd7; sky clarity".</span></span>
+          </label>
+          <div class="form-control" id="weather-condition-sliders" style="display: flex; flex-direction: column; gap: 6px; width: 100%;"></div>
+        </div>
+
+        <div class="form-row">
           <label class="form-label">
             Sun saturation
             <span class="info-icon">i<span class="info-tooltip">At what percentage of peak sun elevation does outdoor brightness reach 100%? Lower values mean full brightness is reached earlier in the morning and lasts later in the afternoon. At 25%, once the sun reaches 25% of its peak elevation, the angle factor is fully saturated. Affects both sun dimming (brightness) and sun cooling (color).</span></span>
@@ -1142,79 +1433,37 @@
             <span class="form-hint">% of peak elevation</span>
           </div>
         </div>
-      </div>
-    </div>
 
-    <!-- App Section -->
-    <div class="settings-section">
-      <div class="section-header" data-section-key="app">App</div>
-      <div class="section-content">
         <div class="form-row">
           <label class="form-label">
-            Confirm zone pushes
-            <span class="info-icon">i<span class="info-tooltip">When enabled, shows a confirmation dialog before pushing light settings to an entire Rhythm Zone (Full Send, GloDown, Zone Power Off). When disabled, these actions execute immediately.</span></span>
+            Home page refresh
+            <span class="info-icon">i<span class="info-tooltip">How often the home page area cards refresh to show current brightness, color temperature, and on/off state. Lower values show changes faster but increase browser network activity.</span></span>
           </label>
           <div class="form-control">
-            <label class="checkbox-label">
-              <input type="checkbox" id="confirm-zone-pushes">
-            </label>
+            <input type="number" class="form-input" id="home-refresh-interval" min="2" max="60" step="1" value="3" style="width: 80px;">
+            <span class="form-hint">seconds</span>
           </div>
         </div>
 
-        <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:12px;">
-          <div style="font-size:0.8rem;color:var(--muted);margin-bottom:8px;font-weight:600;">Homepage</div>
-
-          <div class="form-row">
-            <label class="form-label">
-              Slider
-              <span class="info-icon">i<span class="info-tooltip">What the area row slider controls on the home page. Circadian moves along the full curve (brightness + color). Brightness adjusts brightness only. Color adjusts color only.</span></span>
-            </label>
-            <div class="form-control">
-              <select class="form-input" id="home-slider-mode" style="width: 140px;">
-                <option value="brightness">Brightness</option>
-                <option value="step">Circadian</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="form-row">
-            <label class="form-label">
-              Up/down buttons
-              <span class="info-icon">i<span class="info-tooltip">What the stacked up/down buttons do on each area row. Circadian steps along the full curve. Brightness adjusts brightness only. Color adjusts color only. Zone actions: Up = Glo Up (push this area's state up to its zone); Down = Glo Down (pull the zone's state back into this area, clearing overrides).</span></span>
-            </label>
-            <div class="form-control">
-              <select class="form-input" id="home-buttons-mode" style="width: 140px;">
-                <option value="step">Circadian</option>
-                <option value="bright">Brightness</option>
-                <option value="color">Color</option>
-                <option value="zone">Zone actions</option>
-              </select>
-            </div>
+        <div class="form-row">
+          <label class="form-label">
+            Post-switch refresh
+            <span class="info-icon">i<span class="info-tooltip">After a switch press, delay this long then run a full circadian refresh to catch any lights that missed the initial command. Each subsequent press resets the timer.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="post-switch-refresh" min="10" max="100" step="5" value="30" style="width: 80px;">
+            <span class="form-hint">tenths of a second</span>
           </div>
         </div>
 
-        <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:12px;">
-          <div style="font-size:0.8rem;color:var(--muted);margin-bottom:8px;font-weight:600;">Rhythm chart</div>
-
-          <div class="form-row">
-            <label class="form-label">
-              Cursor step
-              <span class="info-icon">i<span class="info-tooltip">How much the &larr; / &rarr; buttons on the rhythm-zone chart cursor advance the cursor each tap. Smaller values let you fine-tune what lights look like at a specific moment; larger values let you skim through the day faster.</span></span>
-            </label>
-            <div class="form-control">
-              <select class="form-input" id="rhythm-cursor-step-min" style="width: 100px;">
-                <option value="1">1 min</option>
-                <option value="2">2 min</option>
-                <option value="3">3 min</option>
-                <option value="4">4 min</option>
-                <option value="5" selected>5 min</option>
-                <option value="10">10 min</option>
-                <option value="12">12 min</option>
-                <option value="15">15 min</option>
-                <option value="30">30 min</option>
-                <option value="60">60 min</option>
-              </select>
-            </div>
+        <div class="form-row">
+          <label class="form-label">
+            Post-switch burst count
+            <span class="info-icon">i<span class="info-tooltip">Number of shortened tick refreshes after a switch action. These catch lights that missed the initial command. Set to 0 to disable burst refreshes entirely.</span></span>
+          </label>
+          <div class="form-control">
+            <input type="number" class="form-input" id="post-action-burst-count" min="0" max="3" step="1" value="1" style="width: 80px;">
+            <span class="form-hint">0-3 refreshes</span>
           </div>
         </div>
       </div>
@@ -1254,7 +1503,6 @@
         const response = await fetch('./api/config');
         if (response.ok) {
           const config = await response.json();
-          document.getElementById('home-name').value = config.home_name ?? 'Your home';
           document.getElementById('power-recovery').value = config.power_recovery ?? 'last_state';
           document.getElementById('turn-on-transition').value = config.turn_on_transition ?? 3;
           document.getElementById('turn-off-transition').value = config.turn_off_transition ?? 3;
@@ -1273,9 +1521,6 @@
           document.getElementById('home-buttons-mode').value = config.home_buttons_mode ?? 'step';
           document.getElementById('rhythm-cursor-step-min').value = String(config.rhythm_cursor_step_min ?? 5);
           document.getElementById('circadian-refresh').value = config.circadian_refresh ?? 20;
-          const refreshDefault = config.circadian_refresh ?? 20;
-          document.getElementById('periodic-transition-day').value = config.periodic_transition_day ?? 1;
-          document.getElementById('periodic-transition-night').value = config.periodic_transition_night ?? 1;
           document.getElementById('home-refresh-interval').value = config.home_refresh_interval ?? 3;
           // Daily sync time
           const syncH = config.daily_sync_hour ?? 4;
@@ -1310,6 +1555,7 @@
           updateReachFeedbackState();
           document.getElementById('freeze-feedback-enabled').checked = config.freeze_feedback_enabled ?? true;
           document.getElementById('freeze-off-rise').value = config.freeze_off_rise ?? 10;
+          document.getElementById('freeze-hold-at-dim').value = config.freeze_hold_at_dim ?? 2;
           updateFreezeFeedbackState();
           document.getElementById('limit-bounce-enabled').checked = config.limit_bounce_enabled ?? true;
           document.getElementById('limit-warning-speed').value = config.limit_warning_speed ?? 3;
@@ -1344,9 +1590,6 @@
             luxSelect.appendChild(opt);
           }
           luxSelect.value = savedSensor;
-          document.getElementById('lux-smoothing-interval').value = config.lux_smoothing_interval ?? 300;
-          document.getElementById('lux-learned-ceiling').value = config.lux_learned_ceiling ?? '';
-          document.getElementById('lux-learned-floor').value = config.lux_learned_floor ?? '';
           updateOutdoorSourceState();
           buildWeatherConditionSliders(config);
           // Load outdoor status
@@ -1359,6 +1602,15 @@
           updateCtCompState();
           updateLocationSection(config);
           document.getElementById('sun-saturation').value = config.sun_saturation ?? 40;
+          document.getElementById('experimental-tick-mode').value = config.experimental_tick_mode ?? 'both';
+          document.getElementById('controls-pulse-window-hours').value = config.controls_pulse_window_hours ?? 6;
+          document.getElementById('card-freshness-minutes').value = config.card_freshness_minutes ?? 15;
+          document.getElementById('controls-recent-window-minutes').value = config.controls_recent_window_minutes ?? 5;
+          document.getElementById('read-only-zha').checked = !!config.read_only_zha;
+          // Shadow into localStorage so card-persistence pages can read
+          // it synchronously on init (before they fetch /api/config).
+          localStorage.setItem('homeglo_card_freshness_min', String(config.card_freshness_minutes ?? 15));
+          localStorage.setItem('homeglo_recent_window_min', String(config.controls_recent_window_minutes ?? 5));
         }
       } catch (err) {
         console.error('Error loading settings:', err);
@@ -1367,7 +1619,6 @@
 
     async function saveSettings() {
       const settings = {
-        home_name: document.getElementById('home-name').value.trim(),
         power_recovery: document.getElementById('power-recovery').value,
         turn_on_transition: parseFloat(document.getElementById('turn-on-transition').value) || 3,
         turn_off_transition: parseFloat(document.getElementById('turn-off-transition').value) || 3,
@@ -1386,8 +1637,6 @@
         home_buttons_mode: document.getElementById('home-buttons-mode').value,
         rhythm_cursor_step_min: parseInt(document.getElementById('rhythm-cursor-step-min').value, 10),
         circadian_refresh: parseInt(document.getElementById('circadian-refresh').value) || 20,
-        periodic_transition_day: parseInt(document.getElementById('periodic-transition-day').value) || 1,
-        periodic_transition_night: parseInt(document.getElementById('periodic-transition-night').value) || 1,
         home_refresh_interval: parseInt(document.getElementById('home-refresh-interval').value) || 3,
         daily_sync_hour: parseInt(document.getElementById('daily-sync-time').value.split(':')[0]) || 4,
         daily_sync_minute: parseInt(document.getElementById('daily-sync-time').value.split(':')[1]) || 0,
@@ -1398,6 +1647,7 @@
         reach_daytime_threshold: parseInt(document.getElementById('reach-daytime-threshold').value) || 50,
         freeze_feedback_enabled: document.getElementById('freeze-feedback-enabled').checked,
         freeze_off_rise: parseFloat(document.getElementById('freeze-off-rise').value) || 10,
+        freeze_hold_at_dim: parseInt(document.getElementById('freeze-hold-at-dim').value) || 2,
         limit_bounce_enabled: document.getElementById('limit-bounce-enabled').checked,
         limit_warning_speed: parseFloat(document.getElementById('limit-warning-speed').value) || 3,
         alert_bounce_speed: parseInt(document.getElementById('alert-bounce-speed').value) || 10,
@@ -1405,15 +1655,21 @@
         limit_bounce_min_percent: parseInt(document.getElementById('limit-bounce-min-percent').value) || 13,
         outdoor_brightness_source: document.getElementById('outdoor-brightness-source').value,
         outdoor_lux_sensor: document.getElementById('outdoor-lux-sensor').value.trim() || null,
-        lux_smoothing_interval: parseInt(document.getElementById('lux-smoothing-interval').value || '300'),
-        lux_learned_ceiling: parseFloat(document.getElementById('lux-learned-ceiling').value) || null,
-        lux_learned_floor: parseFloat(document.getElementById('lux-learned-floor').value) || null,
         ct_comp_enabled: document.getElementById('ct-comp-enabled').checked,
         ct_comp_begin: parseInt(document.getElementById('ct-comp-begin').value) || 1650,
         ct_comp_end: parseInt(document.getElementById('ct-comp-end').value) || 2250,
         ct_comp_factor: parseFloat(document.getElementById('ct-comp-factor').value) || 1.7,
-        sun_saturation: parseInt(document.getElementById('sun-saturation').value) || 40
+        sun_saturation: parseInt(document.getElementById('sun-saturation').value) || 40,
+        experimental_tick_mode: document.getElementById('experimental-tick-mode').value || 'both',
+        controls_pulse_window_hours: parseFloat(document.getElementById('controls-pulse-window-hours').value) || 6,
+        card_freshness_minutes: parseInt(document.getElementById('card-freshness-minutes').value, 10) || 15,
+        controls_recent_window_minutes: parseInt(document.getElementById('controls-recent-window-minutes').value, 10) || 5,
+        read_only_zha: document.getElementById('read-only-zha').checked
       };
+      // Shadow Lab values to localStorage so pages can read them
+      // synchronously at init (before /api/config fetch resolves).
+      localStorage.setItem('homeglo_card_freshness_min', String(settings.card_freshness_minutes));
+      localStorage.setItem('homeglo_recent_window_min', String(settings.controls_recent_window_minutes));
 
       try {
         const response = await fetch('./api/config', {
@@ -1432,7 +1688,7 @@
 
     function updateMultiClickState() {
       const enabled = document.getElementById('multi-click-enabled').checked;
-      const speedGroup = document.getElementById('multi-click-speed-group');
+      const speedGroup = document.getElementById('multi-click-content');
       const speedInput = document.getElementById('multi-click-speed');
 
       if (enabled) {
@@ -1473,15 +1729,16 @@
 
     function updateFreezeFeedbackState() {
       const enabled = document.getElementById('freeze-feedback-enabled').checked;
-      const row = document.getElementById('freeze-off-rise-row');
-      const input = document.getElementById('freeze-off-rise');
-      if (enabled) {
-        row.style.opacity = '1';
-        input.disabled = false;
-      } else {
-        row.style.opacity = '0.4';
-        input.disabled = true;
-      }
+      const rows = [
+        document.getElementById('freeze-off-rise-row'),
+        document.getElementById('freeze-hold-at-dim-row'),
+      ];
+      const inputs = [
+        document.getElementById('freeze-off-rise'),
+        document.getElementById('freeze-hold-at-dim'),
+      ];
+      for (const row of rows) if (row) row.style.opacity = enabled ? '1' : '0.4';
+      for (const input of inputs) if (input) input.disabled = !enabled;
     }
 
     function updateCtCompState() {
@@ -1494,14 +1751,17 @@
       }
     }
 
-    async function syncDevices() {
-      const btn = document.getElementById('sync-devices-btn');
+    // Generic sync runner used by both buttons. Hits the given endpoint
+    // and surfaces success/failure in #sync-status, restoring the button
+    // label on completion.
+    async function _runSync(btn, endpoint, restoreLabel) {
       const status = document.getElementById('sync-status');
       btn.disabled = true;
+      const origLabel = btn.textContent;
       btn.textContent = 'Syncing...';
       status.textContent = '';
       try {
-        const response = await fetch('./api/sync-devices', { method: 'POST' });
+        const response = await fetch(endpoint, { method: 'POST' });
         const result = await response.json();
         if (response.ok) {
           status.textContent = 'Sync complete';
@@ -1513,12 +1773,22 @@
       } catch (err) {
         status.textContent = 'Sync failed';
         status.style.color = '#f44336';
-        console.error('Error syncing devices:', err);
+        console.error('Error syncing:', endpoint, err);
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Sync now';
+        btn.textContent = restoreLabel || origLabel;
         setTimeout(() => { status.textContent = ''; }, 5000);
       }
+    }
+
+    async function syncDevices() {
+      const btn = document.getElementById('sync-devices-btn');
+      await _runSync(btn, './api/sync-devices', 'Sync lights');
+    }
+
+    async function syncControls() {
+      const btn = document.getElementById('sync-controls-btn');
+      await _runSync(btn, './api/sync-controls', 'Sync controls');
     }
 
     function showSaveStatus() {
@@ -1531,8 +1801,7 @@
     function updateOutdoorSourceState() {
       const source = document.getElementById('outdoor-brightness-source').value;
       document.getElementById('lux-settings-group').style.display = source === 'lux' ? '' : 'none';
-      document.getElementById('weather-condition-group').style.display =
-        (source === 'weather' || source === 'angle') ? '' : 'none';
+      document.getElementById('weather-condition-group').style.display = source === 'weather' ? '' : 'none';
     }
 
     // Weather condition multiplier sliders
@@ -1603,78 +1872,304 @@
       } catch (e) { console.error('Error saving condition map:', e); }
     }
 
-    // Outdoor brightness override + status
+    // Outdoor brightness chip + breakdown popover.
+    //
+    // Backend math (lux_tracker.py:get_outdoor_normalized), by source:
+    //   - "angle":   outdoor = elev_factor
+    //   - "weather": outdoor = elev_factor × condition_multiplier
+    //   - override:  same shape, condition pinned to override
+    // elev_factor = smoothstep((min(elev, sat_thresh)/sat_thresh)^0.75),
+    //   where sat_thresh = max_summer_elevation × sun_saturation%.
+    // condition_multiplier = weather_condition_map[ha_condition], or
+    //   fallback 1 - cloud_cover% × 0.7 when condition is unmapped.
+
+    // Weather glyph for the popover Sun clarity row only. Reflects the
+    // actual condition (sunny/cloudy/rainy/etc.) — when override is active,
+    // we use the override's chosen condition, not a generic gear, since
+    // override-ness is already communicated by the override row below.
+    // VS16 (️) forces emoji presentation so icons render in color
+    // instead of macOS's lifeless text-glyph fallback.
+    function buildClarityIcon(d) {
+      if (!d) return '☀️';
+      // When override is active, the override's chosen condition is the
+      // single source of truth — don't fall back to HA cloud_cover (which
+      // would otherwise force ☁️ even after the user overrode to sunny).
+      const isOverride = d.source === 'override' && d.override && d.override.condition;
+      const cond = (isOverride ? d.override.condition : (d.weather_condition || '')).toLowerCase();
+      const cloudCover = isOverride ? 0 : (d.weather_cloud_cover ?? 0);
+      if (cond.includes('lightning') || cond.includes('storm')) return '⛈️';
+      if (cond.includes('pour')) return '🌧️';
+      if (cond.includes('rain')) return '🌦️';
+      if (cond.includes('snow')) return '❄️';
+      if (cond.includes('fog') || cond.includes('mist')) return '🌫️';
+      if (cond.includes('partlycloudy') || cond.includes('partly')) return '⛅';
+      if (cond.includes('cloudy') || cloudCover > 70) return '☁️';
+      return '☀️';
+    }
+
+    // Map current weather condition string → an OVERRIDE_CONDITIONS value
+    // so the picker defaults to "match current weather" when popped open.
+    function pickDefaultOverrideCondition(data) {
+      const cond = (data && data.weather_condition || '').toLowerCase();
+      if (cond.includes('lightning') || cond.includes('storm')) return 'lightning';
+      if (cond.includes('pour') || cond.includes('hail')) return 'pouring';
+      if (cond.includes('rain')) return 'rainy';
+      if (cond.includes('snow')) return 'snowy';
+      if (cond.includes('fog') || cond.includes('mist')) return 'fog';
+      if (cond.includes('partlycloudy') || cond.includes('partly')) return 'partlycloudy';
+      if (cond.includes('cloudy')) return 'cloudy';
+      return 'sunny';
+    }
+
+    let _lastOutdoorData = null;
+    // Whether the override picker (condition + duration + Set) is revealed.
+    // Hidden by default; toggled by the "override" link in the Sun clarity row.
+    let _overridePickerOpen = false;
     async function refreshOutdoorStatus() {
       try {
         const res = await fetch('./api/outdoor-status');
         if (!res.ok) return;
         const data = await res.json();
-        const badge = document.getElementById('outdoor-status-badge');
-        const detail = document.getElementById('outdoor-status-detail');
+        _lastOutdoorData = data;
         const pct = Math.round((data.outdoor_normalized ?? 0) * 100);
-        const sourceLabels = { override: 'Override', lux: 'Lux sensor', weather: 'Weather', angle: 'Sun angle', none: 'None' };
-        const sourceColors = { override: 'var(--warning)', lux: 'var(--success)', weather: '#60a5fa', angle: 'var(--muted)', none: 'var(--danger)' };
-        const src = data.source || 'none';
-        badge.textContent = (sourceLabels[src] || src) + ': ' + pct + '%';
-        badge.style.background = sourceColors[src] || 'rgba(255,255,255,0.08)';
-        badge.style.color = '#000';
-        let detailText = '';
-        if (data.override) {
-          const cond = data.override.condition.replace('_', ' ');
-          detailText = cond.charAt(0).toUpperCase() + cond.slice(1) + ' (' + data.override.expires_in_minutes + ' min left)';
-        } else if (src === 'weather' && data.weather_cloud_cover != null) {
-          detailText = 'Cloud cover: ' + Math.round(data.weather_cloud_cover) + '%';
-        } else if (src === 'lux' && data.lux_smoothed != null) {
-          detailText = 'Smoothed: ' + Math.round(data.lux_smoothed) + ' lux';
-        }
-        detail.textContent = detailText;
-
-        // Show/hide override buttons
-        const applyBtn = document.getElementById('override-apply');
-        const clearBtn = document.getElementById('override-clear');
-        const condSelect = document.getElementById('override-condition');
-        if (data.override) {
-          condSelect.value = data.override.condition;
-          applyBtn.style.display = 'none';
-          clearBtn.style.display = '';
-        } else {
-          clearBtn.style.display = 'none';
-          applyBtn.style.display = condSelect.value ? '' : 'none';
-        }
+        document.getElementById('outdoor-chip-pct').textContent = pct + '%';
+        const pop = document.getElementById('outdoor-chip-popover');
+        if (pop && !pop.hidden) renderOutdoorPopover(data);
       } catch (e) { console.warn('Could not load outdoor status:', e); }
     }
 
-    document.getElementById('override-condition').addEventListener('change', function() {
-      const applyBtn = document.getElementById('override-apply');
-      const clearBtn = document.getElementById('override-clear');
-      applyBtn.style.display = this.value ? '' : 'none';
-      clearBtn.style.display = 'none';
-    });
+    // Override condition list — backend keys (matched against
+    // CONDITION_MULTIPLIERS in lux_tracker.py) paired with friendly labels
+    // and the corresponding weather_groups key used to look up the live
+    // sky-clarity % for each condition.
+    const OVERRIDE_CONDITIONS = [
+      { value: 'sunny',         label: 'Sunny',         groupKey: 'sunny' },
+      { value: 'partlycloudy',  label: 'Partly cloudy', groupKey: 'mixed' },
+      { value: 'cloudy',        label: 'Cloudy',        groupKey: 'cloudy' },
+      { value: 'rainy',         label: 'Rainy',         groupKey: 'rainy' },
+      { value: 'snowy',         label: 'Snowy',         groupKey: 'snowy' },
+      { value: 'fog',           label: 'Fog',           groupKey: 'fog' },
+      { value: 'pouring',       label: 'Pouring',       groupKey: 'pouring' },
+      { value: 'lightning',     label: 'Storm',         groupKey: 'lightning' },
+    ];
 
-    document.getElementById('override-apply').addEventListener('click', async function() {
-      const condition = document.getElementById('override-condition').value;
-      const duration = parseInt(document.getElementById('override-duration').value) || 60;
-      if (!condition) return;
-      try {
-        await fetch('./api/outdoor-override', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ condition, duration_minutes: duration })
+    function renderOutdoorPopover(data) {
+      const pop = document.getElementById('outdoor-chip-popover');
+      if (!pop) return;
+      const src = data.source || 'none';
+      const isActive = !!data.override;
+      const anglePct = Math.round((data.angle_factor ?? 0) * 100);
+      const outdoorPct = Math.round((data.outdoor_normalized ?? 0) * 100);
+
+      // Effective clarity multiplier — backend's condition_multiplier doesn't
+      // respect override, so derive from outdoor/angle when override is active.
+      let condPct;
+      if (isActive && (data.angle_factor ?? 0) > 0) {
+        condPct = Math.round((data.outdoor_normalized / data.angle_factor) * 100);
+      } else {
+        condPct = Math.round((data.condition_multiplier ?? 1) * 100);
+      }
+
+      let condWord = '';
+      if (isActive && data.override) {
+        condWord = data.override.condition.replace(/_/g, ' ');
+      } else if (src === 'weather' && data.weather_condition) {
+        condWord = data.weather_condition.replace(/-/g, ' ');
+      }
+
+      // Sun angle row — empty extras cell keeps grid columns lined up.
+      let rows = '';
+      rows += `
+        <span class="ocp-op"></span>
+        <span class="ocp-label">Sun position</span>
+        <span class="ocp-num">${anglePct}%</span>
+        <span class="ocp-extras"></span>
+      `;
+
+      if (src === 'weather' || isActive) {
+        // Build the extras column for the Sun clarity row.
+        // Line 1: condition word + icon (always when we have weather data).
+        const condLine = condWord
+          ? `<span class="ocp-extras-line"><span class="ocp-cond-word">${condWord}</span><span class="ocp-cond-icon">${buildClarityIcon(data)}</span></span>`
+          : `<span class="ocp-extras-line"><span class="ocp-cond-icon">${buildClarityIcon(data)}</span></span>`;
+        // Line 2: when override is active → badge + countdown + clear.
+        //         when inactive       → small "override" toggle link.
+        let metaLine = '';
+        if (isActive) {
+          // expires_in_minutes is null when override is "forever" (no expiry).
+          // formatDurationRemaining renders "permanent" in that case; otherwise
+          // a compact "Xm/Xh/Xd/Xw left".
+          const remaining = formatDurationRemaining(data.override.expires_in_minutes);
+          metaLine = `<span class="ocp-extras-line ocp-extras-meta">
+            <span class="ocp-tag-override">override</span>
+            <span>&middot; ${remaining}</span>
+            <button type="button" class="ocp-link-btn" id="ocp-clear-btn" title="Clear override">clear</button>
+          </span>`;
+        } else if (!_overridePickerOpen) {
+          // Picker closed → show "override" toggle link. When the picker is
+          // open the link disappears; user closes via "cancel" in the
+          // picker section's header instead.
+          metaLine = `<span class="ocp-extras-line ocp-extras-meta">
+            <button type="button" class="ocp-link-btn" id="ocp-toggle-picker-btn">override</button>
+          </span>`;
+        }
+        rows += `
+          <span class="ocp-op">&#xd7;</span>
+          <span class="ocp-label">Sky clarity</span>
+          <span class="ocp-num">${condPct}%</span>
+          <span class="ocp-extras">${condLine}${metaLine}</span>
+        `;
+      }
+
+      // Math-formula divider only spans label+number cols (per design).
+      // Pad the divider row with empty spans for col 1 and col 4 so auto-
+      // placement finishes that row cleanly — otherwise the next row's
+      // spans get pulled into the empty col 1 / col 4 cells of this row,
+      // which is what shifted Sun intensity's "30%" left into the op
+      // column and made the alignment look broken.
+      rows += `<span class="ocp-pad"></span><div class="ocp-divider"></div><span class="ocp-pad"></span>`;
+      rows += `
+        <span class="ocp-op"></span>
+        <span class="ocp-label ocp-label-total">Sun intensity</span>
+        <span class="ocp-num ocp-num-total">${outdoorPct}%</span>
+        <span class="ocp-extras"></span>
+      `;
+
+      // Override picker — hidden by default. Revealed when the user clicks
+      // the "override" link in the Sun clarity row. Section divider + header
+      // separate it from the formula. Default condition matches the current
+      // weather so the picker pre-loads with what's happening now.
+      if (!isActive && _overridePickerOpen) {
+        const defaultCond = pickDefaultOverrideCondition(data);
+        // Map weather_groups keys → live multiplier so the picker can show
+        // each condition with its current sky-clarity % (e.g. "Cloudy 30%").
+        const groupMap = {};
+        (data.weather_groups || []).forEach(g => { groupMap[g.key] = g.multiplier; });
+        const condOpts = OVERRIDE_CONDITIONS
+          .map(c => {
+            const mult = groupMap[c.groupKey];
+            const pctSuffix = mult != null ? ' ' + Math.round(mult * 100) + '%' : '';
+            return `<option value="${c.value}"${c.value === defaultCond ? ' selected' : ''}>${c.label}${pctSuffix}</option>`;
+          })
+          .join('');
+        rows += `<div class="ocp-section-divider"></div>`;
+        rows += `
+          <div class="ocp-override">
+            <div class="ocp-override-section-header">
+              <span class="ocp-override-section-title">Sky clarity override</span>
+              <button type="button" class="ocp-link-btn" id="ocp-toggle-picker-btn">cancel</button>
+            </div>
+            <div class="ocp-override-controls">
+              <select id="ocp-cond-select">${condOpts}</select>
+              <select id="ocp-dur-select">${buildDurationOptions(DURATION_DEFAULT)}</select>
+              <button type="button" id="ocp-set-btn">Set</button>
+            </div>
+          </div>
+        `;
+      }
+
+      pop.innerHTML = rows;
+
+      // Wire override handlers (re-attach each render since innerHTML wipes
+      // them). All handlers stopPropagation so the document-level outside-
+      // click handler doesn't see them as "outside" — re-rendering replaces
+      // the button DOM, so by the time the outside-click handler fires
+      // pop.contains(e.target) would otherwise be false → popover closes.
+      const toggleBtn = pop.querySelector('#ocp-toggle-picker-btn');
+      if (toggleBtn) {
+        toggleBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const wasOpen = _overridePickerOpen;
+          _overridePickerOpen = !_overridePickerOpen;
+          if (_lastOutdoorData) renderOutdoorPopover(_lastOutdoorData);
+          // Re-position since picker reveal changes popover height.
+          positionOutdoorPopover();
+          // When opening, focus the condition select and try to drop it
+          // down so the user can pick immediately. showPicker() is
+          // Chromium-only — focus is the universal fallback.
+          if (!wasOpen) {
+            const condSelect = pop.querySelector('#ocp-cond-select');
+            if (condSelect) {
+              condSelect.focus();
+              if (typeof condSelect.showPicker === 'function') {
+                try { condSelect.showPicker(); } catch (_) { /* ignore */ }
+              }
+            }
+          }
         });
-        refreshOutdoorStatus();
-      } catch (e) { console.error('Error applying override:', e); }
-    });
+      }
+      const setBtn = pop.querySelector('#ocp-set-btn');
+      if (setBtn) {
+        setBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const condition = pop.querySelector('#ocp-cond-select').value;
+          const durRaw = pop.querySelector('#ocp-dur-select').value;
+          // null = "forever" — no expiry. Backend handles null specially.
+          const duration_minutes = durationValueToMinutes(durRaw);
+          setBtn.disabled = true;
+          setBtn.textContent = 'Setting...';
+          try {
+            await fetch('./api/outdoor-override', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ condition, duration_minutes })
+            });
+            _overridePickerOpen = false;  // collapse picker now that override is on
+            await refreshOutdoorStatus();
+          } catch (err) { console.warn('override set failed:', err); }
+          finally { setBtn.disabled = false; }
+        });
+      }
+      const clearBtn = pop.querySelector('#ocp-clear-btn');
+      if (clearBtn) {
+        clearBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          clearBtn.disabled = true;
+          clearBtn.textContent = 'clearing...';
+          try {
+            await fetch('./api/outdoor-override', { method: 'DELETE' });
+            await refreshOutdoorStatus();
+          } catch (err) { console.warn('override clear failed:', err); }
+          finally { clearBtn.disabled = false; }
+        });
+      }
+    }
 
-    document.getElementById('override-clear').addEventListener('click', async function() {
-      try {
-        await fetch('./api/outdoor-override', { method: 'DELETE' });
-        document.getElementById('override-condition').value = '';
-        refreshOutdoorStatus();
-      } catch (e) { console.error('Error clearing override:', e); }
-    });
+    function positionOutdoorPopover() {
+      const chip = document.getElementById('outdoor-status-chip');
+      const pop = document.getElementById('outdoor-chip-popover');
+      if (!chip || !pop || pop.hidden) return;
+      const r = chip.getBoundingClientRect();
+      // Place below the chip, left-aligned to it. Switch to fixed positioning
+      // so it isn't clipped by the section's overflow rules.
+      pop.style.position = 'fixed';
+      pop.style.top = (r.bottom + 6) + 'px';
+      pop.style.left = r.left + 'px';
+      // Prevent right-edge overflow
+      const popW = pop.offsetWidth;
+      const vw = window.innerWidth;
+      if (r.left + popW + 12 > vw) {
+        pop.style.left = Math.max(8, vw - popW - 12) + 'px';
+      }
+    }
+
+    function toggleOutdoorPopover(force) {
+      const chip = document.getElementById('outdoor-status-chip');
+      const pop = document.getElementById('outdoor-chip-popover');
+      if (!chip || !pop) return;
+      const open = force != null ? force : pop.hidden;
+      pop.hidden = !open;
+      chip.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open) {
+        if (_lastOutdoorData) renderOutdoorPopover(_lastOutdoorData);
+        positionOutdoorPopover();
+      } else {
+        // Reset transient picker state so reopening starts clean.
+        _overridePickerOpen = false;
+      }
+    }
 
     // Auto-save on blur for number inputs (avoids decrement bug on focus)
-    document.getElementById('home-name').addEventListener('blur', saveSettings);
     document.getElementById('power-recovery').addEventListener('change', saveSettings);
     document.getElementById('turn-on-transition').addEventListener('blur', saveSettings);
     document.getElementById('turn-off-transition').addEventListener('blur', saveSettings);
@@ -1696,8 +2191,6 @@
     document.getElementById('home-buttons-mode').addEventListener('change', saveSettings);
     document.getElementById('rhythm-cursor-step-min').addEventListener('change', saveSettings);
     document.getElementById('circadian-refresh').addEventListener('blur', saveSettings);
-    document.getElementById('periodic-transition-day').addEventListener('blur', saveSettings);
-    document.getElementById('periodic-transition-night').addEventListener('blur', saveSettings);
     document.getElementById('home-refresh-interval').addEventListener('blur', saveSettings);
     document.getElementById('daily-sync-time').addEventListener('change', saveSettings);
     document.getElementById('advanced-logging').addEventListener('change', async function() {
@@ -1725,6 +2218,7 @@
     document.getElementById('reach-daytime-threshold').addEventListener('blur', saveSettings);
     document.getElementById('freeze-feedback-enabled').addEventListener('change', () => { updateFreezeFeedbackState(); saveSettings(); });
     document.getElementById('freeze-off-rise').addEventListener('blur', saveSettings);
+    document.getElementById('freeze-hold-at-dim').addEventListener('blur', saveSettings);
     document.getElementById('limit-bounce-enabled').addEventListener('change', () => {
       updateLimitBounceState();
       saveSettings();
@@ -1733,19 +2227,14 @@
     document.getElementById('limit-bounce-max-percent').addEventListener('blur', saveSettings);
     document.getElementById('limit-bounce-min-percent').addEventListener('blur', saveSettings);
     document.getElementById('alert-bounce-speed').addEventListener('blur', saveSettings);
-    document.getElementById('outdoor-brightness-source').addEventListener('change', () => {
+    document.getElementById('outdoor-brightness-source').addEventListener('change', async () => {
       updateOutdoorSourceState();
-      saveSettings();
-    });
-    document.getElementById('outdoor-lux-sensor').addEventListener('change', async function() {
-      // Clear old baselines (they belong to the previous sensor)
-      document.getElementById('lux-learned-ceiling').value = '';
-      document.getElementById('lux-learned-floor').value = '';
       await saveSettings();
+      // Backend reloads lux_tracker config on save — pull fresh status so
+      // chip reflects the new source immediately (was: stale until next visit).
+      refreshOutdoorStatus();
     });
-    document.getElementById('lux-smoothing-interval').addEventListener('blur', saveSettings);
-    document.getElementById('lux-learned-ceiling').addEventListener('blur', saveSettings);
-    document.getElementById('lux-learned-floor').addEventListener('blur', saveSettings);
+    document.getElementById('outdoor-lux-sensor').addEventListener('change', saveSettings);
     document.getElementById('ct-comp-enabled').addEventListener('change', () => {
       updateCtCompState();
       saveSettings();
@@ -1755,6 +2244,11 @@
     document.getElementById('ct-comp-factor').addEventListener('blur', saveSettings);
 
     document.getElementById('sun-saturation').addEventListener('blur', saveSettings);
+    document.getElementById('experimental-tick-mode').addEventListener('change', saveSettings);
+    document.getElementById('controls-pulse-window-hours').addEventListener('blur', saveSettings);
+    document.getElementById('card-freshness-minutes').addEventListener('blur', saveSettings);
+    document.getElementById('controls-recent-window-minutes').addEventListener('blur', saveSettings);
+    document.getElementById('read-only-zha').addEventListener('change', saveSettings);
 
     // Location functions
     function updateLocationSection(config) {
@@ -1767,14 +2261,19 @@
     }
 
     function updateLocationInputsState(useHA) {
-      const fields = document.getElementById('location-fields');
-      const inputs = fields.querySelectorAll('input, select');
-      inputs.forEach(input => input.disabled = useHA);
-      if (useHA) {
-        fields.classList.add('disabled');
-      } else {
-        fields.classList.remove('disabled');
-      }
+      // Disable just the manual lat/long/tz inputs — never the use-ha-location
+      // toggle itself, otherwise the user can't uncheck once they've checked.
+      ['latitude', 'longitude', 'timezone'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = useHA;
+      });
+      // Also dim the row labels (the .disabled class on .form-row is already
+      // styled with opacity:0.5, so this gives visual feedback that lat/long
+      // and timezone aren't editable).
+      ['lat-long-row', 'timezone-row'].forEach(id => {
+        const row = document.getElementById(id);
+        if (row) row.classList.toggle('disabled', useHA);
+      });
     }
 
     async function saveLocationSettings() {
@@ -1956,26 +2455,172 @@
     // checkbox, info-icon tooltips) don't trigger toggle — their clicks
     // are skipped via target inspection.
     function initSectionToggles() {
+      // Freshness reset: if it's been >1h since the user last toggled
+      // anything (or no timestamp at all — e.g. first visit), wipe stored
+      // state and apply the default — Main expanded, all else collapsed —
+      // so settings opens in a focused state every fresh session.
+      const FRESHNESS_MS = 60 * 60 * 1000;
+      const TS_KEY = 'settings_collapse_ts';
+      const lastTs = parseInt(localStorage.getItem(TS_KEY) || '0', 10);
+      const stale = !lastTs || (Date.now() - lastTs) > FRESHNESS_MS;
+      if (stale) {
+        Object.keys(localStorage).forEach(k => {
+          if (k.startsWith('settings_section_') && k.endsWith('_collapsed')) {
+            localStorage.removeItem(k);
+          }
+        });
+        document.querySelectorAll('.section-header[data-section-key]').forEach(header => {
+          const key = header.dataset.sectionKey;
+          if (key !== 'main') {
+            localStorage.setItem('settings_section_' + key + '_collapsed', 'true');
+          }
+        });
+      }
+
       document.querySelectorAll('.section-header[data-section-key]').forEach(header => {
         const key = header.dataset.sectionKey;
         const section = header.parentElement;
-        // Restore stored state
-        if (localStorage.getItem('settings_section_' + key + '_collapsed') === 'true') {
+        // Apply stored state. Sections render `.collapsed` by default in
+        // HTML (except Main) so the page never shows them open and then
+        // collapses (avoids flicker). Stored 'false' = user explicitly
+        // opened → remove .collapsed. Stored 'true' or no value = stay
+        // at HTML default.
+        const stored = localStorage.getItem('settings_section_' + key + '_collapsed');
+        if (stored === 'false') {
+          section.classList.remove('collapsed');
+        } else if (stored === 'true') {
           section.classList.add('collapsed');
         }
         header.addEventListener('click', (e) => {
           // Skip toggle when click started on a form control / interactive
           // element inside the header — keeps inline checkboxes etc. usable.
           if (e.target.closest('input, select, textarea, label, .info-icon, button')) return;
+          const content = section.querySelector('.section-content');
+          const isExpanding = section.classList.contains('collapsed');
+          if (isExpanding && content) {
+            // Temporarily clip during expand animation so content doesn't pop
+            // open at full size before max-height catches up. Cleared on
+            // transitionend, restoring overflow:visible so tooltips escape.
+            content.style.overflow = 'hidden';
+            const onEnd = (ev) => {
+              if (ev.propertyName !== 'max-height') return;
+              content.style.overflow = '';
+              content.removeEventListener('transitionend', onEnd);
+            };
+            content.addEventListener('transitionend', onEnd);
+          }
           section.classList.toggle('collapsed');
           const collapsed = section.classList.contains('collapsed');
           localStorage.setItem('settings_section_' + key + '_collapsed', collapsed ? 'true' : 'false');
+          // Refresh the freshness timestamp so the user's intentional state
+          // sticks for the next hour of activity.
+          localStorage.setItem(TS_KEY, String(Date.now()));
         });
       });
     }
 
+    // Lab unlock: triple-tap any section header within ~1.2s to toggle the
+    // Lab card visibility. Persists per-browser via localStorage. Used by
+    // HomeGlo to expose tweakable values that aren't yet stable enough to
+    // hardcode and shouldn't surface to end users.
+    // Info-tooltip positioner. Tooltip uses position:fixed (so it can escape
+    // any overflow:hidden ancestor and the viewport bottom). On hover/click,
+    // we compute icon-relative coords and flip the tooltip above the icon
+    // when below would clip the viewport.
+    function positionInfoTooltip(icon) {
+      const tooltip = icon.querySelector('.info-tooltip');
+      if (!tooltip) return;
+      // Make tooltip measurable without yet showing it at the wrong spot
+      const prevDisp = tooltip.style.display;
+      const prevVis = tooltip.style.visibility;
+      tooltip.style.visibility = 'hidden';
+      tooltip.style.display = 'block';
+      const tipW = tooltip.offsetWidth;
+      const tipH = tooltip.offsetHeight;
+      tooltip.style.display = prevDisp;
+      tooltip.style.visibility = prevVis;
+      const iconRect = icon.getBoundingClientRect();
+      let top = iconRect.bottom + 8;
+      if (top + tipH > window.innerHeight - 10) {
+        top = Math.max(10, iconRect.top - tipH - 8);  // flip above
+      }
+      const left = Math.max(10, Math.min(iconRect.left - 4, window.innerWidth - tipW - 10));
+      tooltip.style.top = top + 'px';
+      tooltip.style.left = left + 'px';
+    }
+    document.addEventListener('mouseover', (e) => {
+      const icon = e.target.closest && e.target.closest('.info-icon');
+      if (icon) positionInfoTooltip(icon);
+    }, true);
+    document.addEventListener('click', (e) => {
+      const icon = e.target.closest && e.target.closest('.info-icon');
+      if (icon) {
+        // Click toggles a class for mobile (no hover); also re-positions.
+        const wasOpen = icon.classList.contains('is-tooltip-open');
+        document.querySelectorAll('.info-icon.is-tooltip-open').forEach(i => i.classList.remove('is-tooltip-open'));
+        if (!wasOpen) {
+          positionInfoTooltip(icon);
+          icon.classList.add('is-tooltip-open');
+        }
+      } else {
+        document.querySelectorAll('.info-icon.is-tooltip-open').forEach(i => i.classList.remove('is-tooltip-open'));
+      }
+    }, true);
+
+    function applyLabState() {
+      const unlocked = localStorage.getItem('homeglo_lab_unlocked') === '1';
+      const lab = document.getElementById('lab-section');
+      if (lab) lab.style.display = unlocked ? '' : 'none';
+    }
+    function initLabUnlock() {
+      applyLabState();
+      let taps = [];
+      document.addEventListener('click', (e) => {
+        const header = e.target.closest('.section-header[data-section-key]');
+        if (!header) return;
+        const now = Date.now();
+        taps = taps.filter(t => now - t < 1200);
+        taps.push(now);
+        if (taps.length >= 3) {
+          taps = [];
+          const cur = localStorage.getItem('homeglo_lab_unlocked') === '1';
+          if (cur) {
+            localStorage.removeItem('homeglo_lab_unlocked');
+          } else {
+            localStorage.setItem('homeglo_lab_unlocked', '1');
+          }
+          applyLabState();
+        }
+      }, true);  // capture-phase so we run before the section's collapse toggle
+    }
+
     document.addEventListener('DOMContentLoaded', async () => {
       initSectionToggles();
+      initLabUnlock();
+      // Outdoor chip: click toggles the breakdown popover.
+      const outdoorChip = document.getElementById('outdoor-status-chip');
+      if (outdoorChip) {
+        outdoorChip.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleOutdoorPopover();
+        });
+        // Close on outside click / Escape / scroll / resize.
+        document.addEventListener('click', (e) => {
+          const pop = document.getElementById('outdoor-chip-popover');
+          if (!pop || pop.hidden) return;
+          if (!pop.contains(e.target) && e.target !== outdoorChip && !outdoorChip.contains(e.target)) {
+            toggleOutdoorPopover(false);
+          }
+        });
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') toggleOutdoorPopover(false);
+        });
+        window.addEventListener('resize', positionOutdoorPopover);
+        window.addEventListener('scroll', positionOutdoorPopover, true);
+      }
+      // Re-fetch outdoor status every 30s so the chip stays live (sun
+      // elevation drifts, weather entity updates can lag).
+      setInterval(refreshOutdoorStatus, 30000);
       await loadSettings();
       // Load filter presets
       try {

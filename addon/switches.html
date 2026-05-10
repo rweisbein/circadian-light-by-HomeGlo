@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Circadian Light - Controls</title>
+  <link rel="stylesheet" href="./shared.css">
   <style>
     :root {
       --bg: #000;
@@ -106,7 +107,11 @@
 
     /* Main Content */
     .main {
-      max-width: 900px;
+      /* Mobile-first sizing — 750px keeps left/right info close together
+         on desktop. Wide enough for the multi-field cards but not so
+         wide that controls' summary line and right-side primary feel
+         disconnected on browser. */
+      max-width: 750px;
       margin: 0 auto;
       padding: 12px 12px 24px;
     }
@@ -546,6 +551,226 @@
     .acp-device:hover .acp-report-btn { opacity: 1; }
     .acp-report-btn:hover { color: var(--text); border-color: var(--muted); }
     .acp-report-btn:disabled { opacity: 0.5; cursor: default; }
+
+    /* ========================================================================
+       Controls page — card layout (replaces table). Each row is a clickable
+       card; view-specific bodies render different field emphasis (battery
+       prominent in BATTERIES, etc.). Filter toolbar lives above the cards
+       since the old in-header filter UX is gone with the table.
+       ====================================================================== */
+    /* Two-row toolbar: row 1 = filters (search + area + type chips),
+       row 2 = organization (sort + count + clear). Intentional split so
+       layout doesn't reflow randomly with viewport width. */
+    .ctrl-toolbar {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 4px 0 12px;
+    }
+    .ctrl-toolbar-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .ctrl-toolbar-row-organize {
+      font-size: 0.85rem;
+      color: var(--muted2);
+    }
+
+    /* Search: collapsed-to-icon by default; expands inline when tapped
+       or while a search term is active. The expanded state grabs the
+       remaining row width so the input is usable. */
+    .ctrl-toolbar .ctrl-search-wrap { position: relative; flex: 1 1 auto; min-width: 0; }
+    .ctrl-toolbar input[type="search"],
+    .ctrl-toolbar input[type="text"].ctrl-search {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 6px 28px 6px 10px;
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+    .ctrl-toolbar input.ctrl-search:focus { outline: 1px solid var(--muted); }
+    .ctrl-toolbar .ctrl-search-clear {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.95rem;
+      padding: 2px 4px;
+    }
+    .ctrl-toolbar .ctrl-search-clear:hover { color: var(--text); }
+    .ctrl-toolbar .ctrl-icon-btn {
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--card);
+      color: var(--muted);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      cursor: pointer;
+      flex-shrink: 0;
+      box-sizing: border-box;
+    }
+    .ctrl-toolbar .ctrl-icon-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.32); }
+    .ctrl-toolbar .ctrl-icon-btn.is-active { color: var(--accent); border-color: var(--accent); }
+    .ctrl-toolbar select.ctrl-tb-select {
+      height: 34px;
+      padding: 0 10px;
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      box-sizing: border-box;
+    }
+    /* Area + type selects share the same closed-state cap (140px). Most
+       area / type names fit; longer names truncate with the browser's
+       ellipsis when closed. Native dropdowns size options to their full
+       content when open, so longer names are still readable on selection. */
+    .ctrl-toolbar select#ctrl-area-filter,
+    .ctrl-toolbar select#ctrl-type-filter {
+      flex: 0 1 auto;
+      min-width: 0;
+      max-width: 140px;
+      text-overflow: ellipsis;
+    }
+    /* Inline clear for area filter — only rendered when a specific area
+       is selected. Borderless × in muted color, brighter on hover.
+       Mirrors the search-field × idiom but lives external to the select
+       (native <select> can't host inline children). */
+    .ctrl-toolbar .ctrl-area-clear {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 0 4px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .ctrl-toolbar .ctrl-area-clear:hover { color: var(--text); }
+    .ctrl-toolbar select.ctrl-tb-select.is-active { border-color: var(--accent); }
+    .ctrl-toolbar .ctrl-result-count { color: var(--muted2); font-size: 0.78rem; margin-left: auto; }
+
+    /* Card list — single grouped container with thin internal dividers
+       between rows. Avoids the nested-box look that came from per-card
+       rounded borders + gap. */
+    .ctrl-card-list {
+      display: flex;
+      flex-direction: column;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+    .ctrl-card-empty {
+      padding: 40px 16px;
+      text-align: center;
+      color: var(--muted2);
+      font-size: 0.9rem;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      margin-bottom: 12px;
+    }
+
+    /* Single row inside the grouped card */
+    /* Two-row grid: top row holds pulse / icon / name / area-name aligned
+       horizontally; bottom row's summary lines span the body+area columns
+       so reach/mode lines have full row width on mobile (instead of being
+       squeezed by the right-side area name column). */
+    .ctrl-card-row {
+      display: grid;
+      grid-template-columns: 16px 22px 1fr auto;
+      grid-template-areas:
+        "pulse icon title area"
+        ".     .    summary summary";
+      align-items: center;
+      column-gap: 10px;
+      row-gap: 2px;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .ctrl-card-row + .ctrl-card-row {
+      border-top: 1px solid var(--line);
+    }
+    .ctrl-card-row:hover { background: rgba(255, 255, 255, 0.05); }
+    .ctrl-card-row.is-stale { opacity: 0.55; }
+    .ctrl-card-pulse { grid-area: pulse; display: flex; align-items: center; justify-content: center; }
+    .ctrl-card-icon { grid-area: icon; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 1rem; }
+    .ctrl-card-title { grid-area: title; display: flex; align-items: center; gap: 6px; font-size: 0.95rem; font-weight: 600; color: var(--text); flex-wrap: wrap; min-width: 0; }
+    .ctrl-card-title-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ctrl-card-sub { font-size: 0.78rem; color: var(--muted); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .ctrl-card-sub .glozone { opacity: 0.7; }
+    .ctrl-card-sub .area { color: var(--muted); }
+    .ctrl-card-sub .meta-bullet { color: var(--muted2); }
+    /* Right-side prominent field (per-view emphasis). Top-aligned with
+       the title row so multi-line summaries underneath can span the
+       full body+area width (mobile: more horizontal room for the area
+       lists in the summary). For ALL view, the primary is a 2-line
+       stack: bold relative-time on top, muted action verb beneath. */
+    .ctrl-card-pri,
+    .ctrl-card-pri-muted,
+    .ctrl-card-pri-stack { grid-area: area; align-self: center; }
+    .ctrl-card-pri { font-size: 0.95rem; font-weight: 600; color: var(--text); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .ctrl-card-pri-muted { font-size: 0.85rem; color: var(--muted); font-weight: 500; }
+    .ctrl-card-pri-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 1px;
+      text-align: right;
+      white-space: nowrap;
+    }
+    .ctrl-card-pri-warn { color: var(--warning); }
+    .ctrl-card-pri-caution { color: #fbbf24; } /* yellow — between warn (orange) and neutral, used for the 25-50% battery band */
+    .ctrl-card-pri-danger { color: var(--danger); }
+    .ctrl-card-pri-success { color: var(--success); }
+
+    /* Inline badges on the title row */
+    .ctrl-badge {
+      font-size: 0.65rem;
+      font-weight: 500;
+      padding: 1px 6px;
+      border-radius: 4px;
+      vertical-align: middle;
+    }
+    /* Paused + setup badges: outlined-pill treatment (no fill, just a
+       thin border + muted text). Color-coded variants retired here —
+       orange/yellow felt too aggressive and could be confused with each
+       other or the battery warn-band. The pillbox shape carries the
+       "this is a status tag" semantic without needing color. Stale stays
+       red since it's an actual error state. */
+    .ctrl-badge-paused {
+      color: var(--text);
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.28);
+    }
+    .ctrl-badge-setup {
+      color: var(--text);
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.28);
+    }
+    .ctrl-badge-stale { color: var(--danger); background: rgba(239,68,68,0.10); }
+    .ctrl-card-magic { color: var(--accent); font-size: 0.85rem; }
+    .ctrl-card-lowbatt { color: var(--danger); font-size: 0.7rem; }
+
+    /* .ctrl-card-summary now lives in shared.css (used by the
+       area-details Controls card too). */
   </style>
 </head>
 <body>
@@ -568,15 +793,14 @@
   <!-- Main Content -->
   <main class="main">
     <div class="page-header">
-      <div style="display: flex; align-items: center; gap: 12px;">
-        <a href="./switchmap" style="font-size: 0.8rem; color: var(--muted); text-decoration: underline; text-decoration-color: rgba(255,255,255,0.2); text-underline-offset: 3px;">Cheatsheet &rarr;</a>
-        <select id="fourth-field-header" style="margin-left:auto;font-size:0.78rem;padding:2px 6px;border-radius:4px;border:1px solid var(--line);background:var(--card);color:var(--text);cursor:pointer;">
-          <option value="lastAction">Last action</option>
-          <option value="status">Status</option>
-          <option value="battery">Battery</option>
-          <option value="lux">Lux</option>
-          <option value="pause">Pause</option>
-        </select>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="flex: 1;"></span>
+        <!-- Task-view pill bar (collapsed-by-default). Each pill is a
+             curated lens — filter + sort + emphasis preset. Same component
+             as the home page (see .view-segments in shared.css). -->
+        <div class="view-segments" id="controls-view-segments" role="tablist" title="Page mode">
+          <!-- Populated at render time by renderViewSegments(). -->
+        </div>
       </div>
     </div>
 
@@ -601,16 +825,108 @@
     let areaFilter = 'all';
     let fourthField = 'lastAction';
     let searchFilter = '';
+    let _searchExpanded = false;
     let statusFilter = 'all';
     let pauseFilter = 'all';
     let lastActionFilter = 'all';
     let batteryFilter = 'all';
     let refreshIntervalMs = 3000;
     let customAreaOrder = {};  // area_id -> order index
+    let pulseWindowHours = 6;   // Lab-configurable; populated from /api/config
+
+    // Task-view pill bar — uses the shared setupViewSegments component
+    // (see shared.js). The bar is the page's mode switcher and persists
+    // across CHEATSHEET (which lives on a separate URL but mounts the
+    // same component for visual continuity).
+    let currentView = 'all';
+    // Mounted-once pill bar handle (see setupViewSegments in shared.js).
+    // We update active value via _viewSegHandle.setActive() — never
+    // re-call setupViewSegments, since each call adds a new document
+    // click handler.
+    let _viewSegHandle = null;
+
+    const CONTROL_VIEWS = [
+      { value: 'all',        label: 'Browse' },
+      { value: 'setup',      label: 'Setup' },
+      { value: 'batteries',  label: 'Battery' },
+      { value: 'paused',     label: 'Paused' },
+      { value: 'cheatsheet', label: 'Cheatsheet' },
+    ];
+
+    function selectView(v) {
+      // CHEATSHEET — separate page, but the pill bar there mounts the
+      // same component so the visual chrome looks unified. We carry no
+      // state across — the cheatsheet page has its own self-contained
+      // edit flow.
+      if (v === 'cheatsheet') {
+        window.location.href = './switchmap';
+        return;
+      }
+      currentView = v;
+      // Apply view preset: which column to show + which sort. Each view
+      // is a curated lens (filter + sort + emphasis) for a specific job.
+      if (v === 'setup') {
+        // Paused + never-used controls. Sort by name.
+        fourthField = 'pause';
+        statusFilter = 'all'; pauseFilter = 'all';
+        batteryFilter = 'all'; lastActionFilter = 'all';
+        sortColumn = 'name';
+        sortAsc = true;
+      } else if (v === 'batteries') {
+        // Battery-powered only. Sort: lowest battery first.
+        fourthField = 'battery';
+        statusFilter = 'all'; pauseFilter = 'all';
+        batteryFilter = 'all'; lastActionFilter = 'all';
+        sortColumn = 'fourth';
+        sortAsc = true;
+      } else if (v === 'paused') {
+        // All paused controls. Sort: ending soonest first.
+        fourthField = 'pause';
+        statusFilter = 'all'; pauseFilter = 'all';
+        batteryFilter = 'all'; lastActionFilter = 'all';
+        sortColumn = 'fourth';
+        sortAsc = true;
+      } else {
+        // ALL — no preset; user's legacy fourthField/filters/sort stand.
+      }
+      savePreferences();
+      // Update the (already-mounted) pill bar's active value, then
+      // re-render the body. Do NOT re-mount — that would stack click
+      // handlers and break navigation.
+      if (_viewSegHandle) _viewSegHandle.setActive(currentView);
+      renderControls();
+    }
+
+    function mountControlsViewSegments() {
+      // Mount the pill bar exactly once. Use _viewSegHandle.setActive(v)
+      // to change the active value later.
+      if (_viewSegHandle) return;
+      _viewSegHandle = setupViewSegments({
+        containerId: 'controls-view-segments',
+        views: CONTROL_VIEWS,
+        active: currentView,
+        onSelect: selectView,
+      });
+    }
 
     // Initialize
     document.addEventListener('DOMContentLoaded', async () => {
       await loadPreferences();
+      // ?view= query param overrides persisted view (used when arriving
+      // from the cheatsheet page's pill-bar nav).
+      try {
+        const qsView = new URLSearchParams(window.location.search).get('view');
+        const valid = ['all', 'setup', 'batteries', 'paused'];
+        if (qsView && valid.indexOf(qsView) !== -1) {
+          currentView = qsView;
+        }
+      } catch (_) {}
+      // Apply preset for the loaded view (whether from prefs or query param).
+      // selectView would normally be called via the pill bar — calling it
+      // directly here applies filters + sort and re-renders.
+      if (currentView !== 'all') {
+        selectView(currentView);
+      }
       loadData();
       setupEventListeners();
     });
@@ -620,12 +936,15 @@
         const raw = sessionStorage.getItem('controls_ui');
         if (raw) {
           const prefs = JSON.parse(raw);
-          // Expire preferences after 5 minutes
-          if (!prefs.saved_at || Date.now() - prefs.saved_at > 300000) {
+          // Expire prefs after the HomeGlo Lab card-freshness window
+          // (default 15 min). Filters live in sessionStorage so they
+          // already clear on tab close; this clears stale filters
+          // within the same session too.
+          if (!prefs.saved_at || Date.now() - prefs.saved_at > cardFreshnessMs()) {
             sessionStorage.removeItem('controls_ui');
             return;
           }
-          sortColumn = prefs.sort_column || 'area';
+          sortColumn = prefs.sort_column || 'fourth';
           if (sortColumn === 'lastAction' || sortColumn === 'lux') sortColumn = 'fourth';
           sortAsc = prefs.sort_asc !== false;
           categoryFilter = prefs.category_filter || 'all';
@@ -636,6 +955,7 @@
           pauseFilter = prefs.pause_filter || 'all';
           lastActionFilter = prefs.last_action_filter || 'all';
           batteryFilter = prefs.battery_filter || 'all';
+          currentView = prefs.current_view || 'all';
         }
       } catch (err) {
         console.error('Error loading preferences:', err);
@@ -655,6 +975,7 @@
           pause_filter: pauseFilter,
           last_action_filter: lastActionFilter,
           battery_filter: batteryFilter,
+          current_view: currentView,
           saved_at: Date.now()
         }));
       } catch (err) {
@@ -697,6 +1018,10 @@
           const hri = config.home_refresh_interval;
           if (hri && hri >= 1 && hri <= 60) refreshIntervalMs = hri * 1000;
 
+          // Pulse-dot fade window (Lab setting; default 6h)
+          const pwh = parseFloat(config.controls_pulse_window_hours);
+          if (Number.isFinite(pwh) && pwh > 0) pulseWindowHours = pwh;
+
           // Build custom area order from glozones (zone order, then area order within zone)
           customAreaOrder = {};
           let orderIndex = 0;
@@ -732,7 +1057,15 @@
         categoryFilter = 'all';
         filtersReset = true;
       }
-      if (areaFilter !== 'all' && areaFilter !== 'unassigned' && !areas.includes(areaFilter)) {
+      // Validate area filter — accepts 'all', 'unassigned', a zone (`zone:<id>`),
+      // or an area name. Reset to 'all' if the saved value no longer applies.
+      if (areaFilter.startsWith('zone:')) {
+        const zid = areaFilter.slice(5);
+        if (!allGlozones.some(z => z.id === zid)) {
+          areaFilter = 'all';
+          filtersReset = true;
+        }
+      } else if (areaFilter !== 'all' && areaFilter !== 'unassigned' && !areas.includes(areaFilter)) {
         areaFilter = 'all';
         filtersReset = true;
       }
@@ -740,12 +1073,27 @@
         savePreferences();
       }
 
-      // Sync header fourth-field selector
-      const headerSelect = document.getElementById('fourth-field-header');
-      if (headerSelect) headerSelect.value = fourthField;
-
       // Apply all filters
       const filtered = controls.filter(c => {
+        // View-driven filter (Pass 2): each non-ALL task view has its
+        // own predicate. Applied BEFORE legacy filters; the legacy
+        // fourthField-driven filters run only for the ALL view (since
+        // other views ARE the filter).
+        if (currentView === 'setup') {
+          // Setup = backend says status='not_configured' — the same
+          // signal that drives the per-card "setup" badge. Backend rule
+          // for switches: configured iff has scope areas OR has any
+          // magic_buttons assigned. For sensors: configured iff has at
+          // least one scope with areas. Aligning with the badge ensures
+          // the view and the badge always agree.
+          if (c.status !== 'not_configured') return false;
+        } else if (currentView === 'batteries') {
+          // Battery-powered controls only.
+          if (c.battery == null || c.battery.value == null) return false;
+        } else if (currentView === 'paused') {
+          // Any active pause (timed or forever).
+          if (!c.inactive) return false;
+        }
         if (searchFilter) {
           const search = searchFilter.toLowerCase();
           const nameMatch = (c.name || '').toLowerCase().includes(search);
@@ -754,42 +1102,88 @@
         }
         if (categoryFilter !== 'all' && c.category !== categoryFilter) return false;
         if (areaFilter === 'unassigned' && c.area_name) return false;
-        if (areaFilter !== 'all' && areaFilter !== 'unassigned' && c.area_name !== areaFilter) return false;
-        if (fourthField === 'status' && statusFilter !== 'all' && c.status !== statusFilter) return false;
-        if (fourthField === 'pause' && pauseFilter !== 'all') {
-          if (pauseFilter === 'paused' && !c.inactive) return false;
-          if (pauseFilter === 'active' && c.inactive) return false;
+        if (areaFilter.startsWith('zone:')) {
+          // Zone filter — pure location filter. Include the control if
+          // its home area belongs to the zone. No reach semantics
+          // (zones span multiple areas; "Direct reach to Zone" doesn't
+          // mean anything coherent).
+          const zoneId = areaFilter.slice(5);
+          const zone = allGlozones.find(z => z.id === zoneId);
+          if (!zone || !zone.areaIds.includes(c.area_id)) return false;
+        } else if (areaFilter !== 'all' && areaFilter !== 'unassigned') {
+          // Single-area filter — widen to include reach: a control
+          // matches if it LIVES in the area, or any scope REACHES it.
+          // The render then splits into Direct/Indirect/Presence/Alerts
+          // /Doesn't-reach buckets.
+          const targetAreaId = (allAreas.find(a => a.name === areaFilter) || {}).area_id;
+          const isIn = c.area_name === areaFilter;
+          const reaches = targetAreaId && (c.scopes || []).some(s => (s.areas || []).includes(targetAreaId));
+          if (!isIn && !reaches) return false;
         }
-        if (fourthField === 'battery' && batteryFilter !== 'all') {
-          const bv = c.battery?.value;
-          const hasBatt = bv != null;
-          if (batteryFilter === 'has') return hasBatt;
-          if (batteryFilter === 'none') return !hasBatt;
-          if (!hasBatt) return false;
-          if (batteryFilter === 'lt10') return bv < 10;
-          if (batteryFilter === 'lt20') return bv < 20;
-          if (batteryFilter === 'lt30') return bv < 30;
-          if (batteryFilter === 'lt40') return bv < 40;
-          if (batteryFilter === 'lt50') return bv < 50;
-        }
-        if (fourthField === 'lastAction' && lastActionFilter !== 'all') {
-          const ts = c.last_action?.timestamp ? new Date(c.last_action.timestamp).getTime() : 0;
-          const now = Date.now();
-          const hasAction = ts > 0;
-          if (lastActionFilter === 'never') return !hasAction;
-          if (!hasAction) return false; // "not in past week/month" excludes never-acted items
-          if (lastActionFilter === '1h') return (now - ts) < 3600000;
-          if (lastActionFilter === 'today') return new Date(ts).toDateString() === new Date(now).toDateString();
-          if (lastActionFilter === 'week') return (now - ts) < 7 * 86400000;
-          if (lastActionFilter === 'not_week') return (now - ts) >= 7 * 86400000;
-          if (lastActionFilter === 'not_month') return (now - ts) >= 30 * 86400000;
+        // Legacy fourthField-driven filters — only apply in ALL view.
+        // In other views, the view itself is the filter; layering more
+        // would just confuse.
+        if (currentView === 'all') {
+          if (fourthField === 'status' && statusFilter !== 'all' && c.status !== statusFilter) return false;
+          if (fourthField === 'pause' && pauseFilter !== 'all') {
+            if (pauseFilter === 'paused' && !c.inactive) return false;
+            if (pauseFilter === 'active' && c.inactive) return false;
+          }
+          if (fourthField === 'battery' && batteryFilter !== 'all') {
+            const bv = c.battery?.value;
+            const hasBatt = bv != null;
+            if (batteryFilter === 'has') return hasBatt;
+            if (batteryFilter === 'none') return !hasBatt;
+            if (!hasBatt) return false;
+            if (batteryFilter === 'lt10') return bv < 10;
+            if (batteryFilter === 'lt20') return bv < 20;
+            if (batteryFilter === 'lt30') return bv < 30;
+            if (batteryFilter === 'lt40') return bv < 40;
+            if (batteryFilter === 'lt50') return bv < 50;
+          }
+          if (fourthField === 'lastAction' && lastActionFilter !== 'all') {
+            const ts = c.last_action?.timestamp ? new Date(c.last_action.timestamp).getTime() : 0;
+            const now = Date.now();
+            const hasAction = ts > 0;
+            if (lastActionFilter === 'never') return !hasAction;
+            if (!hasAction) return false; // "not in past week/month" excludes never-acted items
+            if (lastActionFilter === '1h') return (now - ts) < 3600000;
+            if (lastActionFilter === 'today') return new Date(ts).toDateString() === new Date(now).toDateString();
+            if (lastActionFilter === 'week') return (now - ts) < 7 * 86400000;
+            if (lastActionFilter === 'not_week') return (now - ts) >= 7 * 86400000;
+            if (lastActionFilter === 'not_month') return (now - ts) >= 30 * 86400000;
+          }
         }
         return true;
       });
 
-      // Sort controls
+      // Sort controls — view-driven sort overrides take precedence; fall
+      // through to the legacy sortColumn machinery for ALL view.
       const categoryOrder = { 'switch': 0, 'motion_sensor': 1, 'contact_sensor': 2, 'unknown': 3 };
       const sorted = [...filtered].sort((a, b) => {
+        // View-specific sort overrides:
+        if (currentView === 'batteries') {
+          // Lowest battery first; missing values to the bottom.
+          const av = a.battery?.value ?? Infinity;
+          const bv = b.battery?.value ?? Infinity;
+          return av - bv;
+        }
+        if (currentView === 'paused') {
+          // Coming-off-pause-soonest first; permanent (forever, or no
+          // until-date) to the bottom. Both 'forever' and a missing
+          // inactive_until are treated as permanent — paused with no
+          // scheduled expiry IS effectively forever.
+          const aIu = a.inactive_until;
+          const bIu = b.inactive_until;
+          const aTs = (!aIu || aIu === 'forever') ? Infinity : new Date(aIu).getTime();
+          const bTs = (!bIu || bIu === 'forever') ? Infinity : new Date(bIu).getTime();
+          return aTs - bTs;
+        }
+        if (currentView === 'setup') {
+          // Alphabetical — easiest to scan when reviewing unconfigured items.
+          return (a.name || '').localeCompare(b.name || '');
+        }
+        // ALL view → legacy sort by sortColumn:
         let valA, valB;
         switch (sortColumn) {
           case 'name':
@@ -829,193 +1223,435 @@
         if (valA < valB) return sortAsc ? -1 : 1;
         if (valA > valB) return sortAsc ? 1 : -1;
 
-        // Secondary sort by custom area order (when primary values are equal)
+        // Secondary sort by custom area order (when primary values are equal,
+        // and primary isn't already area). Then by control name as the silent
+        // final tiebreaker — gives "Sort: Location" a stable, predictable
+        // order ("home-area-sort, then alphabetical name").
         if (sortColumn !== 'area') {
           const areaA = customAreaOrder[a.area_id] ?? 99999;
           const areaB = customAreaOrder[b.area_id] ?? 99999;
           if (areaA < areaB) return -1;
           if (areaA > areaB) return 1;
         }
+        const nameA = (a.name || '').toLowerCase();
+        const nameB = (b.name || '').toLowerCase();
+        if (nameA < nameB) return -1;
+        if (nameA > nameB) return 1;
         return 0;
       });
 
-      const thClass = (col) => sortColumn === col ? 'sorted' : '';
-
-      // Filter indicator with clear button (orange X)
-      const filterIndicator = (filterName, filterValue, clearFn) => {
-        if (filterValue === 'all') return '';
-        return `<span style="color: var(--accent); margin-left: 4px; cursor: pointer;" onclick="event.stopPropagation(); ${clearFn}">&times;</span>`;
+      // Build area filter options — view-aware. The top-right view pill
+      // is the page's primary slice; the area dropdown reflects only
+      // areas that have controls matching the current view's filter.
+      // Type chips don't cascade with area (or vice versa) — that's the
+      // "secondary filters don't affect each other" rule.
+      const viewMatches = (c) => {
+        if (currentView === 'setup')
+          return c.status === 'not_configured';
+        if (currentView === 'batteries')
+          return c.battery != null && c.battery.value != null;
+        if (currentView === 'paused')
+          return !!c.inactive;
+        return true;  // ALL
       };
-
-      // Orange outline style for active filter dropdowns
-      const filterActiveStyle = (filterValue) => filterValue !== 'all' ? 'border-color: var(--accent);' : '';
-
-      // Build filter select HTML
-      const categoryOptions = `<option value="all">All</option>` +
-        categories.map(c => `<option value="${c}" ${categoryFilter === c ? 'selected' : ''}>${formatCategory(c)}</option>`).join('');
-
-      const areaOptions = `<option value="all">All areas</option>` +
-        (hasUnassigned ? `<option value="unassigned" ${areaFilter === 'unassigned' ? 'selected' : ''}>— Unassigned —</option>` : '') +
-        areas.map(a => `<option value="${a}" ${areaFilter === a ? 'selected' : ''}>${a}</option>`).join('');
-
-      // Build fourth-column filter HTML (only for status and pause fields)
-      let fourthFilterHtml = '';
-      if (fourthField === 'status') {
-        const statusOpts = `<option value="all">All</option>` +
-          ['active', 'inactive', 'not_configured', 'unsupported', 'stale']
-            .map(s => `<option value="${s}" ${statusFilter === s ? 'selected' : ''}>${{active:'Active',inactive:'Paused',not_configured:'Setup',unsupported:'Unsupported',stale:'Stale'}[s]}</option>`).join('');
-        fourthFilterHtml = `<select class="header-filter" id="fourth-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(statusFilter)}">${statusOpts}</select>`;
-      } else if (fourthField === 'pause') {
-        const pauseOpts = `<option value="all">All</option><option value="paused" ${pauseFilter === 'paused' ? 'selected' : ''}>Paused</option><option value="active" ${pauseFilter === 'active' ? 'selected' : ''}>Active</option>`;
-        fourthFilterHtml = `<select class="header-filter" id="fourth-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(pauseFilter)}">${pauseOpts}</select>`;
-      } else if (fourthField === 'lastAction') {
-        const laOpts = `<option value="all">All</option>` +
-          `<option value="1h" ${lastActionFilter === '1h' ? 'selected' : ''}>Last hour</option>` +
-          `<option value="today" ${lastActionFilter === 'today' ? 'selected' : ''}>Today</option>` +
-          `<option value="week" ${lastActionFilter === 'week' ? 'selected' : ''}>Past week</option>` +
-          `<option value="not_week" ${lastActionFilter === 'not_week' ? 'selected' : ''}>Not in past week</option>` +
-          `<option value="not_month" ${lastActionFilter === 'not_month' ? 'selected' : ''}>Not in past month</option>` +
-          `<option value="never" ${lastActionFilter === 'never' ? 'selected' : ''}>Never</option>`;
-        fourthFilterHtml = `<select class="header-filter" id="fourth-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(lastActionFilter)}">${laOpts}</select>`;
-      } else if (fourthField === 'battery') {
-        const battOpts = `<option value="all">All</option>` +
-          `<option value="has" ${batteryFilter === 'has' ? 'selected' : ''}>Has battery</option>` +
-          `<option value="lt10" ${batteryFilter === 'lt10' ? 'selected' : ''}>&lt; 10%</option>` +
-          `<option value="lt20" ${batteryFilter === 'lt20' ? 'selected' : ''}>&lt; 20%</option>` +
-          `<option value="lt30" ${batteryFilter === 'lt30' ? 'selected' : ''}>&lt; 30%</option>` +
-          `<option value="lt40" ${batteryFilter === 'lt40' ? 'selected' : ''}>&lt; 40%</option>` +
-          `<option value="lt50" ${batteryFilter === 'lt50' ? 'selected' : ''}>&lt; 50%</option>` +
-          `<option value="none" ${batteryFilter === 'none' ? 'selected' : ''}>No battery</option>`;
-        fourthFilterHtml = `<select class="header-filter" id="fourth-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(batteryFilter)}">${battOpts}</select>`;
+      const matchingForView = controls.filter(viewMatches);
+      const viewAreaSet = new Set(matchingForView.map(c => c.area_name).filter(Boolean));
+      const viewHasUnassigned = matchingForView.some(c => !c.area_name);
+      // Map area-name → area_id (from allAreas registry) so we can
+      // resolve names back to ids for the zone-membership logic below.
+      const nameToId = {};
+      for (const a of (allAreas || [])) {
+        if (a && a.name) nameToId[a.name] = a.area_id;
       }
-
-      // Check if any filters are active and show/hide clear filters link
-      const hasActiveFilters = categoryFilter !== 'all' || areaFilter !== 'all' || searchFilter !== '' || statusFilter !== 'all' || pauseFilter !== 'all' || lastActionFilter !== 'all' || batteryFilter !== 'all';
-
-      // Update zone filter dropdown
-
-      container.innerHTML = `
-        <table class="switches-table">
-          <thead>
-            <tr>
-              <th class="${thClass('name')}" onclick="sortBy('name')">Name <span style="font-weight:normal;color:var(--muted2);font-size:0.7rem;">(${sorted.length})</span>
-                <div style="margin-top: 4px;" onclick="event.stopPropagation()">
-                  <div style="position: relative;">
-                    <input type="text" id="search-input" class="toolbar-search" placeholder="Search..." style="width: 100%; box-sizing: border-box;">
-                    <button id="search-clear" onclick="event.stopPropagation(); clearSearch();" style="display: none; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.9rem; padding: 2px 4px;">&times;</button>
-                  </div>
-                </div>
-              </th>
-              <th class="${thClass('category')}" style="width: 52px;">
-                <div class="th-with-filter">
-                  <div class="th-title-row" onclick="sortBy('category')">Type${filterIndicator('category', categoryFilter, "clearSingleFilter('category')")}</div>
-                  <select class="header-filter" id="category-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(categoryFilter)}">${categoryOptions}</select>
-                </div>
-              </th>
-              <th class="${thClass('area')}">
-                <div class="th-with-filter">
-                  <div class="th-title-row" onclick="sortBy('area')">Location${filterIndicator('area', areaFilter, "clearSingleFilter('area')")}</div>
-                  <select class="header-filter" id="area-filter" onclick="event.stopPropagation()" style="${filterActiveStyle(areaFilter)}">${areaOptions}</select>
-                </div>
-              </th>
-              <th class="${thClass('fourth')}">
-                <div class="th-with-filter">
-                  <div class="th-title-row">
-                    <span style="font-size:0.7rem;color:var(--muted);">${{'lastAction':'Last action','status':'Status','battery':'Battery','lux':'Lux','pause':'Pause'}[fourthField] || fourthField}</span>
-                    <span class="fourth-sort-btn" onclick="sortBy('fourth')" title="Sort by this column">${sortColumn === 'fourth' ? (sortAsc ? '&#9650;' : '&#9660;') : '&#9650;'}</span>${fourthField === 'status' ? filterIndicator('status', statusFilter, "clearSingleFilter('status')") : ''}${fourthField === 'pause' ? filterIndicator('pause', pauseFilter, "clearSingleFilter('pause')") : ''}${fourthField === 'lastAction' ? filterIndicator('lastAction', lastActionFilter, "clearSingleFilter('lastAction')") : ''}${fourthField === 'battery' ? filterIndicator('battery', batteryFilter, "clearSingleFilter('battery')") : ''}
-                  </div>
-                  ${fourthFilterHtml}
-                </div>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            ${sorted.length === 0 ? `
-              <tr>
-                <td colspan="4" style="text-align: center; padding: 40px; color: var(--muted);">
-                  ${controls.length > 0
-                    ? 'No controls match the current filters.'
-                    : 'No controls found. Click Update to scan Home Assistant.'}
-                </td>
-              </tr>
-            ` : sorted.map(ctrl => {
-              const categoryLabel = formatCategory(ctrl.category);
-              const areaName = ctrl.area_name || '—';
-              const glozoneName = getGlozoneForArea(ctrl.area_id);
-              const rowClick = `onclick="editControl('${ctrl.id}')"`;
-              const hasMagic = ctrl.magic_buttons && Object.keys(ctrl.magic_buttons).length > 0;
-              const magicIcon = hasMagic ? ` <span class="magic-indicator" title="Has magic button assignments">✦</span>` : '';
-              const statusSub = getStatusSubtitle(ctrl);
-              const glozoneLabel = glozoneName ? `<div style="font-size: 0.7rem; color: var(--muted); opacity: 0.7; margin-bottom: 1px;">${glozoneName}</div>` : '';
-              let fourthCell;
-              if (fourthField === 'status') {
-                const staleX = (ctrl.stale || ctrl.status === 'unsupported') ? ` <span class="stale-remove-btn" onclick="event.stopPropagation(); removeStaleControl('${ctrl.id}', '${ctrl.category}')" title="Remove from config">&times;</span>` : '';
-                const statusLabels = {
-                  'active': '<span style="color: var(--success);">Active</span>',
-                  'inactive': '<span style="color: var(--warning);">Paused</span>',
-                  'not_configured': '<span style="color: var(--warning);">Setup</span>',
-                  'unsupported': '<span style="color: var(--muted);">Unsupported</span>',
-                  'stale': '<span style="color: var(--danger);">Stale</span>',
-                };
-                fourthCell = (statusLabels[ctrl.status] || ctrl.status) + staleX;
-              } else if (fourthField === 'lux') {
-                fourthCell = ctrl.illuminance && ctrl.illuminance.value != null ? `${ctrl.illuminance.value}` : '—';
-              } else if (fourthField === 'pause') {
-                let timerLabel = '';
-                if (ctrl.inactive && ctrl.inactive_until && ctrl.inactive_until !== 'forever') {
-                  const remaining = new Date(ctrl.inactive_until) - Date.now();
-                  if (remaining > 0) {
-                    const mins = Math.floor(remaining / 60000);
-                    const hours = Math.floor(mins / 60);
-                    const days = Math.floor(hours / 24);
-                    if (days > 0) timerLabel = `<span style="font-size:0.7rem;color:var(--muted2);margin-left:6px;">${days}d ${hours % 24}h</span>`;
-                    else if (hours > 0) timerLabel = `<span style="font-size:0.7rem;color:var(--muted2);margin-left:6px;">${hours}h ${mins % 60}m</span>`;
-                    else timerLabel = `<span style="font-size:0.7rem;color:var(--muted2);margin-left:6px;">${mins}m</span>`;
-                  }
-                }
-                fourthCell = `<input type="checkbox" ${ctrl.inactive ? 'checked' : ''} onclick="event.stopPropagation(); toggleInactive('${ctrl.id}', '${ctrl.category}', ${!ctrl.inactive})">${timerLabel}`;
-              } else if (fourthField === 'battery') {
-                const batt = ctrl.battery?.value;
-                if (batt != null) {
-                  const bColor = batt <= 20 ? 'var(--danger)' : batt <= 50 ? 'var(--warning)' : 'var(--muted)';
-                  fourthCell = `<span style="color:${bColor};">${batt}%</span>`;
-                } else {
-                  fourthCell = '—';
-                }
-              } else {
-                fourthCell = formatLastAction(ctrl);
-              }
-              // Low battery indicator (always visible regardless of 4th field)
-              const lowBatt = (ctrl.battery?.value != null && ctrl.battery.value < 10)
-                ? '<span title="Low battery" style="color:var(--danger);font-size:0.7rem;margin-left:4px;vertical-align:middle;">&#9679;</span>'
-                : '';
-              const rowClass = ctrl.stale ? 'clickable-row stale-row' : 'clickable-row';
-              return `
-                <tr class="${rowClass}" ${rowClick}>
-                  <td><span class="switch-name-text">${ctrl.name}</span>${magicIcon}${lowBatt}${statusSub}</td>
-                  <td title="${categoryLabel}" style="text-align: center; color: var(--muted);">${categoryIcon(ctrl.category)}</td>
-                  <td>${glozoneLabel}${areaName}</td>
-                  <td>${fourthCell}</td>
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-        </table>
-      `;
-
-      // Restore search state after table render
-      const searchInput = document.getElementById('search-input');
-      if (searchInput) {
-        searchInput.value = searchFilter;
-        searchInput.style.borderColor = searchFilter ? 'var(--accent)' : '';
-        if (restoreSearchFocus) {
-          searchInput.focus();
-          searchInput.setSelectionRange(searchFilter.length, searchFilter.length);
+      // Build dropdown options interleaved by zone:
+      //   All areas
+      //   Unassigned (if any)
+      //   Zone A
+      //     Area1 in A   ← indented (NBSPs prefix)
+      //     Area2 in A
+      //   Zone B
+      //     Area1 in B
+      //   ...
+      //   Areas not in any zone (rare; appended at end, no indent)
+      const viewZones = (allGlozones || []).filter(z =>
+        z.areaIds.some(aid => {
+          const name = (allAreas.find(a => a.area_id === aid) || {}).name;
+          return name && viewAreaSet.has(name);
+        })
+      );
+      const sel = (val) => areaFilter === val ? ' selected' : '';
+      const seenAreaNames = new Set();
+      const indent = '  ';
+      const optionParts = ['<option value="all">All areas</option>'];
+      if (viewHasUnassigned) optionParts.push(`<option value="unassigned"${sel('unassigned')}>— Unassigned —</option>`);
+      for (const z of viewZones) {
+        const zVal = 'zone:' + z.id;
+        optionParts.push(`<option value="${zVal}"${sel(zVal)}>Zone: ${z.name}</option>`);
+        for (const aid of z.areaIds) {
+          const name = (allAreas.find(a => a.area_id === aid) || {}).name;
+          if (name && viewAreaSet.has(name) && !seenAreaNames.has(name)) {
+            seenAreaNames.add(name);
+            optionParts.push(`<option value="${name}"${sel(name)}>${indent}${name}</option>`);
+          }
         }
       }
-      const searchClear = document.getElementById('search-clear');
-      if (searchClear) searchClear.style.display = searchFilter ? 'block' : 'none';
+      // Areas with no zone assignment (rare) — append at the end with
+      // no indent, sorted alphabetically.
+      const orphanedAreas = [...viewAreaSet]
+        .filter(name => !seenAreaNames.has(name))
+        .sort((a, b) => a.localeCompare(b));
+      for (const name of orphanedAreas) {
+        optionParts.push(`<option value="${name}"${sel(name)}>${name}</option>`);
+      }
+      const areaOptions = optionParts.join('');
 
+      // Two-row toolbar — Row 1: filters (search + area + type, each
+      // with its own × clear). Row 2: organize (sort + count). Sort
+      // selector only appears in ALL view; other views lock sort to
+      // their preset.
+      // "Sort:" prefix on both selector + locked-descriptor variants for
+      // consistent reading. Locked descriptors use minimal phrasing —
+      // "first" / "soonest" are implied by the sort axis itself.
+      const sortLabel = currentView === 'batteries' ? 'Sort: low battery'
+        : currentView === 'paused' ? 'Sort: pause ending'
+        : currentView === 'setup' ? 'Sort: name'
+        : null;
+      let sortHtml;
+      if (sortLabel) {
+        sortHtml = '<span>' + sortLabel + '</span>';
+      } else {
+        const sortVal = (sortColumn === 'name') ? 'name'
+          : (sortColumn === 'area') ? 'area' : 'recent';
+        sortHtml = '<label style="margin-right:6px;">Sort:</label>'
+          + '<select class="ctrl-tb-select" id="ctrl-sort-select">'
+          + '<option value="recent"' + (sortVal === 'recent' ? ' selected' : '') + '>Recent</option>'
+          + '<option value="area"' + (sortVal === 'area' ? ' selected' : '') + '>Location</option>'
+          + '<option value="name"' + (sortVal === 'name' ? ' selected' : '') + '>Name</option>'
+          + '</select>';
+      }
+      const searchEsc = searchFilter.replace(/"/g, '&quot;');
+
+      // Type filter — single icon-button trigger + popover dropdown.
+      // Closed state: filter glyph (all types) or selected category icon.
+      // Open: popover lists icon+label per category present in data.
+      const TYPE_LABELS = { switch: 'Switch', motion_sensor: 'Motion', contact_sensor: 'Contact', camera: 'Camera', unknown: 'Other' };
+      // Type filter — native <select> matching the area-filter pattern.
+      // Same width-cap + × clear UX. Native picker on mobile, no custom
+      // popover. Loses the inline category icons next to options (native
+      // <option> can't host SVG), but gains consistency with area.
+      const typeOrder = ['switch', 'motion_sensor', 'contact_sensor', 'camera', 'unknown'];
+      const presentTypes = typeOrder.filter(t => categories.includes(t));
+      const typeOptions = '<option value="all">All types</option>'
+        + presentTypes.map(t =>
+            '<option value="' + t + '"' + (categoryFilter === t ? ' selected' : '') + '>'
+              + (TYPE_LABELS[t] || t)
+            + '</option>'
+          ).join('');
+      const typeFilterHtml = '<select class="ctrl-tb-select'
+        + (categoryFilter !== 'all' ? ' is-active' : '')
+        + '" id="ctrl-type-filter">' + typeOptions + '</select>';
+      const typeClearHtml = (categoryFilter !== 'all')
+        ? '<button class="ctrl-area-clear" id="ctrl-type-clear" title="Clear type filter">&times;</button>'
+        : '';
+
+      // Search — collapse-to-icon by default; expand inline when active
+      // (search term present) or when icon tapped.
+      const searchOpen = !!searchFilter || _searchExpanded;
+      const searchHtml = searchOpen
+        ? '<div class="ctrl-search-wrap">'
+            + '<input type="search" id="ctrl-search" class="ctrl-search" placeholder="Search..." value="' + searchEsc + '" autofocus>'
+            + (searchFilter ? '<button class="ctrl-search-clear" id="ctrl-search-clear" title="Clear">&times;</button>' : '')
+          + '</div>'
+        : '<button class="ctrl-icon-btn" id="ctrl-search-toggle" title="Search">' + searchGlyphIcon() + '</button>';
+
+      const areaClearHtml = (areaFilter !== 'all')
+        ? '<button class="ctrl-area-clear" id="ctrl-area-clear" title="Clear area filter">&times;</button>'
+        : '';
+      const toolbarHtml = '<div class="ctrl-toolbar">'
+        + '<div class="ctrl-toolbar-row">'
+        +   searchHtml
+        +   '<select class="ctrl-tb-select' + (areaFilter !== 'all' ? ' is-active' : '') + '" id="ctrl-area-filter">' + areaOptions + '</select>'
+        +   areaClearHtml
+        +   typeFilterHtml
+        +   typeClearHtml
+        + '</div>'
+        + '<div class="ctrl-toolbar-row ctrl-toolbar-row-organize">'
+        +   sortHtml
+        +   '<span class="ctrl-result-count">' + buildCountPhrase(sorted.length) + '</span>'
+        + '</div>'
+        + '</div>';
+
+      // Grouped card list — single rounded container with internal
+       // dividers. Two grouping modes:
+       //  1. PAUSED view → split by Scheduled (timed) vs Forever (no expiry).
+       //  2. ALL view + active area filter → split by In <area> vs Reaches <area>,
+       //     mirroring the area-details Controls card model.
+       // Other views render flat.
+      let cardListHtml;
+      if (sorted.length === 0) {
+        cardListHtml = '<div class="ctrl-card-empty">' + (controls.length > 0
+          ? 'No controls match the current filters.'
+          : 'No controls found. Click Update to scan Home Assistant.') + '</div>';
+      } else if (currentView === 'paused') {
+        // Scheduled = has an inactive_until timestamp (whether expired or
+        // future). Forever = no until-date or 'forever' sentinel.
+        const scheduled = [];
+        const forever = [];
+        for (const c of sorted) {
+          const iu = c.inactive_until;
+          if (iu && iu !== 'forever') scheduled.push(c);
+          else forever.push(c);
+        }
+        let inner = '';
+        if (scheduled.length) {
+          inner += buildGroupDivider('Scheduled', scheduled.length);
+          inner += scheduled.map(c => renderControlCard(c, 'paused')).join('');
+        }
+        if (forever.length) {
+          inner += buildGroupDivider('Forever', forever.length);
+          inner += forever.map(c => renderControlCard(c, 'paused')).join('');
+        }
+        cardListHtml = '<div class="ctrl-card-list">' + inner + '</div>';
+      } else if (currentView === 'all' && areaFilter !== 'all' && areaFilter !== 'unassigned' && !areaFilter.startsWith('zone:')) {
+        // Single-area filter — 5 reach buckets (always; reach semantics
+        // are the dominant structure here regardless of sort).
+        const targetAreaId = (allAreas.find(a => a.name === areaFilter) || {}).area_id;
+        const buckets = bucketControlsForArea(sorted, targetAreaId, areaFilter);
+        let inner = '';
+        if (buckets.switchDirect.length) {
+          inner += buildGroupDivider('Reach 1', buckets.switchDirect.length);
+          inner += buckets.switchDirect.map(c => renderControlCard(c, 'all')).join('');
+        }
+        if (buckets.switchIndirect.length) {
+          inner += buildGroupDivider('Reach 2+', buckets.switchIndirect.length);
+          inner += buckets.switchIndirect.map(c => renderControlCard(c, 'all')).join('');
+        }
+        if (buckets.presence.length) {
+          inner += buildGroupDivider('Presence', buckets.presence.length);
+          inner += buckets.presence.map(c => renderControlCard(c, 'all')).join('');
+        }
+        if (buckets.alerts.length) {
+          inner += buildGroupDivider('Alert', buckets.alerts.length);
+          inner += buckets.alerts.map(c => renderControlCard(c, 'all')).join('');
+        }
+        if (buckets.doesntReach.length) {
+          inner += buildGroupDivider('Doesn’t reach ' + areaFilter, buckets.doesntReach.length);
+          inner += buckets.doesntReach.map(c => renderControlCard(c, 'all', { doesntReach: true })).join('');
+        }
+        cardListHtml = '<div class="ctrl-card-list">' + inner + '</div>';
+      } else if (currentView === 'all' && (areaFilter === 'all' || areaFilter.startsWith('zone:')) && sortColumn === 'fourth' && fourthField === 'lastAction') {
+        // Browse view (no area filter OR zone filter) + Sort: Recent →
+        // group by recency time bucket (Today / Yesterday / Past week
+        // / Past month / Past year / Prior / Never used). Within each
+        // bucket, controls stay in `sorted` order (already most-recent
+        // first via the global sort).
+        const groupMap = new Map();
+        for (const c of sorted) {
+          const ts = c.last_action && c.last_action.timestamp;
+          const key = controlsTimeBucket(ts);
+          if (!groupMap.has(key)) groupMap.set(key, []);
+          groupMap.get(key).push(c);
+        }
+        let inner = '';
+        for (const bucket of CONTROLS_TIME_BUCKETS) {
+          const list = groupMap.get(bucket.key);
+          if (!list || !list.length) continue;
+          inner += buildGroupDivider(bucket.label, list.length, bucket.descriptor);
+          inner += list.map(c => renderControlCard(c, 'all')).join('');
+        }
+        cardListHtml = '<div class="ctrl-card-list">' + inner + '</div>';
+      } else if (currentView === 'all' && (areaFilter === 'all' || areaFilter.startsWith('zone:')) && sortColumn === 'area') {
+        // Browse view (no area filter OR zone filter) + Sort: Location →
+        // group by home area in canonical home-area-sort. Each divider
+        // labeled with the area name + count.
+        const groupMap = new Map();
+        for (const c of sorted) {
+          const k = c.area_name || '— Unassigned —';
+          if (!groupMap.has(k)) groupMap.set(k, []);
+          groupMap.get(k).push(c);
+        }
+        const groupedNames = [...groupMap.keys()].sort((a, b) => {
+          const oa = customAreaOrder[(allAreas.find(x => x.name === a) || {}).area_id] ?? 99999;
+          const ob = customAreaOrder[(allAreas.find(x => x.name === b) || {}).area_id] ?? 99999;
+          if (oa !== ob) return oa - ob;
+          return a.localeCompare(b);
+        });
+        let inner = '';
+        for (const name of groupedNames) {
+          const list = groupMap.get(name);
+          inner += buildGroupDivider(name, list.length);
+          inner += list.map(c => renderControlCard(c, 'all')).join('');
+        }
+        cardListHtml = '<div class="ctrl-card-list">' + inner + '</div>';
+      } else {
+        // Flat list — no grouping. Covers: Sort: Name in Browse/zone
+        // view, the Unassigned filter, and any non-Browse view.
+        cardListHtml = '<div class="ctrl-card-list">' + sorted.map(c => renderControlCard(c, currentView)).join('') + '</div>';
+      }
+
+      container.innerHTML = toolbarHtml + cardListHtml;
+
+      // Restore search input focus after re-render (the search handler
+      // re-renders on every keystroke; without this, focus is lost).
+      if (restoreSearchFocus) {
+        const si = document.getElementById('ctrl-search');
+        if (si) {
+          si.focus();
+          si.setSelectionRange(searchFilter.length, searchFilter.length);
+        }
+      }
+    }
+
+    // Per-card render — view-aware. The right-side "primary" field changes
+    // per view (battery % in BATTERIES, pause-until in PAUSED, etc.); the
+    // body (name / area / glozone) is consistent across views. Click target
+    // is the whole card.
+    function renderControlCard(c, view, opts) {
+      opts = opts || {};
+      const lastTouchedSec = (c.last_action && c.last_action.timestamp)
+        ? new Date(c.last_action.timestamp).getTime() / 1000
+        : null;
+      const pulseHtml = buildPulseDot(lastTouchedSec, pulseWindowHours);
+      const icon = categoryIcon(c.category);
+      // (Area + glozone sub-line was removed; the summary's `→ ...` line
+      // covers "what this controls". Location lives on control detail.)
+
+      // Title-row badges: paused (+ time left), setup, stale, low-battery,
+      // magic icon. Pause badge inlines the time remaining ("paused 3h")
+      // so users don't need to tap into detail to see when it'll resume.
+      const badges = [];
+      if (c.inactive) {
+        let pausedLbl = 'paused';
+        const iu = c.inactive_until;
+        if (iu && iu !== 'forever') {
+          const remMs = new Date(iu) - Date.now();
+          if (remMs > 0) pausedLbl = 'paused ' + formatDurationRemaining(remMs / 60000, '');
+        }
+        badges.push('<span class="ctrl-badge ctrl-badge-paused">' + pausedLbl + '</span>');
+      }
+      else if (c.status === 'not_configured') badges.push('<span class="ctrl-badge ctrl-badge-setup">setup</span>');
+      else if (c.stale) badges.push('<span class="ctrl-badge ctrl-badge-stale">stale</span>');
+      if (c.battery && c.battery.value != null && c.battery.value < 10) {
+        badges.push('<span class="ctrl-card-lowbatt" title="Low battery">&#9679;</span>');
+      }
+      if (c.magic_buttons && Object.keys(c.magic_buttons).length > 0) {
+        badges.push('<span class="ctrl-card-magic" title="Has magic button assignments">&#10038;</span>');
+      }
+
+      // View-specific primary (right-side) field. Cards in different views
+      // surface different info: BATTERIES leads with %, PAUSED with time
+      // remaining, etc. ALL falls back to last-action timestamp.
+      let primaryHtml = '';
+      if (view === 'batteries') {
+        const batt = c.battery && c.battery.value;
+        if (batt != null) {
+          // 4-band: red <10, orange 10-25, yellow 25-50, neutral 50+.
+          // Color is supplementary signal — the actual % carries the
+          // real information, so yellow being close to orange is OK here.
+          const cls = batt < 10 ? 'ctrl-card-pri ctrl-card-pri-danger'
+            : batt < 25 ? 'ctrl-card-pri ctrl-card-pri-warn'
+            : batt < 50 ? 'ctrl-card-pri ctrl-card-pri-caution'
+            : 'ctrl-card-pri';
+          primaryHtml = '<span class="' + cls + '">' + batt + '%</span>';
+        } else {
+          primaryHtml = '<span class="ctrl-card-pri-muted">&mdash;</span>';
+        }
+      } else if (view === 'paused') {
+        if (c.inactive) {
+          let txt;
+          if (!c.inactive_until || c.inactive_until === 'forever') {
+            txt = 'forever';
+          } else {
+            const remMs = new Date(c.inactive_until) - Date.now();
+            txt = remMs > 0 ? formatDurationRemaining(remMs / 60000, 'left') : 'expired';
+          }
+          primaryHtml = '<span class="ctrl-card-pri-muted">' + txt + '</span>';
+        }
+      } else {
+        // ALL & SETUP: just the area name on the right. Glozone removed —
+        // most homes have one or a few zones; repeating it on every card
+        // is busy without adding info. Battery / Paused views keep
+        // their task-specific primary field.
+        const areaNameStr = c.area_name || 'Unassigned';
+        const areaCls = c.area_name ? 'ctrl-card-pri' : 'ctrl-card-pri-muted';
+        primaryHtml = '<span class="' + areaCls + '">' + areaNameStr + '</span>';
+      }
+
+      const rowClass = c.stale ? 'ctrl-card-row is-stale' : 'ctrl-card-row';
+      const safeId = c.id.replace(/'/g, "\\'");
+      // "What this controls" summary — the most useful sub-line per the
+      // user's framing. Replaces the old area+zone location line. The
+      // Multi-line summary: each scope/mode group renders as its own
+      // line ("reach 1: ...", "on/off: ..."). The summary helpers in
+      // shared.js produce the inner divs; we just provide the wrapper.
+      const summaryHtml = opts.doesntReach
+        ? controlSummaryDoesntReach(c, allAreas, customAreaOrder)
+        : pageControlSummary(c);
+      const summaryLine = summaryHtml
+        ? '<div class="ctrl-card-summary">' + summaryHtml + '</div>'
+        : '';
+      // Grid layout — title (name+badges) and primary (right-side area)
+      // sit on row 1; summary lines span the lower row at full body+area
+      // width. Summary is appended as a top-level grid child so it can
+      // address grid-area "summary" directly.
+      return ''
+        + '<div class="' + rowClass + '" onclick="editControl(\'' + safeId + '\')">'
+        +   '<div class="ctrl-card-pulse">' + pulseHtml + '</div>'
+        +   '<div class="ctrl-card-icon" title="' + formatCategory(c.category) + '">' + icon + '</div>'
+        +   '<div class="ctrl-card-title">'
+        +     '<span class="ctrl-card-title-text">' + c.name + '</span>'
+        +     badges.join(' ')
+        +   '</div>'
+        +   primaryHtml
+        +   summaryLine
+        + '</div>';
+    }
+
+    // Count phrase reflects active filters. Reads as a single English
+    // sentence: "<n> <type-noun> [in <area> | without an area] [<verb>]".
+    //   ALL view, unfiltered:        "12 controls"
+    //   BATTERY + type=motion + area: "4 motion sensors in Kitchen have battery"
+    //   PAUSED + unassigned:          "1 control without an area is paused"
+    // Search isn't reflected — the user is actively typing and sees the
+    // search box; adding "matching X" would jitter on every keystroke.
+    function buildCountPhrase(n) {
+      const isOne = n === 1;
+      const typeNouns = {
+        switch: ['switch', 'switches'],
+        motion_sensor: ['motion sensor', 'motion sensors'],
+        contact_sensor: ['contact sensor', 'contact sensors'],
+        camera: ['camera', 'cameras'],
+      };
+      const nouns = typeNouns[categoryFilter] || ['control', 'controls'];
+      const noun = isOne ? nouns[0] : nouns[1];
+      const areaPart = (areaFilter === 'all') ? ''
+        : (areaFilter === 'unassigned') ? ' without an area'
+        : (areaFilter.startsWith('zone:'))
+          ? ' in zone ' + ((allGlozones.find(z => z.id === areaFilter.slice(5)) || {}).name || areaFilter.slice(5))
+          : ' in ' + areaFilter;
+      let verb = '';
+      if (currentView === 'setup') verb = isOne ? ' needs setup' : ' need setup';
+      else if (currentView === 'batteries') verb = isOne ? ' has battery' : ' have battery';
+      else if (currentView === 'paused') verb = isOne ? ' is paused' : ' are paused';
+      return n + ' ' + noun + areaPart + verb;
+    }
+
+    // controlSummary + summary helpers + bucketControlsForArea live in
+    // shared.js (used by both /switches and the area-details Controls
+    // card). Page-local wrapper to thread allAreas + the active filter.
+    function getFilterAreaId() {
+      if (areaFilter === 'all' || areaFilter === 'unassigned') return null;
+      if (areaFilter.startsWith('zone:')) return null;  // zone filter has no single highlight target
+      const a = (allAreas || []).find(x => x.name === areaFilter);
+      return a ? a.area_id : null;
+    }
+    function pageControlSummary(c) {
+      return controlSummary(c, {
+        allAreas: allAreas,
+        filterAreaId: getFilterAreaId(),
+        deviceAreaId: c.area_id,
+        areaOrder: customAreaOrder,
+      });
     }
 
     function getStatusSubtitle(ctrl) {
@@ -1050,12 +1686,17 @@
       return labels[category] || category || '—';
     }
 
+    function searchGlyphIcon() {
+      return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>`;
+    }
+
     function categoryIcon(category) {
       const size = 18;
       const icons = {
         'switch': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="8" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="13" r="1.5" fill="currentColor" stroke="none"/><line x1="10" y1="18" x2="14" y2="18"/></svg>`,
         'motion_sensor': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 18 A8 8 0 0 1 8 6"/><path d="M5 20 A12 12 0 0 1 5 4"/><circle cx="14" cy="12" r="3" fill="currentColor" stroke="none" opacity="0.6"/><path d="M17 9 A5 5 0 0 1 17 15"/><path d="M20 7 A8 8 0 0 1 20 17"/></svg>`,
         'contact_sensor': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="8" height="12" rx="2"/><rect x="14" y="6" width="8" height="12" rx="2"/><line x1="10" y1="11" x2="14" y2="11" stroke-dasharray="2 2"/><line x1="10" y1="13" x2="14" y2="13" stroke-dasharray="2 2"/></svg>`,
+        'camera': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`,
       };
       return icons[category] || '—';
     }
@@ -1068,6 +1709,65 @@
         'matter': 'Matter'
       };
       return labels[integration] || integration || '—';
+    }
+
+    // Smart relative-time formatting for the cards.
+    //   Today:        "3:42p"
+    //   Yesterday:    "Yest 3:42p"
+    //   This week:    "Tue 3:42p"
+    //   Older:        "5/17"   (or "5/17/24" if a different year)
+    // Control detail page uses a separate, fuller format (always includes
+    // time even for older entries).
+    function formatRelativeTime(timestamp) {
+      if (!timestamp) return '';
+      const date = new Date(timestamp);
+      const now = new Date();
+      let hours = date.getHours();
+      const mins = date.getMinutes().toString().padStart(2, '0');
+      const ampm = hours >= 12 ? 'p' : 'a';
+      hours = hours % 12 || 12;
+      const timeOnly = hours + ':' + mins + ampm;
+      // Same calendar day → time only.
+      if (date.toDateString() === now.toDateString()) return timeOnly;
+      // Yesterday (calendar-day check, not 24h-rolling).
+      const yest = new Date(now);
+      yest.setDate(yest.getDate() - 1);
+      if (date.toDateString() === yest.toDateString()) return 'Yest ' + timeOnly;
+      // Within the last 7 days → day-of-week + time.
+      const ms = now - date;
+      if (ms < 7 * 86400000) {
+        const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        return days[date.getDay()] + ' ' + timeOnly;
+      }
+      // Older — date only.
+      const m = date.getMonth() + 1;
+      const d = date.getDate();
+      if (date.getFullYear() !== now.getFullYear()) {
+        return m + '/' + d + '/' + (date.getFullYear() % 100);
+      }
+      return m + '/' + d;
+    }
+
+    // Returns just the action label (no timestamp). Mirrors formatLastAction's
+    // per-action mapping but without the time prefix — used for the 2-line
+    // right-side primary on cards (line 1 = relative time, line 2 = action).
+    function formatActionLabel(ctrl) {
+      if (!ctrl.last_action) return '';
+      let action;
+      if (typeof ctrl.last_action === 'object') action = ctrl.last_action.action;
+      else action = ctrl.last_action;
+      if (!action) return '';
+      if (action === 'motion_detected') return 'Motion';
+      if (action === 'motion_cleared') return 'Cleared';
+      if (action === 'contact_opened') return 'Opened';
+      if (action === 'contact_closed') return 'Closed';
+      // Switch button events: e.g. "on_short_press" → "On 1×"
+      const parts = action.split('_');
+      const button = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+      const pressType = parts.find(p => ['short', 'long', 'double', 'triple', 'quadruple', 'quintuple'].includes(p));
+      const pressMap = { short: '1×', long: 'hold', double: '2×', triple: '3×', quadruple: '4×', quintuple: '5×' };
+      const press = pressMap[pressType] || '';
+      return press ? (button + ' ' + press) : button;
     }
 
     function formatLastAction(ctrl) {
@@ -1251,69 +1951,86 @@
 
 
     function setupEventListeners() {
-      // Track whether fourth-field dropdown value changed (for sort on re-select)
-      let fourthFieldChanged = false;
+      // Mount the shared view-segments pill bar (state was loaded earlier).
+      mountControlsViewSegments();
 
-      // Use event delegation for dynamically created filter dropdowns
+      // Toolbar (search + area + sort) and search-clear button — wired
+      // via event delegation since the toolbar is re-rendered each
+      // renderControls() call.
       document.getElementById('controls-container').addEventListener('change', (e) => {
-        if (e.target.id === 'category-filter') {
-          categoryFilter = e.target.value;
-          savePreferences();
-          renderControls();
-        } else if (e.target.id === 'area-filter') {
+        if (e.target.id === 'ctrl-area-filter') {
           areaFilter = e.target.value;
           savePreferences();
           renderControls();
-        } else if (e.target.id === 'fourth-field-select') {
-          fourthFieldChanged = true;
-          fourthField = e.target.value;
-          statusFilter = 'all';
-          pauseFilter = 'all';
-          sortColumn = 'fourth';
-          sortAsc = true;
+        } else if (e.target.id === 'ctrl-type-filter') {
+          categoryFilter = e.target.value;
           savePreferences();
           renderControls();
-        } else if (e.target.id === 'fourth-filter') {
-          if (fourthField === 'status') statusFilter = e.target.value;
-          else if (fourthField === 'pause') pauseFilter = e.target.value;
-          else if (fourthField === 'lastAction') lastActionFilter = e.target.value;
-          else if (fourthField === 'battery') batteryFilter = e.target.value;
+        } else if (e.target.id === 'ctrl-sort-select') {
+          // ALL view sort — three options. Map to internal sortColumn
+          // semantics. "recent" = fourth+lastAction (most-recent first
+          // legacy behavior); name = alpha asc; area = custom area order.
+          const v = e.target.value;
+          if (v === 'recent') {
+            sortColumn = 'fourth';
+            fourthField = 'lastAction';
+            sortAsc = false;
+          } else if (v === 'name') {
+            sortColumn = 'name';
+            sortAsc = true;
+          } else if (v === 'area') {
+            sortColumn = 'area';
+            sortAsc = true;
+          }
           savePreferences();
           renderControls();
         }
       });
-
-      // Search input (inside table, re-rendered — use delegation)
+      document.getElementById('controls-container').addEventListener('click', (e) => {
+        if (e.target.closest('#ctrl-area-clear')) {
+          areaFilter = 'all';
+          savePreferences();
+          renderControls();
+          return;
+        }
+        if (e.target.closest('#ctrl-type-clear')) {
+          categoryFilter = 'all';
+          savePreferences();
+          renderControls();
+          return;
+        }
+        if (e.target.closest('#ctrl-search-clear')) {
+          searchFilter = '';
+          _searchExpanded = false;
+          savePreferences();
+          renderControls();
+          return;
+        }
+        if (e.target.closest('#ctrl-search-toggle')) {
+          _searchExpanded = true;
+          renderControls(true);
+          return;
+        }
+      });
+      // Search input — re-render on every keystroke, restore focus.
       document.getElementById('controls-container').addEventListener('input', (e) => {
-        if (e.target.id === 'search-input') {
+        if (e.target.id === 'ctrl-search') {
           handleSearch(e.target.value);
         }
       });
-
-      // Fourth-field dropdown: sort on close even when same value re-selected
-      document.getElementById('controls-container').addEventListener('focus', (e) => {
-        if (e.target.id === 'fourth-field-select') fourthFieldChanged = false;
-      }, true);
-      document.getElementById('controls-container').addEventListener('blur', (e) => {
-        if (e.target.id === 'fourth-field-select' && !fourthFieldChanged) {
-          sortColumn = 'fourth';
-          sortAsc = !sortAsc;
-          savePreferences();
+      // Search input blur — collapse back to icon when empty. Deferred
+      // so that re-renders (which destroy/recreate the input mid-typing)
+      // don't trigger a false collapse: after the timeout, if the new
+      // input has focus, we abort.
+      document.getElementById('controls-container').addEventListener('focusout', (e) => {
+        if (e.target.id !== 'ctrl-search' || searchFilter) return;
+        setTimeout(() => {
+          const cur = document.getElementById('ctrl-search');
+          if (cur === document.activeElement) return;
+          if (searchFilter) return;
+          _searchExpanded = false;
           renderControls();
-        }
-      }, true);
-
-      // Header fourth-field selector (lives above the table, not re-rendered)
-      document.getElementById('fourth-field-header').addEventListener('change', (e) => {
-        fourthField = e.target.value;
-        statusFilter = 'all';
-        pauseFilter = 'all';
-        lastActionFilter = 'all';
-        batteryFilter = 'all';
-        sortColumn = 'fourth';
-        sortAsc = true;
-        savePreferences();
-        renderControls();
+        }, 0);
       });
     }
 

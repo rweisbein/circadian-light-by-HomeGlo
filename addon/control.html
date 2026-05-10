@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Circadian Light - Control</title>
+  <link rel="stylesheet" href="./shared.css">
   <style>
     :root {
       --bg: #000;
@@ -805,13 +806,16 @@
       color: var(--accent);
     }
 
-    .btn-map-section { display: flex; align-items: center; padding: 4px 0; }
+    .btn-map-section { display: flex; align-items: center; padding: 4px 0; gap: 6px; }
     .btn-map-section + .btn-map-section { border-top: 2px solid rgba(255, 255, 255, 0.08); }
-    .btn-map-label { width: 80px; flex-shrink: 0; display: flex; align-items: center; gap: 5px; font-weight: 500; font-size: 0.85rem; }
+    /* Badge-only label (no button-name text) — same treatment as the
+       cheatsheet (switchmap.html). Keeps the icon close to the press
+       type so the eye doesn't have to traverse a long gap. */
+    .btn-map-label { flex-shrink: 0; display: flex; align-items: center; }
     .btn-map-actions { flex: 1; min-width: 0; }
-    .btn-map-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+    .btn-map-row { display: flex; align-items: center; gap: 12px; padding: 3px 0; }
     .btn-map-row + .btn-map-row { border-top: 1px solid rgba(255, 255, 255, 0.03); }
-    .btn-map-type { font-size: 0.75rem; color: var(--muted); min-width: 32px; }
+    .btn-map-type { font-size: 0.75rem; color: var(--muted); min-width: 56px; }
     .btn-map-action { font-size: 0.85rem; }
     .btn-map-magic { display: flex; align-items: center; gap: 4px; flex: 1; }
     .btn-map-magic select { flex: 1; padding: 4px 6px; border-radius: 5px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.85rem; }
@@ -841,7 +845,7 @@
       font-size: 10px;
       font-style: italic;
       color: rgba(255,255,255,0.5);
-      cursor: help;
+      cursor: pointer;
       transition: all 0.15s ease;
       flex-shrink: 0;
     }
@@ -956,12 +960,8 @@
             <div id="pause-timer-row" style="display: none; align-items: center; gap: 8px; margin-left: 4px;">
               <span style="font-size: 0.8rem; color: var(--muted2);">unpause in</span>
               <select id="pause-timer-select" style="padding: 4px 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 0.8rem;">
-                <option value="forever">Never</option>
-                <option value="15m">15 min</option>
-                <option value="1h">1 hour</option>
-                <option value="4h">4 hours</option>
-                <option value="1d">1 day</option>
-                <option value="1w">1 week</option>
+                <!-- Populated at load with shared duration options (see shared.js).
+                     Six values: 5 / 60 / 240 / 1440 / 10080 / 'forever'. -->
               </select>
             </div>
           </div>
@@ -1094,11 +1094,76 @@
     }
 
     // ============================================================
-    // Card toggle
+    // Card toggle + persistence
     // ============================================================
+    // Per-card open/closed state lives in localStorage so the page
+    // restores how you left it. After the HomeGlo Lab card-freshness
+    // window passes (default 15min), the next visit resets to defaults:
+    //   Switch: Reach (switch-config) open; Settings + Buttons closed.
+    //   Sensor: all motion-scope reach cards open; Settings closed.
+    const _CTRL_CARDS_TS_KEY = 'ctrl_cards_ts';
+    const _CTRL_CARDS_TTL_MS = cardFreshnessMs();
+    const _CTRL_CARD_OPEN_KEYS = {
+      'pause-section': 'ctrl_card_pause_open',
+      'switch-config-section': 'ctrl_card_switchconfig_open',
+      'magic-section': 'ctrl_card_magic_open',
+    };
+    const _CTRL_MOTION_SCOPES_KEY = 'ctrl_motion_scopes_open';
+
+    function _resetCtrlCardsIfStale(category, motionScopeCount) {
+      const tsRaw = localStorage.getItem(_CTRL_CARDS_TS_KEY);
+      const ts = tsRaw ? parseInt(tsRaw, 10) : 0;
+      const now = Date.now();
+      if (ts && (now - ts) <= _CTRL_CARDS_TTL_MS) return;
+      const isSwitch = category === 'switch';
+      localStorage.setItem(_CTRL_CARD_OPEN_KEYS['pause-section'], 'false');
+      if (isSwitch) {
+        localStorage.setItem(_CTRL_CARD_OPEN_KEYS['switch-config-section'], 'true');
+        localStorage.setItem(_CTRL_CARD_OPEN_KEYS['magic-section'], 'false');
+      } else {
+        const allIdx = [];
+        for (let i = 0; i < (motionScopeCount || 0); i++) allIdx.push(i);
+        localStorage.setItem(_CTRL_MOTION_SCOPES_KEY, JSON.stringify(allIdx));
+      }
+      localStorage.setItem(_CTRL_CARDS_TS_KEY, String(now));
+    }
+
+    function _applyCtrlCardOpenState(cardId) {
+      const card = document.getElementById(cardId);
+      if (!card) return;
+      const v = localStorage.getItem(_CTRL_CARD_OPEN_KEYS[cardId]);
+      if (v === 'true') card.classList.add('is-open');
+      else if (v === 'false') card.classList.remove('is-open');
+    }
+
+    function _loadCtrlMotionScopesFromStorage() {
+      const raw = localStorage.getItem(_CTRL_MOTION_SCOPES_KEY);
+      if (!raw) return;
+      try {
+        _motionScopeExpanded.clear();
+        JSON.parse(raw).forEach(i => _motionScopeExpanded.add(i));
+      } catch {}
+    }
+
+    function _persistCtrlCard(cardId) {
+      const card = document.getElementById(cardId);
+      if (!card) return;
+      const lsKey = _CTRL_CARD_OPEN_KEYS[cardId];
+      if (!lsKey) return;
+      localStorage.setItem(lsKey, String(card.classList.contains('is-open')));
+      localStorage.setItem(_CTRL_CARDS_TS_KEY, String(Date.now()));
+    }
+
+    function _persistCtrlMotionScopes() {
+      localStorage.setItem(_CTRL_MOTION_SCOPES_KEY, JSON.stringify(Array.from(_motionScopeExpanded)));
+      localStorage.setItem(_CTRL_CARDS_TS_KEY, String(Date.now()));
+    }
+
     function toggleCard(cardId) {
       const card = document.getElementById(cardId);
-      if (card) card.classList.toggle('is-open');
+      if (!card) return;
+      card.classList.toggle('is-open');
+      _persistCtrlCard(cardId);
     }
 
     // ============================================================
@@ -1526,18 +1591,28 @@
     }
 
     // ============================================================
-    // Pause timer logic
+    // Pause timer logic — uses shared duration picker helpers (see shared.js).
+    // Six options across pause + sky clarity: 5 / 60 / 240 / 1440 / 10080
+    // / 'forever' (minutes). Default 4h.
     // ============================================================
-    const pauseDurations = { '15m': 900, '1h': 3600, '4h': 14400, '1d': 86400, '1w': 604800 };
+
+    // Populate the picker on load with the shared options. Default selection
+    // is rebound at runtime from initPauseTimer() / the change handler — this
+    // just gets the right markup in place.
+    document.getElementById('pause-timer-select').innerHTML =
+      buildDurationOptions(DURATION_DEFAULT);
 
     document.getElementById('control-pause-checkbox').addEventListener('change', () => {
       const checked = document.getElementById('control-pause-checkbox').checked;
       document.getElementById('pause-timer-row').style.display = checked ? 'flex' : 'none';
       if (checked) {
-        // Default to "forever" when first pausing
+        // First pause → default to 4 hours (was "forever", which forced
+        // users to come back to manually unpause). Forever is still
+        // available as an explicit option but no longer the default.
         if (!editingInactiveUntil) {
-          editingInactiveUntil = 'forever';
-          document.getElementById('pause-timer-select').value = 'forever';
+          const defMins = durationValueToMinutes(DURATION_DEFAULT);
+          editingInactiveUntil = new Date(Date.now() + defMins * 60000).toISOString();
+          document.getElementById('pause-timer-select').value = DURATION_DEFAULT;
         }
       } else {
         editingInactiveUntil = null;
@@ -1551,11 +1626,13 @@
 
     document.getElementById('pause-timer-select').addEventListener('change', () => {
       const val = document.getElementById('pause-timer-select').value;
-      if (val === 'forever') {
+      const mins = durationValueToMinutes(val);
+      if (mins === null) {
+        // 'forever' — no expiry; persist a sentinel string the rest of
+        // the page recognizes.
         editingInactiveUntil = 'forever';
       } else {
-        const secs = pauseDurations[val] || 3600;
-        editingInactiveUntil = new Date(Date.now() + secs * 1000).toISOString();
+        editingInactiveUntil = new Date(Date.now() + mins * 60000).toISOString();
       }
       updatePauseRemaining();
       autoSave();
@@ -1567,17 +1644,15 @@
         el.textContent = '';
         return;
       }
-      const remaining = new Date(editingInactiveUntil) - Date.now();
-      if (remaining <= 0) {
+      const remainingMs = new Date(editingInactiveUntil) - Date.now();
+      if (remainingMs <= 0) {
         el.textContent = 'expired';
         return;
       }
-      const mins = Math.floor(remaining / 60000);
-      const hours = Math.floor(mins / 60);
-      const days = Math.floor(hours / 24);
-      if (days > 0) el.textContent = 'unpause in ' + days + 'd ' + (hours % 24) + 'h';
-      else if (hours > 0) el.textContent = 'unpause in ' + hours + 'h ' + (mins % 60) + 'm';
-      else el.textContent = 'unpause in ' + mins + 'm';
+      // Single-unit compact display via shared helper. We supply our own
+      // "unpause in" prefix so suffix='' (no built-in "left").
+      const compact = formatDurationRemaining(remainingMs / 60000, '');
+      el.textContent = 'unpause in ' + compact;
     }
 
     function startPauseRemainingInterval() {
@@ -1590,23 +1665,32 @@
       const select = document.getElementById('pause-timer-select');
       const pauseSection = document.getElementById('pause-section');
 
-      if (!editingInactiveUntil) {
+      // Paused with no expiry (or sentinel 'forever') → render as Forever
+      // in the picker. Without this the dropdown defaulted to 4h and
+      // confused users navigating from the list ("wasn't this paused
+      // forever? why does it now say 4 hours?").
+      if (editingInactive && (!editingInactiveUntil || editingInactiveUntil === 'forever')) {
+        editingInactiveUntil = 'forever';
         select.value = 'forever';
-      } else if (editingInactiveUntil === 'forever') {
-        select.value = 'forever';
+        pauseSection.classList.add('is-open');
+      } else if (!editingInactiveUntil) {
+        // Not paused — picker is dormant, just preselect the default.
+        // The actual timer doesn't start until the user toggles pause.
+        select.value = DURATION_DEFAULT;
       } else {
-        // Find closest matching option
+        // Has timestamp — find closest matching option from the shared
+        // duration set (5 / 60 / 240 / 1440 / 10080 minutes).
         const remaining = new Date(editingInactiveUntil) - Date.now();
         if (remaining <= 0) {
-          select.value = 'forever';
+          select.value = DURATION_DEFAULT;
           editingInactiveUntil = null;
         } else {
-          const hours = remaining / 3600000;
-          if (hours <= 0.35) select.value = '15m';
-          else if (hours <= 2.5) select.value = '1h';
-          else if (hours <= 12) select.value = '4h';
-          else if (hours <= 72) select.value = '1d';
-          else select.value = '1w';
+          const mins = remaining / 60000;
+          if (mins <= 30) select.value = '5';
+          else if (mins <= 150) select.value = '60';
+          else if (mins <= 720) select.value = '240';
+          else if (mins <= 4320) select.value = '1440';
+          else select.value = '10080';
         }
         if (editingInactive) pauseSection.classList.add('is-open');
       }
@@ -1764,7 +1848,6 @@
       let html = '';
 
       for (const btn of buttons) {
-        const btnName = buttonNames[btn] || btn.charAt(0).toUpperCase() + btn.slice(1);
         const badge = buttonBadges[btn] || btn;
 
         // Collect action rows for this button
@@ -1828,7 +1911,6 @@
           <div class="btn-map-section">
             <div class="btn-map-label">
               <span class="btn-badge-sm">${badge}</span>
-              <span>${btnName}</span>
             </div>
             <div class="btn-map-actions">
               ${actionRows}
@@ -2209,6 +2291,7 @@
       } else {
         _motionScopeExpanded.add(idx);
       }
+      _persistCtrlMotionScopes();
       renderMotionScopesEditor();
     }
 
@@ -2729,28 +2812,43 @@
 
       // Show settings section for all control types and set checkbox + timer
       pauseSection.style.display = '';
-      pauseSection.classList.add('is-open');
       document.getElementById('control-pause-checkbox').checked = editingInactive;
       document.getElementById('pause-timer-row').style.display = editingInactive ? 'flex' : 'none';
       initPauseTimer(ctrl.inactive_until);
+
+      // Card-state persistence: reset to defaults if stale, then apply
+      // saved open/closed state to each visible card. Default-after-stale:
+      //   Switch: Reach open, Settings + Buttons closed.
+      //   Sensor: all motion-scope reach cards open, Settings closed.
+      _resetCtrlCardsIfStale(ctrl.category, editingMotionScopes.length);
+      _applyCtrlCardOpenState('pause-section');
 
       if (isSensorType) {
         if (typeSectionEl) typeSectionEl.style.display = 'none';
         switchSection.style.display = 'none';
         motionSection.style.display = '';
-          document.getElementById('magic-section').style.display = 'none';
+        document.getElementById('magic-section').style.display = 'none';
+        // Restore expanded reach indices from localStorage before render
+        // so the initial draw matches saved state. Pre-expansion below
+        // (from `?from=area`) layers on top.
+        _loadCtrlMotionScopesFromStorage();
         renderMotionScopesEditor();
 
         // Pre-expand reaches containing the area we navigated from
         const fromParams = new URLSearchParams(window.location.search);
         if (fromParams.get('from') === 'area' && fromParams.get('id')) {
           const fromAreaId = fromParams.get('id');
+          let added = false;
           editingMotionScopes.forEach((s, idx) => {
-            if (s.areas && s.areas.includes(fromAreaId)) {
+            if (s.areas && s.areas.includes(fromAreaId) && !_motionScopeExpanded.has(idx)) {
               _motionScopeExpanded.add(idx);
+              added = true;
             }
           });
-          if (_motionScopeExpanded.size > 0) renderMotionScopesEditor();
+          if (added) {
+            _persistCtrlMotionScopes();
+            renderMotionScopesEditor();
+          }
         }
 
         // Show sensitivity row for ZHA motion sensors
@@ -2782,6 +2880,11 @@
         }
 
         renderScopesEditor();
+
+        // Apply persisted open/closed state to switch's top-level cards
+        // (Reach + Buttons). pause-section was applied above the branch.
+        _applyCtrlCardOpenState('switch-config-section');
+        _applyCtrlCardOpenState('magic-section');
       }
 
       // Highlight area chips matching the area we navigated from

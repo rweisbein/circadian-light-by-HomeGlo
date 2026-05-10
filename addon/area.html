@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Circadian Light - Area</title>
+  <link rel="stylesheet" href="./shared.css">
   <style>
     :root {
       --bg: #000;
@@ -694,6 +695,11 @@
     .auto-sched-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; transition: border-color 0.2s; }
     /* Bonded Auto panel: now an inner container inside the outer Auto card */
     .auto-sched-bonded { background: transparent; border: none; border-radius: 0; overflow: visible; }
+    /* Schedule card uses the canonical sub-section pattern alongside its
+       legacy auto-sched-* classes. Existing `.auto-sched-card--sub .auto-sched-field`
+       rules already provide the field indent, so neutralize sub-section-body's
+       default 20px to avoid double-indenting. */
+    #schedule-card .sub-section-body { padding-left: 0; }
     .auto-sched-card--sub { background: transparent; border: none; border-radius: 0; transition: background 0.3s; }
     .auto-sched-card--sub + .auto-sched-card--sub { border-top: 1px solid var(--line); }
     /* Sub-card bodies are always visible (outer Auto controls collapse) */
@@ -762,7 +768,8 @@
     .auto-sched-next { font-size: var(--font-display); color: var(--text); font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
     /* Tint resolved time when an override is active — paired with the
        "clear override" link underneath to double-signal modified state. */
-    .auto-sched-next.has-override { color: rgba(254, 172, 96, 0.95); }
+    /* Subheader time stays in default color regardless of override state —
+       the "clear override" link in the same row is the override indicator. */
     .auto-sched-chevron { display: inline-block; font-size: var(--font-display); line-height: 1; transform: rotate(0deg); transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
     .auto-sched-card.is-open .auto-sched-chevron { transform: rotate(90deg); }
 
@@ -936,32 +943,47 @@
     .tune-brightness-card.is-open .tune-brightness-chevron { transform: rotate(90deg); }
     .tune-controls-card.is-open .tune-brightness-chevron { transform: rotate(90deg); }
     .tune-controls-card.is-open .tune-brightness-val { opacity: 0; }
-    .tune-controls-card.is-open .tune-brightness-body { max-height: 800px; opacity: 1; padding-bottom: 8px; }
+    /* max-height is required for the open-transition (can't animate to
+       `auto`); set well above any real-world controls list height so it
+       acts as "effectively unlimited". 800px clipped Kitchens with many
+       controls; 6000px matches the auto-sched-card--auto pattern. */
+    .tune-controls-card.is-open .tune-brightness-body { max-height: 6000px; opacity: 1; padding-bottom: 8px; }
 
     /* Controls list inside Controls card */
-    .ctrl-list-row { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--line); cursor: pointer; transition: background 0.1s; }
+    /* Two-row grid: top row holds pulse / icon / name / area aligned;
+       bottom row's summary spans body+area columns so reach/mode lines
+       have full width on mobile. */
+    .ctrl-list-row {
+      display: grid;
+      grid-template-columns: 12px auto 1fr auto;
+      grid-template-areas:
+        "pulse icon name area"
+        ".     .    summary summary";
+      align-items: center;
+      column-gap: 10px;
+      row-gap: 2px;
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--line);
+      cursor: pointer;
+      transition: background 0.1s;
+    }
     .ctrl-list-row:last-child { border-bottom: none; }
     .ctrl-list-row:active { background: rgba(255,255,255,0.04); }
-    .ctrl-list-icon { flex-shrink: 0; color: var(--muted); display: flex; align-items: center; }
-    .ctrl-list-info { flex: 1; min-width: 0; }
+    .ctrl-fresh-dot-slot { grid-area: pulse; }
+    .ctrl-list-icon { grid-area: icon; flex-shrink: 0; color: var(--muted); display: flex; align-items: center; }
+    .ctrl-list-info { grid-area: name; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
     .ctrl-list-name { font-size: var(--font-value); font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .ctrl-list-name .ctrl-paused-badge { font-size: var(--font-caps); font-weight: 400; color: #f90; background: rgba(255,153,0,0.12); padding: 1px 5px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
-    .ctrl-list-impact { flex-shrink: 0; font-size: var(--font-body); color: var(--muted); text-align: right; white-space: nowrap; }
-    .ctrl-list-chevron { flex-shrink: 0; color: var(--muted2); font-size: var(--font-value); }
+    .ctrl-list-area { grid-area: area; flex-shrink: 0; font-size: var(--font-body); color: var(--muted); text-align: right; white-space: nowrap; align-self: center; }
     .ctrl-list-divider { border-top: 1px solid var(--line); margin: 0; }
     /* Recently active pinned strip */
-    /* Section headers inside the Controls card body. Group rows into
-       "In <area>" + "Reaches <area>" buckets — each header same caps-label
-       treatment that the old Recent strip used. Headers are hidden when
-       their group has zero rows. */
-    .ctrl-section-label { font-size: var(--font-caps); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted2); padding: 10px 14px 4px; }
-    .ctrl-section + .ctrl-section .ctrl-section-label { border-top: 1px solid var(--line); margin-top: 4px; }
+    /* In/Reaches headers now use the shared `.group-divider` from
+       shared.css (heavier rule + count parenthetical). */
     /* Recency dot — fixed-width slot on the LEFT of every row so all names
        align regardless of whether a row's dot is currently active.
        Bright green when just-triggered, fades down to dim green over 1h,
        disappears after that. */
     .ctrl-fresh-dot-slot { display: inline-flex; align-items: center; justify-content: center; width: 12px; height: 12px; flex-shrink: 0; }
-    .ctrl-fresh-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .tune-brightness-val { margin-left: auto; font-size: var(--font-display); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; transition: opacity 0.25s; }
     .tune-brightness-card.is-open .tune-brightness-val { opacity: 0; }
     .tune-brightness-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; padding-bottom: 0; }
@@ -1294,10 +1316,9 @@
         <span class="auto-outer-next" id="auto-outer-next"></span>
       </div>
       <div class="auto-sched-body" id="auto-outer-body">
-    <div class="auto-sched-bonded" id="auto-bonded-panel">
-    <div class="auto-sched-card auto-sched-card--sub" id="auto-on-card">
-        <div class="auto-sched-header auto-sched-header--static">
-          <span class="auto-sched-title">On</span>
+    <div class="auto-sched-card auto-sched-card--sub sub-section" id="auto-on-card">
+        <div class="auto-sched-header auto-sched-header--static sub-section-header">
+          <span class="auto-sched-title sub-section-title">On</span>
           <label class="auto-sched-toggle" onclick="event.stopPropagation()">
             <input type="checkbox" id="auto-on-enabled" onchange="onAutoToggleChanged('on')">
             <span class="slider"></span>
@@ -1307,7 +1328,7 @@
             <a id="auto-on-override-link" href="#" style="display:none; font-size:var(--font-caps); color:var(--muted2); text-decoration:underline; line-height:1;">set override</a>
           </span>
         </div>
-        <div class="auto-sched-body" id="auto-on-body">
+        <div class="auto-sched-body sub-section-body" id="auto-on-body">
          <div class="auto-sched-body-inner">
           <div class="auto-sched-field">
             <span class="auto-sched-field-label">Light</span>
@@ -1394,9 +1415,9 @@
         </div>
       </div>
 
-    <div class="auto-sched-card auto-sched-card--sub" id="auto-off-card">
-        <div class="auto-sched-header auto-sched-header--static">
-          <span class="auto-sched-title">Off</span>
+    <div class="auto-sched-card auto-sched-card--sub sub-section" id="auto-off-card">
+        <div class="auto-sched-header auto-sched-header--static sub-section-header">
+          <span class="auto-sched-title sub-section-title">Off</span>
           <label class="auto-sched-toggle" onclick="event.stopPropagation()">
             <input type="checkbox" id="auto-off-enabled" onchange="onAutoToggleChanged('off')">
             <span class="slider"></span>
@@ -1406,7 +1427,7 @@
             <a id="auto-off-override-link" href="#" style="display:none; font-size:var(--font-caps); color:var(--muted2); text-decoration:underline; line-height:1;">set override</a>
           </span>
         </div>
-        <div class="auto-sched-body" id="auto-off-body">
+        <div class="auto-sched-body sub-section-body" id="auto-off-body">
          <div class="auto-sched-body-inner">
           <div class="auto-sched-field">
             <span class="auto-sched-field-label">Time</span>
@@ -1527,7 +1548,9 @@
     //      pattern used by the main controls list page so the area-details
     //      doesn't get stuck in an unusual layout from a previous session.
     const _AREA_CARDS_TS_KEY = 'area_cards_ts';
-    const _AREA_CARDS_TTL_MS = 15 * 60 * 1000;
+    // TTL is read at module init via the HomeGlo Lab freshness setting
+    // (cardFreshnessMs in shared.js, backed by localStorage).
+    const _AREA_CARDS_TTL_MS = cardFreshnessMs();
     const _AREA_CARD_KEYS = [
       'adjust_collapsed', 'schedule_collapsed', 'tune_collapsed',
       'tune_adj_open', 'tune_individual_open', 'tune_controls_expanded',
@@ -2234,9 +2257,14 @@
       // can read it. Prefer live tuneState (unsaved Tune edits) over saved
       // status — same priority as sbfNow above. This drives the per-hour
       // sun-dimming projection (rhythm-design:3719 formula).
-      const briSens = (tuneState?.initialized && tuneState.brightnessSensitivity != null)
-        ? tuneState.brightnessSensitivity
-        : (areaLive.brightness_sensitivity ?? 0);
+      // When sun-dimming is disabled at the rhythm level, force sensitivity
+      // to 0 so the chart shows no dimming projection.
+      const briSensEnabled = areaLive.brightness_sensitivity_enabled !== false;
+      const briSens = !briSensEnabled
+        ? 0
+        : (tuneState?.initialized && tuneState.brightnessSensitivity != null)
+          ? tuneState.brightnessSensitivity
+          : (areaLive.brightness_sensitivity ?? 0);
       // natural_light_exposure: live tuneState (Sun-exposure slider preview)
       // wins over saved status. Defaults to 0 if missing — don't project
       // dimming we can't ground in real config.
@@ -3539,9 +3567,12 @@
                 // out when those fields are missing — making the ghost
                 // visually flat where the live curve dips.
                 const liveStatus = areaStatus[selectedArea?.area_id] || {};
-                const _briSens = (tuneState?.initialized && tuneState.brightnessSensitivity != null)
-                  ? tuneState.brightnessSensitivity
-                  : (liveStatus.brightness_sensitivity ?? 0);
+                const _briSensEnabled = liveStatus.brightness_sensitivity_enabled !== false;
+                const _briSens = !_briSensEnabled
+                  ? 0
+                  : (tuneState?.initialized && tuneState.brightnessSensitivity != null)
+                    ? tuneState.brightnessSensitivity
+                    : (liveStatus.brightness_sensitivity ?? 0);
                 const _exposure = (tuneState?.initialized && typeof SOLAR_STEPS !== 'undefined'
                   && SOLAR_STEPS[tuneState.solarStep])
                   ? SOLAR_STEPS[tuneState.solarStep].exposure
@@ -3805,9 +3836,12 @@
           const sbfNow = previewState.live_sbf
             ?? (areaStatus[selectedArea.area_id]?.sun_bright_factor)
             ?? cachedSunTimes.sunBrightFactorNow ?? 1.0;
-          const briSens = (tuneState?.initialized && tuneState.brightnessSensitivity != null)
-            ? tuneState.brightnessSensitivity
-            : (areaStatus[selectedArea.area_id]?.brightness_sensitivity ?? 0);
+          const _enabled = areaStatus[selectedArea.area_id]?.brightness_sensitivity_enabled !== false;
+          const briSens = !_enabled
+            ? 0
+            : (tuneState?.initialized && tuneState.brightnessSensitivity != null)
+              ? tuneState.brightnessSensitivity
+              : (areaStatus[selectedArea.area_id]?.brightness_sensitivity ?? 0);
           const naturalLightExposure =
             (tuneState?.initialized && typeof SOLAR_STEPS !== 'undefined'
               && SOLAR_STEPS[tuneState.solarStep])
@@ -4781,9 +4815,9 @@
       { label: "None",      exposure: 0.00 },
       { label: "Low",       exposure: 0.25 },
       { label: "Moderate",  exposure: 0.40 },
-      { label: "Medium",    exposure: 0.60 },
+      { label: "Strong",    exposure: 0.60 },
       { label: "High",      exposure: 0.75 },
-      { label: "Strong",    exposure: 0.90 },
+      { label: "Near full", exposure: 0.90 },
       { label: "Full",      exposure: 1.00 },
       { label: "Amplified", exposure: 1.25 },
       { label: "Intense",   exposure: 1.60 },
@@ -5944,84 +5978,20 @@
     let areaControls = [];
     let feedbackRestrictToPrimary = false;
 
+    // Includes controls whose scopes reach this area OR that physically
+    // live here (the latter become the "Lives here only" bucket if no
+    // scope reaches the current area).
     function filterControlsForArea(controls, areaId) {
-      const result = [];
-      for (const ctrl of controls) {
-        if (!ctrl.scopes || ctrl.scopes.length === 0) continue;
-        // Collect scopes that include this area
-        const matchingScopes = ctrl.scopes.filter(s => s.areas && s.areas.includes(areaId));
-        if (matchingScopes.length > 0) {
-          result.push({ ...ctrl, _matchingScopes: matchingScopes });
-        }
-      }
-      return result;
+      return controls.filter(ctrl => {
+        if (ctrl.area_id === areaId) return true;
+        if (!ctrl.scopes) return false;
+        return ctrl.scopes.some(s => (s.areas || []).includes(areaId));
+      });
     }
 
     function areaName(areaId) {
       const a = areas.find(x => x.area_id === areaId);
       return a ? a.name : areaId;
-    }
-
-    function switchImpactLabel(ctrl) {
-      const scopes = ctrl._matchingScopes || [];
-      const currentAreaId = selectedArea ? selectedArea.area_id : '';
-      const parts = [];
-      for (const scope of scopes) {
-        const others = (scope.areas || []).filter(id => id !== currentAreaId);
-        if (others.length === 0) {
-          parts.push('Solo');
-        } else {
-          // Pick the "featured" area name
-          let featured = null;
-          if (feedbackRestrictToPrimary && scope.feedback_area && others.includes(scope.feedback_area)) {
-            featured = scope.feedback_area;
-          }
-          if (!featured) {
-            // First alphabetically by name
-            featured = others.sort((a, b) => areaName(a).localeCompare(areaName(b)))[0];
-          }
-          const rest = others.length - 1;
-          if (rest === 0) {
-            parts.push('+ ' + areaName(featured));
-          } else if (others.length <= 2) {
-            parts.push('+ ' + others.sort((a, b) => areaName(a).localeCompare(areaName(b))).map(id => areaName(id)).join(', '));
-          } else {
-            parts.push(areaName(featured) + ' +' + rest);
-          }
-        }
-      }
-      return parts.join(' | ');
-    }
-
-    function sensorScopeToken(scope) {
-      if (!scope.mode || scope.mode === 'disabled') return null;
-      if (scope.mode === 'alert') return 'Alert';
-      if (scope.mode === 'on_only') {
-        return scope.boost_enabled ? 'On boost' : 'On';
-      }
-      // on_off — duration implies "turns on"
-      const dur = formatDuration(scope.duration || 60);
-      return scope.boost_enabled ? dur + ' boost' : dur;
-    }
-
-    function controlImpactLabel(ctrl) {
-      const scopes = ctrl._matchingScopes || [];
-      if (ctrl.category === 'switch') {
-        return switchImpactLabel(ctrl);
-      }
-      if (!scopes.length) return '';
-      const tokens = scopes.map(sensorScopeToken).filter(Boolean);
-      if (tokens.length === 0) return '<span style="color:var(--muted2)">Disabled</span>';
-      return tokens.join(' + ');
-    }
-
-    function formatDuration(seconds) {
-      if (seconds < 60) return seconds + 's';
-      const m = Math.round(seconds / 60);
-      if (m < 60) return m + 'm';
-      const h = Math.floor(m / 60);
-      const rm = m % 60;
-      return rm > 0 ? h + 'h ' + rm + 'm' : h + 'h';
     }
 
     function controlCategoryIcon(category) {
@@ -6035,95 +6005,92 @@
       return icons[category] || '';
     }
 
-    function isAlertOnly(ctrl) {
-      const scopes = ctrl._matchingScopes || [];
-      return scopes.length > 0 && scopes.every(s => s.mode === 'alert');
-    }
-
-    function isAllDisabled(ctrl) {
-      const scopes = ctrl._matchingScopes || [];
-      return scopes.length > 0 && scopes.every(s => !s.mode || s.mode === 'disabled');
-    }
-
-    function isSwitchSolo(ctrl) {
-      if (ctrl.category !== 'switch') return false;
-      const scopes = ctrl._matchingScopes || [];
-      return scopes.every(s => (s.areas || []).length <= 1);
-    }
-
-    function controlSortKey(ctrl) {
-      // Paused/disabled sink to bottom
-      if (ctrl.inactive) return [90, 0, ctrl.name.toLowerCase()];
-      if (ctrl.category !== 'switch' && isAllDisabled(ctrl)) return [91, 0, ctrl.name.toLowerCase()];
-
-      const catOrder = { 'switch': 0, 'motion_sensor': 1, 'camera': 2, 'contact_sensor': 3 };
-      const cat = catOrder[ctrl.category] ?? 4;
-
-      if (ctrl.category === 'switch') {
-        // Solo switches first, then non-solo
-        const solo = isSwitchSolo(ctrl) ? 0 : 1;
-        return [cat, solo, ctrl.name.toLowerCase()];
-      }
-      // Sensors: alert-only last within category
-      const alertLast = isAlertOnly(ctrl) ? 1 : 0;
-      return [cat, alertLast, ctrl.name.toLowerCase()];
-    }
-
-    function sortAreaControls(controls) {
-      return [...controls].sort((a, b) => {
-        const ka = controlSortKey(a);
-        const kb = controlSortKey(b);
-        for (let i = 0; i < ka.length; i++) {
-          if (ka[i] < kb[i]) return -1;
-          if (ka[i] > kb[i]) return 1;
+    // Build the home-area-order map from glozones: { area_id: index }
+    // in zone-order × area-within-zone order. Used as primary sort key
+    // for controls (and threaded into controlSummary so the in-row
+    // area lists also display in canonical order).
+    function _getAreaOrderMap() {
+      const map = {};
+      let idx = 0;
+      const zones = (cachedGlozones && cachedGlozones.zones) || {};
+      for (const zoneName of Object.keys(zones)) {
+        const list = (zones[zoneName] && zones[zoneName].areas) || [];
+        for (const a of list) {
+          const aid = (typeof a === 'object') ? a.id : a;
+          if (aid && !(aid in map)) map[aid] = idx++;
         }
-        return 0;
+      }
+      return map;
+    }
+
+    // Sort by home-area-order (primary), then control name (secondary).
+    // "Sort by Location" semantics: rooms cluster in their canonical
+    // order, controls within a room cluster alphabetically.
+    function sortAreaControls(controls) {
+      const order = _getAreaOrderMap();
+      return [...controls].sort((a, b) => {
+        const oa = order[a.area_id] ?? 99999;
+        const ob = order[b.area_id] ?? 99999;
+        if (oa !== ob) return oa - ob;
+        return (a.name || '').localeCompare(b.name || '');
       });
     }
 
-    // Recency dot color — bright green at 0–1m, fades to a dim green by 1h
-    // (no grey transition; user wanted "less bright" not "different hue").
-    // Returns null when the timestamp is older than 1h or absent — caller
-    // renders an empty slot in that case so row alignment stays stable.
-    const FRESHNESS_WINDOW_MIN = 60;
-    function freshnessDotColor(timestampMs) {
-      if (timestampMs == null) return null;
-      const ageMin = (Date.now() - timestampMs) / 60000;
-      if (ageMin >= FRESHNESS_WINDOW_MIN) return null;
-      if (ageMin <= 1) return 'rgba(80, 220, 140, 1)';
-      const t = (ageMin - 1) / (FRESHNESS_WINDOW_MIN - 1);
-      // Linear fade alpha 1.0 → 0.30 — same green hue throughout, just dimmer.
-      const alpha = 1 - t * 0.7;
-      return `rgba(80, 220, 140, ${alpha.toFixed(2)})`;
-    }
-
-    function controlLastActionMs(ctrl) {
+    // Recent-activity dot — replaced by the shared `pulse-dot` component
+    // (see buildPulseDot in shared.js). White, fades linearly to invisible
+    // over a Lab-configured window (default 6h). Same component used on the
+    // main Controls list page for consistency.
+    function controlLastActionSec(ctrl) {
       const ts = ctrl && ctrl.last_action && ctrl.last_action.timestamp;
       if (!ts) return null;
       const t = Date.parse(ts);
-      return isNaN(t) ? null : t;
+      return isNaN(t) ? null : t / 1000;
+    }
+    function controlsPulseWindowHours() {
+      // Lab-set window in hours — defaults to 6.
+      const v = cachedConfig && cachedConfig.controls_pulse_window_hours;
+      const n = parseFloat(v);
+      return Number.isFinite(n) && n > 0 ? n : 6;
     }
 
-    // Renders one row, with a fixed-width dot slot on the LEFT so names
-    // align across rows regardless of whether the dot is currently active.
-    function renderControlRow(ctrl) {
+    // Row format mirrors /switches: pulse | icon | (name+summary) | rightArea.
+    // opts.doesntReach: control is in the "Doesn't reach <area>" bucket —
+    // use the dedicated summary form (no area-filter perspective). Right
+    // side still shows home area for visual consistency across buckets.
+    function renderControlRow(ctrl, currentAreaId, opts) {
+      opts = opts || {};
       const icon = controlCategoryIcon(ctrl.category);
-      const impact = controlImpactLabel(ctrl);
       const pausedBadge = ctrl.inactive ? '<span class="ctrl-paused-badge">paused</span>' : '';
       const encodedId = encodeURIComponent(ctrl.id);
-      const areaId = selectedArea ? encodeURIComponent(selectedArea.area_id) : '';
-      const dotColor = freshnessDotColor(controlLastActionMs(ctrl));
-      const dotHtml = dotColor
-        ? `<span class="ctrl-fresh-dot" style="background:${dotColor};"></span>`
+      const areaIdParam = selectedArea ? encodeURIComponent(selectedArea.area_id) : '';
+      const dotHtml = buildPulseDot(controlLastActionSec(ctrl), controlsPulseWindowHours());
+      const areaOrder = _getAreaOrderMap();
+      const summary = opts.doesntReach
+        ? controlSummaryDoesntReach(ctrl, areas, areaOrder)
+        : controlSummary(ctrl, {
+            allAreas: areas,
+            filterAreaId: currentAreaId,
+            deviceAreaId: ctrl.area_id,
+            areaOrder: areaOrder,
+          });
+      const summaryLine = summary
+        ? `<div class="ctrl-card-summary">${summary}</div>`
         : '';
-      let row = `<div class="ctrl-list-row" onclick="window.location.href='${basePath}/control/${encodedId}?from=area&id=${areaId}'">`;
-      row += `<span class="ctrl-list-icon">${icon}</span>`;
-      row += `<span class="ctrl-fresh-dot-slot">${dotHtml}</span>`;
-      row += `<span class="ctrl-list-info"><span class="ctrl-list-name">${ctrl.name}${pausedBadge}</span></span>`;
-      row += `<span class="ctrl-list-impact">${impact}</span>`;
-      row += `<span class="ctrl-list-chevron">&#x203A;</span>`;
-      row += `</div>`;
-      return row;
+      const homeAreaName = ctrl.area_id ? areaName(ctrl.area_id) : '';
+      const rightArea = homeAreaName
+        ? `<span class="ctrl-list-area">${homeAreaName}</span>`
+        : '';
+      // Grid layout — summary lives as a top-level grid child so it can
+      // span the body+area columns on row 2 (full row width on mobile).
+      return `<div class="ctrl-list-row" onclick="window.location.href='${basePath}/control/${encodedId}?from=area&id=${areaIdParam}'">`
+        + `<span class="ctrl-fresh-dot-slot">${dotHtml}</span>`
+        + `<span class="ctrl-list-icon">${icon}</span>`
+        + `<span class="ctrl-list-info">`
+        +   `<span class="ctrl-list-name">${ctrl.name}${pausedBadge}</span>`
+        + `</span>`
+        + rightArea
+        + summaryLine
+        + `</div>`;
     }
 
     // Re-render the controls list every 60s so the freshness dots fade out
@@ -6143,32 +6110,42 @@
     function renderAreaControlsBody() {
       if (!areaControls || areaControls.length === 0) return '';
       const currentAreaId = selectedArea ? selectedArea.area_id : '';
+      const currentAreaName = selectedArea ? selectedArea.name : '';
       const sorted = sortAreaControls(areaControls);
-      const inGroup = sorted.filter(c => c.area_id === currentAreaId);
-      const reachGroup = sorted.filter(c => c.area_id !== currentAreaId);
-      const areaLabel = (selectedArea && selectedArea.name) ? selectedArea.name : 'this area';
-      // Section headers only appear when there's something to differentiate
-      // between (i.e. both groups populated). When only one group has rows,
-      // it's just "the controls" — the card title already names that. Avoids
-      // a redundant "In SunOffice" header above all controls when no
-      // outside-area control targets this room.
-      const showHeaders = inGroup.length > 0 && reachGroup.length > 0;
-      const sections = [];
-      if (inGroup.length) {
-        let html = '<div class="ctrl-section">';
-        if (showHeaders) html += `<div class="ctrl-section-label">In ${areaLabel}</div>`;
-        for (const ctrl of inGroup) html += renderControlRow(ctrl);
-        html += '</div>';
-        sections.push(html);
+      const buckets = bucketControlsForArea(sorted, currentAreaId, currentAreaName);
+      // Headers only render when 2+ buckets have content — a single
+      // bucket is just "the controls", and the card title already names
+      // that. 5 buckets total: switchDirect / switchIndirect / presence
+      // / alerts / doesntReach (matches /switches single-area view).
+      const populatedBuckets =
+        (buckets.switchDirect.length > 0 ? 1 : 0)
+        + (buckets.switchIndirect.length > 0 ? 1 : 0)
+        + (buckets.presence.length > 0 ? 1 : 0)
+        + (buckets.alerts.length > 0 ? 1 : 0)
+        + (buckets.doesntReach.length > 0 ? 1 : 0);
+      const showHeaders = populatedBuckets >= 2;
+      let html = '';
+      if (buckets.switchDirect.length) {
+        if (showHeaders) html += buildGroupDivider('Reach 1', buckets.switchDirect.length);
+        for (const c of buckets.switchDirect) html += renderControlRow(c, currentAreaId, {});
       }
-      if (reachGroup.length) {
-        let html = '<div class="ctrl-section">';
-        if (showHeaders) html += `<div class="ctrl-section-label">Reaches ${areaLabel}</div>`;
-        for (const ctrl of reachGroup) html += renderControlRow(ctrl);
-        html += '</div>';
-        sections.push(html);
+      if (buckets.switchIndirect.length) {
+        if (showHeaders) html += buildGroupDivider('Reach 2+', buckets.switchIndirect.length);
+        for (const c of buckets.switchIndirect) html += renderControlRow(c, currentAreaId, {});
       }
-      return sections.join('');
+      if (buckets.presence.length) {
+        if (showHeaders) html += buildGroupDivider('Presence', buckets.presence.length);
+        for (const c of buckets.presence) html += renderControlRow(c, currentAreaId, {});
+      }
+      if (buckets.alerts.length) {
+        if (showHeaders) html += buildGroupDivider('Alert', buckets.alerts.length);
+        for (const c of buckets.alerts) html += renderControlRow(c, currentAreaId, {});
+      }
+      if (buckets.doesntReach.length) {
+        if (showHeaders) html += buildGroupDivider('Doesn’t reach ' + currentAreaName, buckets.doesntReach.length);
+        for (const c of buckets.doesntReach) html += renderControlRow(c, currentAreaId, { doesntReach: true });
+      }
+      return html;
     }
 
     function renderAreaControlsList() {
@@ -6754,12 +6731,12 @@
       return timeStr.replace(/:00([ap])$/, '$1');
     }
 
-    // Day suffix matching home-page algorithm: bare within 24h, abbr 2-6 days out, date 7+.
+    // Day suffix: today bare, abbr 1-6 days out (so tomorrow's "7a Tu" disambiguates
+    // from today's "7a"), date 7+ days out.
     function formatAutoDaySuffix(nxt) {
       if (!nxt) return '';
       const offset = nxt.offset;
-      if (offset == null || offset < 0) return '';
-      if (offset <= 1) return '';
+      if (offset == null || offset <= 0) return '';
       if (offset <= 6) return nxt.day_abbr || '';
       return (nxt.date_short || '').replace(' ', '');
     }
@@ -6784,16 +6761,23 @@
       const s = autoState[type];
       const source = s?.source;
       let core;
-      if (source === 'sunrise' || source === 'sunset') {
-        const word = source === 'sunrise' ? 'Sunrise' : 'Sunset';
-        const offStr = s.offset === 0 ? '' : ' ' + formatOffset(s.offset);
-        core = word + offStr;
-      } else if (isAutoDirty(type)) {
+      if (isAutoDirty(type)) {
+        // Live preview from the UI's pending edits, before save.
         const projected = projectAutoHeaderFromUI(type);
         core = projected ? formatAutoTimeCompact(projected) : (nxt?.time ? formatAutoTimeCompact(nxt.time) : '—');
       } else if (nxt && nxt.time) {
-        core = formatAutoTimeCompact(nxt.time);
+        // Backend resolved a next-fire — render it. Sun-based shows the word
+        // ("Sunset +30m"); clock-based shows the time. We trust the backend's
+        // resolution (it accounts for overrides, weekday filters, etc.).
+        if (source === 'sunrise' || source === 'sunset') {
+          const word = source === 'sunrise' ? 'Sunrise' : 'Sunset';
+          const offStr = s.offset === 0 ? '' : ' ' + formatOffset(s.offset);
+          core = word + offStr;
+        } else {
+          core = formatAutoTimeCompact(nxt.time);
+        }
       } else {
+        // No next fire (e.g. pause-forever, or no eligible weekday) — em-dash.
         core = '—';
       }
       const daySuffix = formatAutoDaySuffix(nxt);

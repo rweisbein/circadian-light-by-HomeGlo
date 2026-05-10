@@ -685,11 +685,15 @@ class LightDesignerServer:
         )
         self.app.router.add_post("/api/zone/action", self.handle_zone_action)
 
-        # Manual sync endpoint
+        # Manual sync endpoints — full (lights + ZHA groups) and controls-only.
         self.app.router.add_route(
             "POST", "/{path:.*}/api/sync-devices", self.handle_sync_devices
         )
         self.app.router.add_post("/api/sync-devices", self.handle_sync_devices)
+        self.app.router.add_route(
+            "POST", "/{path:.*}/api/sync-controls", self.handle_sync_controls
+        )
+        self.app.router.add_post("/api/sync-controls", self.handle_sync_controls)
 
         # Controls API routes (new unified endpoint)
         self.app.router.add_route("GET", "/{path:.*}/api/controls", self.get_controls)
@@ -963,6 +967,22 @@ class LightDesignerServer:
                 ]:
                     if pattern in html_content:
                         html_content = html_content.replace(pattern, inline_script)
+                        break
+
+            # Inline shared.css content (same reason as shared.js)
+            shared_css_path = Path(__file__).parent / "shared.css"
+            if shared_css_path.exists():
+                async with aiofiles.open(shared_css_path, "r") as f:
+                    shared_css_content = await f.read()
+                inline_style = f"<style>\n{shared_css_content}\n</style>"
+                for pattern in [
+                    '<link rel="stylesheet" href="./shared.css">',
+                    '<link rel="stylesheet" href="shared.css">',
+                    "<link rel='stylesheet' href='./shared.css'>",
+                    "<link rel='stylesheet' href='shared.css'>",
+                ]:
+                    if pattern in html_content:
+                        html_content = html_content.replace(pattern, inline_style)
                         break
 
             # Inline icon.png as base64 data URI (avoids routing issues with ingress paths)
@@ -1712,9 +1732,7 @@ class LightDesignerServer:
                     brightness_override_set_at=runtime_state.get(
                         "brightness_override_set_at"
                     ),
-                    color_override_set_at=runtime_state.get(
-                        "color_override_set_at"
-                    ),
+                    color_override_set_at=runtime_state.get("color_override_set_at"),
                 )
                 logger.debug(
                     f"[ZoneStates] Zone '{zone_name}' area_state: brightness_mid={area_state.brightness_mid}, color_mid={area_state.color_mid}, frozen_at={area_state.frozen_at}"
@@ -1952,6 +1970,7 @@ class LightDesignerServer:
         "motion_blink_threshold",  # Brightness % below which motion warning blinks instead of dims
         "freeze_feedback_enabled",  # Whether freeze/unfreeze shows visual dip-and-restore cue (default true)
         "freeze_off_rise",  # Transition time in tenths of seconds for unfreeze rise (default 10 = 1.0s)
+        "freeze_hold_at_dim",  # Wait between freeze dip and restore phase (tenths of seconds, default 2 = 0.2s)
         "alert_bounce_speed",  # Transition time in tenths of seconds for alert bounce animation (default 10 = 1.0s)
         "limit_bounce_enabled",  # Whether to show visual bounce when hitting step limits (default true)
         "limit_warning_speed",  # Transition time in tenths of seconds for limit bounce animation (default 3 = 0.3s)
@@ -1986,6 +2005,11 @@ class LightDesignerServer:
         "home_slider_mode",  # Homepage slider: "brightness", "step", or "color" (default "brightness")
         "home_buttons_mode",  # Homepage up/down buttons: "step", "bright", or "color" (default "step")
         "rhythm_cursor_step_min",  # Cursor chip ←/→ step amount in minutes (default 5)
+        "controls_pulse_window_hours",  # HomeGlo Lab: pulse-dot fade window for controls list (default 6h)
+        "card_freshness_minutes",  # HomeGlo Lab: collapsible-card state TTL before reset to defaults (default 15m)
+        "controls_recent_window_minutes",  # HomeGlo Lab: short window for "very recent" emphasis on pulse dot (default 5m)
+        "read_only_zha",  # HomeGlo Lab: skip ZHA group sync entirely (defer to another addon instance)
+        "experimental_tick_mode",  # HomeGlo Lab: experimental periodic-tick command mode ("both"/"skip"/"bri"/"ct")
     }
 
     def _migrate_to_glozone_format(self, config: dict) -> dict:
@@ -2175,6 +2199,7 @@ class LightDesignerServer:
             # Visual feedback settings
             "freeze_feedback_enabled": True,  # Show visual dip on freeze/unfreeze
             "freeze_off_rise": 10,  # tenths of seconds (1.0s)
+            "freeze_hold_at_dim": 2,  # tenths of seconds (0.2s) — wait between freeze dip and restore
             "limit_bounce_enabled": True,  # Show visual bounce at step limits
             "limit_warning_speed": 3,  # tenths of seconds (0.3s)
             "limit_bounce_max_percent": 25,  # % of range (hitting max)
@@ -2285,6 +2310,7 @@ class LightDesignerServer:
             # Visual feedback settings
             "freeze_feedback_enabled": True,
             "freeze_off_rise": 10,  # tenths of seconds (1.0s)
+            "freeze_hold_at_dim": 2,  # tenths of seconds (0.2s) — wait between freeze dip and restore
             "limit_bounce_enabled": True,  # Show visual bounce at step limits
             "limit_warning_speed": 3,  # tenths of seconds (0.3s)
             "limit_bounce_max_percent": 25,  # % of range (hitting max)
@@ -3026,13 +3052,21 @@ class LightDesignerServer:
                     area_brightness_sensitivity = rhythm_cfg.get(
                         "brightness_sensitivity", 1.0
                     )
-                    # Brightness sun bright uses raw outdoor_norm (no daylight fade —
-                    # fade applies to color solar rules only, not brightness)
-                    sun_bright_factor = calculate_natural_light_factor(
-                        area_sun_exposure,
-                        outdoor_norm,
-                        area_brightness_sensitivity,
+                    area_brightness_sensitivity_enabled = (
+                        rhythm_cfg.get("brightness_sensitivity_enabled", True)
+                        is not False
                     )
+                    # Brightness sun bright uses raw outdoor_norm (no daylight fade —
+                    # fade applies to color solar rules only, not brightness).
+                    # Skip when sun-dimming is disabled at the rhythm level.
+                    if not area_brightness_sensitivity_enabled:
+                        sun_bright_factor = 1.0
+                    else:
+                        sun_bright_factor = calculate_natural_light_factor(
+                            area_sun_exposure,
+                            outdoor_norm,
+                            area_brightness_sensitivity,
+                        )
 
                     # Apply natural light reduction to brightness (matches main.py)
                     if sun_bright_factor < 1.0:
@@ -3275,6 +3309,7 @@ class LightDesignerServer:
                         "outdoor_last_update": lux_tracker.get_last_outdoor_update(),
                         "sun_factor": round(outdoor_norm, 3),  # backward compat alias
                         "brightness_sensitivity": area_brightness_sensitivity,
+                        "brightness_sensitivity_enabled": area_brightness_sensitivity_enabled,
                         "lux_smoothed": (
                             round(lux_smoothed, 1) if lux_smoothed is not None else None
                         ),
@@ -3992,9 +4027,7 @@ class LightDesignerServer:
                 if area_entry:
                     logger.info(f"[Live Design] Ended for area {area_id}")
 
-                    all_lights = (
-                        area_entry["color_lights"] + area_entry["ct_lights"]
-                    )
+                    all_lights = area_entry["color_lights"] + area_entry["ct_lights"]
                     saved_states = area_entry["saved_states"]
 
                     # Visual feedback: fade to off over 2 seconds, then restore
@@ -5362,10 +5395,11 @@ class LightDesignerServer:
     # -------------------------------------------------------------------------
 
     async def handle_sync_devices(self, request: Request) -> Response:
-        """Trigger manual device/area/group sync.
+        """Trigger manual full sync (lights + ZHA groups + areas).
 
         Re-scans Home Assistant for new/moved lights, areas, and ZHA devices.
-        Also auto-creates inactive control configs for unconfigured devices.
+        Heavier than handle_sync_controls — rebuilds light capability cache
+        and syncs ZHA groups.
         """
         try:
             # Clear areas cache so it gets refreshed on next request
@@ -5382,6 +5416,30 @@ class LightDesignerServer:
             )
         except Exception as e:
             logger.error(f"Error triggering device sync: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def handle_sync_controls(self, request: Request) -> Response:
+        """Trigger controls-only sync (registry refresh, no ZHA changes).
+
+        Refreshes device + entity registries so newly paired controls
+        (switches, motion sensors, contact sensors, cameras) show up on
+        the Controls page. Skips the light capability cache rebuild and
+        ZHA group sync — safe to run frequently after pairing.
+        """
+        try:
+            # Areas list is built from registries too — clear so it re-fetches.
+            self.cached_areas_list = None
+
+            if self.client:
+                await self.client.run_controls_sync()
+            else:
+                return web.json_response({"error": "Client not connected"}, status=503)
+
+            return web.json_response(
+                {"success": True, "message": "Controls sync triggered"}
+            )
+        except Exception as e:
+            logger.error(f"Error triggering controls sync: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
     def _auto_create_controls(self, ha_controls, configured_switches) -> int:
@@ -5797,17 +5855,24 @@ class LightDesignerServer:
             return web.json_response({"sensors": []})
 
     async def set_outdoor_override(self, request: Request) -> Response:
-        """Set a temporary outdoor brightness override."""
+        """Set a manual outdoor brightness override.
+
+        Body: {condition: str, duration_minutes: int|null}
+        duration_minutes=null means "forever" — override persists until
+        cleared or the addon restarts.
+        """
         try:
             data = await request.json()
             condition = data.get("condition")
-            duration = data.get("duration_minutes", 60)
+            raw_duration = data.get("duration_minutes", 60)
             if not condition:
                 return web.json_response({"error": "condition required"}, status=400)
-            lux_tracker.set_override(condition, int(duration))
+            # null/None means "forever" — pass through as None.
+            duration = None if raw_duration is None else int(raw_duration)
+            lux_tracker.set_override(condition, duration)
 
             if self.client:
-                self.client.handle_outdoor_override(condition, int(duration))
+                self.client.handle_outdoor_override(condition, duration)
 
             return web.json_response({"status": "ok"})
         except Exception as e:
