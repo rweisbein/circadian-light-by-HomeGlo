@@ -6872,6 +6872,32 @@ class HomeAssistantWebSocketClient:
         except Exception as e:
             logger.error(f"Failed to refresh area parity cache: {e}")
 
+    def _should_skip_zha_writes(self, scope: str, quiet: bool = False) -> bool:
+        """Single source of truth for HomeGlo Lab `read_only_zha` gating.
+
+        Returns True (and logs) when ZHA group writes should be skipped, so
+        another addon instance can own group membership. Used by both ZHA-group
+        sync paths (purpose groups + batch groups) so a single config flag
+        blocks every write surface.
+
+        Args:
+            scope: human-readable label for the log line ("ZHA group sync",
+                   "Batch group sync", etc.).
+            quiet: suppress the skip log (used for slow-cycle periodic syncs).
+        """
+        try:
+            raw_config = glozone.load_config_from_files()
+        except Exception:
+            return False
+        if not raw_config.get("read_only_zha", False):
+            return False
+        if not quiet:
+            logger.info(
+                f"{scope} skipped — read_only_zha enabled (HomeGlo Lab). "
+                "Another addon instance owns ZHA groups."
+            )
+        return True
+
     async def sync_zha_groups(self, quiet: bool = False, registry=None):
         """Helper method to sync ZHA groups with all areas.
 
@@ -6880,21 +6906,7 @@ class HomeAssistantWebSocketClient:
             registry: Pre-fetched RegistryData. If None, fetches all registries once.
         """
         try:
-            # Read-only ZHA mode (HomeGlo Lab setting): skip ZHA group
-            # writes entirely. Used in dev/dual-addon setups where another
-            # instance owns ZHA group membership and this addon should
-            # passively observe (read state, dispatch to existing groups)
-            # without writing/syncing membership. Without this, two
-            # addons with different filter configs race on the daily 4 AM
-            # sync (and on startup / "Sync devices") and clobber each
-            # other's group state.
-            raw_config_for_gate = glozone.load_config_from_files()
-            if raw_config_for_gate.get("read_only_zha", False):
-                if not quiet:
-                    logger.info(
-                        "ZHA group sync skipped — read_only_zha enabled "
-                        "(HomeGlo Lab). Another addon instance owns ZHA groups."
-                    )
+            if self._should_skip_zha_writes("ZHA group sync", quiet=quiet):
                 return
 
             if not quiet:
@@ -7000,6 +7012,8 @@ class HomeAssistantWebSocketClient:
                        will be fetched from ZigBee controller.
         """
         try:
+            if self._should_skip_zha_writes("Batch group sync"):
+                return
             # Get unique multi-area reaches from all switches
             reaches = switches.get_all_unique_reaches()
             if not reaches:

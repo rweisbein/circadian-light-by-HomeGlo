@@ -103,7 +103,11 @@
 
     /* Main Content */
     .main {
-      max-width: 1000px;
+      /* Match controls page (switches.html .main: 750px) so home and
+         controls feel like the same app on desktop. 750 also keeps the
+         slider narrow enough that the right-aligned readout and schedule
+         pill stack above/below it, matching mobile. */
+      max-width: 750px;
       margin: 0 auto;
       padding: 12px 12px 24px;
     }
@@ -316,10 +320,24 @@
     }
 
     .timer-alarm {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 1px 7px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.08);
       color: inherit;
+      font-size: 0.78rem;
+      font-weight: 500;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    /* On-rows have a warm bg + dark text — use a dark transparent chip there */
+    .area-row:not(.area-row-off) .timer-alarm {
+      background: rgba(0,0,0,0.12);
     }
     .timer-alarm-rel {
-      opacity: 0.55;
+      opacity: 0.65;
       font-size: 0.88em;
       font-variant-numeric: tabular-nums;
     }
@@ -514,30 +532,22 @@
       margin: 0 16px;
     }
 
-    /* Cap slider width on desktop so it doesn't stretch absurdly wide */
-    @media (min-width: 768px) {
-      .row-slider-track {
-        max-width: 480px;
-      }
-    }
+    /* Slider fills the row middle — readout (above) and schedule pill (below)
+       align vertically with the slider's right edge, matching mobile layout. */
 
-    /* Off-row compact summary (replaces slider when area is off) */
-    .row-off-summary {
-      display: flex;
+    /* Phase 1: off rows are single-line — schedule pill inlines into the name row. */
+    .area-row-off .row-middle-top {
+      gap: 6px;
       align-items: center;
-      gap: 8px;
-      padding: 2px 16px 4px;
-      font-size: 0.85rem;
-      white-space: nowrap;
     }
-    .row-off-summary .row-off-label {
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      opacity: 0.55;
+    .row-off-flex {
+      flex: 1;
+      min-width: 0;
     }
-    .row-off-summary .row-schedule-right {
-      margin-left: auto;
+    .area-row-off .row-schedule-right {
       color: var(--text);
+      opacity: 0.7;
+      padding-right: 8px;
     }
 
     .row-slider-track::before {
@@ -745,7 +755,9 @@
       .zone-group,
       .home-toolbar,
       .edit-toolbar {
-        max-width: 720px;
+        /* Inner content fills .main (capped at 750px) — the inner cap is
+           redundant now, kept here so a future .main expansion stays bounded. */
+        max-width: 100%;
       }
     }
 
@@ -903,6 +915,38 @@
     }
 
     .zone-header:not(.collapsed) .zone-chevron {
+      transform: rotate(90deg);
+    }
+
+    /* Phase 1: bigger left-side zone chevron */
+    .zone-chevron-big-tap {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      cursor: pointer;
+      color: inherit;
+      opacity: 0.7;
+      flex-shrink: 0;
+      transition: opacity 0.15s;
+      margin-left: -4px;
+    }
+    .zone-chevron-big-tap:hover { opacity: 1; }
+    .zone-chevron-big {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      font-size: 1.55rem;
+      line-height: 1;
+      color: inherit;
+      transform: rotate(0deg);
+      transition: transform 0.25s;
+      flex-shrink: 0;
+    }
+    .zone-header:not(.collapsed) .zone-chevron-big {
       transform: rotate(90deg);
     }
 
@@ -1181,6 +1225,180 @@
       transition: background 0.15s;
     }
     .home-name-heading:hover { background: rgba(255,255,255,0.06); }
+
+    /* Phase 1: header status line under the home name. */
+    .home-header-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+    .home-status-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.82rem;
+      color: var(--muted);
+      padding-left: 4px;
+    }
+    .home-status-line .rooms-on-count {
+      cursor: default;
+    }
+    .home-status-line .status-sep {
+      opacity: 0.4;
+    }
+    .home-sun-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 8px 2px 4px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--muted);
+      background: transparent;
+      text-decoration: none;
+    }
+    .home-sun-pill:hover { color: var(--text); }
+    .home-sun-icon {
+      display: inline-block;
+      font-size: 0.95rem;
+      /* color + text-shadow set inline by refreshHomeSun() */
+    }
+
+    /* Phase 1: always-visible segmented bar (no popover) for view switcher. */
+    .view-segments-bar {
+      display: inline-flex;
+      padding: 3px;
+      border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.04);
+      gap: 0;
+    }
+    .view-segments-bar .view-segment {
+      border: 0;
+      background: transparent;
+      color: var(--muted, #94a3b8);
+      font-size: 0.74rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 5px 12px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      white-space: nowrap;
+      font-family: inherit;
+    }
+    .view-segments-bar .view-segment:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+    .view-segments-bar .view-segment.active { background: #fff; color: #000; }
+    .view-segments-bar .view-segment.active:hover { background: rgba(255,255,255,0.94); color: #000; }
+
+    /* Phase 2: action mode dropdown (top-right) */
+    .home-mode-pill {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--text);
+      user-select: none;
+      flex-shrink: 0;
+    }
+    .home-mode-pill:hover { background: rgba(255,255,255,0.05); }
+    .home-mode-pill .caret { opacity: 0.55; font-size: 0.7rem; }
+
+    .home-mode-popover {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      min-width: 220px;
+      background: rgba(20, 20, 22, 0.98);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      padding: 6px;
+      z-index: 60;
+      display: none;
+    }
+    .home-mode-popover.open { display: block; animation: viewSegPopIn 0.16s ease-out; }
+    .home-mode-section-label {
+      font-size: 0.66rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted2);
+      padding: 8px 10px 4px;
+      font-weight: 700;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .home-mode-section-sub {
+      font-size: 0.7rem;
+      letter-spacing: 0;
+      text-transform: none;
+      font-weight: 500;
+      color: var(--muted2);
+      opacity: 0.85;
+    }
+    .home-mode-option {
+      padding: 7px 10px;
+      border-radius: 7px;
+      cursor: pointer;
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .home-mode-option:hover { background: rgba(255,255,255,0.04); }
+    .home-mode-option.active { background: rgba(245,209,153,0.10); color: var(--accent); }
+
+    /* Phase 2: divergence chips on status row */
+    .delta-chip {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: rgba(0,0,0,0.10);
+      color: inherit;
+      opacity: 0.55;
+      white-space: nowrap;
+      border: 1px solid transparent;
+      margin-right: 4px;
+    }
+    .area-row:not([style*="--row-bg"]) .delta-chip,
+    .area-row-off .delta-chip {
+      background: transparent;
+      color: var(--muted);
+      opacity: 0.6;
+      border-color: rgba(255,255,255,0.06);
+    }
+    .delta-chip.active-mode {
+      opacity: 1;
+      background: rgba(0,0,0,0.28);
+      border-color: rgba(0,0,0,0.35);
+    }
+    .area-row-off .delta-chip.active-mode {
+      background: rgba(245,209,153,0.16);
+      color: var(--accent);
+      border-color: rgba(245,209,153,0.3);
+    }
+
+    /* Readout label inline with row name (current value for active mode) */
+    .row-readout {
+      font-size: 0.85rem;
+      font-weight: 600;
+      opacity: 0.85;
+      white-space: nowrap;
+      margin-left: auto;
+      padding-right: 8px;
+    }
     .home-name-input {
       font-size: 1.45rem;
       font-weight: 700;
@@ -1246,6 +1464,8 @@
     // vs. collapsed (showing only the active pill). Reset on render-time
     // by using a module variable so periodic re-renders preserve state.
     let _viewSegExpanded = false;
+    // Phase 2: action mode pill state — 'brightness' | 'color' | 'bed'
+    let homePillMode = 'brightness';
     let cachedConfig = null;
     let cachedSunTimes = null; // { sunrise, sunset, solarNoon, solarMid } in local hours
     let currentMode = 'view'; // 'view' | 'organize'
@@ -1555,8 +1775,11 @@
         if (configRes.ok) {
           cachedConfig = await configRes.json();
           const prefs = cachedConfig.areas_ui || {};
-          const savedMode = prefs.view_mode || prefs.sort_mode || 'custom';
-          viewMode = savedMode === 'onoff' ? 'onoff' : 'custom';
+          const savedMode = prefs.view_mode || prefs.sort_mode || 'onoff';
+          viewMode = savedMode === 'custom' ? 'custom' : 'onoff';
+          // Phase 2: load pill mode (action) preference
+          const savedPill = prefs.pill_mode || 'brightness';
+          homePillMode = ['brightness', 'color', 'bed'].includes(savedPill) ? savedPill : 'brightness';
 
           // Compute sun times client-side from config lat/lon
           const lat = cachedConfig.latitude || 35.0;
@@ -1575,13 +1798,38 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             areas_ui: {
-              view_mode: viewMode
+              view_mode: viewMode,
+              pill_mode: homePillMode,
             }
           })
         });
       } catch (err) {
         console.error('Error saving preferences:', err);
       }
+    }
+
+    // Phase 2: determine current home phase from any area's status. Sun-driven,
+    // so all areas agree. Falls back to 'bed' if no status loaded yet.
+    function getHomePhase() {
+      for (const a of (areas || [])) {
+        const p = areaStatus[a.area_id]?.phase;
+        if (p) return p;
+      }
+      return 'bed';
+    }
+
+    // Phase 2: next phase boundary time (when Adjust overrides will reset).
+    // Uses any zone's config — boundaries are sun-aligned so zones agree.
+    function getNextPhaseBoundaryLabel() {
+      const gz = cachedGlozones?.zones || {};
+      const zoneNames = Object.keys(gz);
+      if (!zoneNames.length) return null;
+      const zc = gz[zoneNames[0]];
+      if (!zc) return null;
+      const phase = getHomePhase();
+      const t = phase === 'wake' ? zc.descend_start : zc.ascend_start;
+      if (t == null) return null;
+      return formatDecimalHour(t);
     }
 
     function getHomeRefreshInterval() {
@@ -1745,7 +1993,7 @@
       document.querySelectorAll('[data-area-schedule]').forEach(el => {
         const areaId = el.getAttribute('data-area-schedule');
         const status = areaStatus[areaId] || {};
-        // Right side: auto schedule (always shown, even during fade)
+        // Right side: auto schedule (always shown, even during fade).
         const scheduleEl = el.querySelector('.row-schedule-right');
         if (scheduleEl) {
           const scheduleParts = [];
@@ -1801,17 +2049,77 @@
             cachedGlozones = await gzRes.json();
           }
           renderAreas();
+          refreshHomeStatus();
         } catch (err) {
           console.error('Error refreshing home page:', err);
         }
       }, interval);
       // 1s tick for timer countdowns (no API calls)
       homeTickTimer = setInterval(updateHomeTimers, 1000);
+      // Periodic refresh of sun-intensity pill (slower cadence than area status)
+      homeSunTimer = setInterval(refreshHomeSun, 30000);
+    }
+
+    let homeSunTimer = null;
+
+    function stopHomeSun() {
+      if (homeSunTimer) { clearInterval(homeSunTimer); homeSunTimer = null; }
+    }
+
+    // Update the "X rooms on" count from current area state (cheap, no fetch).
+    function refreshRoomsOnCount() {
+      const el = document.getElementById('rooms-on-count');
+      if (!el) return;
+      const list = areas || [];
+      let onCount = 0;
+      for (const a of list) {
+        const s = areaStatus[a.area_id] || {};
+        if (s.is_on && s.is_circadian !== false) onCount++;
+      }
+      const total = list.length;
+      el.textContent = onCount === 0
+        ? (total ? `All off` : `…`)
+        : `${onCount} of ${total} on`;
+    }
+
+    // Cached sun intensity so we can repaint the pill on every renderAreas()
+    // without refetching on each tick (refresh cadence below).
+    let _cachedSunPct = null;
+
+    function paintSunPill(pct) {
+      const pctEl = document.getElementById('home-sun-pct');
+      const iconEl = document.getElementById('home-sun-icon');
+      if (!pctEl || !iconEl || pct == null) return;
+      pctEl.textContent = pct + '%';
+      const t = pct / 100;
+      const r = Math.round(120 + (245 - 120) * t);
+      const g = Math.round(100 + (200 - 100) * t);
+      const b = Math.round(60 + (100 - 60) * t);
+      iconEl.style.color = `rgb(${r}, ${g}, ${b})`;
+      iconEl.style.textShadow = `0 0 ${4 + t * 8}px rgba(${r},${g},${b},${0.3 + t * 0.4})`;
+    }
+
+    // Fetch sun intensity from /api/outdoor-status, cache it, and repaint the pill.
+    async function refreshHomeSun() {
+      try {
+        const res = await fetch('./api/outdoor-status');
+        if (!res.ok) return;
+        const data = await res.json();
+        _cachedSunPct = Math.max(0, Math.min(100, Math.round((data.outdoor_normalized ?? 0) * 100)));
+        paintSunPill(_cachedSunPct);
+      } catch (e) { /* leave cached value */ }
+    }
+
+    // Convenience wrapper called after each render — updates count + repaints sun pill from cache.
+    function refreshHomeStatus() {
+      refreshRoomsOnCount();
+      if (_cachedSunPct != null) paintSunPill(_cachedSunPct);
     }
 
     function stopHomeRefresh() {
       if (homeRefreshTimer) { clearInterval(homeRefreshTimer); homeRefreshTimer = null; }
       if (homeTickTimer) { clearInterval(homeTickTimer); homeTickTimer = null; }
+      stopHomeSun();
     }
 
     async function loadData() {
@@ -1844,6 +2152,8 @@
         }
 
         renderAreas();
+        refreshHomeStatus();
+        refreshHomeSun();
         startHomeRefresh();
       } catch (err) {
         console.error('Error loading data:', err);
@@ -1937,22 +2247,116 @@
       zoneAction(zoneName, 'glozone_reset_full');
     }
 
+    // Phase 2: chevrons dispatch per the home pill mode.
+    // Brightness → bright_up/down (delta), Color → color_up/down, Bed → step_up/down
+    // (curve-walking step that nudges the brightness target and lands the midpoint).
     function homeStepUp(areaId) {
-      const mode = cachedConfig?.home_buttons_mode || 'step';
-      const action = mode === 'bright' ? 'bright_up'
-                   : mode === 'color' ? 'color_up'
-                   : mode === 'zone'  ? 'glo_up'
-                   : 'step_up';
-      rowAction(areaId, action);
+      if (homePillMode === 'color') return rowAction(areaId, 'color_up');
+      if (homePillMode === 'bed') return rowAction(areaId, 'step_up');
+      return rowAction(areaId, 'bright_up');
     }
 
     function homeStepDown(areaId) {
-      const mode = cachedConfig?.home_buttons_mode || 'step';
-      const action = mode === 'bright' ? 'bright_down'
-                   : mode === 'color' ? 'color_down'
-                   : mode === 'zone'  ? 'glo_down'
-                   : 'step_down';
-      rowAction(areaId, action);
+      if (homePillMode === 'color') return rowAction(areaId, 'color_down');
+      if (homePillMode === 'bed') return rowAction(areaId, 'step_down');
+      return rowAction(areaId, 'bright_down');
+    }
+
+    // Canonical curve slopes (matches brain.py SPEED_TO_SLOPE) for phase
+    // safe-offset math below. The page-wide SPEED_TO_SLOPE at line ~1466
+    // has stale values and is used by other curve previews; keeping this
+    // separate so the slider clamping uses the right numbers.
+    const PHASE_SLOPE_TABLE = [
+      0.0, 0.5889, 0.7852, 1.0708, 1.4722, 1.9630, 2.6173, 3.9260,
+      5.8890, 11.778, 23.556, 70.668, 176.67,
+    ];
+
+    // How far the shifted midpoint will be pushed from the user's target time,
+    // given the zone's brightness/slope config. Used to narrow the phase
+    // slider so the user can't land on a target whose shifted midpoint would
+    // escape the phase window (and then wrap into the wrong day). Ported
+    // from area.html. Returns { minOffset, maxOffset } in hours.
+    function computePhaseSafeOffset(zc, inAscend) {
+      if (!zc) return { minOffset: 0, maxOffset: 0 };
+      const brightnessPct = inAscend
+        ? (zc.wake_brightness || 50)
+        : (zc.bed_brightness || 50);
+      if (brightnessPct === 50) return { minOffset: 0, maxOffset: 0 };
+      const speed = inAscend ? zc.wake_speed : zc.bed_speed;
+      const slopeMag = PHASE_SLOPE_TABLE[Math.max(1, Math.min(12, speed || 6))];
+      if (!(slopeMag > 0)) return { minOffset: 0, maxOffset: 0 };
+      const bMin = (zc.min_brightness || 2) / 100;
+      const bMax = (zc.max_brightness || 100) / 100;
+      const targetNorm = bMin + (bMax - bMin) * (brightnessPct / 100);
+      const eps = 0.001;
+      const clamped = Math.max(bMin + eps, Math.min(bMax - eps, targetNorm));
+      const ratio = (clamped - bMin) / (bMax - bMin);
+      const logTerm = Math.log((1 - ratio) / ratio);
+      const slopeSigned = inAscend ? slopeMag : -slopeMag;
+      const offset = logTerm / slopeSigned;
+      const margin = 0.25; // 15-min buffer past the strict minimum
+      return {
+        minOffset: Math.max(0, -offset) + margin,
+        maxOffset: Math.max(0, offset) + margin,
+      };
+    }
+
+    // Phase 2: map slider pct (0-100) to a bed/wake time using the zone's
+    // ascend_start / descend_start narrowed by computePhaseSafeOffset so the
+    // user can't drag the thumb to a target whose midpoint would escape the
+    // phase window (matches area-details slider behavior).
+    function getPhaseBounds(areaId) {
+      const status = areaStatus[areaId] || {};
+      const phase = status.phase || getHomePhase();
+      const zoneName = status.zone_name;
+      const zc = zoneName ? cachedGlozones?.zones?.[zoneName] : null;
+      const tAscend = zc?.ascend_start ?? 4.0;
+      let tDescend = zc?.descend_start ?? 16.0;
+      if (tDescend <= tAscend) tDescend += 24;
+      const inAscend = phase === 'wake';
+      const rawLo = inAscend ? tAscend : tDescend;
+      const rawHi = inAscend ? tDescend : tAscend + 24;
+      const { minOffset, maxOffset } = computePhaseSafeOffset(zc, inAscend);
+      let lo = rawLo + minOffset;
+      let hi = rawHi - maxOffset;
+      // Fall back to raw bounds if narrowing inverted the window.
+      if (hi - lo < 0.5) { lo = rawLo; hi = rawHi; }
+      return { phase, lo, hi };
+    }
+    function bedTimeFromPct(areaId, pct) {
+      const { lo, hi } = getPhaseBounds(areaId);
+      const p = Math.max(0, Math.min(100, pct)) / 100;
+      const target = lo + (hi - lo) * p;
+      return ((target % 24) + 24) % 24;
+    }
+
+    async function setPhaseTime(areaId, targetTime) {
+      try {
+        const res = await fetch('./api/area/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ area_id: areaId, action: 'set_phase_time', target_time: targetTime })
+        });
+        if (res.ok) {
+          setTimeout(async () => {
+            try {
+              const [s, zs] = await Promise.all([
+                fetch('./api/area-status?lite=true'),
+                fetch('./api/zone-states'),
+              ]);
+              if (s.ok) areaStatus = await s.json();
+              if (zs.ok) { const j = await zs.json(); zoneStates = j.zone_states || {}; }
+            } catch (e) { console.error(e); }
+            sliderDragging = false;
+            renderAreas();
+          }, 500);
+        } else {
+          sliderDragging = false;
+        }
+      } catch (e) {
+        sliderDragging = false;
+        console.error('set_phase_time failed', e);
+      }
     }
 
     async function confirmZonePowerOff(zoneName) {
@@ -2530,35 +2934,62 @@
 
       // Build toolbar HTML
       const homeName = cachedConfig?.home_name || 'Your home';
-      // Unified toolbar across all modes — segmented control is always
-      // visible and *is* the mode switcher. No separate Done link; clicking
-      // a different pill exits the current mode.
+      // Phase 1: always-visible segmented bar with 3 pills. No popover collapse.
       const viewValue = currentMode === 'organize'
         ? 'organize'
         : (viewMode === 'onoff' ? 'onoff' : 'home');
       const VIEWS = [
+        { value: 'onoff',    label: 'Active' },
         { value: 'home',     label: 'All' },
-        { value: 'onoff',    label: '&lsquo;On&rsquo; first' },
         { value: 'organize', label: 'Reorder' },
       ];
-      const activeView = VIEWS.find(v => v.value === viewValue) || VIEWS[0];
-      const expandedClass = _viewSegExpanded ? ' is-expanded' : '';
-      // Popover lists ALL views (including the active one with subtle
-      // highlight). Like a native menu with a checkmark on the selected
-      // row — bar pill is the trigger, popover is the menu.
-      const popoverItems = VIEWS
-        .map(v => {
-          const cls = v.value === viewValue ? 'view-segment active' : 'view-segment';
-          return `<button class="${cls}" data-view="${v.value}">${v.label}</button>`;
-        })
-        .join('');
+      const segmentsHtml = VIEWS.map(v => {
+        const cls = v.value === viewValue ? 'view-segment active' : 'view-segment';
+        return `<button class="${cls}" data-view="${v.value}">${v.label}</button>`;
+      }).join('');
+
+      // Phase 2: action mode pill (top-right) — picks knob for slider + chevrons.
+      // Bed is phase-aware (Bed if descending, Wake if ascending).
+      const homePhase = getHomePhase();  // 'wake' | 'bed' | null
+      const bedLabel = homePhase === 'wake' ? 'Wake' : 'Bed';
+      const modeLabels = { brightness: 'Brightness', color: 'Color', bed: bedLabel };
+      const activeModeLabel = modeLabels[homePillMode] || 'Brightness';
+      const modeOption = (val, label) => {
+        const cls = homePillMode === val ? 'home-mode-option active' : 'home-mode-option';
+        return `<div class="${cls}" data-pill-mode="${val}">${label}</div>`;
+      };
+      const modePillHtml = `
+        <div class="home-mode-pill" id="home-mode-pill" title="What slider & chevrons control">
+          <span id="home-mode-label">${activeModeLabel}</span><span class="caret">▾</span>
+          <div class="home-mode-popover" id="home-mode-popover">
+            <div class="home-mode-section-label">Adjust <span class="home-mode-section-sub">${(() => { const t = getNextPhaseBoundaryLabel(); return t ? 'resets @ ' + t : 'resets at phase change'; })()}</span></div>
+            ${modeOption('brightness', 'Brightness')}
+            ${modeOption('color', 'Color')}
+            ${modeOption('bed', bedLabel)}
+          </div>
+        </div>
+      `;
+
+      // Status line: rooms-on count + sun pill. Numbers/values filled by refreshHomeStatus().
       let html = `
-        <div class="home-toolbar" style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-          <span class="home-name-heading" id="home-name-heading" ondblclick="editHomeName(this)" title="Double-click (or tap and hold) to rename" style="touch-action: manipulation;">${homeName || ''}</span>
+        <div class="home-toolbar" style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px;">
+          <div class="home-header-stack">
+            <span class="home-name-heading" id="home-name-heading" ondblclick="editHomeName(this)" title="Double-click (or tap and hold) to rename" style="touch-action: manipulation;">${homeName || ''}</span>
+            <div class="home-status-line">
+              <span class="rooms-on-count" id="rooms-on-count">…</span>
+              <span class="status-sep">·</span>
+              <a class="home-sun-pill" href="./settings" title="Sun intensity (open settings)">
+                <span class="home-sun-icon" id="home-sun-icon">☀</span>
+                <span id="home-sun-pct">–%</span>
+              </a>
+            </div>
+          </div>
           <span style="flex: 1;"></span>
-          <div class="view-segments${expandedClass}" id="home-view-segments" role="tablist" title="Page mode">
-            <button class="view-segment active" data-view="${activeView.value}">${activeView.label}</button>
-            <div class="view-segments-popover">${popoverItems}</div>
+          ${modePillHtml}
+        </div>
+        <div style="display:flex; align-items:center; margin-bottom: 12px;">
+          <div class="view-segments-bar" id="home-view-segments" role="tablist" title="Page mode">
+            ${segmentsHtml}
           </div>
         </div>
       `;
@@ -2679,13 +3110,14 @@
           ? `<div class="row-controls-left"><button class="row-btn active" onclick="event.stopPropagation(); confirmZonePowerOff('${escapedZoneName}')" title="Turn off all in '${zoneName}'">${powerIconSvg}</button></div>`
           : `<div class="row-controls-left" style="visibility: hidden;" aria-hidden="true"><button class="row-btn" tabindex="-1">${powerIconSvg}</button></div>`;
 
+        const bigChevron = `<span class="zone-chevron-big-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)" title="${isCollapsed ? 'Expand' : 'Collapse'}"><span class="zone-chevron-big">&#x203A;</span></span>`;
         return `
           <div class="zone-group">
             <div class="zone-header ${isCollapsed ? 'collapsed' : ''} ${allOff ? 'no-tint' : ''}" data-zone="${zoneName}" style="${zoneHeaderStyle}">
+              ${bigChevron}
               ${zonePowerBtn}
               <div class="zone-name-group" style="color: ${zoneTextColor};">
-                <span style="display: inline-flex; align-items: center; gap: 3px;"><a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" style="color: ${zoneTextColor};">${zoneName}</a>${zoneMismatchDot}<span class="zone-chevron-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)" title="${isCollapsed ? 'Expand' : 'Collapse'}">${chevronIcon}</span></span>
-                <span class="zone-type-chip" style="color: ${zoneTextColor};">Rhythm Zone</span>
+                <span style="display: inline-flex; align-items: center; gap: 3px;"><a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" style="color: ${zoneTextColor};">${zoneName}</a>${zoneMismatchDot}</span>
                 <span class="zone-phase-label" style="color: ${zoneTextColor};">${getZonePhaseMidpoint(zoneName, sorted) || ''}</span>
               </div>
               ${zoneFrozenIndicator}
@@ -2892,11 +3324,14 @@
 
       const style = getRowStyle(area);
       const { leftControls, rightControls } = getRowControls(area);
-      const sliderPct = getSliderPct(area.brightness || 0, area);
+      const sliderPct = getModeSliderPct(area);
       const mismatchDot = getMismatchDot(area);
       const phaseMidpoint = getPhaseMidpoint(area);
+      const readout = getModeReadout(area);
+      const divChips = getDivergenceChips(area);
 
-      // Off rooms collapse to a compact summary line instead of rendering a slider.
+      // Phase 1+2: off rooms collapse to a single-line row — power · name · status · chips · schedule pill.
+      // No chevrons (right controls dropped), no "Off" label.
       if (!area.is_on) {
         return `
           <div class="area-row area-row-off" style="--row-bg: ${style.bg}; --row-text: ${style.textColor}; --row-fill: ${style.fill.toFixed(3)};">
@@ -2906,13 +3341,13 @@
                 <span class="area-row-name" onclick="openAreaModal('${area.area_id}')">${area.name}</span>
                 ${mismatchDot}
                 <span class="row-active-status" data-area-active="${area.area_id}"></span>
-              </div>
-              <div class="row-off-summary" data-area-schedule="${area.area_id}" data-zone-name="${area.zone_name || ''}">
-                <span class="row-off-label row-schedule-left">Off</span>
-                <span class="row-schedule-right" data-area-timer="${area.area_id}"></span>
+                ${divChips}
+                <span class="row-off-flex"></span>
+                <span data-area-schedule="${area.area_id}" data-zone-name="${area.zone_name || ''}">
+                  <span class="row-schedule-right" data-area-timer="${area.area_id}"></span>
+                </span>
               </div>
             </div>
-            ${rightControls}
           </div>
         `;
       }
@@ -2926,6 +3361,7 @@
               ${mismatchDot}
               <span class="row-active-status" data-area-active="${area.area_id}"></span>
               <span class="row-drag-value" data-area-drag-value="${area.area_id}"></span>
+              <span class="row-readout" data-area-readout="${area.area_id}">${readout}</span>
             </div>
             <div class="row-slider-track" data-area-id="${area.area_id}" data-bmin="${area.min_brightness ?? 1}" data-bmax="${area.max_brightness ?? 100}" data-cmin="${area.min_color_temp ?? 2200}" data-cmax="${area.max_color_temp ?? 6500}">
               <div class="row-slider-fill"></div>
@@ -2934,7 +3370,7 @@
               <div class="row-slider-thumb" style="left: ${sliderPct.toFixed(1)}%"></div>
             </div>
             <div class="row-status-row" data-area-schedule="${area.area_id}" data-zone-name="${area.zone_name || ''}">
-              <span class="row-schedule-left">${phaseMidpoint}</span>
+              <span class="row-schedule-left">${divChips}</span>
               <span class="row-schedule-right" data-area-timer="${area.area_id}"></span>
             </div>
           </div>
@@ -3054,6 +3490,71 @@
       return bMax > bMin ? Math.max(0, Math.min(100, (brightness - bMin) / (bMax - bMin) * 100)) : 0;
     }
 
+    // Phase 2: slider thumb position by active mode.
+    function getModeSliderPct(area) {
+      if (homePillMode === 'color') {
+        const cMin = area.min_color_temp ?? 2200;
+        const cMax = area.max_color_temp ?? 6500;
+        const k = area.kelvin || 4000;
+        return cMax > cMin ? Math.max(0, Math.min(100, (k - cMin) / (cMax - cMin) * 100)) : 50;
+      }
+      if (homePillMode === 'bed') {
+        const status = areaStatus[area.area_id] || {};
+        const mid = status.phase_midpoint;
+        if (mid == null) return 50;
+        const { lo, hi } = getPhaseBounds(area.area_id);
+        // mid may be in the previous-day window; lift into [lo, hi].
+        let m = mid;
+        while (m < lo) m += 24;
+        return Math.max(0, Math.min(100, (m - lo) / (hi - lo) * 100));
+      }
+      return getSliderPct(area.brightness || 0, area);
+    }
+
+    // Phase 2: right-side readout reflecting current mode value.
+    function getModeReadout(area) {
+      if (homePillMode === 'color') return `${area.kelvin || 4000}K`;
+      if (homePillMode === 'bed') {
+        const mid = areaStatus[area.area_id]?.phase_midpoint;
+        return mid != null ? formatDecimalHour(mid) : '';
+      }
+      return `${Math.round(area.brightness || 0)}%`;
+    }
+
+    // Phase 2: divergence chips for the status row. Shown in any Adjust mode;
+    // the chip matching the active mode is emphasized.
+    function getDivergenceChips(area) {
+      const chips = [];
+      const bo = area.brightness_override;
+      if (bo != null && Math.abs(bo) >= 1) {
+        const cls = homePillMode === 'brightness' ? 'delta-chip active-mode' : 'delta-chip';
+        const sign = bo > 0 ? '+' : '';
+        chips.push(`<span class="${cls}">${sign}${Math.round(bo)}%</span>`);
+      }
+      const co = area.color_override;
+      if (co != null && Math.abs(co) >= 10) {
+        const cls = homePillMode === 'color' ? 'delta-chip active-mode' : 'delta-chip';
+        const sign = co > 0 ? '+' : '';
+        chips.push(`<span class="${cls}">${sign}${Math.round(co)}K</span>`);
+      }
+      // Bed divergence: area's phase_midpoint differs from zone's. Shows the
+      // absolute time (e.g. "11:34a") — bed/wake is an anchored clock concept,
+      // not a relative-around-other-factors delta, so showing the time the
+      // user actually set is clearer than asking them to compute (zone ± Δ).
+      // When in Bed/Wake mode the chip and the right-side readout will both
+      // show the same value; that's intentional consistency, not duplication.
+      const zoneName = area.zone_name;
+      if (zoneName) {
+        const zoneMid = _zoneEffectiveMidpoint[zoneName];
+        const areaMid = areaStatus[area.area_id]?.phase_midpoint;
+        if (zoneMid != null && areaMid != null && Math.abs(areaMid - zoneMid) >= 0.05) {
+          const cls = homePillMode === 'bed' ? 'delta-chip active-mode' : 'delta-chip';
+          chips.push(`<span class="${cls}">${formatDecimalHour(areaMid)}</span>`);
+        }
+      }
+      return chips.join('');
+    }
+
     function getEffectiveColorLimits(area) {
       const cMin = area.min_color_temp ?? 2200;
       const cMax = area.max_color_temp ?? 6500;
@@ -3132,42 +3633,13 @@ function updateSliderFill(el) {
         if (e.target.id === 'add-zone-link') { e.preventDefault(); createZoneFromEdit(); }
       });
 
-      // Home view segments — collapsed-by-default mode picker. Clicking
-      // the active pill expands the popover; clicking any other pill in
-      // the popover switches mode (which may include exiting/entering
-      // Reorder mode) and collapses.
+      // Phase 1: always-visible segmented bar — click any non-active pill switches mode.
       document.getElementById('areas-container').addEventListener('click', (e) => {
-        const seg = e.target.closest('.view-segment');
+        const seg = e.target.closest('.view-segments-bar .view-segment');
         if (!seg) return;
-        const segContainer = seg.closest('.view-segments');
-        const isActive = seg.classList.contains('active');
-
-        // Collapsed → expand on first click of the active pill.
-        if (!_viewSegExpanded) {
-          _viewSegExpanded = true;
-          if (segContainer) segContainer.classList.add('is-expanded');
-          return;
-        }
-
-        // Expanded — handle the selection.
-        _viewSegExpanded = false;
+        if (seg.classList.contains('active')) return;
         const v = seg.dataset.view;
-
-        // Clicking the active pill while expanded → just collapse, no-op.
-        if (isActive) {
-          if (segContainer) segContainer.classList.remove('is-expanded');
-          return;
-        }
-
-        // Switching INTO Reorder.
-        if (v === 'organize') {
-          enterOrganizeMode();
-          return;
-        }
-
-        // Switching to Home or On areas first — set sort, then exit
-        // Reorder mode if we were in it (exitMode reloads + re-renders;
-        // otherwise we render directly).
+        if (v === 'organize') { enterOrganizeMode(); return; }
         viewMode = (v === 'onoff') ? 'onoff' : 'custom';
         savePreferences();
         if (currentMode === 'organize') {
@@ -3177,12 +3649,38 @@ function updateSliderFill(el) {
         }
       });
 
-      // Outside-click → collapse the segment popover (no mode change).
+      // Phase 2: mode pill — toggle popover, pick a mode.
+      document.getElementById('areas-container').addEventListener('click', (e) => {
+        // Click on a popover option?
+        const opt = e.target.closest('.home-mode-option');
+        if (opt) {
+          e.stopPropagation();
+          const newMode = opt.dataset.pillMode;
+          if (newMode && newMode !== homePillMode) {
+            homePillMode = newMode;
+            savePreferences();
+            renderAreas();
+          } else {
+            // clicking active option just closes the popover
+            const pop = document.getElementById('home-mode-popover');
+            if (pop) pop.classList.remove('open');
+          }
+          return;
+        }
+        // Click on the pill itself toggles the popover
+        const pill = e.target.closest('#home-mode-pill');
+        if (pill) {
+          e.stopPropagation();
+          const pop = document.getElementById('home-mode-popover');
+          if (pop) pop.classList.toggle('open');
+        }
+      });
+
+      // Outside-click → close mode popover
       document.addEventListener('click', (e) => {
-        if (!_viewSegExpanded) return;
-        if (e.target.closest('.view-segments')) return;
-        _viewSegExpanded = false;
-        document.querySelector('.view-segments')?.classList.remove('is-expanded');
+        if (e.target.closest('#home-mode-pill')) return;
+        const pop = document.getElementById('home-mode-popover');
+        if (pop) pop.classList.remove('open');
       });
 
       // Long-press on the home name → enter rename mode (mobile equivalent
@@ -3362,20 +3860,32 @@ function updateSliderFill(el) {
           const pct = getSliderPctFromPointer(track, e);
           thumb.style.left = pct + '%';
           updateFillDrag(startPct, pct);
-          // Live row color preview
-          const brightness = bMin + (bMax - bMin) * pct / 100;
-          if (valueEl) valueEl.textContent = Math.round(brightness) + '%';
-          const sliderMode = cachedConfig?.home_slider_mode || 'brightness';
-          if (sliderMode === 'step') {
-            // Circadian: brightness + color both change
-            const preview = sliderPreviewCache[areaId];
-            const kelvin = preview ? kelvinAtBrightness(brightness, preview)
-              : (areaStatus[areaId]?.kelvin || 4000);
+          // Phase 2: drag-value preview is mode-aware.
+          if (homePillMode === 'color') {
+            const cMin = parseFloat(track.dataset.cmin) || 2200;
+            const cMax = parseFloat(track.dataset.cmax) || 6500;
+            const kelvin = Math.round(cMin + (cMax - cMin) * pct / 100);
+            if (valueEl) valueEl.textContent = kelvin + 'K';
+            const brightness = areaStatus[areaId]?.brightness || (bMin + (bMax - bMin) * 0.5);
             previewRowColor(row, brightness, kelvin);
+          } else if (homePillMode === 'bed') {
+            const target = bedTimeFromPct(areaId, pct);
+            if (target != null && valueEl) valueEl.textContent = formatDecimalHour(target);
+            // No color preview for bed mode — the row's current tint is correct.
           } else {
-            // Brightness only: color stays the same
-            const kelvin = areaStatus[areaId]?.kelvin || 4000;
-            previewRowColor(row, brightness, kelvin);
+            // Brightness mode — existing behavior
+            const brightness = bMin + (bMax - bMin) * pct / 100;
+            if (valueEl) valueEl.textContent = Math.round(brightness) + '%';
+            const sliderMode = cachedConfig?.home_slider_mode || 'brightness';
+            if (sliderMode === 'step') {
+              const preview = sliderPreviewCache[areaId];
+              const kelvin = preview ? kelvinAtBrightness(brightness, preview)
+                : (areaStatus[areaId]?.kelvin || 4000);
+              previewRowColor(row, brightness, kelvin);
+            } else {
+              const kelvin = areaStatus[areaId]?.kelvin || 4000;
+              previewRowColor(row, brightness, kelvin);
+            }
           }
         });
         const clearDragAffordances = () => {
@@ -3389,14 +3899,22 @@ function updateSliderFill(el) {
           clearDragAffordances();
           const pct = getSliderPctFromPointer(track, e);
           if (areaId) {
-            const sliderMode = cachedConfig?.home_slider_mode || 'brightness';
-            if (sliderMode === 'step') {
-              // Circadian: map pct to target brightness, use set_circadian
-              const targetActual = Math.round(bMin + (bMax - bMin) * pct / 100);
-              rowAction(areaId, 'set_circadian', targetActual);
+            // Phase 2: slider dispatches per homePillMode.
+            if (homePillMode === 'color') {
+              rowAction(areaId, 'set_position', Math.round(pct), 'color');
+            } else if (homePillMode === 'bed') {
+              const target = bedTimeFromPct(areaId, pct);
+              if (target != null) setPhaseTime(areaId, target);
+              else sliderDragging = false;
             } else {
-              // Brightness: use set_position with brightness mode
-              rowAction(areaId, 'set_position', Math.round(pct), 'brightness');
+              // Brightness (default): honor existing home_slider_mode preference
+              const sliderMode = cachedConfig?.home_slider_mode || 'brightness';
+              if (sliderMode === 'step') {
+                const targetActual = Math.round(bMin + (bMax - bMin) * pct / 100);
+                rowAction(areaId, 'set_circadian', targetActual);
+              } else {
+                rowAction(areaId, 'set_position', Math.round(pct), 'brightness');
+              }
             }
           } else {
             sliderDragging = false;
