@@ -840,7 +840,7 @@
       display: flex;
       flex-direction: row;
       align-items: baseline;
-      justify-content: center;
+      justify-content: flex-start;
       line-height: 1;
       flex: 1;
       min-width: 0;
@@ -1104,11 +1104,58 @@
       transition: background 0.15s;
       user-select: none;
     }
-    .mismatch-dot-area::before {
-      content: '\21BA';
-    }
+    /* Glyph chosen by mode — ↕ in Adjust (opens menu with two options),
+       ↺ in Tune (single-click undo to previous tune value). */
+    .mismatch-dot-area.diverge-adjust::before { content: '\2195'; }
+    .mismatch-dot-area.diverge-tune::before { content: '\21BA'; }
     .mismatch-dot-area:hover {
       background: rgba(0,0,0,0.75);
+    }
+
+    /* Diverge menu: floating popover with Reset / Send-to-zone choices. */
+    .diverge-wrap {
+      position: relative;
+      display: inline-flex;
+    }
+    /* Position is set inline at toggle time (fixed coords) so the menu
+       escapes .area-row's overflow:hidden clip. */
+    .diverge-menu {
+      position: fixed;
+      background: rgb(20, 20, 22);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      padding: 4px;
+      z-index: 60;
+      display: none;
+      min-width: 160px;
+    }
+    .diverge-menu.open { display: block; animation: viewSegPopIn 0.16s ease-out; }
+    .diverge-menu .diverge-action {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--text);
+      background: transparent;
+      border: 0;
+      width: 100%;
+      text-align: left;
+      white-space: nowrap;
+      font-family: inherit;
+    }
+    .diverge-menu .diverge-action:hover { background: rgba(255,255,255,0.06); }
+    .diverge-menu .diverge-glyph {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      opacity: 0.7;
+      font-size: 0.95rem;
     }
 
     /* Placeholder to keep layout stable when no dot */
@@ -2174,6 +2221,7 @@
         // Suppress the refresh+render cycle while a popover is open —
         // otherwise the toolbar HTML rebuilds every tick and the popover flashes.
         if (_modePopoverOpen || _sunPopoverOpen) return;
+        if (document.querySelector('.diverge-menu.open')) return;
         try {
           const [res, zsRes, gzRes] = await Promise.all([
             fetch('./api/area-status?lite=true'),
@@ -3346,11 +3394,14 @@
             zoneTextColor = 'var(--text)';
           }
 
-          // Red dot: zone has been stepped, frozen, or overridden away from pure rhythm
+          // Zone diverged from pure rhythm — show a clickable reset affordance
+          // next to the zone name (replaces the standalone reset button that used
+          // to live on the right side). Single-click resets; no menu (zone has
+          // only one reasonable action: snap back to rhythm).
           const rs = zs.runtime_state;
           if (rs && (rs.brightness_mid != null || rs.color_mid != null || rs.frozen_at != null ||
                      rs.color_override != null || rs.brightness_override != null)) {
-            zoneMismatchDot = `<span class="mismatch-dot-zone"></span>`;
+            zoneMismatchDot = `<span class="mismatch-dot-area diverge-tune" onclick="event.stopPropagation(); glozoneResetFull('${escapedZoneName}')" title="Reset zone to rhythm"></span>`;
           }
 
           // Frozen indicator on zone header
@@ -3360,28 +3411,27 @@
         }
 
         // Power button: only show if one or more areas in the zone are
-        // effectively on — circadian-disabled areas don't count, since the
-        // power button only does something for areas under our control.
-        // When hidden, a spacer preserves the centered-title layout.
+        // effectively on. In Tune mode the right-side actions are suppressed
+        // entirely (focus on tuning); otherwise zone-power lives on the right
+        // alongside GloZoneDown + reset.
         const zoneOnAreas = sorted.filter(a => a.is_on && a.is_circadian);
-        const zonePowerBtn = zoneOnAreas.length > 0
-          ? `<div class="row-controls-left"><button class="row-btn active" onclick="event.stopPropagation(); confirmZonePowerOff('${escapedZoneName}')" title="Turn off all in '${zoneName}'">${powerIconSvg}</button></div>`
-          : `<div class="row-controls-left" style="visibility: hidden;" aria-hidden="true"><button class="row-btn" tabindex="-1">${powerIconSvg}</button></div>`;
+        const zonePowerBtn = (!tuneNeutralHeader && zoneOnAreas.length > 0)
+          ? `<button class="row-btn active" onclick="event.stopPropagation(); confirmZonePowerOff('${escapedZoneName}')" title="Turn off all in '${zoneName}'">${powerIconSvg}</button>`
+          : '';
 
         const bigChevron = `<span class="zone-chevron-big-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)" title="${isCollapsed ? 'Expand' : 'Collapse'}"><span class="zone-chevron-big">&#x203A;</span></span>`;
         return `
           <div class="zone-group">
             <div class="zone-header ${isCollapsed ? 'collapsed' : ''} ${allOff ? 'no-tint' : ''} ${tuneNeutralHeader ? 'tune' : ''}" data-zone="${zoneName}" style="${zoneHeaderStyle}">
               ${bigChevron}
-              ${zonePowerBtn}
               <div class="zone-name-group" style="color: ${zoneTextColor};">
                 <span style="display: inline-flex; align-items: center; gap: 3px;"><a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" style="color: ${zoneTextColor};">${zoneName}</a>${zoneMismatchDot}</span>
                 <span class="zone-phase-label" style="color: ${zoneTextColor};">${getZonePhaseMidpoint(zoneName, sorted) || ''}</span>
               </div>
               ${zoneFrozenIndicator}
               <div class="row-controls">
-                ${(!tuneNeutralHeader && cachedConfig?.home_buttons_mode === 'zone') ? `<button class="row-btn" onclick="event.stopPropagation(); glozoneDown('${escapedZoneName}')" title="Push rhythm zone state to all areas">${glozoneDownIcon}</button>` : ''}
-                ${tuneNeutralHeader ? '' : `<button class="row-btn" onclick="event.stopPropagation(); glozoneResetFull('${escapedZoneName}')" title="Reset all areas in rhythm zone">${glozoneResetIcon}</button>`}
+                ${tuneNeutralHeader ? '' : `<button class="row-btn" onclick="event.stopPropagation(); glozoneDown('${escapedZoneName}')" title="Push rhythm zone state to all areas">${glozoneDownIcon}</button>`}
+                ${zonePowerBtn}
               </div>
             </div>
             <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
@@ -3722,17 +3772,57 @@
     }
 
     function getMismatchDot(area) {
-      // Phase 3: in Tune modes, the mismatch dot is repurposed as a tune-undo.
-      // Shows only if we've snapshotted a previous value for this area + dim,
-      // and clicking restores that previous value.
+      // Tune modes: single-click undo to the previous saved tune value. No menu.
       if (isTuneMode(homePillMode)) {
         const dim = homePillMode === 'sun' ? 'sun' : 'balance';
         if (getTunePrev(area.area_id, dim) == null) return '';
         const title = dim === 'sun' ? 'Restore previous sun exposure' : 'Restore previous balance';
-        return `<span class="mismatch-dot-area" onclick="event.stopPropagation(); restoreTunePrev('${area.area_id}')" title="${title}"></span>`;
+        return `<span class="mismatch-dot-area diverge-tune" onclick="event.stopPropagation(); restoreTunePrev('${area.area_id}')" title="${title}"></span>`;
       }
+      // Adjust modes: dot signals "something changed", click opens a 2-option
+      // menu — Reset (glo_down) or Send to zone (glo_up).
       if (!isAreaDirty(area)) return '';
-      return `<span class="mismatch-dot-area" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_down')" title="Reset to rhythm zone"></span>`;
+      return `
+        <span class="diverge-wrap">
+          <span class="mismatch-dot-area diverge-adjust" onclick="event.stopPropagation(); toggleDivergeMenu(this)" title="Area changed — click for options"></span>
+          <div class="diverge-menu" role="menu">
+            <button type="button" class="diverge-action" onclick="event.stopPropagation(); divergeAction('${area.area_id}', 'glo_down', this)">
+              <span class="diverge-glyph">↺</span> Reset
+            </button>
+            <button type="button" class="diverge-action" onclick="event.stopPropagation(); divergeAction('${area.area_id}', 'glo_up', this)">
+              <span class="diverge-glyph">↑</span> Send to zone
+            </button>
+          </div>
+        </span>
+      `;
+    }
+
+    function toggleDivergeMenu(dotEl) {
+      const menu = dotEl.parentElement?.querySelector('.diverge-menu');
+      // Close any other open menus first.
+      document.querySelectorAll('.diverge-menu.open').forEach(m => {
+        if (m !== menu) m.classList.remove('open');
+      });
+      if (!menu) return;
+      const wasOpen = menu.classList.contains('open');
+      if (wasOpen) { menu.classList.remove('open'); return; }
+      menu.classList.add('open');
+      // Position below the dot using fixed coords so the menu escapes the
+      // row's overflow:hidden. Center on the dot, clamp to viewport.
+      const r = dotEl.getBoundingClientRect();
+      menu.style.top = (r.bottom + 6) + 'px';
+      const popW = menu.offsetWidth;
+      const vw = window.innerWidth;
+      let left = r.left + r.width / 2 - popW / 2;
+      if (left + popW + 8 > vw) left = vw - popW - 8;
+      if (left < 8) left = 8;
+      menu.style.left = left + 'px';
+    }
+
+    function divergeAction(areaId, action, btnEl) {
+      const menu = btnEl.closest('.diverge-menu');
+      if (menu) menu.classList.remove('open');
+      rowAction(areaId, action);
     }
 
     function resolveEffectiveTime(zc, phase) {
@@ -4048,6 +4138,12 @@ function updateSliderFill(el) {
       // Sun pill / popover is owned by SunIntensity (shared.js) — wired up by
       // attachSunIntensity() from renderAreas, no local click handlers needed.
 
+      // Outside-click on diverge menus → close them.
+      document.addEventListener('click', (e) => {
+        if (e.target.closest('.diverge-wrap')) return;
+        document.querySelectorAll('.diverge-menu.open').forEach(m => m.classList.remove('open'));
+      });
+
       // Long-press on the home name → enter rename mode (mobile equivalent
       // of double-click; both gestures route through editHomeName).
       // ~600ms hold; cancelled if the finger moves or lifts early.
@@ -4246,19 +4342,12 @@ function updateSliderFill(el) {
             const s = LUMEN_STEPS[idx];
             if (valueEl) valueEl.textContent = `${s.label} ${s.factor.toFixed(2)}`;
           } else {
-            // Brightness mode — existing behavior
+            // Brightness mode: drag preview is brightness only — keep current
+            // row color (kelvin from areaStatus), update brightness inline.
             const brightness = bMin + (bMax - bMin) * pct / 100;
             if (valueEl) valueEl.textContent = Math.round(brightness) + '%';
-            const sliderMode = cachedConfig?.home_slider_mode || 'brightness';
-            if (sliderMode === 'step') {
-              const preview = sliderPreviewCache[areaId];
-              const kelvin = preview ? kelvinAtBrightness(brightness, preview)
-                : (areaStatus[areaId]?.kelvin || 4000);
-              previewRowColor(row, brightness, kelvin);
-            } else {
-              const kelvin = areaStatus[areaId]?.kelvin || 4000;
-              previewRowColor(row, brightness, kelvin);
-            }
+            const kelvin = areaStatus[areaId]?.kelvin || 4000;
+            previewRowColor(row, brightness, kelvin);
           }
         });
         const clearDragAffordances = () => {
@@ -4286,14 +4375,8 @@ function updateSliderFill(el) {
               const idx = Math.round(pct / 100 * (LUMEN_STEPS.length - 1));
               saveAreaTune(areaId, { brightness_factor: LUMEN_STEPS[idx].factor });
             } else {
-              // Brightness (default): honor existing home_slider_mode preference
-              const sliderMode = cachedConfig?.home_slider_mode || 'brightness';
-              if (sliderMode === 'step') {
-                const targetActual = Math.round(bMin + (bMax - bMin) * pct / 100);
-                rowAction(areaId, 'set_circadian', targetActual);
-              } else {
-                rowAction(areaId, 'set_position', Math.round(pct), 'brightness');
-              }
+              // Brightness mode: drag percent maps directly to brightness target.
+              rowAction(areaId, 'set_position', Math.round(pct), 'brightness');
             }
           } else {
             sliderDragging = false;
