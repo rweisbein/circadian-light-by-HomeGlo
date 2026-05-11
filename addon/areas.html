@@ -368,14 +368,19 @@
       --row-text: var(--text);
       --row-fill: 0;
       display: flex;
-      align-items: center;
-      padding: 2px 8px 2px 8px;
+      align-items: stretch;
+      padding: 6px 8px;
       gap: 8px;
       background: var(--row-bg);
       color: var(--row-text);
       border-bottom: 1px solid var(--line);
       position: relative;
       overflow: hidden;
+    }
+    /* Off rows stay compact — single line, no need for stretched buttons. */
+    .area-row.area-row-off {
+      align-items: center;
+      padding: 2px 8px;
     }
 
     .area-row:last-child {
@@ -452,19 +457,37 @@
     }
 
     /* Active status (row 1, right of area name) */
+    /* Phase 3: motion/fade/boost/freeze indicators on the status row.
+       Visual match to the inactive .delta-chip so the row reads as one
+       horizontal pill series instead of mismatched shapes. */
     .row-active-status {
-      margin-left: auto;
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      font-size: 0.7rem;
-      color: #e2e8f0;
-      white-space: nowrap;
+      gap: 4px;
       flex-shrink: 0;
-      margin-right: 16px;
     }
     .row-active-status:empty { display: none; }
-    .row-active-status > span { background: rgba(0,0,0,0.5); border-radius: 3px; padding: 1px 5px; }
+    .row-active-status > span {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: rgba(0,0,0,0.10);
+      color: inherit;
+      opacity: 0.6;
+      white-space: nowrap;
+      border: 1px solid transparent;
+      margin-right: 4px;
+    }
+    .area-row-off .row-active-status > span {
+      background: transparent;
+      color: var(--muted);
+      opacity: 0.7;
+      border-color: rgba(255,255,255,0.06);
+    }
+    /* The freeze glyph is an emoji and renders smaller than text at the same
+       font-size — pump it up so it matches the visual weight of the other chips. */
+    .row-active-status .timer-frozen { font-size: 0.95rem; line-height: 1; padding: 0 2px; }
 
     /* Schedule row (row 3, below slider) */
     .row-status-row {
@@ -472,6 +495,10 @@
       align-items: center;
       justify-content: flex-end;
       padding: 0 16px 3px 16px;
+      /* Reserve the status row's vertical space even when empty so all on-rows
+         have a consistent height — this gives the right-side up/down chevrons
+         enough room to be a proper touch target without rows jumping in size. */
+      min-height: 22px;
     }
 
     .row-schedule-left {
@@ -647,7 +674,7 @@
     .row-controls {
       display: inline-flex;
       gap: 2px;
-      align-items: center;
+      align-items: stretch;
       flex-shrink: 0;
     }
 
@@ -661,13 +688,15 @@
 
     .row-step-stack {
       display: inline-flex;
-      flex-direction: row;
-      gap: 2px;
+      flex-direction: column;
+      gap: 4px;
+      align-self: stretch;  /* fill row height for bigger touch targets */
     }
     .row-step-stack .row-btn {
-      width: 28px;
-      height: 28px;
-      border-radius: 3px;
+      width: 38px;
+      flex: 1 1 auto;       /* split row height between the two buttons */
+      min-height: 30px;
+      border-radius: 6px;
     }
 
     .row-step-stack .row-btn svg {
@@ -809,12 +838,13 @@
     }
     .zone-name-group {
       display: flex;
-      flex-direction: column;
-      align-items: center;
+      flex-direction: row;
+      align-items: baseline;
+      justify-content: center;
       line-height: 1;
       flex: 1;
       min-width: 0;
-      gap: 2px;
+      gap: 6px;
     }
     .zone-type-chip {
       font-size: 0.54rem;
@@ -882,6 +912,41 @@
     .zone-header.no-tint:hover {
       background: rgba(255,255,255,0.03);
     }
+
+    /* Phase 3: "Upcoming" section in Active view — flat row list under a
+       quiet label. No zone header (these rooms are off; zone grouping isn't
+       useful here). Card styling matches zone-content for visual continuity. */
+    .upcoming-section {
+      margin-bottom: 16px;
+    }
+    .upcoming-section-label {
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted2);
+      font-weight: 700;
+      margin: 18px 4px 6px;
+    }
+    .upcoming-content {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    /* Phase 3: Tune mode — neutral zone header. Slightly elevated panel bg
+       so it stands out from the page (and from the rows beneath) without the
+       warm "current state" tint that Adjust mode uses. */
+    .zone-header.tune {
+      background: var(--card);
+      border: 1px solid var(--line);
+      color: var(--text);
+    }
+    .zone-header.tune::before { display: none; }
+    .zone-header.tune .zone-rhythm-link,
+    .zone-header.tune .zone-phase-label,
+    .zone-header.tune .zone-chevron-big { color: var(--text); }
+    .zone-header.tune .zone-phase-label { opacity: 0.55; }
 
     .zone-chevron-tap {
       cursor: pointer;
@@ -1226,6 +1291,27 @@
     }
     .home-name-heading:hover { background: rgba(255,255,255,0.06); }
 
+    /* Phase 3: sticky top section — keeps title + status + mode + sort
+       visible as the user scrolls. Pinned below the nav (.nav: 52px tall). */
+    .home-sticky-top {
+      position: sticky;
+      top: 52px;
+      z-index: 30;
+      background: var(--bg);
+      padding-top: 8px;
+      padding-bottom: 12px;
+    }
+    /* Zone headers stack below the sticky top as the user scrolls.
+       Top offset is a rough sum of nav + sticky-top content height. */
+    .zone-header {
+      position: sticky;
+      top: 168px;
+      z-index: 20;
+    }
+    /* When sticky, on-rows below could show through a translucent header.
+       Force opaque bgs on the no-tint / tune variants. */
+    .zone-header.no-tint { background: var(--bg); }
+
     /* Phase 1: header status line under the home name. */
     .home-header-stack {
       display: flex;
@@ -1247,25 +1333,7 @@
     .home-status-line .status-sep {
       opacity: 0.4;
     }
-    .home-sun-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 2px 8px 2px 4px;
-      border-radius: 999px;
-      font-size: 0.82rem;
-      font-weight: 600;
-      cursor: pointer;
-      color: var(--muted);
-      background: transparent;
-      text-decoration: none;
-    }
-    .home-sun-pill:hover { color: var(--text); }
-    .home-sun-icon {
-      display: inline-block;
-      font-size: 0.95rem;
-      /* color + text-shadow set inline by refreshHomeSun() */
-    }
+    /* Sun pill styling lives in shared.css under .outdoor-chip / .outdoor-chip-icon */
 
     /* Phase 1: always-visible segmented bar (no popover) for view switcher. */
     .view-segments-bar {
@@ -1358,6 +1426,13 @@
     }
     .home-mode-option:hover { background: rgba(255,255,255,0.04); }
     .home-mode-option.active { background: rgba(245,209,153,0.10); color: var(--accent); }
+    .home-mode-popover .mode-divider { height: 1px; background: rgba(255,255,255,0.10); margin: 4px 8px; }
+    .tune-impact-text {
+      font-size: 0.82rem;
+      opacity: 0.85;
+      font-weight: 500;
+      white-space: nowrap;
+    }
 
     /* Phase 2: divergence chips on status row */
     .delta-chip {
@@ -1438,7 +1513,6 @@
     </a>
     <div class="nav-links">
       <a href="./switches" class="nav-link">Controls</a>
-      <a href="./tune" class="nav-link">Tune</a>
       <a href="./moments" class="nav-link">Magic</a>
       <a href="./settings" class="nav-link">Settings</a>
     </div>
@@ -1464,8 +1538,71 @@
     // vs. collapsed (showing only the active pill). Reset on render-time
     // by using a module variable so periodic re-renders preserve state.
     let _viewSegExpanded = false;
-    // Phase 2: action mode pill state — 'brightness' | 'color' | 'bed'
+    // Phase 2/3: action mode pill state — 'brightness' | 'color' | 'bed' | 'sun' | 'balance'
     let homePillMode = 'brightness';
+    // Phase 3: mode popover open-state — persisted across re-renders so the
+    // refresh cycle doesn't kick the popover closed mid-interaction.
+    let _modePopoverOpen = false;
+    // Phase 3: secondary sort for Tune modes — 'custom' (zone order) | 'setting' (magnitude)
+    let homeTuneSort = 'custom';
+
+    // Phase 3: per-area sun_exposure / balance lookup (lazy-fetched from /api/light-filters).
+    // Map: areaId → { brightness_factor, natural_light_exposure }.
+    let cachedAreaTune = {};
+    async function loadAreaTuneData() {
+      try {
+        const res = await fetch('./api/light-filters');
+        if (!res.ok) return;
+        const data = await res.json();
+        const m = {};
+        for (const zone of Object.values(data.zones || {})) {
+          for (const a of (zone.areas || [])) {
+            if (a.id) m[a.id] = {
+              brightness_factor: a.brightness_factor ?? 1.0,
+              natural_light_exposure: a.natural_light_exposure ?? 0.0,
+            };
+          }
+        }
+        cachedAreaTune = m;
+      } catch (e) { console.error('loadAreaTuneData failed', e); }
+    }
+    function getAreaTune(areaId) {
+      return cachedAreaTune[areaId] || { brightness_factor: 1.0, natural_light_exposure: 0.0 };
+    }
+
+    // Phase 3: per-area sun_exposure / balance discrete steps (matches tune.html).
+    const SOLAR_STEPS = [
+      { label: 'None',      exposure: 0.00 },
+      { label: 'Low',       exposure: 0.25 },
+      { label: 'Moderate',  exposure: 0.40 },
+      { label: 'Medium',    exposure: 0.60 },
+      { label: 'High',      exposure: 0.75 },
+      { label: 'Strong',    exposure: 0.90 },
+      { label: 'Full',      exposure: 1.00 },
+      { label: 'Amplified', exposure: 1.25 },
+      { label: 'Intense',   exposure: 1.60 },
+      { label: 'Sun room',  exposure: 2.00 },
+    ];
+    const LUMEN_STEPS = [
+      { label: 'Min',       factor: 0.60 },
+      { label: 'Very Dim',  factor: 0.75 },
+      { label: 'Dim',       factor: 0.85 },
+      { label: 'Subtle',    factor: 0.95 },
+      { label: 'Normal',    factor: 1.00 },
+      { label: 'Lifted',    factor: 1.05 },
+      { label: 'Bright',    factor: 1.15 },
+      { label: 'Strong',    factor: 1.25 },
+      { label: 'Max',       factor: 1.40 },
+    ];
+    function isTuneMode(m) { return m === 'sun' || m === 'balance'; }
+    function nearestStepIndex(steps, value, key) {
+      let best = 0, bestDist = Infinity;
+      for (let i = 0; i < steps.length; i++) {
+        const d = Math.abs(steps[i][key] - value);
+        if (d < bestDist) { bestDist = d; best = i; }
+      }
+      return best;
+    }
     let cachedConfig = null;
     let cachedSunTimes = null; // { sunrise, sunset, solarNoon, solarMid } in local hours
     let currentMode = 'view'; // 'view' | 'organize'
@@ -1777,9 +1914,10 @@
           const prefs = cachedConfig.areas_ui || {};
           const savedMode = prefs.view_mode || prefs.sort_mode || 'onoff';
           viewMode = savedMode === 'custom' ? 'custom' : 'onoff';
-          // Phase 2: load pill mode (action) preference
+          // Phase 2/3: load pill mode (action) preference
           const savedPill = prefs.pill_mode || 'brightness';
-          homePillMode = ['brightness', 'color', 'bed'].includes(savedPill) ? savedPill : 'brightness';
+          homePillMode = ['brightness', 'color', 'bed', 'sun', 'balance'].includes(savedPill) ? savedPill : 'brightness';
+          homeTuneSort = prefs.tune_sort === 'setting' ? 'setting' : 'custom';
 
           // Compute sun times client-side from config lat/lon
           const lat = cachedConfig.latitude || 35.0;
@@ -1800,6 +1938,7 @@
             areas_ui: {
               view_mode: viewMode,
               pill_mode: homePillMode,
+              tune_sort: homeTuneSort,
             }
           })
         });
@@ -2032,6 +2171,9 @@
       stopHomeRefresh();
       const interval = getHomeRefreshInterval() * 1000;
       homeRefreshTimer = setInterval(async () => {
+        // Suppress the refresh+render cycle while a popover is open —
+        // otherwise the toolbar HTML rebuilds every tick and the popover flashes.
+        if (_modePopoverOpen || _sunPopoverOpen) return;
         try {
           const [res, zsRes, gzRes] = await Promise.all([
             fetch('./api/area-status?lite=true'),
@@ -2082,38 +2224,36 @@
         : `${onCount} of ${total} on`;
     }
 
-    // Cached sun intensity so we can repaint the pill on every renderAreas()
-    // without refetching on each tick (refresh cadence below).
+    // Cached sun intensity so we can use it in the tune-impact computation
+    // without refetching on each tick. Updated whenever SunIntensity refreshes.
     let _cachedSunPct = null;
+    let _sunPopoverOpen = false;  // tracked via SunIntensity onToggle callback
+    let _sunIntensityCtrl = null;
 
-    function paintSunPill(pct) {
-      const pctEl = document.getElementById('home-sun-pct');
-      const iconEl = document.getElementById('home-sun-icon');
-      if (!pctEl || !iconEl || pct == null) return;
-      pctEl.textContent = pct + '%';
-      const t = pct / 100;
-      const r = Math.round(120 + (245 - 120) * t);
-      const g = Math.round(100 + (200 - 100) * t);
-      const b = Math.round(60 + (100 - 60) * t);
-      iconEl.style.color = `rgb(${r}, ${g}, ${b})`;
-      iconEl.style.textShadow = `0 0 ${4 + t * 8}px rgba(${r},${g},${b},${0.3 + t * 0.4})`;
+    // SunIntensity (shared.js) owns the pill glow + popover. The toolbar
+    // re-renders frequently, so detach the previous instance before binding
+    // to the freshly-rendered button to avoid orphaned doc-level listeners.
+    function attachSunIntensity() {
+      const trigger = document.getElementById('home-sun-pill');
+      const pop = document.getElementById('home-sun-popover');
+      if (!trigger || !pop || !window.SunIntensity) return;
+      if (_sunIntensityCtrl && typeof _sunIntensityCtrl.detach === 'function') {
+        _sunIntensityCtrl.detach();
+      }
+      _sunIntensityCtrl = SunIntensity.attach(trigger, pop, {
+        onData: (data, pct) => { _cachedSunPct = pct; },
+        onToggle: (open) => { _sunPopoverOpen = open; },
+      });
     }
 
-    // Fetch sun intensity from /api/outdoor-status, cache it, and repaint the pill.
-    async function refreshHomeSun() {
-      try {
-        const res = await fetch('./api/outdoor-status');
-        if (!res.ok) return;
-        const data = await res.json();
-        _cachedSunPct = Math.max(0, Math.min(100, Math.round((data.outdoor_normalized ?? 0) * 100)));
-        paintSunPill(_cachedSunPct);
-      } catch (e) { /* leave cached value */ }
+    function refreshHomeSun() {
+      if (_sunIntensityCtrl) _sunIntensityCtrl.refresh();
     }
 
-    // Convenience wrapper called after each render — updates count + repaints sun pill from cache.
+    // Convenience wrapper called after each render — updates count + reattaches sun pill.
     function refreshHomeStatus() {
       refreshRoomsOnCount();
-      if (_cachedSunPct != null) paintSunPill(_cachedSunPct);
+      attachSunIntensity();
     }
 
     function stopHomeRefresh() {
@@ -2154,6 +2294,7 @@
         renderAreas();
         refreshHomeStatus();
         refreshHomeSun();
+        if (isTuneMode(homePillMode)) loadAreaTuneData().then(renderAreas);
         startHomeRefresh();
       } catch (err) {
         console.error('Error loading data:', err);
@@ -2249,17 +2390,99 @@
 
     // Phase 2: chevrons dispatch per the home pill mode.
     // Brightness → bright_up/down (delta), Color → color_up/down, Bed → step_up/down
-    // (curve-walking step that nudges the brightness target and lands the midpoint).
+    // (curve-walking step). Phase 3: Sun/Balance → step the discrete table.
     function homeStepUp(areaId) {
       if (homePillMode === 'color') return rowAction(areaId, 'color_up');
       if (homePillMode === 'bed') return rowAction(areaId, 'step_up');
+      if (homePillMode === 'sun') return tuneStep(areaId, 'sun', +1);
+      if (homePillMode === 'balance') return tuneStep(areaId, 'balance', +1);
       return rowAction(areaId, 'bright_up');
     }
 
     function homeStepDown(areaId) {
       if (homePillMode === 'color') return rowAction(areaId, 'color_down');
       if (homePillMode === 'bed') return rowAction(areaId, 'step_down');
+      if (homePillMode === 'sun') return tuneStep(areaId, 'sun', -1);
+      if (homePillMode === 'balance') return tuneStep(areaId, 'balance', -1);
       return rowAction(areaId, 'bright_down');
+    }
+
+    // Phase 3: step the area's sun_exposure or brightness_factor by ±1 table position.
+    function tuneStep(areaId, dim, dir) {
+      const t = getAreaTune(areaId);
+      if (dim === 'sun') {
+        const idx = nearestStepIndex(SOLAR_STEPS, t.natural_light_exposure, 'exposure');
+        const next = Math.max(0, Math.min(SOLAR_STEPS.length - 1, idx + dir));
+        saveAreaTune(areaId, { natural_light_exposure: SOLAR_STEPS[next].exposure });
+      } else {
+        const idx = nearestStepIndex(LUMEN_STEPS, t.brightness_factor, 'factor');
+        const next = Math.max(0, Math.min(LUMEN_STEPS.length - 1, idx + dir));
+        saveAreaTune(areaId, { brightness_factor: LUMEN_STEPS[next].factor });
+      }
+    }
+
+    // Phase 3: previous-value tracking for Tune undo. Snapshots are written
+    // to localStorage on every change so a reset restores the value the user
+    // had before their last edit (not the system default).
+    const tunePrevKey = (areaId, dim) => `tune_prev_${areaId}_${dim}`;
+    function snapshotTunePrev(areaId, dim, value) {
+      try { localStorage.setItem(tunePrevKey(areaId, dim), String(value)); } catch (e) {}
+    }
+    function getTunePrev(areaId, dim) {
+      try {
+        const v = localStorage.getItem(tunePrevKey(areaId, dim));
+        return v != null ? parseFloat(v) : null;
+      } catch (e) { return null; }
+    }
+    function clearTunePrev(areaId, dim) {
+      try { localStorage.removeItem(tunePrevKey(areaId, dim)); } catch (e) {}
+    }
+    async function restoreTunePrev(areaId) {
+      const dim = homePillMode === 'sun' ? 'sun' : 'balance';
+      const prev = getTunePrev(areaId, dim);
+      if (prev == null) return;
+      clearTunePrev(areaId, dim);
+      const payload = dim === 'sun'
+        ? { natural_light_exposure: prev }
+        : { brightness_factor: prev };
+      saveAreaTune(areaId, payload, { skipSnapshot: true });
+    }
+
+    // Phase 3: persist sun_exposure / brightness_factor changes. Re-fetches state and re-renders.
+    async function saveAreaTune(areaId, payload, opts = {}) {
+      // Snapshot the value BEFORE writing the new one — so a later reset
+      // can restore the user's previous setting (not the system default).
+      if (!opts.skipSnapshot) {
+        const curr = getAreaTune(areaId);
+        if ('natural_light_exposure' in payload) {
+          snapshotTunePrev(areaId, 'sun', curr.natural_light_exposure);
+        }
+        if ('brightness_factor' in payload) {
+          snapshotTunePrev(areaId, 'balance', curr.brightness_factor);
+        }
+      }
+      try {
+        const res = await fetch('./api/light-filters/area-brightness', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ area_id: areaId, ...payload }),
+        });
+        if (res.ok) {
+          setTimeout(async () => {
+            try {
+              const [s, zs] = await Promise.all([
+                fetch('./api/area-status?lite=true'),
+                fetch('./api/zone-states'),
+              ]);
+              if (s.ok) areaStatus = await s.json();
+              if (zs.ok) { const j = await zs.json(); zoneStates = j.zone_states || {}; }
+              await loadAreaTuneData();
+            } catch (e) { console.error(e); }
+            sliderDragging = false;
+            renderAreas();
+          }, 400);
+        } else { sliderDragging = false; }
+      } catch (e) { sliderDragging = false; console.error('saveAreaTune failed', e); }
     }
 
     // Canonical curve slopes (matches brain.py SPEED_TO_SLOPE) for phase
@@ -2878,7 +3101,16 @@
       });
 
       // Sort areas within each zone group
-      const sortAreas = (list) => list; // preserve API order (user's zone ordering)
+      // Phase 3: in Tune mode + Setting sort, reorder within-zone by raw setting value.
+      // Sun: descending (highest exposure first — see which rooms are most sun-tuned).
+      // Balance: ascending (lowest first — Min, Very Dim, Dim … so dim rooms surface).
+      const sortAreas = (list) => {
+        if (!isTuneMode(homePillMode) || homeTuneSort !== 'setting') return list;
+        if (homePillMode === 'sun') {
+          return [...list].sort((a, b) => (getAreaTune(b.area_id).natural_light_exposure) - (getAreaTune(a.area_id).natural_light_exposure));
+        }
+        return [...list].sort((a, b) => (getAreaTune(a.area_id).brightness_factor) - (getAreaTune(b.area_id).brightness_factor));
+      };
 
       function isAreaMismatched(area) {
         if (!area.zone_name || !zoneStates[area.zone_name]) return false;
@@ -2941,55 +3173,78 @@
       const VIEWS = [
         { value: 'onoff',    label: 'Active' },
         { value: 'home',     label: 'All' },
-        { value: 'organize', label: 'Reorder' },
       ];
-      const segmentsHtml = VIEWS.map(v => {
-        const cls = v.value === viewValue ? 'view-segment active' : 'view-segment';
-        return `<button class="${cls}" data-view="${v.value}">${v.label}</button>`;
-      }).join('');
+      // Phase 3: in Tune modes, segmented bar becomes Area / <Sun exposure | Balance> sort.
+      const inTune = isTuneMode(homePillMode);
+      const settingSortLabel = homePillMode === 'sun' ? 'Sun exposure' : 'Balance';
+      const segmentsHtml = inTune
+        ? `
+          <button class="view-segment ${homeTuneSort === 'custom' ? 'active' : ''}" data-tune-sort="custom">Area</button>
+          <button class="view-segment ${homeTuneSort === 'setting' ? 'active' : ''}" data-tune-sort="setting">${settingSortLabel}</button>
+        `
+        : VIEWS.map(v => {
+            const cls = v.value === viewValue ? 'view-segment active' : 'view-segment';
+            return `<button class="${cls}" data-view="${v.value}">${v.label}</button>`;
+          }).join('');
 
       // Phase 2: action mode pill (top-right) — picks knob for slider + chevrons.
       // Bed is phase-aware (Bed if descending, Wake if ascending).
       const homePhase = getHomePhase();  // 'wake' | 'bed' | null
       const bedLabel = homePhase === 'wake' ? 'Wake' : 'Bed';
-      const modeLabels = { brightness: 'Brightness', color: 'Color', bed: bedLabel };
-      const activeModeLabel = modeLabels[homePillMode] || 'Brightness';
+      const modeLabels = { brightness: 'Brightness', color: 'Color', bed: bedLabel, sun: 'Sun exposure', balance: 'Balance' };
+      // In organize mode the pill reflects that, so the user has a way back out
+      // (clicking any other option exits organize via the click handler).
+      const activeModeLabel = currentMode === 'organize'
+        ? 'Reorder areas'
+        : (modeLabels[homePillMode] || 'Brightness');
       const modeOption = (val, label) => {
         const cls = homePillMode === val ? 'home-mode-option active' : 'home-mode-option';
         return `<div class="${cls}" data-pill-mode="${val}">${label}</div>`;
       };
+      const popoverOpenClass = _modePopoverOpen ? ' open' : '';
       const modePillHtml = `
         <div class="home-mode-pill" id="home-mode-pill" title="What slider & chevrons control">
           <span id="home-mode-label">${activeModeLabel}</span><span class="caret">▾</span>
-          <div class="home-mode-popover" id="home-mode-popover">
+          <div class="home-mode-popover${popoverOpenClass}" id="home-mode-popover">
             <div class="home-mode-section-label">Adjust <span class="home-mode-section-sub">${(() => { const t = getNextPhaseBoundaryLabel(); return t ? 'resets @ ' + t : 'resets at phase change'; })()}</span></div>
             ${modeOption('brightness', 'Brightness')}
             ${modeOption('color', 'Color')}
             ${modeOption('bed', bedLabel)}
+            <div class="mode-divider"></div>
+            <div class="home-mode-section-label">Tune <span class="home-mode-section-sub">saved per area</span></div>
+            ${modeOption('sun', 'Sun exposure')}
+            ${modeOption('balance', 'Balance')}
+            <div class="mode-divider"></div>
+            <div class="home-mode-option ${currentMode === 'organize' ? 'active' : ''}" data-pill-mode="organize">Reorder areas</div>
           </div>
         </div>
       `;
 
       // Status line: rooms-on count + sun pill. Numbers/values filled by refreshHomeStatus().
+      // Wrapped in .home-sticky-top so the title, status, mode pill, and view
+      // segments stay pinned beneath the nav as the user scrolls.
       let html = `
-        <div class="home-toolbar" style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px;">
-          <div class="home-header-stack">
-            <span class="home-name-heading" id="home-name-heading" ondblclick="editHomeName(this)" title="Double-click (or tap and hold) to rename" style="touch-action: manipulation;">${homeName || ''}</span>
-            <div class="home-status-line">
-              <span class="rooms-on-count" id="rooms-on-count">…</span>
-              <span class="status-sep">·</span>
-              <a class="home-sun-pill" href="./settings" title="Sun intensity (open settings)">
-                <span class="home-sun-icon" id="home-sun-icon">☀</span>
-                <span id="home-sun-pct">–%</span>
-              </a>
+        <div class="home-sticky-top">
+          <div class="home-toolbar" style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px;">
+            <div class="home-header-stack">
+              <span class="home-name-heading" id="home-name-heading" ondblclick="editHomeName(this)" title="Double-click (or tap and hold) to rename" style="touch-action: manipulation;">${homeName || ''}</span>
+              <div class="home-status-line">
+                <span class="rooms-on-count" id="rooms-on-count">…</span>
+                <span class="status-sep">·</span>
+                <button type="button" class="outdoor-chip" id="home-sun-pill" aria-expanded="false" title="Sun intensity">
+                  <span class="outdoor-chip-icon" id="home-sun-icon" data-sun-icon>☀</span>
+                  <span id="home-sun-pct" data-sun-pct>–%</span>
+                </button>
+                <div class="outdoor-chip-popover" id="home-sun-popover" hidden></div>
+              </div>
             </div>
+            <span style="flex: 1;"></span>
+            ${modePillHtml}
           </div>
-          <span style="flex: 1;"></span>
-          ${modePillHtml}
-        </div>
-        <div style="display:flex; align-items:center; margin-bottom: 12px;">
-          <div class="view-segments-bar" id="home-view-segments" role="tablist" title="Page mode">
-            ${segmentsHtml}
+          <div style="display:flex; align-items:center;">
+            <div class="view-segments-bar" id="home-view-segments" role="tablist" title="Page mode">
+              ${segmentsHtml}
+            </div>
           </div>
         </div>
       `;
@@ -3076,6 +3331,9 @@
         let zoneFrozenIndicator = '';
 
         const zs = zoneStates[zoneName];
+        // Phase 3: in Tune modes, neutralize the zone-header tint — focus on tuning,
+        // not current zone color/brightness.
+        const tuneNeutralHeader = isTuneMode(homePillMode);
         if (zs) {
           const zoneBri = zs.brightness;
           const zoneKelvin = zs.kelvin;
@@ -3083,7 +3341,7 @@
           const tintedColor = tintColorByBrightness(cctColor, zoneBri);
           zoneTextColor = readableTextColor(tintedColor);
           zoneHeaderStyle = `background: ${tintedColor}; color: ${zoneTextColor}; --header-fill: ${zoneBri / 100};`;
-          if (allOff) {
+          if (allOff || tuneNeutralHeader) {
             zoneHeaderStyle = '';
             zoneTextColor = 'var(--text)';
           }
@@ -3113,7 +3371,7 @@
         const bigChevron = `<span class="zone-chevron-big-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)" title="${isCollapsed ? 'Expand' : 'Collapse'}"><span class="zone-chevron-big">&#x203A;</span></span>`;
         return `
           <div class="zone-group">
-            <div class="zone-header ${isCollapsed ? 'collapsed' : ''} ${allOff ? 'no-tint' : ''}" data-zone="${zoneName}" style="${zoneHeaderStyle}">
+            <div class="zone-header ${isCollapsed ? 'collapsed' : ''} ${allOff ? 'no-tint' : ''} ${tuneNeutralHeader ? 'tune' : ''}" data-zone="${zoneName}" style="${zoneHeaderStyle}">
               ${bigChevron}
               ${zonePowerBtn}
               <div class="zone-name-group" style="color: ${zoneTextColor};">
@@ -3122,8 +3380,8 @@
               </div>
               ${zoneFrozenIndicator}
               <div class="row-controls">
-                ${cachedConfig?.home_buttons_mode === 'zone' ? `<button class="row-btn" onclick="event.stopPropagation(); glozoneDown('${escapedZoneName}')" title="Push rhythm zone state to all areas">${glozoneDownIcon}</button>` : ''}
-                <button class="row-btn" onclick="event.stopPropagation(); glozoneResetFull('${escapedZoneName}')" title="Reset all areas in rhythm zone">${glozoneResetIcon}</button>
+                ${(!tuneNeutralHeader && cachedConfig?.home_buttons_mode === 'zone') ? `<button class="row-btn" onclick="event.stopPropagation(); glozoneDown('${escapedZoneName}')" title="Push rhythm zone state to all areas">${glozoneDownIcon}</button>` : ''}
+                ${tuneNeutralHeader ? '' : `<button class="row-btn" onclick="event.stopPropagation(); glozoneResetFull('${escapedZoneName}')" title="Reset all areas in rhythm zone">${glozoneResetIcon}</button>`}
               </div>
             </div>
             <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
@@ -3157,38 +3415,36 @@
         html += `<div style="text-align: center; padding: 16px 0;">
           <a href="#" onclick="event.preventDefault(); createZoneFromEdit()" style="font-size: 0.85rem; color: var(--accent); text-decoration: none;">+ New Zone</a>
         </div>`;
-      } else if (viewMode === 'onoff') {
-        // Group by on/off first, then by zone within each. Areas with circadian
-        // disabled are bucketed with off areas — even though their lights might
-        // be physically on, they're not under our control. (We don't mutate
-        // `is_on` itself; it's a display-only adjustment for this filter.)
+      } else if (viewMode === 'onoff' && !isTuneMode(homePillMode)) {
+        // Phase 3: "Active" view shows just the on rooms (zone-grouped) plus a
+        // separate "Upcoming" section for off rooms with a scheduled auto-on.
+        // Off rooms with no schedule are filtered out entirely.
+        // Skipped in Tune modes (Tune always shows zone-grouped, all areas).
         const isEffectivelyOn = (a) => a.is_on && a.is_circadian;
+        const hasUpcoming = (a) => {
+          const s = areaStatus[a.area_id] || {};
+          return !!s.next_auto_on;
+        };
         const onAreas = filtered.filter(isEffectivelyOn);
-        const offAreas = filtered.filter(a => !isEffectivelyOn(a));
+        const upcomingAreas = filtered.filter(a => !isEffectivelyOn(a) && hasUpcoming(a));
 
-        const renderOnOffSection = (sectionAreas, allOff = false) => {
-          if (sectionAreas.length === 0) return '';
-          // Sub-group by zone
+        // Group on rooms by zone, ordered by glozone API zone order.
+        if (onAreas.length > 0) {
           const subGroups = {};
           const subUnassigned = [];
-          for (const area of sectionAreas) {
+          for (const area of onAreas) {
             if (area.zone_name) {
-              if (!subGroups[area.zone_name]) subGroups[area.zone_name] = [];
-              subGroups[area.zone_name].push(area);
+              (subGroups[area.zone_name] = subGroups[area.zone_name] || []).push(area);
             } else {
               subUnassigned.push(area);
             }
           }
-          // Use custom zone order from cachedGlozones, then any remaining
           const gzZoneNames = Object.keys(cachedGlozones?.zones || {});
           const subNames = gzZoneNames.filter(zn => subGroups[zn]);
-          // Add any zones not in cachedGlozones (shouldn't happen, but safe)
           for (const zn of Object.keys(subGroups)) {
             if (!subNames.includes(zn)) subNames.push(zn);
           }
-          let sectionHtml = '';
           for (const zn of subNames) {
-            // Sort areas within zone by custom order
             const gzData = (cachedGlozones?.zones || {})[zn];
             const customOrder = gzData ? (gzData.areas || []).map(a => typeof a === 'object' ? a.id : a) : [];
             const sorted = customOrder.length > 0
@@ -3198,17 +3454,40 @@
                   return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
                 })
               : subGroups[zn];
-            sectionHtml += renderZoneGroup(zn, sorted, undefined, undefined, { allOff });
+            html += renderZoneGroup(zn, sorted);
           }
-          if (subUnassigned.length > 0) {
-            sectionHtml += renderZoneGroup('Unassigned', subUnassigned, undefined, undefined, { allOff });
-          }
-          return sectionHtml;
-        };
+          if (subUnassigned.length > 0) html += renderZoneGroup('Unassigned', subUnassigned);
+        }
 
-        html += renderOnOffSection(onAreas, false);
-        html += renderOnOffSection(offAreas, true);
-      } else if (viewMode === 'custom') {
+        // Upcoming: flat rows under a quiet section label. Sorted by next_auto_on time.
+        if (upcomingAreas.length > 0) {
+          upcomingAreas.sort((a, b) => {
+            const ta = areaStatus[a.area_id]?.next_auto_on;
+            const tb = areaStatus[b.area_id]?.next_auto_on;
+            const va = (ta?.fire_offset ?? ta?.offset ?? 999) * 24 + (ta?.decimal_hour ?? 0);
+            const vb = (tb?.fire_offset ?? tb?.offset ?? 999) * 24 + (tb?.decimal_hour ?? 0);
+            return va - vb;
+          });
+          html += `
+            <div class="upcoming-section">
+              <div class="upcoming-section-label">Upcoming</div>
+              <div class="upcoming-content">
+                ${upcomingAreas.map(area => renderAreaRow(area)).join('')}
+              </div>
+            </div>
+          `;
+        }
+
+        // Empty state: no on rooms AND no upcoming.
+        if (onAreas.length === 0 && upcomingAreas.length === 0) {
+          html += `
+            <div style="text-align: center; padding: 48px 24px; color: var(--muted);">
+              All rooms off, nothing scheduled.<br>
+              <span style="font-size: 0.85rem;">Switch to <b>All</b> to see every room.</span>
+            </div>
+          `;
+        }
+      } else if (viewMode === 'custom' || isTuneMode(homePillMode)) {
         // Custom: use API zone order (preserves user arrangement from edit mode)
         const gzZonesObj = cachedGlozones?.zones || {};
         const gzZoneNames = Object.keys(gzZonesObj);
@@ -3249,20 +3528,11 @@
     let _stickyZone = null;
     let _stickyObserver = null;
     function initStickyHeaders() {
-      // Clean up previous observer
-      if (_stickyObserver) _stickyObserver.disconnect();
+      // Phase 3: zone-header stickiness now lives in pure CSS (position: sticky).
+      // The legacy clone-based approach below is disabled — CSS sticky stacks
+      // cleanly with .home-sticky-top without needing JS coordination.
       if (_stickyClone) { _stickyClone.remove(); _stickyClone = null; _stickyZone = null; }
-
-      // Use polling with rAF — works reliably in ingress iframes where
-      // scroll events and IntersectionObserver may not fire
-      if (!window._stickyRafRunning) {
-        window._stickyRafRunning = true;
-        function stickyLoop() {
-          updateStickyHeader();
-          requestAnimationFrame(stickyLoop);
-        }
-        requestAnimationFrame(stickyLoop);
-      }
+      return;
     }
 
     function updateStickyHeader() {
@@ -3352,6 +3622,18 @@
         `;
       }
 
+      // Phase 3: in Tune modes, status row shows impact ("sun dims X% · final Y%")
+      // instead of schedule + state chips. Divergence chips also suppressed.
+      const inTune = isTuneMode(homePillMode);
+      const tuneImpactHtml = inTune ? getTuneImpactHtml(area) : '';
+      // row-active-status (motion/fade/boost/freeze countdowns) lives in the
+      // status row alongside chips, NOT on the name line.
+      const activeStatusHtml = inTune
+        ? ''
+        : `<span class="row-active-status" data-area-active="${area.area_id}"></span>`;
+      const statusLeftHtml = inTune ? tuneImpactHtml : `${activeStatusHtml}${divChips}`;
+      const statusRightAttr = inTune ? '' : `data-area-schedule="${area.area_id}" data-zone-name="${area.zone_name || ''}"`;
+      const scheduleRightHtml = inTune ? '' : `<span class="row-schedule-right" data-area-timer="${area.area_id}"></span>`;
       return `
         <div class="area-row" style="--row-bg: ${style.bg}; --row-text: ${style.textColor}; --row-fill: ${style.fill.toFixed(3)};">
           ${leftControls}
@@ -3359,7 +3641,6 @@
             <div class="row-middle-top">
               <span class="area-row-name" onclick="openAreaModal('${area.area_id}')">${area.name}</span>
               ${mismatchDot}
-              <span class="row-active-status" data-area-active="${area.area_id}"></span>
               <span class="row-drag-value" data-area-drag-value="${area.area_id}"></span>
               <span class="row-readout" data-area-readout="${area.area_id}">${readout}</span>
             </div>
@@ -3369,14 +3650,48 @@
               <div class="row-slider-thumb-ghost"></div>
               <div class="row-slider-thumb" style="left: ${sliderPct.toFixed(1)}%"></div>
             </div>
-            <div class="row-status-row" data-area-schedule="${area.area_id}" data-zone-name="${area.zone_name || ''}">
-              <span class="row-schedule-left">${divChips}</span>
-              <span class="row-schedule-right" data-area-timer="${area.area_id}"></span>
+            <div class="row-status-row" ${statusRightAttr}>
+              <span class="row-schedule-left">${statusLeftHtml}</span>
+              ${scheduleRightHtml}
             </div>
           </div>
           ${rightControls}
         </div>
       `;
+    }
+
+    // Phase 3: compute "sun dims X% · final Y%" or "balance dims/lifts X% · final Y%"
+    // for the row's status line in Tune modes. Ports computeNlFactor /
+    // computeNowBrightness / impact functions from tune.html.
+    function computeNlFactor(exposure, outdoorNorm, sensitivity) {
+      if (exposure <= 0 || outdoorNorm <= 0) return 1.0;
+      return Math.max(0, 1 - exposure * outdoorNorm * sensitivity);
+    }
+    function computeNowBri(rhythmBri, factor, exposure, outdoorNorm, sensitivity) {
+      const nl = computeNlFactor(exposure, outdoorNorm, sensitivity);
+      return Math.min(100, Math.round(rhythmBri * nl * factor));
+    }
+    function getTuneImpactHtml(area) {
+      const zoneName = area.zone_name || areaStatus[area.area_id]?.zone_name;
+      const zs = zoneName ? zoneStates[zoneName] : null;
+      const rhythmBri = zs?.brightness ?? 50;
+      const sensitivity = zs?.brightness_sensitivity ?? 1.0;
+      const outdoorNorm = (_cachedSunPct ?? 0) / 100;
+      const t = getAreaTune(area.area_id);
+      const factor = t.brightness_factor;
+      const exposure = t.natural_light_exposure;
+      const withAll = computeNowBri(rhythmBri, factor, exposure, outdoorNorm, sensitivity);
+      let label, dimAmt;
+      if (homePillMode === 'sun') {
+        const withoutSun = computeNowBri(rhythmBri, factor, 0, outdoorNorm, sensitivity);
+        dimAmt = withoutSun - withAll;  // positive = sun is dimming
+        label = `sun dims ${Math.max(0, dimAmt)}%`;
+      } else {
+        const withoutFactor = computeNowBri(rhythmBri, 1.0, exposure, outdoorNorm, sensitivity);
+        const delta = withAll - withoutFactor;  // signed
+        label = delta >= 0 ? `balance lifts ${delta}%` : `balance dims ${-delta}%`;
+      }
+      return `<span class="tune-impact-text">${label} · final ${withAll}%</span>`;
     }
 
     function getStatusBadge(area) {
@@ -3407,6 +3722,15 @@
     }
 
     function getMismatchDot(area) {
+      // Phase 3: in Tune modes, the mismatch dot is repurposed as a tune-undo.
+      // Shows only if we've snapshotted a previous value for this area + dim,
+      // and clicking restores that previous value.
+      if (isTuneMode(homePillMode)) {
+        const dim = homePillMode === 'sun' ? 'sun' : 'balance';
+        if (getTunePrev(area.area_id, dim) == null) return '';
+        const title = dim === 'sun' ? 'Restore previous sun exposure' : 'Restore previous balance';
+        return `<span class="mismatch-dot-area" onclick="event.stopPropagation(); restoreTunePrev('${area.area_id}')" title="${title}"></span>`;
+      }
       if (!isAreaDirty(area)) return '';
       return `<span class="mismatch-dot-area" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_down')" title="Reset to rhythm zone"></span>`;
     }
@@ -3490,8 +3814,18 @@
       return bMax > bMin ? Math.max(0, Math.min(100, (brightness - bMin) / (bMax - bMin) * 100)) : 0;
     }
 
-    // Phase 2: slider thumb position by active mode.
+    // Phase 2/3: slider thumb position by active mode.
     function getModeSliderPct(area) {
+      if (homePillMode === 'sun') {
+        const t = getAreaTune(area.area_id);
+        const idx = nearestStepIndex(SOLAR_STEPS, t.natural_light_exposure, 'exposure');
+        return (idx / (SOLAR_STEPS.length - 1)) * 100;
+      }
+      if (homePillMode === 'balance') {
+        const t = getAreaTune(area.area_id);
+        const idx = nearestStepIndex(LUMEN_STEPS, t.brightness_factor, 'factor');
+        return (idx / (LUMEN_STEPS.length - 1)) * 100;
+      }
       if (homePillMode === 'color') {
         const cMin = area.min_color_temp ?? 2200;
         const cMax = area.max_color_temp ?? 6500;
@@ -3511,12 +3845,22 @@
       return getSliderPct(area.brightness || 0, area);
     }
 
-    // Phase 2: right-side readout reflecting current mode value.
+    // Phase 2/3: right-side readout reflecting current mode value.
     function getModeReadout(area) {
       if (homePillMode === 'color') return `${area.kelvin || 4000}K`;
       if (homePillMode === 'bed') {
         const mid = areaStatus[area.area_id]?.phase_midpoint;
         return mid != null ? formatDecimalHour(mid) : '';
+      }
+      if (homePillMode === 'sun') {
+        const t = getAreaTune(area.area_id);
+        const s = SOLAR_STEPS[nearestStepIndex(SOLAR_STEPS, t.natural_light_exposure, 'exposure')];
+        return s ? `${s.label} ${s.exposure.toFixed(2)}` : '';
+      }
+      if (homePillMode === 'balance') {
+        const t = getAreaTune(area.area_id);
+        const s = LUMEN_STEPS[nearestStepIndex(LUMEN_STEPS, t.brightness_factor, 'factor')];
+        return s ? `${s.label} ${s.factor.toFixed(2)}` : '';
       }
       return `${Math.round(area.brightness || 0)}%`;
     }
@@ -3638,6 +3982,13 @@ function updateSliderFill(el) {
         const seg = e.target.closest('.view-segments-bar .view-segment');
         if (!seg) return;
         if (seg.classList.contains('active')) return;
+        // Phase 3: Tune-mode tune-sort variant
+        if (seg.dataset.tuneSort) {
+          homeTuneSort = seg.dataset.tuneSort;
+          savePreferences();
+          renderAreas();
+          return;
+        }
         const v = seg.dataset.view;
         if (v === 'organize') { enterOrganizeMode(); return; }
         viewMode = (v === 'onoff') ? 'onoff' : 'custom';
@@ -3649,39 +4000,53 @@ function updateSliderFill(el) {
         }
       });
 
-      // Phase 2: mode pill — toggle popover, pick a mode.
+      // Phase 2/3: mode pill — toggle popover, pick a mode.
       document.getElementById('areas-container').addEventListener('click', (e) => {
-        // Click on a popover option?
         const opt = e.target.closest('.home-mode-option');
         if (opt) {
           e.stopPropagation();
           const newMode = opt.dataset.pillMode;
+          _modePopoverOpen = false;
+          // Reorder is special — it's a page mode, not a slider/chevron knob.
+          if (newMode === 'organize') {
+            enterOrganizeMode();
+            return;
+          }
+          // Selecting any non-Reorder option while in organize mode = exit organize.
+          const wasOrganize = currentMode === 'organize';
           if (newMode && newMode !== homePillMode) {
             homePillMode = newMode;
             savePreferences();
-            renderAreas();
+            if (isTuneMode(newMode) && !Object.keys(cachedAreaTune).length) {
+              loadAreaTuneData().then(renderAreas);
+            }
+          }
+          if (wasOrganize) {
+            exitMode();
           } else {
-            // clicking active option just closes the popover
-            const pop = document.getElementById('home-mode-popover');
-            if (pop) pop.classList.remove('open');
+            renderAreas();
           }
           return;
         }
-        // Click on the pill itself toggles the popover
         const pill = e.target.closest('#home-mode-pill');
         if (pill) {
           e.stopPropagation();
+          _modePopoverOpen = !_modePopoverOpen;
           const pop = document.getElementById('home-mode-popover');
-          if (pop) pop.classList.toggle('open');
+          if (pop) pop.classList.toggle('open', _modePopoverOpen);
         }
       });
 
-      // Outside-click → close mode popover
+      // Outside-click → close mode popover (state + DOM in sync).
       document.addEventListener('click', (e) => {
         if (e.target.closest('#home-mode-pill')) return;
+        _modePopoverOpen = false;
         const pop = document.getElementById('home-mode-popover');
         if (pop) pop.classList.remove('open');
       });
+
+      // Sun pill / popover is owned by SunIntensity (shared.js) — wired up by
+      // attachSunIntensity() from renderAreas, no local click handlers needed.
 
       // Long-press on the home name → enter rename mode (mobile equivalent
       // of double-click; both gestures route through editHomeName).
@@ -3872,6 +4237,14 @@ function updateSliderFill(el) {
             const target = bedTimeFromPct(areaId, pct);
             if (target != null && valueEl) valueEl.textContent = formatDecimalHour(target);
             // No color preview for bed mode — the row's current tint is correct.
+          } else if (homePillMode === 'sun') {
+            const idx = Math.round(pct / 100 * (SOLAR_STEPS.length - 1));
+            const s = SOLAR_STEPS[idx];
+            if (valueEl) valueEl.textContent = `${s.label} ${s.exposure.toFixed(2)}`;
+          } else if (homePillMode === 'balance') {
+            const idx = Math.round(pct / 100 * (LUMEN_STEPS.length - 1));
+            const s = LUMEN_STEPS[idx];
+            if (valueEl) valueEl.textContent = `${s.label} ${s.factor.toFixed(2)}`;
           } else {
             // Brightness mode — existing behavior
             const brightness = bMin + (bMax - bMin) * pct / 100;
@@ -3906,6 +4279,12 @@ function updateSliderFill(el) {
               const target = bedTimeFromPct(areaId, pct);
               if (target != null) setPhaseTime(areaId, target);
               else sliderDragging = false;
+            } else if (homePillMode === 'sun') {
+              const idx = Math.round(pct / 100 * (SOLAR_STEPS.length - 1));
+              saveAreaTune(areaId, { natural_light_exposure: SOLAR_STEPS[idx].exposure });
+            } else if (homePillMode === 'balance') {
+              const idx = Math.round(pct / 100 * (LUMEN_STEPS.length - 1));
+              saveAreaTune(areaId, { brightness_factor: LUMEN_STEPS[idx].factor });
             } else {
               // Brightness (default): honor existing home_slider_mode preference
               const sliderMode = cachedConfig?.home_slider_mode || 'brightness';

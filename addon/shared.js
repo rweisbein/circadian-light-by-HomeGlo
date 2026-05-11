@@ -1172,3 +1172,282 @@ function setupViewSegments(opts) {
     },
   };
 }
+
+// =============================================================================
+// SunIntensity — shared popover component.
+//
+// Drop-in attach: SunIntensity.attach(triggerEl, popoverEl) wires a click
+// handler that fetches /api/outdoor-status, renders the breakdown
+// (sun angle × sky clarity = intensity), and exposes the override picker
+// (condition + duration + Set / clear).
+//
+// The trigger element is expected to contain a child with
+// `[data-sun-pct]` and `[data-sun-icon]` for the % readout + icon glow.
+// The popover element must be a descendant of the trigger or its
+// containing positioned ancestor — it's positioned with `position: fixed`
+// at runtime so it isn't clipped by overflow.
+//
+// Returns a controller: { refresh, close, isOpen }. Multiple instances on
+// the same page would conflict at the DOM-id level (.ocp-* IDs are queried
+// scoped to the popover, but each page typically uses only one).
+// =============================================================================
+window.SunIntensity = (function () {
+  const OVERRIDE_CONDITIONS = [
+    { value: 'sunny',         label: 'Sunny',         groupKey: 'sunny' },
+    { value: 'partlycloudy',  label: 'Partly cloudy', groupKey: 'mixed' },
+    { value: 'cloudy',        label: 'Cloudy',        groupKey: 'cloudy' },
+    { value: 'rainy',         label: 'Rainy',         groupKey: 'rainy' },
+    { value: 'snowy',         label: 'Snowy',         groupKey: 'snowy' },
+    { value: 'fog',           label: 'Fog',           groupKey: 'fog' },
+    { value: 'pouring',       label: 'Pouring',       groupKey: 'pouring' },
+    { value: 'lightning',     label: 'Storm',         groupKey: 'lightning' },
+  ];
+
+  function buildClarityIcon(d) {
+    if (!d) return '☀️';
+    const isOverride = d.source === 'override' && d.override && d.override.condition;
+    const cond = (isOverride ? d.override.condition : (d.weather_condition || '')).toLowerCase();
+    const cloudCover = isOverride ? 0 : (d.weather_cloud_cover ?? 0);
+    if (cond.includes('lightning') || cond.includes('storm')) return '⛈️';
+    if (cond.includes('pour')) return '🌧️';
+    if (cond.includes('rain')) return '🌦️';
+    if (cond.includes('snow')) return '❄️';
+    if (cond.includes('fog') || cond.includes('mist')) return '🌫️';
+    if (cond.includes('partlycloudy') || cond.includes('partly')) return '⛅';
+    if (cond.includes('cloudy') || cloudCover > 70) return '☁️';
+    return '☀️';
+  }
+
+  function pickDefaultOverrideCondition(data) {
+    const cond = (data && data.weather_condition || '').toLowerCase();
+    if (cond.includes('lightning') || cond.includes('storm')) return 'lightning';
+    if (cond.includes('pour') || cond.includes('hail')) return 'pouring';
+    if (cond.includes('rain')) return 'rainy';
+    if (cond.includes('snow')) return 'snowy';
+    if (cond.includes('fog') || cond.includes('mist')) return 'fog';
+    if (cond.includes('partlycloudy') || cond.includes('partly')) return 'partlycloudy';
+    if (cond.includes('cloudy')) return 'cloudy';
+    return 'sunny';
+  }
+
+  function attach(triggerEl, popoverEl, options = {}) {
+    if (!triggerEl || !popoverEl) return null;
+    let _lastData = null;
+    let _pickerOpen = false;
+
+    function isOpen() { return !popoverEl.hidden; }
+
+    function paintTriggerIcon(pct) {
+      const iconEl = triggerEl.querySelector('[data-sun-icon]');
+      const pctEl = triggerEl.querySelector('[data-sun-pct]');
+      if (pctEl) pctEl.textContent = pct + '%';
+      if (!iconEl) return;
+      const t = Math.max(0, Math.min(100, pct)) / 100;
+      const r = Math.round(120 + (245 - 120) * t);
+      const g = Math.round(100 + (200 - 100) * t);
+      const b = Math.round(60 + (100 - 60) * t);
+      iconEl.style.color = `rgb(${r}, ${g}, ${b})`;
+      iconEl.style.textShadow = `0 0 ${4 + t * 8}px rgba(${r},${g},${b},${0.3 + t * 0.4})`;
+    }
+
+    async function refresh() {
+      try {
+        const res = await fetch('./api/outdoor-status');
+        if (!res.ok) return;
+        const data = await res.json();
+        _lastData = data;
+        const pct = Math.max(0, Math.min(100, Math.round((data.outdoor_normalized ?? 0) * 100)));
+        paintTriggerIcon(pct);
+        if (typeof options.onData === 'function') options.onData(data, pct);
+        if (!popoverEl.hidden) render(data);
+      } catch (e) { /* leave previous values */ }
+    }
+
+    function render(data) {
+      const src = data.source || 'none';
+      const isActive = !!data.override;
+      const anglePct = Math.round((data.angle_factor ?? 0) * 100);
+      const outdoorPct = Math.round((data.outdoor_normalized ?? 0) * 100);
+      let condPct;
+      if (isActive && (data.angle_factor ?? 0) > 0) {
+        condPct = Math.round((data.outdoor_normalized / data.angle_factor) * 100);
+      } else {
+        condPct = Math.round((data.condition_multiplier ?? 1) * 100);
+      }
+      let condWord = '';
+      if (isActive && data.override) {
+        condWord = data.override.condition.replace(/_/g, ' ');
+      } else if (src === 'weather' && data.weather_condition) {
+        condWord = data.weather_condition.replace(/-/g, ' ');
+      }
+
+      let rows = '';
+      rows += `
+        <span class="ocp-op"></span>
+        <span class="ocp-label">Sun position</span>
+        <span class="ocp-num">${anglePct}%</span>
+        <span class="ocp-extras"></span>
+      `;
+      if (src === 'weather' || src === 'angle' || src === 'override') {
+        // Icon alone is enough — the word version overflows the popover when
+        // the override picker section is open. Tooltip carries the word.
+        const condLine = `<span class="ocp-extras-line"><span class="ocp-cond-icon" title="${condWord || ''}">${buildClarityIcon(data)}</span></span>`;
+        let metaLine = '';
+        if (isActive) {
+          const remaining = formatDurationRemaining(data.override.expires_in_minutes);
+          metaLine = `<span class="ocp-extras-line ocp-extras-meta">
+            <span class="ocp-tag-override">override</span>
+            <span>&middot; ${remaining}</span>
+            <button type="button" class="ocp-link-btn" data-act="clear" title="Clear override">clear</button>
+          </span>`;
+        } else if (!_pickerOpen) {
+          metaLine = `<span class="ocp-extras-line ocp-extras-meta">
+            <button type="button" class="ocp-link-btn" data-act="toggle-picker">override</button>
+          </span>`;
+        }
+        rows += `
+          <span class="ocp-op">&#xd7;</span>
+          <span class="ocp-label">Sky clarity</span>
+          <span class="ocp-num">${condPct}%</span>
+          <span class="ocp-extras">${condLine}${metaLine}</span>
+        `;
+      }
+      rows += `<span class="ocp-pad"></span><div class="ocp-divider"></div><span class="ocp-pad"></span>`;
+      rows += `
+        <span class="ocp-op"></span>
+        <span class="ocp-label ocp-label-total">Sun intensity</span>
+        <span class="ocp-num ocp-num-total">${outdoorPct}%</span>
+        <span class="ocp-extras"></span>
+      `;
+      if (!isActive && _pickerOpen) {
+        const defaultCond = pickDefaultOverrideCondition(data);
+        const groupMap = {};
+        (data.weather_groups || []).forEach(g => { groupMap[g.key] = g.multiplier; });
+        const condOpts = OVERRIDE_CONDITIONS
+          .map(c => {
+            const mult = groupMap[c.groupKey];
+            const pctSuffix = mult != null ? ' ' + Math.round(mult * 100) + '%' : '';
+            return `<option value="${c.value}"${c.value === defaultCond ? ' selected' : ''}>${c.label}${pctSuffix}</option>`;
+          })
+          .join('');
+        rows += `<div class="ocp-section-divider"></div>`;
+        rows += `
+          <div class="ocp-override">
+            <div class="ocp-override-section-header">
+              <span class="ocp-override-section-title">Sky clarity override</span>
+              <button type="button" class="ocp-link-btn" data-act="toggle-picker">cancel</button>
+            </div>
+            <div class="ocp-override-controls">
+              <select data-act="cond">${condOpts}</select>
+              <select data-act="dur">${buildDurationOptions(DURATION_DEFAULT)}</select>
+              <button type="button" data-act="set">Set</button>
+            </div>
+          </div>
+        `;
+      }
+      popoverEl.innerHTML = rows;
+
+      // Wire override handlers (re-attach each render — innerHTML wipes them).
+      popoverEl.querySelectorAll('[data-act]').forEach(el => {
+        const act = el.dataset.act;
+        if (act === 'toggle-picker') {
+          el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const wasOpen = _pickerOpen;
+            _pickerOpen = !_pickerOpen;
+            if (_lastData) render(_lastData);
+            position();
+            if (!wasOpen) {
+              const condSel = popoverEl.querySelector('[data-act="cond"]');
+              if (condSel) {
+                condSel.focus();
+                if (typeof condSel.showPicker === 'function') {
+                  try { condSel.showPicker(); } catch (_) { /* ignore */ }
+                }
+              }
+            }
+          });
+        } else if (act === 'set') {
+          el.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const condition = popoverEl.querySelector('[data-act="cond"]').value;
+            const durRaw = popoverEl.querySelector('[data-act="dur"]').value;
+            const duration_minutes = durationValueToMinutes(durRaw);
+            el.disabled = true;
+            el.textContent = 'Setting...';
+            try {
+              await fetch('./api/outdoor-override', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ condition, duration_minutes }),
+              });
+              _pickerOpen = false;
+              await refresh();
+            } catch (err) { console.warn('override set failed:', err); }
+            finally { el.disabled = false; }
+          });
+        } else if (act === 'clear') {
+          el.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            el.disabled = true;
+            el.textContent = 'clearing...';
+            try {
+              await fetch('./api/outdoor-override', { method: 'DELETE' });
+              await refresh();
+            } catch (err) { console.warn('override clear failed:', err); }
+            finally { el.disabled = false; }
+          });
+        }
+      });
+    }
+
+    function position() {
+      if (popoverEl.hidden) return;
+      const r = triggerEl.getBoundingClientRect();
+      popoverEl.style.position = 'fixed';
+      popoverEl.style.top = (r.bottom + 6) + 'px';
+      popoverEl.style.left = r.left + 'px';
+      const popW = popoverEl.offsetWidth;
+      const vw = window.innerWidth;
+      if (r.left + popW + 12 > vw) {
+        popoverEl.style.left = Math.max(8, vw - popW - 12) + 'px';
+      }
+    }
+
+    function toggle(force) {
+      const next = force != null ? force : popoverEl.hidden;
+      popoverEl.hidden = !next;
+      triggerEl.setAttribute('aria-expanded', next ? 'true' : 'false');
+      if (next) {
+        if (_lastData) render(_lastData);
+        position();
+        // Always fetch fresh data when opening so the popover doesn't show stale numbers.
+        refresh();
+      } else {
+        _pickerOpen = false;
+      }
+      if (typeof options.onToggle === 'function') options.onToggle(next);
+    }
+
+    const triggerHandler = (e) => { e.stopPropagation(); toggle(); };
+    const docHandler = (e) => {
+      if (popoverEl.contains(e.target) || triggerEl.contains(e.target)) return;
+      if (!popoverEl.hidden) toggle(false);
+    };
+    triggerEl.addEventListener('click', triggerHandler);
+    document.addEventListener('click', docHandler);
+
+    refresh();
+    return {
+      refresh,
+      close: () => toggle(false),
+      isOpen,
+      detach: () => {
+        triggerEl.removeEventListener('click', triggerHandler);
+        document.removeEventListener('click', docHandler);
+      },
+    };
+  }
+
+  return { attach };
+})();

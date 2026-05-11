@@ -594,11 +594,14 @@
       color: rgba(255, 225, 140, 0.92);
       background: transparent;
       border: none;
-      padding: 0;
+      padding: 2px 4px;
       z-index: 6;
-      cursor: default;
+      cursor: pointer;
       letter-spacing: 0.02em;
+      border-radius: 6px;
+      transition: background 0.12s;
     }
+    .chart-sun-info:hover { background: rgba(255,255,255,0.06); }
     .chart-sun-info.visible { display: inline-flex; }
     .chart-sun-info-icon { font-size: 13px; line-height: 1; color: rgba(255, 225, 140, 0.95); }
     /* Below-axis labels — sunrise/sunset (yellow) + wake/bed (blue), ported
@@ -1220,10 +1223,11 @@
          spans Adjust + Schedule + Tune cards (its direct parent here). -->
     <div id="chart-shell">
       <div id="mini-chart"></div>
-      <div id="chart-sun-info" class="chart-sun-info" title="Current sun intensity">
-        <span class="chart-sun-info-icon" id="chart-sun-info-icon">&#x2600;</span>
-        <span id="chart-sun-info-pct">&mdash;</span>
-      </div>
+      <button type="button" id="chart-sun-info" class="chart-sun-info" aria-expanded="false" title="Sun intensity">
+        <span class="chart-sun-info-icon" id="chart-sun-info-icon" data-sun-icon>&#x2600;</span>
+        <span id="chart-sun-info-pct" data-sun-pct>&mdash;</span>
+      </button>
+      <div id="chart-sun-popover" class="outdoor-chip-popover" hidden></div>
       <div class="area-solar-label" id="area-sunrise-label" data-time="">sunrise</div>
       <div class="area-solar-label" id="area-sunset-label" data-time="">sunset</div>
       <div class="area-phase-label" id="area-phase-label" data-time="">wake</div>
@@ -3927,6 +3931,12 @@
       initAutoHideSliders();
       handleDeepLink();
 
+      // Sun-intensity popover on the chart's sun chip (shared with home page).
+      const sunTrigger = document.getElementById('chart-sun-info');
+      const sunPop = document.getElementById('chart-sun-popover');
+      if (sunTrigger && sunPop && window.SunIntensity) {
+        SunIntensity.attach(sunTrigger, sunPop);
+      }
     });
 
     // Document-level handler: tap to toggle the reveal-group; collapse all others.

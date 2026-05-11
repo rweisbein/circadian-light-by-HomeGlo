@@ -344,3 +344,176 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
   background: rgba(255,255,255,0.15);
   color: var(--text, #e2e8f0);
 }
+
+/* ============================================================================
+   Sun intensity popover — shared component used by Home, Area-details, and
+   Rhythm-design pages via SunIntensity.attach() in shared.js. Matches the
+   visual + functional spec of the Settings page "outdoor breakdown" chip.
+
+   Markup contract:
+     <button class="outdoor-chip" id="..."> (any trigger element)
+       <span class="outdoor-chip-icon">☀</span>
+       <span data-sun-pct>--%</span>
+     </button>
+     <div class="outdoor-chip-popover" id="..." hidden></div>
+
+   Class names match Settings page's inline copy so the two can coexist (and
+   the Settings copy can be deduped to use the shared component later).
+   ============================================================================= */
+.outdoor-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.outdoor-chip:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255,255,255,0.2); }
+.outdoor-chip[aria-expanded="true"] { background: rgba(255, 255, 255, 0.10); border-color: rgba(255,255,255,0.25); }
+.outdoor-chip-icon { display: inline-flex; font-size: 0.95rem; line-height: 1; color: #fbbf24; }
+.outdoor-chip-popover[hidden] { display: none; }
+.outdoor-chip-popover {
+  position: absolute;
+  z-index: 50;
+  width: 340px;
+  max-width: calc(100vw - 24px);
+  box-sizing: border-box;
+  padding: 10px 14px;
+  background: rgba(20, 20, 22, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--text);
+  -webkit-user-select: text;
+  user-select: text;
+  display: grid;
+  grid-template-columns: 14px minmax(max-content, 1fr) auto auto;
+  column-gap: 10px;
+  row-gap: 4px;
+  align-items: baseline;
+}
+.outdoor-chip-popover .ocp-label { white-space: nowrap; color: var(--muted, #94a3b8); }
+.outdoor-chip-popover .ocp-op {
+  color: var(--muted, #94a3b8);
+  text-align: center;
+  font-size: 0.85rem;
+}
+.outdoor-chip-popover .ocp-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.outdoor-chip-popover .ocp-divider {
+  grid-column: 2 / 4;
+  margin: 4px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+.outdoor-chip-popover .ocp-section-divider {
+  grid-column: 1 / -1;
+  margin: 8px 0 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+.outdoor-chip-popover .ocp-label-total { color: var(--text); font-weight: 600; }
+.outdoor-chip-popover .ocp-num-total { font-weight: 600; }
+.outdoor-chip-popover .ocp-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.outdoor-chip-popover .ocp-extras {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+  min-width: 0;
+}
+.outdoor-chip-popover .ocp-extras-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+.outdoor-chip-popover .ocp-extras-meta {
+  font-size: 0.75rem;
+  color: var(--muted, #94a3b8);
+  gap: 4px;
+}
+.outdoor-chip-popover .ocp-cond-word {
+  color: var(--muted, #94a3b8);
+  font-size: 0.8rem;
+}
+.outdoor-chip-popover .ocp-cond-icon { font-size: 0.95rem; }
+.outdoor-chip-popover .ocp-tag-override {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.18);
+  color: var(--warning, #f59e0b);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+/* Padding spans flanking the math divider — they MUST occupy their grid
+   cells (col 1 and col 4) so the next row's spans don't auto-place into the
+   leftover slots and shift the Sun intensity number into the op column. */
+.outdoor-chip-popover .ocp-pad { display: inline; }
+.outdoor-chip-popover .ocp-override {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.outdoor-chip-popover .ocp-override-section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.outdoor-chip-popover .ocp-override-section-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.outdoor-chip-popover .ocp-override-controls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.outdoor-chip-popover .ocp-override select {
+  flex: 1 1 auto;
+  min-width: 90px;
+  padding: 4px 6px;
+  background: var(--panel, #111);
+  border: 1px solid var(--line, #334155);
+  border-radius: 4px;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8rem;
+}
+.outdoor-chip-popover .ocp-override button {
+  padding: 4px 10px;
+  border: 1px solid var(--line, #334155);
+  border-radius: 4px;
+  background: rgba(255,255,255,0.05);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.outdoor-chip-popover .ocp-override button:hover { background: rgba(255,255,255,0.10); }
+.outdoor-chip-popover .ocp-link-btn {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  color: var(--muted, #94a3b8);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.outdoor-chip-popover .ocp-link-btn:hover { color: var(--text); }

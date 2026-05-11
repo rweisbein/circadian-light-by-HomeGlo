@@ -760,7 +760,6 @@
     </a>
     <div class="nav-links">
       <a href="./switches" class="nav-link">Controls</a>
-      <a href="./tune" class="nav-link">Tune</a>
       <a href="./moments" class="nav-link">Magic</a>
       <a href="./settings" class="nav-link active">Settings</a>
     </div>
@@ -938,40 +937,6 @@
           </div>
         </div>
 
-        <div class="sub-section">
-          <div class="sub-section-header">
-            <span class="sub-section-title">Homepage</span>
-          </div>
-          <div class="sub-section-body">
-            <div class="form-row">
-              <label class="form-label">
-                Slider
-                <span class="info-icon">i<span class="info-tooltip">What the area row slider controls on the home page. Circadian moves along the full curve (brightness + color). Brightness adjusts brightness only.</span></span>
-              </label>
-              <div class="form-control">
-                <select class="form-input" id="home-slider-mode" style="width: 140px;">
-                  <option value="brightness">Brightness</option>
-                  <option value="step">Circadian</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="form-row">
-              <label class="form-label">
-                Up/down buttons
-                <span class="info-icon">i<span class="info-tooltip">What the stacked up/down buttons do on each area row. Circadian steps along the full curve. Brightness adjusts brightness only. Color adjusts color only. Zone actions: Up = Glo Up (push this area's state up to its zone); Down = Glo Down (pull the zone's state back into this area).</span></span>
-              </label>
-              <div class="form-control">
-                <select class="form-input" id="home-buttons-mode" style="width: 140px;">
-                  <option value="step">Circadian</option>
-                  <option value="bright">Brightness</option>
-                  <option value="color">Color</option>
-                  <option value="zone">Zone actions</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        </div>
 
         <div class="sub-section">
           <div class="sub-section-header">
@@ -1517,8 +1482,6 @@
           document.getElementById('max-dim-steps').value = config.max_dim_steps ?? 10;
           document.getElementById('step-fallback-minutes').value = config.step_fallback_minutes ?? 30;
           document.getElementById('confirm-zone-pushes').checked = config.confirm_zone_pushes ?? true;
-          document.getElementById('home-slider-mode').value = config.home_slider_mode ?? 'brightness';
-          document.getElementById('home-buttons-mode').value = config.home_buttons_mode ?? 'step';
           document.getElementById('rhythm-cursor-step-min').value = String(config.rhythm_cursor_step_min ?? 5);
           document.getElementById('circadian-refresh').value = config.circadian_refresh ?? 20;
           document.getElementById('home-refresh-interval').value = config.home_refresh_interval ?? 3;
@@ -1633,8 +1596,6 @@
         max_dim_steps: parseInt(document.getElementById('max-dim-steps').value) || 10,
         step_fallback_minutes: parseInt(document.getElementById('step-fallback-minutes').value) || 30,
         confirm_zone_pushes: document.getElementById('confirm-zone-pushes').checked,
-        home_slider_mode: document.getElementById('home-slider-mode').value,
-        home_buttons_mode: document.getElementById('home-buttons-mode').value,
         rhythm_cursor_step_min: parseInt(document.getElementById('rhythm-cursor-step-min').value, 10),
         circadian_refresh: parseInt(document.getElementById('circadian-refresh').value) || 20,
         home_refresh_interval: parseInt(document.getElementById('home-refresh-interval').value) || 3,
@@ -2187,8 +2148,6 @@
     document.getElementById('max-dim-steps').addEventListener('blur', saveSettings);
     document.getElementById('step-fallback-minutes').addEventListener('blur', saveSettings);
     document.getElementById('confirm-zone-pushes').addEventListener('change', saveSettings);
-    document.getElementById('home-slider-mode').addEventListener('change', saveSettings);
-    document.getElementById('home-buttons-mode').addEventListener('change', saveSettings);
     document.getElementById('rhythm-cursor-step-min').addEventListener('change', saveSettings);
     document.getElementById('circadian-refresh').addEventListener('blur', saveSettings);
     document.getElementById('home-refresh-interval').addEventListener('blur', saveSettings);
