@@ -794,11 +794,15 @@
     <div class="page-header">
       <div style="display: flex; align-items: center; gap: 8px;">
         <span style="flex: 1;"></span>
-        <!-- Task-view pill bar (collapsed-by-default). Each pill is a
-             curated lens — filter + sort + emphasis preset. Same component
-             as the home page (see .view-segments in shared.css). -->
-        <div class="view-segments" id="controls-view-segments" role="tablist" title="Page mode">
-          <!-- Populated at render time by renderViewSegments(). -->
+        <!-- View pill: caret-button dropdown — same component as the home
+             page's mode pill (.action-pill in shared.css). Each option is
+             a curated lens (filter + sort + emphasis preset). -->
+        <div class="action-pill" id="controls-mode-pill" title="Page view">
+          <span id="controls-mode-label">Browse</span>
+          <span class="action-pill-caret"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 5 6 8 9 5"/></svg></span>
+          <div class="action-popover" id="controls-mode-popover">
+            <!-- Populated by renderControlsModePopover() -->
+          </div>
         </div>
       </div>
     </div>
@@ -833,16 +837,11 @@
     let customAreaOrder = {};  // area_id -> order index
     let pulseWindowHours = 6;   // Lab-configurable; populated from /api/config
 
-    // Task-view pill bar — uses the shared setupViewSegments component
-    // (see shared.js). The bar is the page's mode switcher and persists
-    // across CHEATSHEET (which lives on a separate URL but mounts the
-    // same component for visual continuity).
+    // Task-view pill — caret-button dropdown (.action-pill). The view is
+    // the page's mode switcher; each option is a curated lens (filter +
+    // sort + emphasis preset).
     let currentView = 'all';
-    // Mounted-once pill bar handle (see setupViewSegments in shared.js).
-    // We update active value via _viewSegHandle.setActive() — never
-    // re-call setupViewSegments, since each call adds a new document
-    // click handler.
-    let _viewSegHandle = null;
+    let _modePopoverOpen = false;
 
     const CONTROL_VIEWS = [
       { value: 'all',        label: 'Browse' },
@@ -889,22 +888,44 @@
         // ALL — no preset; user's legacy fourthField/filters/sort stand.
       }
       savePreferences();
-      // Update the (already-mounted) pill bar's active value, then
-      // re-render the body. Do NOT re-mount — that would stack click
-      // handlers and break navigation.
-      if (_viewSegHandle) _viewSegHandle.setActive(currentView);
+      renderControlsModePill();
       renderControls();
     }
 
-    function mountControlsViewSegments() {
-      // Mount the pill bar exactly once. Use _viewSegHandle.setActive(v)
-      // to change the active value later.
-      if (_viewSegHandle) return;
-      _viewSegHandle = setupViewSegments({
-        containerId: 'controls-view-segments',
-        views: CONTROL_VIEWS,
-        active: currentView,
-        onSelect: selectView,
+    function renderControlsModePill() {
+      const labelEl = document.getElementById('controls-mode-label');
+      const popEl = document.getElementById('controls-mode-popover');
+      if (!labelEl || !popEl) return;
+      const active = CONTROL_VIEWS.find(v => v.value === currentView) || CONTROL_VIEWS[0];
+      labelEl.textContent = active.label;
+      popEl.innerHTML = CONTROL_VIEWS.map(v => {
+        const cls = v.value === currentView ? 'action-popover-option active' : 'action-popover-option';
+        return `<div class="${cls}" data-view="${v.value}">${v.label}</div>`;
+      }).join('');
+      popEl.classList.toggle('open', _modePopoverOpen);
+    }
+
+    function initControlsModePill() {
+      renderControlsModePill();
+      document.addEventListener('click', (e) => {
+        const opt = e.target.closest('#controls-mode-popover .action-popover-option');
+        if (opt) {
+          e.stopPropagation();
+          _modePopoverOpen = false;
+          selectView(opt.dataset.view);
+          return;
+        }
+        const pill = e.target.closest('#controls-mode-pill');
+        if (pill) {
+          e.stopPropagation();
+          _modePopoverOpen = !_modePopoverOpen;
+          renderControlsModePill();
+          return;
+        }
+        if (_modePopoverOpen) {
+          _modePopoverOpen = false;
+          renderControlsModePill();
+        }
       });
     }
 
@@ -1321,12 +1342,15 @@
       } else {
         const sortVal = (sortColumn === 'name') ? 'name'
           : (sortColumn === 'area') ? 'area' : 'recent';
-        sortHtml = '<label style="margin-right:6px;">Sort:</label>'
-          + '<select class="ctrl-tb-select" id="ctrl-sort-select">'
-          + '<option value="recent"' + (sortVal === 'recent' ? ' selected' : '') + '>Recent</option>'
-          + '<option value="area"' + (sortVal === 'area' ? ' selected' : '') + '>Location</option>'
-          + '<option value="name"' + (sortVal === 'name' ? ' selected' : '') + '>Name</option>'
-          + '</select>';
+        const segOpt = (v, lbl) => `<button class="view-segment${v === sortVal ? ' active' : ''}" data-ctrl-sort="${v}">${lbl}</button>`;
+        sortHtml = '<div class="seg-row">'
+          + '<span class="seg-label">sort</span>'
+          + '<div class="view-segments-bar" id="ctrl-sort-seg" role="tablist">'
+          + segOpt('recent', 'Recent')
+          + segOpt('area', 'Location')
+          + segOpt('name', 'Name')
+          + '</div>'
+          + '</div>';
       }
       const searchEsc = searchFilter.replace(/"/g, '&quot;');
 
@@ -2040,8 +2064,8 @@
 
 
     function setupEventListeners() {
-      // Mount the shared view-segments pill bar (state was loaded earlier).
-      mountControlsViewSegments();
+      // Wire the action-pill (mode dropdown). State was loaded earlier.
+      initControlsModePill();
 
       // Toolbar (search + area + sort) and search-clear button — wired
       // via event delegation since the toolbar is re-rendered each
@@ -2055,11 +2079,14 @@
           categoryFilter = e.target.value;
           savePreferences();
           renderControls();
-        } else if (e.target.id === 'ctrl-sort-select') {
-          // ALL view sort — three options. Map to internal sortColumn
-          // semantics. "recent" = fourth+lastAction (most-recent first
-          // legacy behavior); name = alpha asc; area = custom area order.
-          const v = e.target.value;
+        }
+      });
+
+      // Segmented sort bar (Recent / Location / Name) — click handler.
+      document.getElementById('controls-container').addEventListener('click', (e) => {
+        const seg = e.target.closest('#ctrl-sort-seg .view-segment');
+        if (seg && seg.dataset.ctrlSort) {
+          const v = seg.dataset.ctrlSort;
           if (v === 'recent') {
             sortColumn = 'fourth';
             fourthField = 'lastAction';
@@ -2073,9 +2100,8 @@
           }
           savePreferences();
           renderControls();
+          return;
         }
-      });
-      document.getElementById('controls-container').addEventListener('click', (e) => {
         // Collapsible time-bucket header (Today / Yesterday / etc).
         // Toggle the divider's chevron + the matching body's animated
         // collapse, persist to localStorage with the freshness window.

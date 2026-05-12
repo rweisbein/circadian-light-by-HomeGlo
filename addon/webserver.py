@@ -1997,13 +1997,10 @@ class LightDesignerServer:
         "lux_learned_ceiling",  # Learned bright-day lux baseline (85th percentile)
         "lux_learned_floor",  # Learned dark-day lux baseline (5th percentile)
         "outdoor_brightness_source",  # Preferred outdoor brightness source: "lux", "weather", or "angle"
-        "periodic_transition_day",  # Periodic transition speed during day (tenths of seconds, default 1)
-        "periodic_transition_night",  # Periodic transition speed at night (tenths of seconds, default 1)
+        "outdoor_refresh_interval",  # HomeGlo Lab: SunIntensity chip poll cadence in seconds (default 60, range 10–600)
         "power_recovery",  # Power failure recovery: "bright" or "last_state" (default "last_state")
         "advanced_logging_until",  # ISO timestamp or "forever" for advanced logging expiry
         "confirm_zone_pushes",  # Show confirmation dialogs for zone push actions (default true)
-        "home_slider_mode",  # Homepage slider: "brightness", "step", or "color" (default "brightness")
-        "home_buttons_mode",  # Homepage up/down buttons: "step", "bright", or "color" (default "step")
         "rhythm_cursor_step_min",  # Cursor chip ←/→ step amount in minutes (default 5)
         "controls_pulse_window_hours",  # HomeGlo Lab: pulse-dot fade window for controls list (default 6h)
         "card_freshness_minutes",  # HomeGlo Lab: collapsible-card state TTL before reset to defaults (default 15m)

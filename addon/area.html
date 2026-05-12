@@ -3931,11 +3931,14 @@
       initAutoHideSliders();
       handleDeepLink();
 
-      // Sun-intensity popover on the chart's sun chip (shared with home page).
+      // Sun-intensity popover on the chart's sun chip — static host, attach once.
+      // Cadence read from cachedConfig.outdoor_refresh_interval (HomeGlo Lab).
       const sunTrigger = document.getElementById('chart-sun-info');
       const sunPop = document.getElementById('chart-sun-popover');
       if (sunTrigger && sunPop && window.SunIntensity) {
-        SunIntensity.attach(sunTrigger, sunPop);
+        SunIntensity.attach(sunTrigger, sunPop, {
+          pollIntervalSeconds: cachedConfig?.outdoor_refresh_interval || 60,
+        });
       }
     });
 

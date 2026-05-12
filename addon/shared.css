@@ -517,3 +517,156 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
   text-underline-offset: 2px;
 }
 .outdoor-chip-popover .ocp-link-btn:hover { color: var(--text); }
+
+/* ============================================================================
+   Action pill — caret-button dropdown used across pages (home mode pill,
+   controls view pill). Click opens a popover with options grouped by section.
+
+   Markup contract:
+     <div class="action-pill" id="...">
+       <span data-action-label>Brightness</span><span class="action-pill-caret"><svg>...</svg></span>
+       <div class="action-popover" id="...">
+         <div class="action-popover-section">
+           <div class="action-popover-section-label">ADJUST <span class="action-popover-section-sub">resets @ 3a</span></div>
+           <div class="action-popover-option" data-action-value="brightness">Brightness</div>
+           ...
+         </div>
+         <div class="action-popover-divider"></div>
+         ...
+       </div>
+     </div>
+
+   Use setupActionPill() in shared.js to wire it up.
+   ============================================================================= */
+.action-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text);
+  user-select: none;
+  flex-shrink: 0;
+}
+.action-pill:hover { background: rgba(255,255,255,0.05); }
+.action-pill-prefix {
+  font-weight: 400;
+  opacity: 0.55;
+  letter-spacing: 0.02em;
+}
+.action-pill-prefix:empty { display: none; }
+.action-pill-caret {
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.55;
+  width: 11px;
+  height: 11px;
+}
+.action-pill-caret svg { width: 11px; height: 11px; display: block; }
+
+.action-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 220px;
+  background: rgb(20, 20, 22);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  padding: 6px;
+  z-index: 60;
+  display: none;
+}
+.action-popover.open { display: block; animation: viewSegPopIn 0.16s ease-out; }
+.action-popover-section-label {
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted2);
+  padding: 8px 10px 4px;
+  font-weight: 700;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.action-popover-section-sub {
+  font-size: 0.7rem;
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 500;
+  color: var(--muted2);
+  opacity: 0.85;
+}
+.action-popover-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.10);
+  margin: 4px 8px;
+}
+.action-popover-option {
+  padding: 7px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.action-popover-option:hover { background: rgba(255,255,255,0.04); }
+.action-popover-option.active { background: rgba(245,209,153,0.10); color: var(--accent); }
+
+/* ============================================================================
+   Segmented bar — secondary inline picker (e.g., Active/All, sort options).
+   Softer than .action-pill so it reads as subordinate.
+   Add a leading <span class="seg-label">view</span> for context labelling.
+   ============================================================================= */
+.seg-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.seg-label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--muted2);
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+}
+.view-segments-bar {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid rgba(255,255,255,0.22);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  gap: 0;
+}
+.view-segments-bar .view-segment {
+  border: 0;
+  background: transparent;
+  color: var(--muted, #94a3b8);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 5px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  font-family: inherit;
+}
+.view-segments-bar .view-segment:hover {
+  color: var(--text);
+  background: rgba(255,255,255,0.06);
+}
+.view-segments-bar .view-segment.active {
+  background: rgba(255,255,255,0.18);
+  color: var(--text);
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.10);
+}

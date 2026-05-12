@@ -1181,17 +1181,68 @@ function setupViewSegments(opts) {
 // (sun angle × sky clarity = intensity), and exposes the override picker
 // (condition + duration + Set / clear).
 //
-// The trigger element is expected to contain a child with
-// `[data-sun-pct]` and `[data-sun-icon]` for the % readout + icon glow.
-// The popover element must be a descendant of the trigger or its
-// containing positioned ancestor — it's positioned with `position: fixed`
-// at runtime so it isn't clipped by overflow.
+// Markup contract:
+//   The trigger must contain a child with `[data-sun-icon]` and another with
+//   `[data-sun-pct]` for the icon glow + % readout. The popover is positioned
+//   with `position: fixed` at runtime so it isn't clipped by overflow:hidden
+//   on any ancestor.
 //
-// Returns a controller: { refresh, close, isOpen }. Multiple instances on
-// the same page would conflict at the DOM-id level (.ocp-* IDs are queried
-// scoped to the popover, but each page typically uses only one).
+// Returns a controller: { refresh, close, isOpen, detach }.
+//
+// ----- Polling -----
+// A module-scope poll timer fires `refresh()` on the most-recently-attached
+// controller every `pollIntervalSeconds` seconds (default 60). It survives
+// re-attaches (timer is module-scope, not per-controller) so dynamic hosts
+// like the home toolbar can re-attach freely without resetting the clock.
+//
+// ----- Usage patterns -----
+//
+// (A) STATIC HOST (area-details, settings, rhythm-design): the trigger lives
+// in static page markup and isn't re-rendered. Attach once on page load.
+//
+//     SunIntensity.attach(
+//       document.getElementById('chart-sun-info'),
+//       document.getElementById('chart-sun-popover'),
+//       { pollIntervalSeconds: cachedConfig?.outdoor_refresh_interval || 60 }
+//     );
+//
+// (B) DYNAMIC HOST (areas.html — toolbar re-renders every ~3s): cache the
+// payload at module scope, pass `initialData` on every re-attach to skip the
+// fetch. Detach the previous instance to clear listeners. The polling timer
+// continues to run independently and refreshes the latest controller.
+//
+//     let _cachedOutdoorData = null;
+//     let _ctrl = null;
+//
+//     function attachSunIntensity() {
+//       if (_ctrl) _ctrl.detach();
+//       _ctrl = SunIntensity.attach(triggerEl, popoverEl, {
+//         initialData: _cachedOutdoorData,          // skips initial fetch
+//         pollIntervalSeconds: cachedConfig?.outdoor_refresh_interval || 60,
+//         onData: (data, pct) => { _cachedOutdoorData = data; },
+//       });
+//     }
+//
+// `cachedConfig.outdoor_refresh_interval` is the HomeGlo Lab setting that
+// controls the cadence (10–600 sec, default 60).
 // =============================================================================
 window.SunIntensity = (function () {
+  // Module-scope polling state — survives re-attaches on dynamic hosts.
+  let _activeController = null;
+  let _pollTimer = null;
+  let _pollMs = 0;
+
+  function _setPollInterval(ms) {
+    if (ms === _pollMs && _pollTimer) return;
+    if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+    _pollMs = ms;
+    if (ms > 0) {
+      _pollTimer = setInterval(() => {
+        if (_activeController) _activeController.refresh();
+      }, ms);
+    }
+  }
+
   const OVERRIDE_CONDITIONS = [
     { value: 'sunny',         label: 'Sunny',         groupKey: 'sunny' },
     { value: 'partlycloudy',  label: 'Partly cloudy', groupKey: 'mixed' },
@@ -1437,16 +1488,38 @@ window.SunIntensity = (function () {
     triggerEl.addEventListener('click', triggerHandler);
     document.addEventListener('click', docHandler);
 
-    refresh();
-    return {
+    const controller = {
       refresh,
       close: () => toggle(false),
       isOpen,
       detach: () => {
         triggerEl.removeEventListener('click', triggerHandler);
         document.removeEventListener('click', docHandler);
+        if (_activeController === controller) _activeController = null;
       },
     };
+
+    // If the host provides cached data from a previous attach, use it and
+    // skip the initial fetch — the module-scope poll timer (below) handles
+    // true-source freshness. Otherwise, do an initial fetch on attach.
+    if (options.initialData) {
+      _lastData = options.initialData;
+      const pct = Math.max(0, Math.min(100, Math.round((options.initialData.outdoor_normalized ?? 0) * 100)));
+      paintTriggerIcon(pct);
+      if (typeof options.onData === 'function') options.onData(options.initialData, pct);
+    } else {
+      refresh();
+    }
+
+    // Register as active controller and (re)start the shared poll timer.
+    _activeController = controller;
+    const pollSec = options.pollIntervalSeconds;
+    const pollMs = (typeof pollSec === 'number' && pollSec >= 10 && pollSec <= 600)
+      ? pollSec * 1000
+      : 60000;  // default 60s; overridden by cachedConfig.outdoor_refresh_interval at the host
+    _setPollInterval(pollMs);
+
+    return controller;
   }
 
   return { attach };
