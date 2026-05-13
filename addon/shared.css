@@ -538,7 +538,7 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
        <span data-action-label>Brightness</span><span class="action-pill-caret"><svg>...</svg></span>
        <div class="action-popover" id="...">
          <div class="action-popover-section">
-           <div class="action-popover-section-label">ADJUST <span class="action-popover-section-sub">resets @ 3a</span></div>
+           <div class="action-popover-section-label">ADJUST</div>
            <div class="action-popover-option" data-action-value="brightness">Brightness</div>
            ...
          </div>
@@ -605,14 +605,6 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
   display: flex;
   align-items: baseline;
   gap: 6px;
-}
-.action-popover-section-sub {
-  font-size: 0.7rem;
-  letter-spacing: 0;
-  text-transform: none;
-  font-weight: 500;
-  color: var(--muted2);
-  opacity: 0.85;
 }
 .action-popover-divider {
   height: 1px;

@@ -378,8 +378,6 @@
       --row-bg: var(--card);
       --row-text: var(--text);
       --row-fill: 0;
-      --tune-stripe-left: transparent;
-      --tune-stripe-right: transparent;
       display: flex;
       align-items: stretch;
       /* Left padding bumped vs right so rooms read as nested under
@@ -392,9 +390,6 @@
       border-bottom: 1px solid var(--line);
       position: relative;
       overflow: hidden;
-      box-shadow:
-        inset 3px 0 0 0 var(--tune-stripe-left),
-        inset -3px 0 0 0 var(--tune-stripe-right);
     }
     /* Off rows stay single-line, but tall enough for a comfortable touch
        target on the power button (Apple HIG ~44pt). 4px pad + 36px button
@@ -438,29 +433,15 @@
     .area-row.circadian-off .area-row-name {
       opacity: 0.45;
     }
-
-    .circadian-enable-cta {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      margin-left: auto;
+    /* Enable button on a circadian-off row — same shell as the power button
+       on every other row, accent-tinted to read as "tap to bring this room
+       back into Circadian". */
+    .row-controls-left .row-btn.circadian-enable-btn {
       color: var(--accent);
-      font-size: 0.78rem;
-      white-space: nowrap;
-      opacity: 0.6;
-      transition: opacity 0.2s;
-      padding: 6px 10px;
-      border: 1px dashed rgba(254, 172, 96, 0.3);
-      border-radius: 6px;
+      border-color: rgba(254, 172, 96, 0.55);
     }
-
-    .area-row.circadian-off:hover .circadian-enable-cta {
-      opacity: 1;
-    }
-
-    .circadian-enable-cta svg {
-      width: 14px;
-      height: 14px;
+    .row-controls-left .row-btn.circadian-enable-btn:hover {
+      border-color: rgba(254, 172, 96, 0.85);
     }
 
     .area-row-name {
@@ -960,14 +941,6 @@
       flex-shrink: 0;
       margin-left: 6px;
     }
-    /* Phase midpoint has been shifted off-rhythm → strike + mute the rhythm
-       phase label so it reads as the "original" while the divergence chip
-       below shows the effective value. */
-    .zone-phase-label.phase-shifted {
-      opacity: 0.45;
-      text-decoration: line-through;
-      text-decoration-thickness: 1px;
-    }
     .zone-header .row-controls {
       min-width: 58px;
       justify-content: flex-end;
@@ -1438,33 +1411,17 @@
     .home-row + .home-row { margin-top: 4px; }
     .home-row-spacer { flex: 1 1 auto; }
 
-    /* Tune-mode axis cue — thin colored bar under the toolbar that
-       reinforces "you're tuning X" via hue (amber for Sun = dim/warm,
-       blue for Balance = lift/cool). Same palette as the per-row stripe
-       and slider gradient, so the cue is consistent across the page. */
-    .tune-axis-bar {
-      height: 2px;
-      margin-top: 6px;
-      border-radius: 1px;
-    }
-    .tune-axis-sun { background: rgba(230, 170, 80, 0.85); }
-    .tune-axis-balance {
-      /* Divergent — amber on left (dim) → neutral mid → blue on right
-         (lift), matching the slider track gradient. */
-      background: linear-gradient(90deg,
-        rgba(230, 170, 80, 0.85) 0%,
-        rgba(255, 255, 255, 0.12) 50%,
-        rgba(120, 170, 230, 0.85) 100%);
-    }
     /* Mode pill tinted in tune modes — reinforces "you're in tune X"
-       with a subtle bg + border accent matching the axis. */
+       with a bg + border accent matching the per-row stripes and slider
+       gradient. Stronger than the original 0.08/0.30 because it's now the
+       sole header-level tune cue (axis bar removed). */
     #home-mode-pill.is-tune-sun {
-      background: rgba(230, 170, 80, 0.08);
-      border-color: rgba(230, 170, 80, 0.30);
+      background: rgba(230, 170, 80, 0.22);
+      border-color: rgba(230, 170, 80, 0.70);
     }
     #home-mode-pill.is-tune-balance {
-      background: rgba(120, 170, 230, 0.08);
-      border-color: rgba(120, 170, 230, 0.30);
+      background: rgba(120, 170, 230, 0.22);
+      border-color: rgba(120, 170, 230, 0.70);
     }
     /* Zone headers stack below the sticky top as the user scrolls.
        Top offset is a rough sum of nav + sticky-top content height. */
@@ -1605,6 +1562,14 @@
       white-space: nowrap;
       margin-left: auto;
       padding-right: 8px;
+    }
+    /* Tune-mode multiplier suffix (e.g., "0.95x") next to the descriptor.
+       Muted so the named step ("Subtle") reads as the primary value. Used
+       in both the static readout and the live drag preview. */
+    .tune-mult {
+      font-weight: 400;
+      opacity: 0.55;
+      margin-left: 2px;
     }
     .home-name-input {
       font-size: 1.45rem;
@@ -2111,20 +2076,6 @@
         if (p) return p;
       }
       return 'bed';
-    }
-
-    // Phase 2: next phase boundary time (when Adjust overrides will reset).
-    // Uses any zone's config — boundaries are sun-aligned so zones agree.
-    function getNextPhaseBoundaryLabel() {
-      const gz = cachedGlozones?.zones || {};
-      const zoneNames = Object.keys(gz);
-      if (!zoneNames.length) return null;
-      const zc = gz[zoneNames[0]];
-      if (!zc) return null;
-      const phase = getHomePhase();
-      const t = phase === 'wake' ? zc.descend_start : zc.ascend_start;
-      if (t == null) return null;
-      return formatDecimalHour(t);
     }
 
     function getHomeRefreshInterval() {
@@ -3375,7 +3326,7 @@
         ? ''
         : (isTuneMode(homePillMode) ? 'Tune: ' : 'Adjust: ');
       const activeModeLabel = (currentMode === 'organize'
-        ? 'Reorder areas'
+        ? 'Reorder'
         : (modeLabels[homePillMode] || 'Brightness'));
       const modeOption = (val, label) => {
         const cls = homePillMode === val ? 'action-popover-option active' : 'action-popover-option';
@@ -3394,16 +3345,16 @@
         <div class="action-pill${pillTuneClass}" id="home-mode-pill" title="What slider & chevrons control">
           <span class="action-pill-prefix">${modePrefix}</span><span id="home-mode-label">${activeModeLabel}</span>${caretSvg}
           <div class="action-popover${popoverOpenClass}" id="home-mode-popover">
-            <div class="action-popover-section-label">Adjust <span class="action-popover-section-sub">${(() => { const t = getNextPhaseBoundaryLabel(); return t ? 'resets @ ' + t : 'resets at phase change'; })()}</span></div>
+            <div class="action-popover-section-label">Adjust</div>
             ${modeOption('brightness', 'Brightness')}
             ${modeOption('color', 'Color')}
             ${modeOption('bed', bedLabel)}
             <div class="action-popover-divider"></div>
-            <div class="action-popover-section-label">Tune <span class="action-popover-section-sub">saved per area</span></div>
+            <div class="action-popover-section-label">Tune</div>
             ${modeOption('sun', 'Sun exposure')}
             ${modeOption('balance', 'Balance')}
             <div class="action-popover-divider"></div>
-            <div class="action-popover-option ${currentMode === 'organize' ? 'active' : ''}" data-pill-mode="organize">Reorder areas</div>
+            <div class="action-popover-option ${currentMode === 'organize' ? 'active' : ''}" data-pill-mode="organize">Reorder</div>
           </div>
         </div>
       `;
@@ -3436,7 +3387,6 @@
               ${segmentsHtml}
             </div>
           </div>
-          ${inTune ? `<div class="tune-axis-bar tune-axis-${homePillMode}"></div>` : ''}
         </div>
       `;
 
@@ -3540,15 +3490,16 @@
           // Zone diverged from pure rhythm — show a clickable reset affordance
           // next to the zone name (replaces the standalone reset button that used
           // to live on the right side). Single-click resets; no menu (zone has
-          // only one reasonable action: snap back to rhythm).
+          // only one reasonable action: snap back to rhythm). Tune modes
+          // suppress this — focus on tuning, not rhythm-zone state.
           const rs = zs.runtime_state;
-          if (rs && (rs.brightness_mid != null || rs.color_mid != null || rs.frozen_at != null ||
+          if (!tuneNeutralHeader && rs && (rs.brightness_mid != null || rs.color_mid != null || rs.frozen_at != null ||
                      rs.color_override != null || rs.brightness_override != null)) {
             zoneMismatchDot = `<span class="mismatch-dot-area diverge-tune" onclick="event.stopPropagation(); glozoneReset('${escapedZoneName}')" title="Reset zone to rhythm"></span>`;
           }
 
-          // Frozen indicator on zone header
-          if (rs && rs.frozen_at != null) {
+          // Frozen indicator on zone header — suppressed in tune mode.
+          if (!tuneNeutralHeader && rs && rs.frozen_at != null) {
             zoneFrozenIndicator = `<span class="row-status-sym timer-frozen">❄</span>`;
           }
         }
@@ -3559,9 +3510,12 @@
             <div class="zone-header ${isCollapsed ? 'collapsed' : ''} ${allOff ? 'no-tint' : ''} ${tuneNeutralHeader ? 'tune' : ''}" data-zone="${zoneName}" style="${zoneHeaderStyle}">
               ${bigChevron}
               ${(() => {
-                const rhythmPhase = getZoneRhythmPhase(zoneName, sorted);
-                const phaseChip = getZonePhaseDivergenceChip(zoneName, sorted);
-                const overrideChips = getZoneDivergenceChips(zoneName);
+                // Tune modes hide everything rhythm-related from the zone
+                // header — no bedtime/waketime label, no phase or override
+                // divergence chips, no reset button. Just the zone name + count.
+                const rhythmPhase = tuneNeutralHeader ? '' : getZoneRhythmPhase(zoneName, sorted);
+                const phaseChip = tuneNeutralHeader ? '' : getZonePhaseDivergenceChip(zoneName, sorted);
+                const overrideChips = tuneNeutralHeader ? '' : getZoneDivergenceChips(zoneName);
                 const subrow = (phaseChip || overrideChips || zoneMismatchDot)
                   ? `<span class="zone-subrow">${phaseChip}${overrideChips}${zoneMismatchDot}</span>`
                   : '';
@@ -3569,8 +3523,8 @@
                   <div class="zone-name-group" style="color: ${zoneTextColor};">
                     <span class="zone-title-row">
                       <a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" style="color: ${zoneTextColor};">${zoneName}</a>
-                      <span class="zone-count">(${sorted.length})</span>
-                      ${rhythmPhase ? `<span class="zone-phase-label${phaseChip ? ' phase-shifted' : ''}" style="color: ${zoneTextColor};">${rhythmPhase}</span>` : ''}
+                      ${currentMode === 'organize' ? `<span class="zone-count">(${sorted.length})</span>` : ''}
+                      ${rhythmPhase && !phaseChip ? `<span class="zone-phase-label" style="color: ${zoneTextColor};">${rhythmPhase}</span>` : ''}
                     </span>
                     ${subrow}
                   </div>`;
@@ -3792,16 +3746,28 @@
       const status = areaStatus[area.area_id] || {};
       const isCircadian = status.is_circadian !== false;  // Default true if undefined
 
-      // Circadian-off: muted row with enable CTA — UNLESS we're in Tune mode,
-      // in which case the area's sun_exposure / brightness_factor are still
-      // persistent settings worth tuning even when circadian is disabled
-      // (they apply when circadian is re-enabled or the lights turn on).
+      // Circadian-off: muted off-row layout — Enable button on the left
+      // (where power lives for other rooms) frees up the right side for the
+      // schedule pill, since auto_on/auto_off DO still fire on circadian-off
+      // areas (and re-enable circadian when they do). Tap anywhere on the
+      // row also enables. Skipped in Tune mode, where sun_exposure /
+      // brightness_factor remain tunable as persistent settings.
       if (!isCircadian && !isTuneMode(homePillMode)) {
         const sunIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
         return `
-          <div class="area-row circadian-off" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'circadian_on')">
-            <span class="area-row-name">${area.name}</span>
-            <span class="circadian-enable-cta">${sunIconSvg} Enable</span>
+          <div class="area-row area-row-off circadian-off" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'circadian_on')">
+            <div class="row-controls-left">
+              <button class="row-btn circadian-enable-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'circadian_on')" title="Enable Circadian">${sunIconSvg}</button>
+            </div>
+            <div class="row-middle">
+              <div class="row-middle-top">
+                <span class="area-row-name">${area.name}</span>
+                <span class="row-off-flex"></span>
+                <span data-area-schedule="${area.area_id}" data-zone-name="${area.zone_name || ''}">
+                  <span class="row-schedule-right" data-area-timer="${area.area_id}"></span>
+                </span>
+              </div>
+            </div>
           </div>
         `;
       }
@@ -3822,7 +3788,7 @@
         // reset/send-to-zone affordance are suppressed — those are about
         // adjusting live state, which doesn't apply to off rooms.
         return `
-          <div class="area-row area-row-off mode-${homePillMode}" style="--row-bg: ${style.bg}; --row-text: ${style.textColor}; --row-fill: ${style.fill.toFixed(3)}; --tune-stripe-left: ${(style.stripe && style.stripe.left) || 'transparent'}; --tune-stripe-right: ${(style.stripe && style.stripe.right) || 'transparent'}; --slider-track-bg: ${buildSliderTrackGradient(area) || 'rgba(0,0,0,0.35)'};">
+          <div class="area-row area-row-off mode-${homePillMode}" style="--row-bg: ${style.bg}; --row-text: ${style.textColor}; --row-fill: ${style.fill.toFixed(3)}; --slider-track-bg: ${buildSliderTrackGradient(area) || 'rgba(0,0,0,0.35)'};">
             ${leftControls}
             <div class="row-middle">
               <div class="row-middle-top">
@@ -3854,7 +3820,7 @@
         : `${divChips}${mismatchDot}<span class="row-schedule-pill" data-area-timer="${area.area_id}"></span>`;
       const statusRowAttr = inTune ? '' : `data-area-schedule="${area.area_id}" data-zone-name="${area.zone_name || ''}"`;
       return `
-        <div class="area-row mode-${homePillMode}" style="--row-bg: ${style.bg}; --row-text: ${style.textColor}; --row-fill: ${style.fill.toFixed(3)}; --tune-stripe-left: ${(style.stripe && style.stripe.left) || 'transparent'}; --tune-stripe-right: ${(style.stripe && style.stripe.right) || 'transparent'}; --slider-track-bg: ${buildSliderTrackGradient(area) || 'rgba(0,0,0,0.35)'};">
+        <div class="area-row mode-${homePillMode}" style="--row-bg: ${style.bg}; --row-text: ${style.textColor}; --row-fill: ${style.fill.toFixed(3)}; --slider-track-bg: ${buildSliderTrackGradient(area) || 'rgba(0,0,0,0.35)'};">
           ${leftControls}
           <div class="row-middle">
             <div class="row-middle-top">
@@ -4119,6 +4085,36 @@
     // the midpoint off rhythm. Same chip visual language as the brightness /
     // color override chips, so all divergences read as one info series.
     // Also updates _zoneEffectiveMidpoint cache used by area-row divergence.
+    // Inverse of computeShiftedMidpoint — given the zone's curve midpoint,
+    // return the wake/bed TIME (the clock-time at which the sigmoid reaches
+    // the configured brightness percent). Mirrors brain.py:midpoint_to_time.
+    // When wake_brightness/bed_brightness === 50, midpoint == time (no shift).
+    function midpointToTime(midpoint, brightnessPct, slope, bMinNorm, bMaxNorm) {
+      if (brightnessPct === 50) return midpoint;
+      const targetNorm = bMinNorm + (bMaxNorm - bMinNorm) * (brightnessPct / 100);
+      const eps = 0.001;
+      const clamped = Math.max(bMinNorm + eps, Math.min(bMaxNorm - eps, targetNorm));
+      const ratio = (clamped - bMinNorm) / (bMaxNorm - bMinNorm);
+      return midpoint + Math.log(ratio / (1 - ratio)) / slope;
+    }
+    // Convert a zone's brightness_mid (curve midpoint, stored % 24) back to
+    // its user-facing wake/bed TIME using the zone's brightness/slope config.
+    // Uses PHASE_SLOPE_TABLE (defined near bedTimeFromPct) which matches the
+    // backend's set_phase_time math.
+    function zoneEffectiveBedWakeTime(zc, phase, midpoint) {
+      if (zc == null || midpoint == null) return null;
+      const inAscend = phase === 'wake';
+      const brightnessPct = inAscend ? (zc.wake_brightness ?? 50) : (zc.bed_brightness ?? 50);
+      const speed = inAscend ? zc.wake_speed : zc.bed_speed;
+      const slopeMag = PHASE_SLOPE_TABLE[Math.max(1, Math.min(12, speed || 6))];
+      if (!(slopeMag > 0)) return ((midpoint % 24) + 24) % 24;
+      const slopeSigned = inAscend ? slopeMag : -slopeMag;
+      const bMin = (zc.min_brightness ?? 2) / 100;
+      const bMax = (zc.max_brightness ?? 100) / 100;
+      const t = midpointToTime(midpoint, brightnessPct, slopeSigned, bMin, bMax);
+      return ((t % 24) + 24) % 24;
+    }
+
     function getZonePhaseDivergenceChip(zoneName, areasInZone) {
       const anyArea = areasInZone.find(a => areaStatus[a.area_id]?.phase);
       if (!anyArea) {
@@ -4126,21 +4122,27 @@
         return '';
       }
       const phase = areaStatus[anyArea.area_id].phase;
-      const rs = zoneStates[zoneName]?.runtime_state;
-      if (rs && rs.brightness_mid != null) {
-        const midpoint = areaStatus[anyArea.area_id]?.phase_midpoint;
-        if (midpoint != null) {
-          _zoneEffectiveMidpoint[zoneName] = midpoint;
-          const label = phase === 'wake' ? 'Wake' : 'Bed';
-          return `<span class="delta-chip zone-delta-chip">${label} ${formatDecimalHour(midpoint)}</span>`;
-        }
-      }
-      // Rhythm-aligned — cache the config midpoint so area-row chips can
-      // detect area-vs-zone divergence against the right anchor.
       const zc = cachedGlozones?.zones?.[zoneName];
-      const mid = zc ? resolveEffectiveTime(zc, phase) : null;
-      _zoneEffectiveMidpoint[zoneName] = mid;
-      return '';
+      const rhythmMid = zc ? resolveEffectiveTime(zc, phase) : null;
+      const rs = zoneStates[zoneName]?.runtime_state;
+      // Zone-effective bed/wake TIME — derived from rs.brightness_mid via
+      // the inverse of the bedtime→midpoint shift the backend applies. Falls
+      // back to rhythm if no zone-level shift is in effect. Cached for area-
+      // row divergence chips to compare against.
+      const effFromMid = (rs && rs.brightness_mid != null)
+        ? zoneEffectiveBedWakeTime(zc, phase, rs.brightness_mid)
+        : null;
+      const effMid = effFromMid != null ? effFromMid : rhythmMid;
+      _zoneEffectiveMidpoint[zoneName] = effMid;
+      // Only render the chip when the zone's effective time actually differs
+      // from rhythm. Uses shortest-arc distance so cross-midnight equality
+      // (e.g., 23.99 vs 0.01) reads as match, not 23.98h apart.
+      if (effMid == null || rhythmMid == null) return '';
+      const diff = Math.abs(effMid - rhythmMid);
+      const wrappedDiff = Math.min(diff, 24 - diff);
+      if (wrappedDiff < 0.05) return '';
+      const label = phase === 'wake' ? 'Wake' : 'Bed';
+      return `<span class="delta-chip zone-delta-chip">${label} ${formatDecimalHour(effMid)}</span>`;
     }
 
     function formatDecimalHour(h) {
@@ -4261,12 +4263,12 @@
       if (homePillMode === 'sun') {
         const t = getAreaTune(area.area_id);
         const s = SOLAR_STEPS[nearestStepIndex(SOLAR_STEPS, t.natural_light_exposure, 'exposure')];
-        return s ? s.label : '';
+        return s ? `${s.label} <span class="tune-mult">${s.exposure.toFixed(2)}x</span>` : '';
       }
       if (homePillMode === 'balance') {
         const t = getAreaTune(area.area_id);
         const s = LUMEN_STEPS[nearestStepIndex(LUMEN_STEPS, t.brightness_factor, 'factor')];
-        return s ? s.label : '';
+        return s ? `${s.label} <span class="tune-mult">${s.factor.toFixed(2)}x</span>` : '';
       }
       return `${Math.round(area.brightness || 0)}%`;
     }
@@ -4324,58 +4326,19 @@
 
     function getRowStyle(area) {
       // Tune mode: drop bulb-CCT tint + glow. Card stays neutral so the
-      // left-edge stripe (driven by the tune setting value) is the only
-      // visual signal — no Adjust-mode leakage.
+      // row reads as data-only — direction + magnitude live on the slider,
+      // PEAK readout, and descriptor chip.
       if (isTuneMode(homePillMode)) {
-        return {
-          bg: 'var(--card)',
-          fill: 0,
-          textColor: 'var(--text)',
-          stripe: getTuneStripeColor(area),
-        };
+        return { bg: 'var(--card)', fill: 0, textColor: 'var(--text)' };
       }
       if (!area.is_on) {
-        return { bg: 'var(--card)', fill: 0, textColor: 'var(--muted)', stripe: 'transparent' };
+        return { bg: 'var(--card)', fill: 0, textColor: 'var(--muted)' };
       }
       const cctColor = cctToRGB(area.kelvin);
       const tintedColor = tintColorByBrightness(cctColor, area.brightness);
       const textColor = readableTextColor(tintedColor);
       const fill = area.brightness / 100;
-      return { bg: tintedColor, fill, textColor, stripe: 'transparent' };
-    }
-
-    // Tune-mode stripe colors. Returns {left, right}.
-    // Sun mode: always dim direction → left stripe only, amber, saturating
-    //   at exposure ≥ 1.0.
-    // Balance mode: position-encoded — dim (factor < 1) on left, lift
-    //   (factor > 1) on right, same amber both sides. Intensity ramps with
-    //   |delta|, saturating at the LUMEN_STEPS endpoints.
-    function getTuneStripeColor(area, overrideValue) {
-      const off = { left: 'transparent', right: 'transparent' };
-      if (!isTuneMode(homePillMode)) return off;
-      const t = getAreaTune(area.area_id) || {};
-      if (homePillMode === 'sun') {
-        const raw = Number(overrideValue ?? t.natural_light_exposure ?? 0);
-        const v = Math.min(1, Math.max(0, raw));
-        if (v <= 0.02) return off;
-        return { left: `rgba(230, 170, 80, ${v.toFixed(3)})`, right: 'transparent' };
-      }
-      if (homePillMode === 'balance') {
-        const f = Number(overrideValue ?? t.brightness_factor ?? 1.0);
-        const delta = f - 1.0;
-        if (Math.abs(delta) < 0.02) return off;
-        const intensity = Math.min(1, Math.abs(delta) / 0.40);
-        // Hue carries direction: amber = dim (warm = less light), cool
-        // blue = lift (cool = more light). Both stripes live on the LEFT
-        // edge — position-as-direction was a redundant signal now that
-        // color does that job, and consistency on the left makes the
-        // home page scan cleanly.
-        const color = delta < 0
-          ? `rgba(230, 170, 80, ${intensity.toFixed(3)})`
-          : `rgba(120, 170, 230, ${intensity.toFixed(3)})`;
-        return { left: color, right: 'transparent' };
-      }
-      return off;
+      return { bg: tintedColor, fill, textColor };
     }
 
     // Build the slider track's background gradient for this row, based on
@@ -4755,7 +4718,16 @@ function updateSliderFill(el) {
         thumb.addEventListener('pointermove', (e) => {
           if (!thumb.hasPointerCapture(e.pointerId)) return;
           e.stopPropagation();
-          const pct = getSliderPctFromPointer(track, e);
+          let pct = getSliderPctFromPointer(track, e);
+          // Tune modes have discrete step positions — snap the thumb to them
+          // during drag so the visual matches the value the readout shows.
+          if (homePillMode === 'sun') {
+            const n = SOLAR_STEPS.length - 1;
+            pct = (Math.round(pct / 100 * n) / n) * 100;
+          } else if (homePillMode === 'balance') {
+            const n = LUMEN_STEPS.length - 1;
+            pct = (Math.round(pct / 100 * n) / n) * 100;
+          }
           thumb.style.left = pct + '%';
           updateFillDrag(startPct, pct);
           // Phase 2: drag-value preview is mode-aware.
@@ -4773,12 +4745,12 @@ function updateSliderFill(el) {
           } else if (homePillMode === 'sun') {
             const idx = Math.round(pct / 100 * (SOLAR_STEPS.length - 1));
             const s = SOLAR_STEPS[idx];
-            if (valueEl) valueEl.textContent = `${s.label} ${s.exposure.toFixed(2)}`;
+            if (valueEl) valueEl.innerHTML = `${s.label} <span class="tune-mult">${s.exposure.toFixed(2)}x</span>`;
             updateTunePreview(areaId, s.exposure);
           } else if (homePillMode === 'balance') {
             const idx = Math.round(pct / 100 * (LUMEN_STEPS.length - 1));
             const s = LUMEN_STEPS[idx];
-            if (valueEl) valueEl.textContent = `${s.label} ${s.factor.toFixed(2)}`;
+            if (valueEl) valueEl.innerHTML = `${s.label} <span class="tune-mult">${s.factor.toFixed(2)}x</span>`;
             updateTunePreview(areaId, s.factor);
           } else {
             // Brightness mode: drag preview is brightness only — keep current
@@ -4850,21 +4822,12 @@ function updateSliderFill(el) {
       const merged = { ...area, ...(areaStatus[areaId] || {}) };
       // LEFT: peak impact recomputed with the candidate value.
       el.innerHTML = formatBreakdownPeakHtml(merged, candidateValue);
-      // Single row lookup used by both the RIGHT static formula update
-      // and the left-edge stripe.
-      const row = el.closest('.area-row');
       // RIGHT: "now" formula recomputed with the candidate.
+      const row = el.closest('.area-row');
       const staticEl = row ? row.querySelector('.tb-static') : null;
       if (staticEl) {
         const b = computeTuneBreakdown(merged, candidateValue);
         staticEl.innerHTML = formatBreakdownNowHtml(b);
-      }
-      // Real-time left-edge stripe: recompute as the slider moves so the
-      // visual color cue tracks the candidate value, not the saved one.
-      if (row) {
-        const stripe = getTuneStripeColor({ area_id: areaId }, candidateValue);
-        row.style.setProperty('--tune-stripe-left', stripe.left);
-        row.style.setProperty('--tune-stripe-right', stripe.right);
       }
     }
     function clearTunePreview(areaId) {
@@ -4877,10 +4840,9 @@ function updateSliderFill(el) {
     }
 
     // Surgical row refresh — reads cachedAreaTune + areaStatus and updates:
-    //   1. The left-edge stripe (--tune-stripe-left / right)
-    //   2. Row 1 right readout (.row-readout — "Bright 1.15" / etc.)
-    //   3. Row 3 RIGHT static formula (.tb-static)
-    //   4. Row 3 LEFT peak/drag-preview slot (.tb-preview — restored to peak)
+    //   1. Row 1 right readout (.row-readout — "Bright 1.15" / etc.)
+    //   2. Row 3 RIGHT static formula (.tb-static)
+    //   3. Row 3 LEFT peak/drag-preview slot (.tb-preview — restored to peak)
     // Avoids re-rendering the whole list when only the tuned row needs to
     // refresh. Called after optimistic cache update on drag release.
     function refreshTuneRowDom(areaId) {
@@ -4890,17 +4852,13 @@ function updateSliderFill(el) {
       const baseArea = areas.find(a => a.area_id === areaId);
       if (!baseArea) return;
       const merged = { ...baseArea, ...(areaStatus[areaId] || {}) };
-      // 1. Stripe
-      const stripe = getTuneStripeColor({ area_id: areaId });
-      row.style.setProperty('--tune-stripe-left', stripe.left);
-      row.style.setProperty('--tune-stripe-right', stripe.right);
-      // 2. Row 1 right readout
+      // 1. Row 1 right readout
       const readoutEl = row.querySelector(`[data-area-readout="${areaId}"]`);
-      if (readoutEl) readoutEl.textContent = getModeReadout(merged);
-      // 3. Row 3 right static formula
+      if (readoutEl) readoutEl.innerHTML = getModeReadout(merged);
+      // 2. Row 3 right static formula
       const staticEl = row.querySelector('.tb-static');
       if (staticEl) staticEl.innerHTML = formatBreakdownLeft(computeTuneBreakdown(merged));
-      // 4. Row 3 left peak (restore — drag-preview overrides this slot)
+      // 3. Row 3 left peak (restore — drag-preview overrides this slot)
       previewEl.innerHTML = formatBreakdownPeakHtml(merged);
     }
 

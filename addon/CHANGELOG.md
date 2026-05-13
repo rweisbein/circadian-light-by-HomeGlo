@@ -1,5 +1,21 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.315
+- **Zone header decluttered**: dropped the area `(N)` count except in Organize mode where it's load-bearing; dropped the rhythm phase label when a phase-shift divergence chip is shown (was strike-through, became cluttery); suppressed the reset (↺) button + frozen indicator in Tune modes (focus on tuning, not rhythm-zone state).
+- **Zone header power button removed** (already shipped in 1.2.314 — restate for clarity here): right side now just has GloZoneDown when there's something to push.
+- **Pill label "Reorder areas" → "Reorder"** in Organize mode — was inconsistent with the dropdown option.
+- **Pill dropdown decluttered**: dropped the "resets @ Xa" / "saved per area" subtitles under the Adjust / Tune section headers. Removed the now-dead `getNextPhaseBoundaryLabel` helper and `.action-popover-section-sub` CSS class.
+- **Tune-mode visual cleanup**:
+  - Removed the thin amber/blue axis bar under the toolbar — redundant given the row stripes carried the same hue cue.
+  - Bumped the mode-pill tint stronger (0.22 bg / 0.70 border) so the pill alone carries the "tune X" signal cleanly.
+  - Removed the per-row left-edge stripe in both Sun and Balance modes — magnitude and direction are already encoded by slider position + signed PEAK readout + descriptor.
+  - Slider thumb snaps to discrete step positions during drag (was continuous; only the saved value snapped).
+- **Tune row 1 readout shows descriptor + multiplier**: e.g., `Subtle 0.95x` or `Full 1.00x`. The multiplier suffix is muted (0.55 opacity, weight 400) so the named step reads as the primary value. Same treatment on the live drag preview.
+- **Inline diverge buttons on area rows** (already in 1.2.314): when an area diverges from its zone, ↺ Reset and ↑ Send to zone show side-by-side instead of opening a menu — reset is one click.
+- **Phase-divergence chip fixed**: `getZonePhaseDivergenceChip` was reading the first area's `phase_midpoint` (which equals rhythm for unshifted areas) and rendering the rhythm value as if it were the zone's shifted time. Now reads zone `rs.brightness_mid` and inverts back through `midpointToTime` (frontend mirror of `brain.py:midpoint_to_time`) using the zone's bed/wake brightness, slope, and min/max. Only renders when the effective time actually differs from rhythm, with shortest-arc comparison for cross-midnight equality.
+- **Circadian-off row rebuild**: matches the off-row layout — Enable button (sun icon, accent-tinted) on the left where power lives on every other row, schedule pill on the right showing next auto_on/auto_off. auto_on and auto_off fire regardless of `is_circadian`, so showing the schedule is the correct UX. Whole-row tap still enables.
+- **Dev convenience**: `addon/dev_restart.sh` script — sources repo-root `.env` + venv, kills any process on :8099, restarts `python main.py`, waits for the port to bind. Lets future sessions restart the local addon after backend changes without manual env juggling.
+
 ## 1.2.314
 - **Switch action label renames** (`switches.py:get_categorized_actions` + `get_when_off_options`): single source feeding the cheatsheet, area-details Buttons card, and all action dropdowns. `null` "No Action" → `-`; `circadian_toggle` "Toggle on/off" → `Power`; `glo_down` "Reset to Rhythm Zone" → `Reset`; `glo_reset` "Reset to Circadian" → `Reset to rhythm`; `full_send` "Push to whole Rhythm Zone" → `Full send`; `cycle_scope` "Advance to next Reach" → `Next reach`; `glozone_reset_full` "Reset whole Rhythm Zone" → `Reset zone`. IDs unchanged — no migration needed.
 - **Cheatsheet + Buttons card collapse redundant multiplier rows**: when 1× is one of `step_up` / `step_down` / `bright_up` / `bright_down` / `color_up` / `color_down`, and a 2×/3×/4×/5× row is literally the same id with `_N` appended (`bright_up_2`, `bright_up_3`, …), the higher row is suppressed. Each press level evaluated independently against the 1× id. Shared helpers `shortPressBaseActionId` + `isRedundantMultiplierRow` in `shared.js`; wired into `switchmap.html` (render + clipboard) and `control.html:renderMagicEditor`.
