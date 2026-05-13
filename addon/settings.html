@@ -1143,12 +1143,29 @@
 
         <div class="form-row">
           <label class="form-label">
-            Outdoor refresh interval
-            <span class="info-icon">i<span class="info-tooltip">How often the sun-intensity chip re-fetches outdoor status (sun position × sky clarity) on the home, area-details, and settings pages. Default 60 seconds. Lower for snappier updates while watching the chip; higher to reduce background fetches. Range 10–600 seconds.</span></span>
+            Refresh interval (outdoor + control pause)
+            <span class="info-icon">i<span class="info-tooltip">Two-purpose cadence. (1) Sun-intensity chip re-fetches outdoor status (sun position × sky clarity) on the home, area-details, and settings pages. (2) Server sweeps expired control pauses — any control whose pause timer has passed gets auto-unpaused on this tick. Default 60 seconds. Lower for snappier updates; higher to reduce background fetches. Range 10–600 seconds.</span></span>
           </label>
           <div class="form-control">
             <input type="number" id="outdoor-refresh-interval" min="10" max="600" step="5" style="width: 80px;">
             <span class="form-hint">seconds</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            Default pause duration
+            <span class="info-icon">i<span class="info-tooltip">When you pause a control (from the controls list or control-detail page), this is the duration the picker preselects. Picker stays editable for one-off changes. Default 4 hours.</span></span>
+          </label>
+          <div class="form-control">
+            <select id="default-pause-duration" style="width: 120px;">
+              <option value="5">5 min</option>
+              <option value="60">1 hour</option>
+              <option value="240" selected>4 hours</option>
+              <option value="1440">Day</option>
+              <option value="10080">Week</option>
+              <option value="0">Forever</option>
+            </select>
           </div>
         </div>
 
@@ -1385,6 +1402,7 @@
           document.getElementById('controls-recent-window-minutes').value = config.controls_recent_window_minutes ?? 5;
           document.getElementById('read-only-zha').checked = !!config.read_only_zha;
           document.getElementById('outdoor-refresh-interval').value = config.outdoor_refresh_interval ?? 60;
+          document.getElementById('default-pause-duration').value = String(config.default_pause_duration_minutes ?? 240);
           // Shadow into localStorage so card-persistence pages can read
           // it synchronously on init (before they fetch /api/config).
           localStorage.setItem('homeglo_card_freshness_min', String(config.card_freshness_minutes ?? 15));
@@ -1441,7 +1459,8 @@
         card_freshness_minutes: parseInt(document.getElementById('card-freshness-minutes').value, 10) || 15,
         controls_recent_window_minutes: parseInt(document.getElementById('controls-recent-window-minutes').value, 10) || 5,
         read_only_zha: document.getElementById('read-only-zha').checked,
-        outdoor_refresh_interval: parseInt(document.getElementById('outdoor-refresh-interval').value, 10) || 60
+        outdoor_refresh_interval: parseInt(document.getElementById('outdoor-refresh-interval').value, 10) || 60,
+        default_pause_duration_minutes: parseInt(document.getElementById('default-pause-duration').value, 10)
       };
       // Shadow Lab values to localStorage so pages can read them
       // synchronously at init (before /api/config fetch resolves).

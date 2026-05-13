@@ -180,6 +180,14 @@ def compute(ctx: PipelineContext) -> PipelineResult:
         area_brightness = max(1, min(100, area_brightness + ctx.brightness_override))
     if ctx.boost_brightness is not None and ctx.boost_brightness > 0:
         area_brightness = min(100, area_brightness + ctx.boost_brightness)
+    # Defensive cap: area_factor can exceed 1.0 (Tune mode's brightness_factor
+    # tops out at 1.40 = "Max"). The override + boost branches above already
+    # clamp when they apply, but with neither set the multiplication in
+    # step 6 can leave area_brightness > 100. Downstream purpose filter +
+    # bulbs would still clamp the delivered command, but the
+    # PipelineResult.area_brightness value (which the home/area-detail UIs
+    # read for display) was leaking the uncapped number.
+    area_brightness = max(1, min(100, area_brightness))
     area_brightness = int(round(area_brightness))
 
     # --- Step 9: Fade / dim factor ---

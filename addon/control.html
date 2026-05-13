@@ -1600,7 +1600,7 @@
     // is rebound at runtime from initPauseTimer() / the change handler — this
     // just gets the right markup in place.
     document.getElementById('pause-timer-select').innerHTML =
-      buildDurationOptions(DURATION_DEFAULT);
+      buildDurationOptions(getDefaultPauseDurationValue());
 
     document.getElementById('control-pause-checkbox').addEventListener('change', () => {
       const checked = document.getElementById('control-pause-checkbox').checked;
@@ -1610,9 +1610,9 @@
         // users to come back to manually unpause). Forever is still
         // available as an explicit option but no longer the default.
         if (!editingInactiveUntil) {
-          const defMins = durationValueToMinutes(DURATION_DEFAULT);
+          const defMins = durationValueToMinutes(getDefaultPauseDurationValue());
           editingInactiveUntil = new Date(Date.now() + defMins * 60000).toISOString();
-          document.getElementById('pause-timer-select').value = DURATION_DEFAULT;
+          document.getElementById('pause-timer-select').value = getDefaultPauseDurationValue();
         }
       } else {
         editingInactiveUntil = null;
@@ -1676,13 +1676,13 @@
       } else if (!editingInactiveUntil) {
         // Not paused — picker is dormant, just preselect the default.
         // The actual timer doesn't start until the user toggles pause.
-        select.value = DURATION_DEFAULT;
+        select.value = getDefaultPauseDurationValue();
       } else {
         // Has timestamp — find closest matching option from the shared
         // duration set (5 / 60 / 240 / 1440 / 10080 minutes).
         const remaining = new Date(editingInactiveUntil) - Date.now();
         if (remaining <= 0) {
-          select.value = DURATION_DEFAULT;
+          select.value = getDefaultPauseDurationValue();
           editingInactiveUntil = null;
         } else {
           const mins = remaining / 60000;

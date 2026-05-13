@@ -1305,6 +1305,28 @@ class ContactSensorConfig:
         )
 
 
+def is_effectively_inactive(inactive, inactive_until) -> bool:
+    """Read-only expiry check — returns True iff the control is currently
+    paused AND not yet past its expiry. Does not mutate or persist.
+
+    Used by API surfaces (get_controls, status endpoints) that read pause
+    state — without this, an expired pause would surface as "inactive"
+    forever until something triggered a save. The persistent unpause is
+    done by `check_inactive_expired` (trigger sites) and the sweeper.
+    """
+    if not inactive:
+        return False
+    if not inactive_until or inactive_until == "forever":
+        return True
+    try:
+        from datetime import datetime, timezone
+
+        expiry = datetime.fromisoformat(inactive_until.replace("Z", "+00:00"))
+        return datetime.now(timezone.utc) < expiry
+    except (ValueError, TypeError):
+        return True  # malformed — keep treating as paused, safer than auto-resuming
+
+
 def check_inactive_expired(config) -> bool:
     """Check if an inactive timer has expired. If so, auto-unpause and save.
 
@@ -1328,6 +1350,94 @@ def check_inactive_expired(config) -> bool:
     except (ValueError, TypeError):
         pass
     return True  # still inactive, timer not yet expired
+
+
+def set_pause(
+    control_id: str, inactive: bool, inactive_until: Optional[str] = None
+) -> bool:
+    """Lightweight setter for a control's pause state. Looks up by both
+    the storage key AND the device_id field across switches, motion
+    sensors, and contact sensors — the frontend may send either depending
+    on category (refresh endpoint uses device_id for sensors, id for
+    switches; we accept both here for resilience).
+
+    Mutates only inactive + inactive_until — does not require the caller
+    to pass the whole config (name, scopes, magic_buttons, etc.). Used by
+    the controls-list quick toggle.
+
+    Returns True if a config was found and updated; False otherwise.
+    """
+    _reload_switches()
+    _reload_motion_sensors()
+    _reload_contact_sensors()
+
+    def _find_in(store):
+        # 1. Direct dict lookup (storage key match)
+        hit = store.get(control_id)
+        if hit is not None:
+            return hit
+        # 2. Iterate: match on .id OR .device_id field
+        for cfg in store.values():
+            if getattr(cfg, "id", None) == control_id:
+                return cfg
+            if getattr(cfg, "device_id", None) == control_id:
+                return cfg
+        return None
+
+    target = _find_in(_switches) or _find_in(_motion_sensors) or _find_in(_contact_sensors)
+
+    if target is None:
+        return False
+
+    target.inactive = bool(inactive)
+    target.inactive_until = inactive_until if inactive else None
+    _save()
+    return True
+
+
+def sweep_expired_pauses() -> int:
+    """Scan every configured switch / motion / contact sensor; clear
+    `inactive` on any whose `inactive_until` has passed. Persists once at
+    the end if any changes were made. Returns the number of controls
+    unpaused (for logging).
+
+    Called periodically from the outdoor-refresh timer.
+    """
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc)
+    cleaned = 0
+
+    def _expired(inactive, inactive_until):
+        if not inactive:
+            return False
+        if not inactive_until or inactive_until == "forever":
+            return False
+        try:
+            expiry = datetime.fromisoformat(inactive_until.replace("Z", "+00:00"))
+            return now >= expiry
+        except (ValueError, TypeError):
+            return False
+
+    for sw in list(_switches.values()):
+        if _expired(sw.inactive, sw.inactive_until):
+            sw.inactive = False
+            sw.inactive_until = None
+            cleaned += 1
+    for sensor in list(_motion_sensors.values()):
+        if _expired(sensor.inactive, sensor.inactive_until):
+            sensor.inactive = False
+            sensor.inactive_until = None
+            cleaned += 1
+    for sensor in list(_contact_sensors.values()):
+        if _expired(sensor.inactive, sensor.inactive_until):
+            sensor.inactive = False
+            sensor.inactive_until = None
+            cleaned += 1
+
+    if cleaned:
+        _save()
+    return cleaned
 
 
 # =============================================================================

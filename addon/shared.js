@@ -687,6 +687,27 @@ const DURATION_OPTIONS = [
 
 const DURATION_DEFAULT = '240';  // 4 hours — common case for both flows.
 
+// Pause-specific default. Reads `default_pause_duration_minutes` from the
+// HomeGlo Lab setting via window.cachedConfig if available; falls back to
+// DURATION_DEFAULT. Returns a DURATION_OPTIONS `value` string (e.g.,
+// '60', '240', 'forever'). Used by pause picker initial state on both
+// control-detail and the controls-list per-card flow.
+function getDefaultPauseDurationValue() {
+  try {
+    const m = (typeof window !== 'undefined' && window.cachedConfig)
+      ? window.cachedConfig.default_pause_duration_minutes
+      : null;
+    if (m == null) return DURATION_DEFAULT;
+    if (m === 0 || m === 'forever') return 'forever';
+    // Snap to an option that exists in DURATION_OPTIONS; if not in the
+    // canonical list, use the raw number anyway — the picker will handle it.
+    const str = String(m);
+    return DURATION_OPTIONS.find(o => o.value === str) ? str : DURATION_DEFAULT;
+  } catch (_) {
+    return DURATION_DEFAULT;
+  }
+}
+
 // Resolve a picker value to actual minutes, or null for "forever" (no expiry).
 function durationValueToMinutes(value) {
   if (value === 'forever' || value == null) return null;
@@ -806,6 +827,62 @@ function isRecentlyTouched(lastTouchedSeconds) {
   if (!lastTouchedSeconds) return false;
   const ageMs = Date.now() - lastTouchedSeconds * 1000;
   return ageMs >= 0 && ageMs <= recentTouchedWindowMs();
+}
+
+// Compact "when last used" label. Multi-line HTML for the 1-9d range
+// (adds time on a second line); single line otherwise.
+//   Today  : "8:05p"
+//   1-9 d  : "3d" + "8:05p"   (two lines)
+//   10-99d : "23d"
+//   100+ d : "5/4"
+// Returns '' when timestamp is missing.
+function formatCompactDateHtml(ts) {
+  if (!ts) return '';
+  const t = new Date(ts);
+  if (isNaN(t.getTime())) return '';
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tDay = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+  const dayDiff = Math.floor((today.getTime() - tDay.getTime()) / 86400000);
+  const timeStr = (() => {
+    let h = t.getHours();
+    const m = t.getMinutes();
+    const ap = h >= 12 ? 'p' : 'a';
+    h = h % 12 || 12;
+    return h + ':' + (m < 10 ? '0' + m : m) + ap;
+  })();
+  if (dayDiff <= 0) {
+    return '<span class="ctrl-card-date-line">' + timeStr + '</span>';
+  }
+  if (dayDiff < 10) {
+    return '<span class="ctrl-card-date-line">' + dayDiff + 'd</span>'
+      + '<span class="ctrl-card-date-line ctrl-card-date-sub">' + timeStr + '</span>';
+  }
+  if (dayDiff < 100) {
+    return '<span class="ctrl-card-date-line">' + dayDiff + 'd</span>';
+  }
+  return '<span class="ctrl-card-date-line">' + (t.getMonth() + 1) + '/' + t.getDate() + '</span>';
+}
+
+// Legacy single-string variant kept in case any caller still uses it.
+function formatCompactDate(ts) {
+  if (!ts) return '';
+  const t = new Date(ts);
+  if (isNaN(t.getTime())) return '';
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tDay = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+  const dayDiff = Math.floor((today.getTime() - tDay.getTime()) / 86400000);
+  if (dayDiff <= 0) {
+    let h = t.getHours();
+    const m = t.getMinutes();
+    const ap = h >= 12 ? 'p' : 'a';
+    h = h % 12 || 12;
+    return h + ':' + (m < 10 ? '0' + m : m) + ap;
+  }
+  if (dayDiff < 10) return dayDiff + 'd';
+  if (dayDiff < 100) return dayDiff + 'd';
+  return (t.getMonth() + 1) + '/' + t.getDate();
 }
 
 function buildGroupDivider(title, count, descriptor, opts) {

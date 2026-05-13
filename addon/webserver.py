@@ -729,6 +729,16 @@ class LightDesignerServer:
         self.app.router.add_delete(
             "/api/controls/{control_id}/configure", self.remove_control_config
         )
+        # Lightweight pause-only endpoint used by the controls-list quick
+        # toggle. Body: {inactive: bool, inactive_until: ISO|"forever"|null}.
+        self.app.router.add_post(
+            "/api/controls/{control_id}/pause", self.set_control_pause
+        )
+        self.app.router.add_route(
+            "POST",
+            "/{path:.*}/api/controls/{control_id}/pause",
+            self.set_control_pause,
+        )
         self.app.router.add_route(
             "GET",
             "/{path:.*}/api/controls/refresh",
@@ -1997,7 +2007,8 @@ class LightDesignerServer:
         "lux_learned_ceiling",  # Learned bright-day lux baseline (85th percentile)
         "lux_learned_floor",  # Learned dark-day lux baseline (5th percentile)
         "outdoor_brightness_source",  # Preferred outdoor brightness source: "lux", "weather", or "angle"
-        "outdoor_refresh_interval",  # HomeGlo Lab: SunIntensity chip poll cadence in seconds (default 60, range 10–600)
+        "outdoor_refresh_interval",  # HomeGlo Lab: cadence (s) for sun-intensity chip poll AND server-side expired-pause sweep (default 60, range 10–600)
+        "default_pause_duration_minutes",  # HomeGlo Lab: preselected duration for pause picker (0 = forever, default 240 = 4h)
         "power_recovery",  # Power failure recovery: "bright" or "last_state" (default "last_state")
         "advanced_logging_until",  # ISO timestamp or "forever" for advanced logging expiry
         "confirm_zone_pushes",  # Show confirmation dialogs for zone push actions (default true)
@@ -3501,7 +3512,24 @@ class LightDesignerServer:
             return web.json_response({"error": str(e)}, status=500)
 
     async def refresh_outdoor(self, request: Request) -> Response:
-        """Force HA to re-poll the outdoor brightness source entity."""
+        """Force HA to re-poll the outdoor brightness source entity.
+
+        Also runs the expired-pause sweep — the outdoor refresh tick is
+        the natural cadence for "lightweight periodic maintenance" since
+        the user already configures this interval in HomeGlo Lab.
+        """
+        # Sweep expired control pauses on every outdoor refresh tick.
+        # Independent of whether outdoor fetch succeeds — pause cleanup
+        # shouldn't be gated on a working lux/weather entity.
+        try:
+            cleaned = switches.sweep_expired_pauses()
+            if cleaned:
+                logger.info(
+                    f"[PauseSweep] Auto-unpaused {cleaned} expired control(s)"
+                )
+        except Exception as e:
+            logger.error(f"[PauseSweep] Error: {e}", exc_info=True)
+
         try:
             import lux_tracker
 
@@ -6350,8 +6378,13 @@ class LightDesignerServer:
                     )
                     is_configured = has_areas or has_magic
 
-                # Determine status
-                is_inactive = config.get("inactive", False)
+                # Determine status. Use the read-only expiry check so an
+                # expired pause surfaces as active, not inactive — even if
+                # the on-disk config hasn't been swept yet.
+                is_inactive = switches.is_effectively_inactive(
+                    config.get("inactive", False),
+                    config.get("inactive_until"),
+                )
                 if ctrl.get("supported"):
                     if is_configured and is_inactive:
                         status = "inactive"
@@ -6397,7 +6430,14 @@ class LightDesignerServer:
                     "battery": ctrl.get("battery"),
                 }
 
-                control_data["inactive"] = config.get("inactive", False)
+                # Surface the *effective* inactive state — masks expired
+                # pauses so the UI doesn't display "paused · expired" for
+                # controls that should have auto-resumed. Raw inactive_until
+                # is still passed through so the detail view can show timing.
+                control_data["inactive"] = switches.is_effectively_inactive(
+                    config.get("inactive", False),
+                    config.get("inactive_until"),
+                )
                 control_data["inactive_until"] = config.get("inactive_until")
                 if category in ("motion_sensor", "camera", "contact_sensor"):
                     control_data["scopes"] = config.get("scopes", [])
@@ -6957,6 +6997,43 @@ class LightDesignerServer:
             )
         except Exception:
             return web.json_response({"last_actions": {}, "pause_states": {}})
+
+    async def set_control_pause(self, request: Request) -> Response:
+        """Lightweight pause toggle. Body: {inactive: bool, inactive_until}.
+
+        Used by the controls-list quick-toggle so a one-tap pause/unpause
+        doesn't have to send the full control config (scopes / magic
+        buttons / etc.) — just mutates the two pause fields.
+        """
+        try:
+            control_id = request.match_info.get("control_id")
+            if not control_id:
+                return web.json_response(
+                    {"error": "Control ID is required"}, status=400
+                )
+            data = await request.json()
+            inactive = bool(data.get("inactive", False))
+            inactive_until = data.get("inactive_until")
+            if inactive_until == "null":  # be defensive
+                inactive_until = None
+            ok = switches.set_pause(control_id, inactive, inactive_until)
+            if not ok:
+                return web.json_response(
+                    {"error": "Control not found"}, status=404
+                )
+            logger.info(
+                f"[Pause] {control_id}: inactive={inactive} until={inactive_until}"
+            )
+            return web.json_response(
+                {
+                    "ok": True,
+                    "inactive": inactive,
+                    "inactive_until": inactive_until,
+                }
+            )
+        except Exception as e:
+            logger.error(f"Error setting pause: {e}", exc_info=True)
+            return web.json_response({"error": str(e)}, status=500)
 
     async def configure_control(self, request: Request) -> Response:
         """Configure a control (add/update scopes for switches, areas for motion sensors)."""
