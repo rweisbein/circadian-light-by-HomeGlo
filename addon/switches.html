@@ -936,6 +936,9 @@
   <main class="main">
     <div class="page-header">
       <div style="display: flex; align-items: center; gap: 8px;">
+        <!-- Row 1 left: count of currently-visible controls. Populated
+             by renderControls() on each render. -->
+        <span class="ctrl-result-count" id="ctrl-count"></span>
         <span style="flex: 1;"></span>
         <!-- View pill: caret-button dropdown — same component as the home
              page's mode pill (.action-pill in shared.css). Each option is
@@ -1346,11 +1349,31 @@
       // search) rebuild the snapshot.
       let stickyList = filtered;
       if (currentView === 'paused') {
-        const sig = [currentView, pauseSubView, areaFilter, categoryFilter, searchFilter].join('|');
+        // Signature now includes sortColumn — when the user changes sort,
+        // the snapshot rebuilds in the new order. Toggling pause state
+        // doesn't change sort, so cards stay put across toggles.
+        const sig = [currentView, pauseSubView, areaFilter, categoryFilter, searchFilter, sortColumn].join('|');
         if (!_pauseModeSnapshot || _pauseModeSnapshot.signature !== sig) {
-          // First entry — capture current natural order (alpha-sorted at
-          // the next step, since we drop pause-state sorting).
-          const initialOrder = [...filtered].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+          // First entry / sort change — capture the natural order per the
+          // active sort column (Recent / Location / Name). Same comparator
+          // as the regular browse-mode sort below, just scoped to the
+          // filtered set.
+          const initialOrder = [...filtered].sort((a, b) => {
+            if (sortColumn === 'name') {
+              return (a.name || '').localeCompare(b.name || '');
+            }
+            if (sortColumn === 'area') {
+              const an = a.area_name || '￿';
+              const bn = b.area_name || '￿';
+              const cmp = an.localeCompare(bn);
+              if (cmp !== 0) return cmp;
+              return (a.name || '').localeCompare(b.name || '');
+            }
+            // Recent (sortColumn === 'fourth' + lastAction): newest first.
+            const at = a.last_action?.timestamp ? new Date(a.last_action.timestamp).getTime() : 0;
+            const bt = b.last_action?.timestamp ? new Date(b.last_action.timestamp).getTime() : 0;
+            return bt - at;
+          });
           _pauseModeSnapshot = {
             signature: sig,
             orderedIds: initialOrder.map(c => c.id),
@@ -1551,22 +1574,13 @@
         : currentView === 'setup' ? 'Sort: name'
         : null;
       let sortHtml;
-      if (currentView === 'paused') {
-        // PAUSE mode gets a `state` sub-segment (Active | Paused) instead
-        // of a sort selector. Labels content-by-state so the action is
-        // implicit in the per-card right-side toggle ("Pause" view of
-        // Active controls = tap ⏸; "Paused" view = tap ▶).
-        const segOpt = (v, lbl) => `<button class="view-segment${v === pauseSubView ? ' active' : ''}" data-pause-sub="${v}">${lbl}</button>`;
-        sortHtml = '<div class="seg-row">'
-          + '<span class="seg-label">state</span>'
-          + '<div class="view-segments-bar" id="ctrl-pause-sub-seg" role="tablist">'
-          + segOpt('active', 'Active')
-          + segOpt('paused', 'Paused')
-          + '</div>'
-          + '</div>';
-      } else if (sortLabel) {
+      if (sortLabel) {
+        // Battery / Setup keep their locked sort phrasing.
         sortHtml = '<span>' + sortLabel + '</span>';
       } else {
+        // Browse + Pause: same Recent | Location | Name segmented bar
+        // (Pause no longer hijacks this row — its state filter lives on
+        // the filter row instead, alongside area + type).
         const sortVal = (sortColumn === 'name') ? 'name'
           : (sortColumn === 'area') ? 'area' : 'recent';
         const segOpt = (v, lbl) => `<button class="view-segment${v === sortVal ? ' active' : ''}" data-ctrl-sort="${v}">${lbl}</button>`;
@@ -1617,6 +1631,14 @@
       const areaClearHtml = (areaFilter !== 'all')
         ? '<button class="ctrl-area-clear" id="ctrl-area-clear" title="Clear area filter">&times;</button>'
         : '';
+      // State filter — only in Pause mode. Native <select> matches the
+      // visual pattern of the area + type filters on the same row.
+      const stateFilterHtml = (currentView === 'paused')
+        ? '<select class="ctrl-tb-select is-active" id="ctrl-state-filter" title="Pause state">'
+          + '<option value="active"' + (pauseSubView === 'active' ? ' selected' : '') + '>Active</option>'
+          + '<option value="paused"' + (pauseSubView === 'paused' ? ' selected' : '') + '>Paused</option>'
+          + '</select>'
+        : '';
       const toolbarHtml = '<div class="ctrl-toolbar">'
         + '<div class="ctrl-toolbar-row">'
         +   searchHtml
@@ -1624,12 +1646,16 @@
         +   areaClearHtml
         +   typeFilterHtml
         +   typeClearHtml
+        +   stateFilterHtml
         + '</div>'
         + '<div class="ctrl-toolbar-row ctrl-toolbar-row-organize">'
         +   sortHtml
-        +   '<span class="ctrl-result-count">' + buildCountPhrase(sorted.length) + '</span>'
         + '</div>'
         + '</div>';
+      // Count now lives in the page-header row (Row 1) next to the mode
+      // pill — updated below via #ctrl-count.
+      const ctrlCountEl = document.getElementById('ctrl-count');
+      if (ctrlCountEl) ctrlCountEl.textContent = buildCountPhrase(sorted.length);
 
       // Grouped card list — single rounded container with internal
        // dividers. Two grouping modes:
@@ -2485,6 +2511,14 @@
           categoryFilter = e.target.value;
           savePreferences();
           renderControls();
+        } else if (e.target.id === 'ctrl-state-filter') {
+          // PAUSE-mode state filter (Active|Paused). Lives on the
+          // filter row alongside area/type so sort can stay on its own
+          // row even in Pause mode.
+          pauseSubView = e.target.value;
+          _pauseModeSnapshot = null;
+          savePreferences();
+          renderControls();
         }
       });
 
@@ -2504,6 +2538,12 @@
             sortColumn = 'area';
             sortAsc = true;
           }
+          // PAUSE mode: invalidate the sticky-order snapshot so the new
+          // sort is captured. Without this, the snapshot would freeze
+          // the old order and the sort click would do nothing visible.
+          // The pause-state toggle still keeps cards in place because
+          // that flow doesn't change the snapshot signature.
+          if (currentView === 'paused') _pauseModeSnapshot = null;
           savePreferences();
           renderControls();
           return;

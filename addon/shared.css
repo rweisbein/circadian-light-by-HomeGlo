@@ -385,7 +385,10 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
 .outdoor-chip-popover {
   position: absolute;
   z-index: 50;
-  width: 340px;
+  /* Width matches content (with a sensible cap). Tighter than the old
+     340px — number column now sits adjacent to the label instead of
+     pinned to the right edge with a chasm between. */
+  width: max-content;
   max-width: calc(100vw - 24px);
   box-sizing: border-box;
   padding: 10px 14px;
@@ -399,8 +402,10 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
   -webkit-user-select: text;
   user-select: text;
   display: grid;
-  grid-template-columns: 14px minmax(max-content, 1fr) auto auto;
-  column-gap: 10px;
+  /* Col 2 (label) sized to its content instead of 1fr, so the number
+     column hugs the label rather than flying to the right. */
+  grid-template-columns: 14px auto auto auto;
+  column-gap: 8px;
   row-gap: 4px;
   align-items: baseline;
 }
@@ -431,14 +436,17 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
   font-variant-numeric: tabular-nums;
 }
 .outdoor-chip-popover .ocp-extras {
+  /* Condition icon + override link sit INLINE — the override action
+     reads as "you can override this condition," not as a separate row.
+     Was column; flipped to row for the inline reading. */
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  align-items: flex-start;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 8px;
   min-width: 0;
 }
 .outdoor-chip-popover .ocp-extras-line {
-  display: flex;
+  display: inline-flex;
   align-items: baseline;
   gap: 6px;
   white-space: nowrap;

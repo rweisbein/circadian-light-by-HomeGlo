@@ -879,6 +879,7 @@
         const buttonName = buttonNames[btn] || btn.charAt(0).toUpperCase() + btn.slice(1);
         const badge = buttonLabels[btn] || btn;
 
+        const shortBaseId = shortPressBaseActionId(currentMappings, btn);
         const actionRows = [];
         for (const actionType of availableActionTypes) {
           const eventKey = `${btn}_${actionType}`;
@@ -894,6 +895,9 @@
           }
 
           if (!actionValue) continue;
+          // Collapse 2×/3×/4×/5× rows when they just repeat the 1× action
+          // with the matching multiplier suffix.
+          if (isRedundantMultiplierRow(shortBaseId, actionType, actionValue)) continue;
 
           const label = actionTypeShort[actionType] || actionType;
           let actionText = getActionLabel(actionValue);
@@ -998,7 +1002,7 @@
     // ── Helpers ──
 
     function getActionLabel(actionId) {
-      if (!actionId) return 'No Action';
+      if (!actionId) return '-';
       // Check if it's a magic/moment action
       if (actionId.startsWith('set_')) {
         return formatMagicAction(actionId);
@@ -1230,6 +1234,7 @@
         const badge = buttonLabels[btn] || btn;
         const sectionRows = [];
 
+        const shortBaseId = shortPressBaseActionId(currentMappings, btn);
         for (const actionType of availableActionTypes) {
           const eventKey = `${btn}_${actionType}`;
           const mapping = currentMappings[eventKey];
@@ -1244,6 +1249,7 @@
           }
 
           if (!actionValue) continue;
+          if (isRedundantMultiplierRow(shortBaseId, actionType, actionValue)) continue;
 
           const label = actionTypeLabels[actionType] || actionType;
           let actionText = getActionLabelPlain(actionValue);
@@ -1310,7 +1316,7 @@
     }
 
     function getActionLabelPlain(actionId) {
-      if (!actionId) return 'No Action';
+      if (!actionId) return '-';
       if (actionId.startsWith('set_')) {
         return formatMagicActionPlain(actionId);
       }

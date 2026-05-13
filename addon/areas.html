@@ -382,7 +382,10 @@
       --tune-stripe-right: transparent;
       display: flex;
       align-items: stretch;
-      padding: 6px 8px;
+      /* Left padding bumped vs right so rooms read as nested under
+         their zone header (typography + indent together carry the
+         "zone contains areas" hierarchy). */
+      padding: 6px 8px 6px 16px;
       gap: 8px;
       background: var(--row-bg);
       color: var(--row-text);
@@ -393,11 +396,15 @@
         inset 3px 0 0 0 var(--tune-stripe-left),
         inset -3px 0 0 0 var(--tune-stripe-right);
     }
-    /* Off rows stay compact — single line, no need for stretched buttons. */
+    /* Off rows stay single-line, but tall enough for a comfortable touch
+       target on the power button (Apple HIG ~44pt). 4px pad + 36px button
+       + 4px pad + 1px border = ~45px row. */
     .area-row.area-row-off {
       align-items: center;
-      padding: 2px 8px;
+      padding: 4px 8px;
     }
+    /* Power button size is set once on .row-controls-left .row-btn —
+       same 36px in both on and off rows. */
 
     .area-row:last-child {
       border-bottom: none;
@@ -458,7 +465,9 @@
 
     .area-row-name {
       min-width: 0;
-      font-size: 1.35rem;
+      /* Sized below .zone-rhythm-link so the zone reads as the parent
+         of these rooms — same hierarchy as Apple's grouped UITableView. */
+      font-size: 1.15rem;
       line-height: 1.1;
       white-space: nowrap;
       overflow: hidden;
@@ -787,8 +796,12 @@
       border-color: rgba(0,0,0,0.55);
     }
 
-    /* Zone-level power button — same inversion idiom, hollow off / solid white on. */
+    /* Power button (on and off rows) — hollow off / solid white on. Same
+       36x36 touch-target size whether the room is on or off so the button
+       doesn't visually change size between states. */
     .row-controls-left .row-btn {
+      width: 36px;
+      height: 36px;
       border-radius: 50%;
       background: transparent;
       border: 1.5px solid rgba(255,255,255,0.35);
@@ -808,8 +821,8 @@
       border-color: rgba(0,0,0,0.55);
     }
     .row-controls-left .row-btn svg {
-      width: 13px;
-      height: 13px;
+      width: 18px;
+      height: 18px;
     }
 
     .row-btn svg {
@@ -947,6 +960,14 @@
       flex-shrink: 0;
       margin-left: 6px;
     }
+    /* Phase midpoint has been shifted off-rhythm → strike + mute the rhythm
+       phase label so it reads as the "original" while the divergence chip
+       below shows the effective value. */
+    .zone-phase-label.phase-shifted {
+      opacity: 0.45;
+      text-decoration: line-through;
+      text-decoration-thickness: 1px;
+    }
     .zone-header .row-controls {
       min-width: 58px;
       justify-content: flex-end;
@@ -956,8 +977,10 @@
       align-self: center;
     }
     .zone-rhythm-link {
-      font-size: 1.45rem;
-      font-weight: 600;
+      /* Bumped vs area-row-name so the zone reads as the container of
+         the rooms below it — typography carries the hierarchy. */
+      font-size: 1.6rem;
+      font-weight: 700;
       text-decoration: none;
       transition: opacity 0.15s;
       cursor: pointer;
@@ -1200,61 +1223,17 @@
       transition: background 0.15s;
       user-select: none;
     }
-    /* Glyph chosen by mode — ↕ in Adjust (opens menu with two options),
-       ↺ in Tune (single-click undo to previous tune value). */
-    .mismatch-dot-area.diverge-adjust::before { content: '\2195'; }
+    /* Glyph chosen by action — ↺ reset to rhythm (Adjust + Tune both use this),
+       ↑ send the area's override up to the zone (Adjust only). */
+    .mismatch-dot-area.diverge-reset::before { content: '\21BA'; }
+    .mismatch-dot-area.diverge-send::before { content: '\2191'; }
     .mismatch-dot-area.diverge-tune::before { content: '\21BA'; }
     .mismatch-dot-area:hover {
       background: rgba(0,0,0,0.75);
     }
-
-    /* Diverge menu: floating popover with Reset / Send-to-zone choices. */
-    .diverge-wrap {
-      position: relative;
-      display: inline-flex;
-    }
-    /* Position is set inline at toggle time (fixed coords) so the menu
-       escapes .area-row's overflow:hidden clip. z-index high enough to
-       stack above sticky zone headers (z-index: 20) and the sticky top
-       toolbar (z-index: 30). */
-    .diverge-menu {
-      position: fixed;
-      background: rgb(20, 20, 22);
-      border: 1px solid rgba(255,255,255,0.18);
-      border-radius: 10px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-      padding: 4px;
-      z-index: 200;
-      display: none;
-      min-width: 160px;
-    }
-    .diverge-menu.open { display: block; animation: viewSegPopIn 0.16s ease-out; }
-    .diverge-menu .diverge-action {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.88rem;
-      font-weight: 500;
-      color: var(--text);
-      background: transparent;
-      border: 0;
-      width: 100%;
-      text-align: left;
-      white-space: nowrap;
-      font-family: inherit;
-    }
-    .diverge-menu .diverge-action:hover { background: rgba(255,255,255,0.06); }
-    .diverge-menu .diverge-glyph {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 16px;
-      opacity: 0.7;
-      font-size: 0.95rem;
-    }
+    /* Tighter gap between the paired reset + send dots so they read as one
+       group instead of two unrelated buttons. */
+    .mismatch-dot-area.diverge-send { margin-left: 4px; }
 
     /* Placeholder to keep layout stable when no dot */
     .mismatch-dot-placeholder {
@@ -1446,6 +1425,47 @@
       padding-top: 8px;
       padding-bottom: 12px;
     }
+    /* Sticky-top 3-row layout. Each row has a left + right anchor with
+       a flexible spacer between, so anchors stay pinned to the edges
+       regardless of width. Row 3 right is empty by design (the segmented
+       bar carries that row alone). */
+    .home-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .home-row + .home-row { margin-top: 4px; }
+    .home-row-spacer { flex: 1 1 auto; }
+
+    /* Tune-mode axis cue — thin colored bar under the toolbar that
+       reinforces "you're tuning X" via hue (amber for Sun = dim/warm,
+       blue for Balance = lift/cool). Same palette as the per-row stripe
+       and slider gradient, so the cue is consistent across the page. */
+    .tune-axis-bar {
+      height: 2px;
+      margin-top: 6px;
+      border-radius: 1px;
+    }
+    .tune-axis-sun { background: rgba(230, 170, 80, 0.85); }
+    .tune-axis-balance {
+      /* Divergent — amber on left (dim) → neutral mid → blue on right
+         (lift), matching the slider track gradient. */
+      background: linear-gradient(90deg,
+        rgba(230, 170, 80, 0.85) 0%,
+        rgba(255, 255, 255, 0.12) 50%,
+        rgba(120, 170, 230, 0.85) 100%);
+    }
+    /* Mode pill tinted in tune modes — reinforces "you're in tune X"
+       with a subtle bg + border accent matching the axis. */
+    #home-mode-pill.is-tune-sun {
+      background: rgba(230, 170, 80, 0.08);
+      border-color: rgba(230, 170, 80, 0.30);
+    }
+    #home-mode-pill.is-tune-balance {
+      background: rgba(120, 170, 230, 0.08);
+      border-color: rgba(120, 170, 230, 0.30);
+    }
     /* Zone headers stack below the sticky top as the user scrolls.
        Top offset is a rough sum of nav + sticky-top content height. */
     .zone-header {
@@ -1457,26 +1477,13 @@
        Force opaque bgs on the no-tint / tune variants. */
     .zone-header.no-tint { background: var(--bg); }
 
-    /* Phase 1: header status line under the home name. */
-    .home-header-stack {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      min-width: 0;
-    }
-    .home-status-line {
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    /* Active-room count sits on row 2 left. Muted so the row reads as
+       state info, not interactive. */
+    .rooms-on-count {
       font-size: 0.82rem;
       color: var(--muted);
-      padding-left: 4px;
-    }
-    .home-status-line .rooms-on-count {
       cursor: default;
-    }
-    .home-status-line .status-sep {
-      opacity: 0.4;
+      padding-left: 4px;
     }
     /* Sun pill styling lives in shared.css under .outdoor-chip / .outdoor-chip-icon */
 
@@ -2325,7 +2332,6 @@
         // Suppress the refresh+render cycle while a popover is open —
         // otherwise the toolbar HTML rebuilds every tick and the popover flashes.
         if (_modePopoverOpen || _sunPopoverOpen) return;
-        if (document.querySelector('.diverge-menu.open')) return;
         try {
           const [res, zsRes, gzRes] = await Promise.all([
             fetch('./api/area-status?lite=true'),
@@ -2773,42 +2779,6 @@
         sliderDragging = false;
         console.error('set_phase_time failed', e);
       }
-    }
-
-    async function confirmZonePowerOff(zoneName) {
-      const onAreas = areas.filter(a => {
-        const s = areaStatus[a.area_id] || {};
-        return s.zone_name === zoneName && s.is_on;
-      });
-      if (onAreas.length === 0) return;
-      if (cachedConfig?.confirm_zone_pushes) {
-        const areaList = onAreas.map(a => a.name).join('\n');
-        const msg = `Turn off lights in these areas?\n\n${areaList}`;
-        if (!confirm(msg)) return;
-      }
-      for (const area of onAreas) {
-        await fetch('./api/area/action', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ area_id: area.area_id, action: 'lights_off' })
-        });
-      }
-      setTimeout(async () => {
-        try {
-          const [statusRes, zsRes] = await Promise.all([
-            fetch('./api/area-status?lite=true'),
-            fetch('./api/zone-states')
-          ]);
-          if (statusRes.ok) areaStatus = await statusRes.json();
-          if (zsRes.ok) {
-            const zs = await zsRes.json();
-            zoneStates = zs.zone_states || {};
-          }
-          renderAreas();
-        } catch (err) {
-          console.error('Error refreshing after zone power off:', err);
-        }
-      }, 500);
     }
 
     function glozoneAffectedAreas(zoneName) {
@@ -3395,7 +3365,7 @@
       // Phase 2: action mode pill (top-right) — picks knob for slider + chevrons.
       // Bed is phase-aware (Bed if descending, Wake if ascending).
       const homePhase = getHomePhase();  // 'wake' | 'bed' | null
-      const bedLabel = homePhase === 'wake' ? 'Wake' : 'Bed';
+      const bedLabel = homePhase === 'wake' ? 'Wake time' : 'Bed time';
       const modeLabels = { brightness: 'Brightness', color: 'Color', bed: bedLabel, sun: 'Sun exposure', balance: 'Balance' };
       // In organize mode the pill reflects that, so the user has a way back out
       // (clicking any other option exits organize via the click handler).
@@ -3403,7 +3373,7 @@
       // Organize mode skips the prefix (the label is its own complete phrase).
       const modePrefix = currentMode === 'organize'
         ? ''
-        : (isTuneMode(homePillMode) ? 'Tuning: ' : 'Adjusting: ');
+        : (isTuneMode(homePillMode) ? 'Tune: ' : 'Adjust: ');
       const activeModeLabel = (currentMode === 'organize'
         ? 'Reorder areas'
         : (modeLabels[homePillMode] || 'Brightness'));
@@ -3414,8 +3384,14 @@
       const popoverOpenClass = _modePopoverOpen ? ' open' : '';
       // Caret SVG matches zone-chevron family
       const caretSvg = `<span class="action-pill-caret"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 5 6 8 9 5"/></svg></span>`;
+      // Tune-mode pill gets a hue-tinted bg + border via .is-tune-sun /
+      // .is-tune-balance — matches the thin axis bar below + the per-row
+      // stripe colors so the "you're tuning X" cue is consistent.
+      const pillTuneClass = homePillMode === 'sun'
+        ? ' is-tune-sun'
+        : (homePillMode === 'balance' ? ' is-tune-balance' : '');
       const modePillHtml = `
-        <div class="action-pill" id="home-mode-pill" title="What slider & chevrons control">
+        <div class="action-pill${pillTuneClass}" id="home-mode-pill" title="What slider & chevrons control">
           <span class="action-pill-prefix">${modePrefix}</span><span id="home-mode-label">${activeModeLabel}</span>${caretSvg}
           <div class="action-popover${popoverOpenClass}" id="home-mode-popover">
             <div class="action-popover-section-label">Adjust <span class="action-popover-section-sub">${(() => { const t = getNextPhaseBoundaryLabel(); return t ? 'resets @ ' + t : 'resets at phase change'; })()}</span></div>
@@ -3437,28 +3413,30 @@
       // segments stay pinned beneath the nav as the user scrolls.
       let html = `
         <div class="home-sticky-top">
-          <div class="home-toolbar" style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px;">
-            <div class="home-header-stack">
-              <span class="home-name-heading" id="home-name-heading" ondblclick="editHomeName(this)" title="Double-click (or tap and hold) to rename" style="touch-action: manipulation;">${homeName || ''}</span>
-              <div class="home-status-line">
-                <span class="rooms-on-count" id="rooms-on-count">${computeRoomsOnText()}</span>
-                <span class="status-sep">·</span>
-                <button type="button" class="outdoor-chip" id="home-sun-pill" aria-expanded="false" title="Sun intensity">
-                  <span class="outdoor-chip-icon" id="home-sun-icon" data-sun-icon style="${sunIconStyleString(_cachedSunPct)}">☀</span>
-                  <span id="home-sun-pct" data-sun-pct>${cachedSunPctText()}</span>
-                </button>
-                <div class="outdoor-chip-popover" id="home-sun-popover" hidden></div>
-              </div>
-            </div>
-            <span style="flex: 1;"></span>
+          <!-- Row 1: home name (L) · mode pill (R) — identity + action -->
+          <div class="home-row home-row-1">
+            <span class="home-name-heading" id="home-name-heading" ondblclick="editHomeName(this)" title="Double-click (or tap and hold) to rename" style="touch-action: manipulation;">${homeName || ''}</span>
+            <span class="home-row-spacer"></span>
             ${modePillHtml}
           </div>
-          <div class="seg-row">
+          <!-- Row 2: active count (L) · sun intensity (R) — state -->
+          <div class="home-row home-row-2">
+            <span class="rooms-on-count" id="rooms-on-count">${computeRoomsOnText()}</span>
+            <span class="home-row-spacer"></span>
+            <button type="button" class="outdoor-chip" id="home-sun-pill" aria-expanded="false" title="Sun intensity">
+              <span class="outdoor-chip-icon" id="home-sun-icon" data-sun-icon style="${sunIconStyleString(_cachedSunPct)}">☀</span>
+              <span id="home-sun-pct" data-sun-pct>${cachedSunPctText()}</span>
+            </button>
+            <div class="outdoor-chip-popover" id="home-sun-popover" hidden></div>
+          </div>
+          <!-- Row 3: list controls (L) -->
+          <div class="seg-row home-row-3">
             <span class="seg-label">${inTune ? 'sort' : 'view'}</span>
             <div class="view-segments-bar" id="home-view-segments" role="tablist" title="Page mode">
               ${segmentsHtml}
             </div>
           </div>
+          ${inTune ? `<div class="tune-axis-bar tune-axis-${homePillMode}"></div>` : ''}
         </div>
       `;
 
@@ -3575,15 +3553,6 @@
           }
         }
 
-        // Power button: only show if one or more areas in the zone are
-        // effectively on. In Tune mode the right-side actions are suppressed
-        // entirely (focus on tuning); otherwise zone-power lives on the right
-        // alongside GloZoneDown + reset.
-        const zoneOnAreas = sorted.filter(a => a.is_on && a.is_circadian);
-        const zonePowerBtn = (!tuneNeutralHeader && zoneOnAreas.length > 0)
-          ? `<button class="row-btn active" onclick="event.stopPropagation(); confirmZonePowerOff('${escapedZoneName}')" title="Turn off all in '${zoneName}'">${powerIconSvg}</button>`
-          : '';
-
         const bigChevron = `<span class="zone-chevron-big-tap" onclick="event.stopPropagation(); toggleZone('${escapedZoneName}', this)" title="${isCollapsed ? 'Expand' : 'Collapse'}"><span class="zone-chevron-big">&#x203A;</span></span>`;
         return `
           <div class="zone-group">
@@ -3601,7 +3570,7 @@
                     <span class="zone-title-row">
                       <a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" style="color: ${zoneTextColor};">${zoneName}</a>
                       <span class="zone-count">(${sorted.length})</span>
-                      ${rhythmPhase ? `<span class="zone-phase-label" style="color: ${zoneTextColor};">${rhythmPhase}</span>` : ''}
+                      ${rhythmPhase ? `<span class="zone-phase-label${phaseChip ? ' phase-shifted' : ''}" style="color: ${zoneTextColor};">${rhythmPhase}</span>` : ''}
                     </span>
                     ${subrow}
                   </div>`;
@@ -3609,7 +3578,6 @@
               ${zoneFrozenIndicator}
               <div class="row-controls">
                 ${(tuneNeutralHeader || glozoneAffectedAreas(zoneName).length === 0) ? '' : `<button class="row-btn" onclick="event.stopPropagation(); glozoneDown('${escapedZoneName}')" title="Push rhythm zone state to all areas">${glozoneDownIcon}</button>`}
-                ${zonePowerBtn}
               </div>
             </div>
             <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
@@ -4088,56 +4056,12 @@
         const title = dim === 'sun' ? 'Restore previous sun exposure' : 'Restore previous balance';
         return `<span class="mismatch-dot-area diverge-tune" onclick="event.stopPropagation(); restoreTunePrev('${area.area_id}')" title="${title}"></span>`;
       }
-      // Adjust modes: dot signals "something changed", click opens a 2-option
-      // menu — Reset (glo_down) or Send to zone (glo_up).
+      // Adjust modes: render reset (↺ glo_down) and send-to-zone (↑ glo_up)
+      // as two inline buttons. Reset is the dominant action, so direct-click
+      // beats a 2-option menu.
       if (!isAreaDirty(area)) return '';
-      return `
-        <span class="diverge-wrap">
-          <span class="mismatch-dot-area diverge-adjust" onclick="event.stopPropagation(); toggleDivergeMenu(this)" title="Area changed — click for options"></span>
-          <div class="diverge-menu" role="menu">
-            <button type="button" class="diverge-action" onclick="event.stopPropagation(); divergeAction('${area.area_id}', 'glo_down', this)">
-              <span class="diverge-glyph">↺</span> Reset
-            </button>
-            <button type="button" class="diverge-action" onclick="event.stopPropagation(); divergeAction('${area.area_id}', 'glo_up', this)">
-              <span class="diverge-glyph">↑</span> Send to zone
-            </button>
-          </div>
-        </span>
-      `;
-    }
-
-    function toggleDivergeMenu(dotEl) {
-      const menu = dotEl.parentElement?.querySelector('.diverge-menu')
-                 || dotEl._divergeMenu;
-      // Close any other open menus first.
-      document.querySelectorAll('.diverge-menu.open').forEach(m => {
-        if (m !== menu) m.classList.remove('open');
-      });
-      if (!menu) return;
-      const wasOpen = menu.classList.contains('open');
-      if (wasOpen) { menu.classList.remove('open'); return; }
-      // Reparent to <body> so no ancestor stacking context / sticky header
-      // can paint above the menu. Cache the link back to the dot so future
-      // toggles still find it.
-      if (menu.parentElement !== document.body) {
-        dotEl._divergeMenu = menu;
-        document.body.appendChild(menu);
-      }
-      menu.classList.add('open');
-      const r = dotEl.getBoundingClientRect();
-      menu.style.top = (r.bottom + 6) + 'px';
-      const popW = menu.offsetWidth;
-      const vw = window.innerWidth;
-      let left = r.left + r.width / 2 - popW / 2;
-      if (left + popW + 8 > vw) left = vw - popW - 8;
-      if (left < 8) left = 8;
-      menu.style.left = left + 'px';
-    }
-
-    function divergeAction(areaId, action, btnEl) {
-      const menu = btnEl.closest('.diverge-menu');
-      if (menu) menu.classList.remove('open');
-      rowAction(areaId, action);
+      return `<span class="mismatch-dot-area diverge-reset" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_down')" title="Reset to rhythm"></span>`
+           + `<span class="mismatch-dot-area diverge-send" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_up')" title="Send to zone"></span>`;
     }
 
     function resolveEffectiveTime(zc, phase) {
@@ -4656,12 +4580,6 @@ function updateSliderFill(el) {
 
       // Sun pill / popover is owned by SunIntensity (shared.js) — wired up by
       // attachSunIntensity() from renderAreas, no local click handlers needed.
-
-      // Outside-click on diverge menus → close them.
-      document.addEventListener('click', (e) => {
-        if (e.target.closest('.diverge-wrap')) return;
-        document.querySelectorAll('.diverge-menu.open').forEach(m => m.classList.remove('open'));
-      });
 
       // Long-press on the home name → enter rename mode (mobile equivalent
       // of double-click; both gestures route through editHomeName).

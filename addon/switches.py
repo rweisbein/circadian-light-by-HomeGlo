@@ -42,7 +42,9 @@ def _get_last_action_file() -> Path:
         else:
             # Dev fallback — mirror _get_data_directory() so native macOS runs
             # land in addon/.data/ instead of the read-only /app/.data Docker path.
-            _LAST_ACTION_FILE = Path(__file__).parent / ".data" / "switch_last_actions.json"
+            _LAST_ACTION_FILE = (
+                Path(__file__).parent / ".data" / "switch_last_actions.json"
+            )
         _LAST_ACTION_FILE.parent.mkdir(parents=True, exist_ok=True)
     return _LAST_ACTION_FILE
 
@@ -329,13 +331,13 @@ def get_categorized_actions() -> Dict[str, List[Dict[str, Any]]]:
     """
     categories = {
         "_top": [
-            {"id": None, "label": "No Action"},
+            {"id": None, "label": "-"},
             {"id": "magic", "label": "Magic"},
         ],
         "Adjust areas in Reach": [
             {"id": "circadian_on", "label": "On"},
             {"id": "circadian_off", "label": "Off"},
-            {"id": "circadian_toggle", "label": "Toggle on/off"},
+            {"id": "circadian_toggle", "label": "Power"},
             {"id": "step_up", "label": "Step Up", "supports_when_off": True},
             {"id": "step_up_2", "label": "Step Up 2\u00d7", "supports_when_off": True},
             {"id": "step_up_3", "label": "Step Up 3\u00d7", "supports_when_off": True},
@@ -398,15 +400,15 @@ def get_categorized_actions() -> Dict[str, List[Dict[str, Any]]]:
             {"id": "set_nitelite", "label": "NiteLite"},
             {"id": "set_wake_or_bed", "label": "Wake / Bed"},
             {"id": "freeze_toggle", "label": "Freeze"},
-            {"id": "glo_reset", "label": "Reset to Circadian"},
-            {"id": "glo_down", "label": "Reset to Rhythm Zone"},
+            {"id": "glo_reset", "label": "Reset to rhythm"},
+            {"id": "glo_down", "label": "Reset"},
         ],
         "Rhythm Zone": [
-            {"id": "full_send", "label": "Push to whole Rhythm Zone"},
-            {"id": "glozone_reset_full", "label": "Reset whole Rhythm Zone"},
+            {"id": "full_send", "label": "Full send"},
+            {"id": "glozone_reset_full", "label": "Reset zone"},
         ],
         "Switch": [
-            {"id": "cycle_scope", "label": "Advance to next Reach"},
+            {"id": "cycle_scope", "label": "Next reach"},
         ],
         "Dial": [
             {"id": "set_position_step", "label": "Circadian (brightness + color)"},
@@ -446,9 +448,9 @@ def get_when_off_options() -> List[Dict[str, Any]]:
         List of {id, label} dicts for when_off dropdown.
     """
     return [
-        {"id": None, "label": "No Action"},
+        {"id": None, "label": "-"},
         {"id": "circadian_on", "label": "On"},
-        {"id": "circadian_toggle", "label": "Toggle"},
+        {"id": "circadian_toggle", "label": "Power"},
         {"id": "set_nitelite", "label": "NiteLite"},
         {"id": "set_britelite", "label": "BriteLite"},
         {"id": "set_wake_or_bed", "label": "Wake / Bed"},
@@ -1384,7 +1386,9 @@ def set_pause(
                 return cfg
         return None
 
-    target = _find_in(_switches) or _find_in(_motion_sensors) or _find_in(_contact_sensors)
+    target = (
+        _find_in(_switches) or _find_in(_motion_sensors) or _find_in(_contact_sensors)
+    )
 
     if target is None:
         return False

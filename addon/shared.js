@@ -973,6 +973,42 @@ function controlsBatteryBucket(value) {
 }
 
 // =============================================================================
+// Button-row multiplier collapse — shared by the cheatsheet (/switches in
+// cheatsheet view) and the area-details Buttons card. If a button's 1× action
+// is one of the multi-press base families (step_up, step_down, bright_up,
+// bright_down, color_up, color_down) and a higher-press row is literally that
+// same id with `_N` appended (e.g. 1× = bright_up, 2× = bright_up_2), the
+// higher row is redundant noise — collapse it. Each press level evaluates
+// against the 1× id independently, so non-matching levels still render.
+// =============================================================================
+const _COLLAPSIBLE_MULTIPLIER_BASES = [
+  'step_up', 'step_down',
+  'bright_up', 'bright_down',
+  'color_up', 'color_down',
+];
+const _MULTIPLIER_PRESS_N = {
+  double_press: 2,
+  triple_press: 3,
+  quadruple_press: 4,
+  quintuple_press: 5,
+};
+function _normalizeActionId(v) {
+  if (v && typeof v === 'object') return v.action;
+  return v;
+}
+function shortPressBaseActionId(mapping, btn) {
+  if (!mapping) return null;
+  return _normalizeActionId(mapping[btn + '_short_release'] || mapping[btn + '_press']) || null;
+}
+function isRedundantMultiplierRow(baseId, actionType, currentId) {
+  if (!baseId || !currentId) return false;
+  const n = _MULTIPLIER_PRESS_N[actionType];
+  if (!n) return false;
+  if (!_COLLAPSIBLE_MULTIPLIER_BASES.includes(baseId)) return false;
+  return currentId === baseId + '_' + n;
+}
+
+// =============================================================================
 // Control summary — "what this control does", scopes-driven. Shared between
 // the controls list page (/switches) and the area-details Controls card. The
 // page passes its `allAreas` registry plus optional `filterAreaId` (when

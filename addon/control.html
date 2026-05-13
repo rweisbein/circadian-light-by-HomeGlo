@@ -1850,12 +1850,17 @@
       for (const btn of buttons) {
         const badge = buttonBadges[btn] || btn;
 
+        const shortBaseId = shortPressBaseActionId(mapping, btn);
         // Collect action rows for this button
         let actionRows = '';
         for (const actionType of actionTypes) {
           const eventKey = `${btn}_${actionType}`;
           const actionValue = mapping[eventKey];
           if (!actionValue) continue;
+          // Hide 2×/3×/4×/5× rows that are just the 1× action with the
+          // matching multiplier suffix.
+          const _curId = (typeof actionValue === 'object' && actionValue) ? actionValue.action : actionValue;
+          if (isRedundantMultiplierRow(shortBaseId, actionType, _curId)) continue;
 
           const typeLabel = actionTypeShort[actionType] || actionType;
           const isMagic = actionValue === 'magic';
