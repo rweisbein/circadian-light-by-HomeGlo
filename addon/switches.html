@@ -1180,6 +1180,10 @@
 
         if (configRes.ok) {
           const config = await configRes.json();
+          // Shared helpers (e.g. getDefaultPauseDurationValue) look up
+          // window.cachedConfig — populate it here so the per-card pause
+          // duration label honors the HomeGlo Lab default.
+          window.cachedConfig = config;
           allGlozones = Object.entries(config.glozones || {}).map(([id, zone]) => ({
             id,
             name: zone.name || id,
@@ -1479,9 +1483,11 @@
           return c.status === 'not_configured';
         if (currentView === 'batteries')
           return c.battery != null && c.battery.value != null;
-        if (currentView === 'paused')
-          return !!c.inactive;
-        return true;  // ALL
+        // PAUSE mode now manages BOTH paused and active controls (via
+        // the Active|Paused sub-segment). Don't constrain the area
+        // dropdown to a single side — otherwise switching sub-views
+        // would lose areas that exist on the opposite side. All controls.
+        return true;
       };
       const matchingForView = controls.filter(viewMatches);
       const viewAreaSet = new Set(matchingForView.map(c => c.area_name).filter(Boolean));

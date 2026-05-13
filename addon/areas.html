@@ -3973,25 +3973,39 @@
     // Static and drag-preview share one format — numbers only. The mode
     // pill ("Tuning: Sun exposure") already names the axis, so repeating
     // "Sun" / "Balance" / "Baseline" per row was just noise.
-    function formatBreakdownNumbers(b) {
-      const op = b.delta > 0 ? '+' : '&minus;';
-      return `${b.baseline}% <strong class="tb-impact">${op} ${Math.abs(b.delta)}%</strong> &rarr; ${b.final}%`;
+    // Right-slot "current" formula:
+    //   current: 99% − 1% → 98%      (sun or balance dim)
+    //   current: 79% + 5% → 84%      (balance lift)
+    // Signed impact (sign + value) is bolded. Axis name is dropped — the
+    // page-level "Tuning: Sun exposure / Balance" pill already names what
+    // the slider controls, no need to repeat per row.
+    function formatBreakdownNowHtml(b) {
+      const isLift = b.delta > 0;
+      const op = isLift ? '+' : '&minus;';
+      const impactHtml = `<strong class="tb-impact">${op} ${Math.abs(b.delta)}%</strong>`;
+      return `<span class="tb-peak-label">current:</span> ${b.baseline}% ${impactHtml} &rarr; ${b.final}%`;
     }
-    const formatBreakdownLeft = formatBreakdownNumbers;
-    const formatBreakdownPreview = formatBreakdownNumbers;
+    // Keep legacy alias for any callers still using the old name.
+    const formatBreakdownLeft = formatBreakdownNowHtml;
+    const formatBreakdownPreview = formatBreakdownNowHtml;
+    const formatBreakdownNumbers = formatBreakdownNowHtml;
     // Peak-impact breakdown: what the formula would produce at the factor's
     // MAX effect. For Sun: outdoor at 100% (rhythm + current exposure stay).
     // For Balance: rhythm at 100% with no sun (so the factor is the only
     // multiplier acting on the bulb). Renders into the LEFT slot when the
     // slider is idle — the drag handler temporarily replaces it with the
     // live preview during drag, and refreshTuneRowDom restores it on release.
-    function computeTuneBreakdownPeak(area) {
+    function computeTuneBreakdownPeak(area, overrideValue) {
       const zoneName = area.zone_name || areaStatus[area.area_id]?.zone_name;
       const zs = zoneName ? zoneStates[zoneName] : null;
       const sensitivity = zs?.brightness_sensitivity ?? 1.0;
       const t = getAreaTune(area.area_id);
-      const factor = t.brightness_factor;
-      const exposure = t.natural_light_exposure;
+      let factor = t.brightness_factor;
+      let exposure = t.natural_light_exposure;
+      if (overrideValue != null) {
+        if (homePillMode === 'sun') exposure = overrideValue;
+        else factor = overrideValue;
+      }
       let baseline, withAll, axis;
       if (homePillMode === 'sun') {
         const rhythmBri = zs?.brightness ?? 50;
@@ -4000,7 +4014,15 @@
         withAll = computeNowBri(rhythmBri, factor, exposure, peakOutdoor, sensitivity);
         axis = 'Sun';
       } else {
-        const rhythmBri = 100;
+        // Balance peak:
+        //   Dim  (factor < 1): peak impact at rhythm = 100 (max rhythm
+        //                       = biggest dim delta; bulb falls from 100).
+        //   Lift (factor > 1): peak impact at rhythm = 100/factor —
+        //                       below that the factor's headroom isn't
+        //                       fully expressed; above that the bulb
+        //                       clamps to 100% and the lift vanishes.
+        const isLift = factor > 1.0;
+        const rhythmBri = isLift ? (100 / factor) : 100;
         const noSun = 0;
         baseline = computeNowBri(rhythmBri, 1.0, exposure, noSun, sensitivity);
         withAll = computeNowBri(rhythmBri, factor, exposure, noSun, sensitivity);
@@ -4008,9 +4030,13 @@
       }
       return { baseline, delta: withAll - baseline, final: withAll, axis };
     }
-    function formatBreakdownPeakHtml(area) {
-      const b = computeTuneBreakdownPeak(area);
-      return '<span class="tb-peak-label">peak</span> ' + formatBreakdownNumbers(b);
+    function formatBreakdownPeakHtml(area, overrideValue) {
+      const b = computeTuneBreakdownPeak(area, overrideValue);
+      // Peak slot shows just the signed impact (e.g. "-15%"). The "now"
+      // formula on the right gives the full breakdown.
+      const sign = b.delta > 0 ? '+' : '−';
+      return '<span class="tb-peak-label">peak</span> '
+        + `<strong class="tb-impact">${sign}${Math.abs(b.delta)}%</strong>`;
     }
     function getTuneImpactHtml(area) {
       const b = computeTuneBreakdown(area);
@@ -4415,10 +4441,15 @@
         const delta = f - 1.0;
         if (Math.abs(delta) < 0.02) return off;
         const intensity = Math.min(1, Math.abs(delta) / 0.40);
-        const color = `rgba(230, 170, 80, ${intensity.toFixed(3)})`;
-        return delta < 0
-          ? { left: color, right: 'transparent' }  // dim → left
-          : { left: 'transparent', right: color }; // lift → right
+        // Hue carries direction: amber = dim (warm = less light), cool
+        // blue = lift (cool = more light). Both stripes live on the LEFT
+        // edge — position-as-direction was a redundant signal now that
+        // color does that job, and consistency on the left makes the
+        // home page scan cleanly.
+        const color = delta < 0
+          ? `rgba(230, 170, 80, ${intensity.toFixed(3)})`
+          : `rgba(120, 170, 230, ${intensity.toFixed(3)})`;
+        return { left: color, right: 'transparent' };
       }
       return off;
     }
@@ -4452,7 +4483,8 @@
         return 'linear-gradient(90deg, rgba(0,0,0,0.40) 0%, rgba(230,170,80,0.85) 66.7%, rgba(230,170,80,0.85) 100%)';
       }
       if (mode === 'balance') {
-        return 'linear-gradient(90deg, rgba(230,170,80,0.85) 0%, rgba(0,0,0,0.40) 50%, rgba(230,170,80,0.85) 100%)';
+        // Divergent hue: amber-on-left (dim) → neutral-middle → blue-on-right (lift).
+        return 'linear-gradient(90deg, rgba(230,170,80,0.85) 0%, rgba(0,0,0,0.40) 50%, rgba(120,170,230,0.85) 100%)';
       }
       if (mode === 'bed' || mode === 'wake') {
         return buildPhaseGradient(area);
@@ -4890,19 +4922,27 @@ function updateSliderFill(el) {
       return Math.max(0, Math.min(100, (e.clientX - rect.left) / rect.width * 100));
     }
 
-    // Tune-mode drag preview: right-aligned slot on row 3 shows the candidate
-    // value's delta + predicted final while the slider is being dragged.
+    // Tune-mode drag preview: both LEFT (peak with candidate) and RIGHT
+    // (now-formula with candidate) update live as the slider moves.
     function updateTunePreview(areaId, candidateValue) {
       const el = document.querySelector(`[data-tune-preview="${areaId}"]`);
       if (!el) return;
       const area = areas.find(a => a.area_id === areaId);
       if (!area) return;
       const merged = { ...area, ...(areaStatus[areaId] || {}) };
-      const b = computeTuneBreakdown(merged, candidateValue);
-      el.innerHTML = formatBreakdownPreview(b);
+      // LEFT: peak impact recomputed with the candidate value.
+      el.innerHTML = formatBreakdownPeakHtml(merged, candidateValue);
+      // Single row lookup used by both the RIGHT static formula update
+      // and the left-edge stripe.
+      const row = el.closest('.area-row');
+      // RIGHT: "now" formula recomputed with the candidate.
+      const staticEl = row ? row.querySelector('.tb-static') : null;
+      if (staticEl) {
+        const b = computeTuneBreakdown(merged, candidateValue);
+        staticEl.innerHTML = formatBreakdownNowHtml(b);
+      }
       // Real-time left-edge stripe: recompute as the slider moves so the
       // visual color cue tracks the candidate value, not the saved one.
-      const row = el.closest('.area-row');
       if (row) {
         const stripe = getTuneStripeColor({ area_id: areaId }, candidateValue);
         row.style.setProperty('--tune-stripe-left', stripe.left);

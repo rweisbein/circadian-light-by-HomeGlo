@@ -8081,8 +8081,96 @@ async def async_main():
             await webserver_runner.cleanup()
 
 
+def _enforce_singleton():
+    """Refuse to start if another instance is already running.
+
+    Background: a stale `python main.py` left running for days (with its
+    own in-memory state and a live HA WebSocket) silently fought current
+    local + HA dev addon for control of bulbs. The ghost has no visible
+    UI (port 8099 is bound by the most recent process), so it can only
+    be discovered via `ps aux | grep main.py`.
+
+    Mechanism: write our PID to `.data/main.pid` on startup. On every
+    startup, check if the file exists AND the PID is alive. If so, abort
+    with a clear message instead of racing.
+
+    Caveats:
+    - On Linux/Mac, `os.kill(pid, 0)` raises if the process is dead; we
+      treat that as a stale PID file and overwrite.
+    - HA addon containers single-process per container — this check is
+      cheap there too and protects against the rare Docker
+      restart-on-failure-but-old-process-still-finishing edge case.
+    """
+    import os
+    import sys
+    import atexit
+    import signal
+    import state
+
+    # Resolve to the same directory state uses, so the PID file lives
+    # alongside other runtime state (cleaned up with .data wipes etc).
+    state_init_kwargs = {}
+    if not state._state_file_path:  # type: ignore[attr-defined]
+        # Run init now so _get_data_directory() resolution matches.
+        state.init(**state_init_kwargs)
+    pid_dir = os.path.dirname(state._state_file_path)  # type: ignore[attr-defined]
+    pid_path = os.path.join(pid_dir, "main.pid")
+
+    if os.path.exists(pid_path):
+        try:
+            with open(pid_path, "r") as f:
+                other_pid = int(f.read().strip())
+        except (ValueError, OSError):
+            other_pid = None
+        if other_pid:
+            alive = True
+            try:
+                os.kill(other_pid, 0)  # signal 0 = check existence
+            except OSError:
+                alive = False
+            if alive and other_pid != os.getpid():
+                print(
+                    f"\n[singleton] Another circadian_light instance is already running "
+                    f"(PID {other_pid}).\n"
+                    f"[singleton] Kill it first:  kill {other_pid}\n"
+                    f"[singleton] Or force-kill all main.py:  pkill -f 'python main.py'\n"
+                    f"[singleton] PID file: {pid_path}\n",
+                    file=sys.stderr,
+                )
+                sys.exit(2)
+
+    # Write our PID
+    try:
+        with open(pid_path, "w") as f:
+            f.write(str(os.getpid()))
+    except OSError as e:
+        # Non-fatal — log but continue (better to run without the guard
+        # than to refuse startup because /data is read-only or similar).
+        print(f"[singleton] Warning: could not write PID file {pid_path}: {e}", file=sys.stderr)
+        return
+
+    def _cleanup():
+        try:
+            if os.path.exists(pid_path):
+                with open(pid_path, "r") as f:
+                    if f.read().strip() == str(os.getpid()):
+                        os.unlink(pid_path)
+        except OSError:
+            pass
+    atexit.register(_cleanup)
+    # Also clean up on SIGTERM (Supervisor stop). SIGINT (Ctrl-C) is
+    # already handled by main()'s KeyboardInterrupt catch, which calls
+    # atexit handlers on the way out.
+    try:
+        signal.signal(signal.SIGTERM, lambda *_: (_cleanup(), sys.exit(0)))
+    except (ValueError, OSError):
+        # Not on main thread or sigterm not supported — skip.
+        pass
+
+
 def main():
     """Main entry point."""
+    _enforce_singleton()
     try:
         asyncio.run(async_main())
     except KeyboardInterrupt:

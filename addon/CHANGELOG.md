@@ -1,5 +1,28 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.313
+- **PID singleton on startup** (`main.py:_enforce_singleton`): if `.data/main.pid` points to a live PID, refuse to start with a clear `kill {PID}` message. Prevents the orphan-Python-process state-file race that caused multiple ghost instances to silently fight bulbs over days. SIGTERM + atexit clean up the PID file on graceful shutdown. HA addon containers (supervisor-managed, one container) get the check for free — protects against rare Docker restart-on-failure overlap. Memory: `reference_ghost_process_state_race.md`.
+- **Controls PAUSE follow-ups**:
+  - Lab setting `default_pause_duration_minutes` now actually saves — missed an event listener on the `<select>` (settings.html). Auto-saves on `change`.
+  - `window.cachedConfig` populated on the Controls page so `getDefaultPauseDurationValue()` reads the Lab default instead of falling back to 4h.
+  - Area filter dropdown in PAUSE mode no longer narrows to "areas with paused controls" — it now lists every area, since PAUSE mode manages both Active and Paused via the sub-segment.
+  - Quick-pause + quick-unpause endpoint lookup made permissive on the backend: `switches.set_pause` checks both storage-key and `.device_id` across switches/motion/contact. Frontend also resolves the right key per category (motion/contact/camera use `device_id`, switches use `id`) — was 404'ing for sensors.
+  - Card spacing fixed: `.ctrl-pause-action` switched to `row-reverse` flex so the toggle + duration label fit one row's height instead of stacking.
+  - PAUSE mode no longer sorts/groups by pause-state (was causing flipped cards to jump). Snapshot captures alpha-sorted order on entry; later renders preserve that order. Flipped cards stay in place with reduced opacity (0.7) + a subtle left-edge marker — no more "disappeared" feel.
+  - Slide-style toggle (iOS-look) replaces the pause/play SVG icons. ON (paused) lights amber, OFF (running) dim. `aria-pressed` reflects state.
+  - Click-on-toggle no longer navigates to control detail — row's `onclick` now guards against `.ctrl-pause-action` descendants via `onCardRowClick`.
+  - Forever / Scheduled headers in the Paused sub-view → collapsible (same bucket pattern as Recent / Battery).
+  - Reach buckets (Reach 1 / Reach 2+ / Presence / Alert / Doesn't reach) now also fire in PAUSE mode when an area filter is active.
+- **Controls list last-activity stamp** in column 1 under the pulse dot. Today: `8:05p`. 1-9d: `3d` + time (two lines, smaller for the time). 10-99d: `23d`. 100+d: `5/4`. Column 1 widened 16px → 36px; pulse cell spans both grid rows.
+- **Toned-down pulse-dot glow** on recent controls — softer two-stop halo, tighter breathe scale.
+- **Home page tune row**:
+  - Row 3 LEFT = `peak ±X%` (signed impact only) — live-updates during drag against the candidate value.
+  - Row 3 RIGHT = `current: B% ±I% → F%` — also live-updates during drag. Both sides recompute per pointermove. Signed impact (`±I%`) is bolded on both sides.
+  - Peak math for balance lift fixed: was anchored to `rhythm=100` for all balance, which clamped the bulb to 100 and yielded `peak +0%` at Max. Now lift uses `rhythm = 100/factor` so the factor's headroom is fully expressed. Max-lift (factor 1.40) now reads `peak +29%`.
+  - Balance edge-stripe: cool-blue for lift (vs amber for dim). Both stripes land on the LEFT edge — hue alone carries direction, position no longer reused as a second signal. Slider track gradient: amber-left → neutral-mid → blue-right.
+  - Row update on tune save is now surgical (`refreshTuneRowDom`) — stripe, readout, both row-3 slots refresh from the optimistic cache update on slider release instead of waiting the 400ms refetch.
+  - Single-process-only fix on local: tune-save no longer flips back due to a ghost addon's stale state.
+
 ## 1.2.312
 - **Pause-mode quick toggle** (`PAUSE` view on Controls page). Replaces the old read-only PAUSED view. Sub-segment `Active | Paused` flips between currently-running and currently-paused controls. Per-card right side: iOS-style slide switch + clickable duration label. Tap toggle → pauses or resumes via lightweight `POST /api/controls/{id}/pause` (no full-config round-trip). Tap duration → opens the global duration picker. Sticky list snapshot keeps flipped cards in place (subtle dim + left-edge marker so they read as "still here, you flipped this," not "gone"). Order frozen at snapshot capture — no pause-state sort, no Scheduled/Forever grouping in the no-area-filter case (kept jumping cards). Area-filtered PAUSE mode still uses the 5-bucket reach grouping.
 - **Backend pause auto-expiry**: previously, controls paused with a timer never auto-resumed when the timer passed — UI showed "paused · expired" indefinitely. Fixed in two layers:
