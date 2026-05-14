@@ -380,10 +380,12 @@
       --row-fill: 0;
       display: flex;
       align-items: stretch;
-      /* Left padding bumped vs right so rooms read as nested under
-         their zone header (typography + indent together carry the
-         "zone contains areas" hierarchy). */
-      padding: 6px 8px 6px 16px;
+      /* Symmetric 8px L/R padding so the power button column lines up with
+         the off-row power buttons (same padding-left as .area-row-off) and
+         the middle column gets 8px more breathing room for chips/pills.
+         The .zone-content panel border + zone-header already convey "rooms
+         nested under zone" — extra row indent was redundant. */
+      padding: 6px 8px;
       gap: 8px;
       background: var(--row-bg);
       color: var(--row-text);
@@ -403,6 +405,38 @@
 
     .area-row:last-child {
       border-bottom: none;
+    }
+    /* First row in a regular zone needs extra top breathing room — its only
+       visual separator from the zone-header above is the header's 1px
+       border, which disappears when row + header tints are similar. On-rows
+       get a larger bump (full-layout content sits high), off-rows get a
+       smaller one (compact layout already short). Upcoming + Off pseudo-
+       zones are excluded via the `__` prefix on data-zone-table — those
+       groups want their compact rows untouched. */
+    /* Breathing room between zone header and first row — applied to the
+       zone-content container so all rows stay uniform height (no asymmetric
+       row padding). Excludes the Upcoming + Off pseudo-zones, which want
+       their compact rows flush to the header.
+       First zone in the page gets a stronger bump (no zone-group margin
+       above it to provide visual isolation, so its header feels tighter
+       against its first row). */
+    .zone-content:not([data-zone-table^="__"]) {
+      padding-top: 4px;
+    }
+    /* First zone in the page sits right after .home-sticky-top — gets a
+       stronger top-padding bump so its first row has breathing room from
+       the sticky toolbar. Adjacent-sibling combinator picks the .zone-group
+       immediately after .home-sticky-top; nested .zone-group children of
+       other parents won't match. */
+    .home-sticky-top + .zone-group .zone-content:not([data-zone-table^="__"]) {
+      padding-top: 10px;
+    }
+    /* On-row first-child gets additional padding on the ROW because the
+       full-layout content (name + slider + chevrons) sits high in the row.
+       The 6px container padding + 10px row padding-top = 16px effective
+       gap, which previously read well. */
+    .zone-content:not([data-zone-table^="__"]) > .area-row:not(.area-row-off):first-child {
+      padding-top: 10px;
     }
 
     .area-row:hover {
@@ -2326,17 +2360,17 @@
     function computeRoomsOnText() {
       const list = areas || [];
       if (!list.length) return '…';
-      // Tune mode is about persistent per-area settings; the on/off active
-      // count isn't meaningful here. Just show the total.
-      if (isTuneMode(homePillMode)) {
+      // Tune + Organize: on/off isn't the unit of meaning; show the total.
+      if (isTuneMode(homePillMode) || currentMode === 'organize') {
         return `${list.length} area${list.length === 1 ? '' : 's'}`;
       }
+      // Adjust modes: how many rooms are currently on.
       let onCount = 0;
       for (const a of list) {
         const s = areaStatus[a.area_id] || {};
         if (s.is_on && s.is_circadian !== false) onCount++;
       }
-      return onCount === 0 ? 'All off' : `${onCount} of ${list.length} active`;
+      return onCount === 0 ? 'All off' : `${onCount} on`;
     }
     function refreshRoomsOnCount() {
       const el = document.getElementById('rooms-on-count');
@@ -2367,12 +2401,17 @@
     // on each re-attach to skip the fetch. The shared module-scope poll
     // timer handles true-source freshness (cachedConfig.outdoor_refresh_interval).
     function attachSunIntensity() {
+      // Detach any prior controller first — the pill is mode-conditional
+      // (suppressed in Balance + Organize), so a re-render may have removed
+      // the trigger entirely. Keeping a controller bound to a missing DOM
+      // node leaks the polling timer.
+      if (_sunIntensityCtrl && typeof _sunIntensityCtrl.detach === 'function') {
+        _sunIntensityCtrl.detach();
+        _sunIntensityCtrl = null;
+      }
       const trigger = document.getElementById('home-sun-pill');
       const pop = document.getElementById('home-sun-popover');
       if (!trigger || !pop || !window.SunIntensity) return;
-      if (_sunIntensityCtrl && typeof _sunIntensityCtrl.detach === 'function') {
-        _sunIntensityCtrl.detach();
-      }
       _sunIntensityCtrl = SunIntensity.attach(trigger, pop, {
         initialData: _cachedOutdoorData,
         pollIntervalSeconds: cachedConfig?.outdoor_refresh_interval || 60,
@@ -3306,8 +3345,8 @@
         ? 'organize'
         : (viewMode === 'onoff' ? 'onoff' : 'home');
       const VIEWS = [
-        { value: 'onoff',    label: 'Active' },
-        { value: 'home',     label: 'All' },
+        { value: 'onoff',    label: 'On/Off' },
+        { value: 'home',     label: 'Zone' },
       ];
       // Phase 3: in Tune modes, segmented bar becomes Area / <Sun exposure | Balance> sort.
       const inTune = isTuneMode(homePillMode);
@@ -3371,6 +3410,17 @@
       // Status line: rooms-on count + sun pill. Numbers/values filled by refreshHomeStatus().
       // Wrapped in .home-sticky-top so the title, status, mode pill, and view
       // segments stay pinned beneath the nav as the user scrolls.
+      // Sun pill is suppressed in Balance (the "lift/dim" axis isn't tied to
+      // sun-driven dimming) and in Organize mode (irrelevant to reordering).
+      // All other modes show it — including Sun mode itself.
+      const showSunPill = homePillMode !== 'balance' && currentMode !== 'organize';
+      const sunPillHtml = showSunPill ? `
+        <button type="button" class="outdoor-chip" id="home-sun-pill" aria-expanded="false" title="Sun intensity">
+          <span class="outdoor-chip-icon" id="home-sun-icon" data-sun-icon style="${sunIconStyleString(_cachedSunPct)}">☀</span>
+          <span id="home-sun-pct" data-sun-pct>${cachedSunPctText()}</span>
+        </button>
+        <div class="outdoor-chip-popover" id="home-sun-popover" hidden></div>
+      ` : '';
       let html = `
         <div class="home-sticky-top">
           <!-- Row 1: home name (L) · mode pill (R) — identity + action -->
@@ -3379,23 +3429,16 @@
             <span class="home-row-spacer"></span>
             ${modePillHtml}
           </div>
-          <!-- Row 2: sun intensity (L) — environment -->
-          <div class="home-row home-row-2">
-            <button type="button" class="outdoor-chip" id="home-sun-pill" aria-expanded="false" title="Sun intensity">
-              <span class="outdoor-chip-icon" id="home-sun-icon" data-sun-icon style="${sunIconStyleString(_cachedSunPct)}">☀</span>
-              <span id="home-sun-pct" data-sun-pct>${cachedSunPctText()}</span>
-            </button>
-            <div class="outdoor-chip-popover" id="home-sun-popover" hidden></div>
-            <span class="home-row-spacer"></span>
-          </div>
-          <!-- Row 3: list controls (L) · count (R) — content scope -->
+          <!-- Row 2: list controls (L) · sun pill (R) — content scope + environment -->
+          <!-- Area count only shown in Organize mode (matches the zone-header counts). -->
           <div class="home-row home-row-3">
             <span class="seg-label">${inTune ? 'sort' : 'view'}</span>
             <div class="view-segments-bar" id="home-view-segments" role="tablist" title="Page mode">
               ${segmentsHtml}
             </div>
             <span class="home-row-spacer"></span>
-            <span class="rooms-on-count" id="rooms-on-count">${computeRoomsOnText()}</span>
+            ${sunPillHtml}
+            ${currentMode === 'organize' ? `<span class="rooms-on-count" id="rooms-on-count">${computeRoomsOnText()}</span>` : ''}
           </div>
         </div>
       `;
@@ -3653,12 +3696,50 @@
           `;
         }
 
-        // Empty state: no on rooms AND no upcoming.
-        if (onAreas.length === 0 && upcomingAreas.length === 0) {
+        // Off section — flat list of off rooms with no upcoming schedule,
+        // sorted by user's custom area arrangement across all zones (walk
+        // zones in glozone order, walk areas within each zone in custom
+        // order, then unassigned). Independent collapsible header from
+        // Upcoming so the two persist separately.
+        const offAreas = filtered.filter(a => !isEffectivelyOn(a) && !hasUpcoming(a));
+        if (offAreas.length > 0) {
+          const gzZonesObj = cachedGlozones?.zones || {};
+          const orderIndex = new Map();
+          let _ord = 0;
+          for (const zn of Object.keys(gzZonesObj)) {
+            const ids = (gzZonesObj[zn].areas || []).map(a => typeof a === 'object' ? a.id : a);
+            for (const id of ids) orderIndex.set(id, _ord++);
+          }
+          const offSorted = [...offAreas].sort((a, b) => {
+            const ai = orderIndex.has(a.area_id) ? orderIndex.get(a.area_id) : 9999;
+            const bi = orderIndex.has(b.area_id) ? orderIndex.get(b.area_id) : 9999;
+            return ai - bi;
+          });
+          const offCollapsed = collapsedState['__off__'] || false;
+          html += `
+            <div class="zone-group">
+              <div class="zone-header upcoming-header ${offCollapsed ? 'collapsed' : ''}" data-zone="__off__" onclick="event.stopPropagation(); toggleZone('__off__', this)" title="${offCollapsed ? 'Expand' : 'Collapse'}">
+                <span class="zone-chevron-big-tap"><span class="zone-chevron-big">&#x203A;</span></span>
+                <div class="zone-name-group">
+                  <span style="display: inline-flex; align-items: baseline; gap: 6px;">
+                    <span class="zone-rhythm-link">Off</span>
+                    <span class="zone-count">(${offSorted.length})</span>
+                  </span>
+                </div>
+              </div>
+              <div class="zone-content ${offCollapsed ? 'hidden' : ''}" data-zone-table="__off__">
+                ${offSorted.map(area => renderAreaRow(area)).join('')}
+              </div>
+            </div>
+          `;
+        }
+
+        // Empty state: no on rooms AND no upcoming AND no off (i.e., no areas).
+        if (onAreas.length === 0 && upcomingAreas.length === 0 && offAreas.length === 0) {
           html += `
             <div style="text-align: center; padding: 48px 24px; color: var(--muted);">
-              All rooms off, nothing scheduled.<br>
-              <span style="font-size: 0.85rem;">Switch to <b>All</b> to see every room.</span>
+              No rooms.<br>
+              <span style="font-size: 0.85rem;">Switch to <b>Zone</b> to see every room.</span>
             </div>
           `;
         }

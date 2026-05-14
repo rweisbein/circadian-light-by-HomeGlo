@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Area Detail — Mock</title>
+  <style>
+    :root {
+      --bg: #000;
+      --panel: #111;
+      --card: #1a1a1a;
+      --line: rgba(255,255,255,0.10);
+      --text: #fff;
+      --muted: rgba(255,255,255,0.55);
+      --muted2: rgba(255,255,255,0.40);
+      --accent: #FEAC60;
+      --accent-soft: rgba(254, 172, 96, 0.20);
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Helvetica, Arial, sans-serif;
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+    }
+    .nav {
+      background: #000;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      gap: 24px;
+      align-items: center;
+      font-weight: 600;
+    }
+    .nav a {
+      color: var(--muted);
+      text-decoration: none;
+    }
+    .nav a.active { color: var(--text); }
+    .main {
+      max-width: 750px;
+      margin: 0 auto;
+      padding: 0 16px 32px;
+    }
+
+    /* =========================================================================
+       HEADER — the focus of this mock
+       ========================================================================= */
+    .area-header {
+      /* Bulb-state tint: this var is what would be computed from current bri × CCT.
+         Hardcoded warm-yellow here as if room is ~70%, ~3200K. */
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.05), rgba(0,0,0,0.10)),
+        #c89a5e;
+      color: #1a1a1a;
+      padding: 14px 16px 12px;
+      border-radius: 0 0 14px 14px;
+      margin: 0 -16px 16px;
+    }
+    /* Variant: lights off → neutral panel */
+    .area-header.lights-off {
+      background: var(--panel);
+      color: var(--text);
+    }
+
+    /* ─── Row 1: identity ─── */
+    .ah-row1 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 28px;
+    }
+    .ah-back {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.15);
+      color: inherit;
+      font-size: 14px;
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+    .area-header.lights-off .ah-back { background: rgba(255,255,255,0.08); }
+    .ah-name {
+      font-size: 1.6rem;
+      font-weight: 700;
+      line-height: 1.1;
+      flex-shrink: 0;
+    }
+    .ah-breadcrumb {
+      font-size: 0.85rem;
+      font-weight: 500;
+      opacity: 0.65;
+      text-decoration: none;
+      color: inherit;
+      white-space: nowrap;
+    }
+    .ah-breadcrumb::before { content: 'in '; opacity: 0.65; }
+    .ah-breadcrumb::after  { content: ' →'; }
+    .ah-row1-spacer { flex: 1 1 auto; }
+
+    /* Sun pill (top-right of row 1) — same pattern as home page */
+    .ah-sun {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 14px;
+      background: rgba(0,0,0,0.20);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .area-header.lights-off .ah-sun { background: rgba(255,255,255,0.08); }
+
+    /* ─── Row 2: state ─── */
+    .ah-row2 {
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+      margin-top: 8px;
+      min-height: 28px;
+    }
+    .ah-state-bri {
+      font-size: 1.3rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    .ah-state-sep {
+      opacity: 0.35;
+      font-size: 1rem;
+      margin: 0 2px;
+    }
+    .ah-state-ct {
+      font-size: 1.3rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    /* State chips (fade animations etc.) flow directly after CT — small gap,
+       not pushed to the far right. All three (bri · CT · chip) cluster on the left. */
+    .ah-state-chips {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      margin-left: 10px;
+    }
+    .ah-state-chips:empty { margin-left: 0; }
+    .ah-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 3px 8px;
+      border-radius: 10px;
+      background: rgba(0,0,0,0.20);
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .area-header.lights-off .ah-chip { background: rgba(255,255,255,0.08); }
+    .ah-chip-arrow {
+      font-size: 0.7rem;
+      opacity: 0.7;
+    }
+
+    /* ─── Row 3: actions ─── */
+    .ah-row3 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-top: 14px;
+    }
+    .ah-action {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 4px;
+      border-radius: 10px;
+    }
+    /* Inverted fills encode state: white = on, black = off. Both stand out
+       on any header tint (warm-yellow, dark-neutral, cool-blue). Predictable
+       polarity — "lit up" reads as white, "not lit" reads as black. */
+    .ah-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 22px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: #1a1a1a;
+      color: rgba(255,255,255,0.75);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+      transition: background 0.15s, color 0.15s;
+    }
+    .ah-btn:hover {
+      background: #2a2a2a;
+      color: #fff;
+    }
+    .ah-btn.is-on {
+      background: #fff;
+      color: #1a1a1a;
+      border-color: rgba(0,0,0,0.25);
+    }
+    .ah-btn.is-on:hover { background: rgba(255,255,255,0.92); }
+    .ah-btn svg {
+      width: 20px;
+      height: 20px;
+    }
+    .ah-subline {
+      font-size: 0.72rem;
+      font-weight: 500;
+      opacity: 0.70;
+      min-height: 14px;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .ah-subline.is-blank { opacity: 0; cursor: default; }
+
+    /* =========================================================================
+       Cards below — sketched as bars, focus is the header
+       ========================================================================= */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+    }
+    .card-header .chev {
+      opacity: 0.5;
+      font-size: 0.9rem;
+    }
+    .card-header .right {
+      font-size: 0.85rem;
+      opacity: 0.7;
+      font-weight: 500;
+    }
+    .card-body {
+      padding: 0 16px 14px;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+    .card.open .card-body { display: block; }
+    .card:not(.open) .card-body { display: none; }
+
+    /* Adjust card — with divergence display */
+    .adjust-divergence {
+      background: rgba(254, 172, 96, 0.08);
+      border: 1px solid rgba(254, 172, 96, 0.30);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      font-size: 0.82rem;
+      color: var(--text);
+    }
+    .adjust-divergence b { color: var(--accent); }
+    .adjust-divergence small {
+      display: block;
+      margin-top: 4px;
+      opacity: 0.7;
+      font-size: 0.75rem;
+    }
+
+    /* Variant labels */
+    .variant-label {
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin: 24px 0 8px;
+      padding-left: 4px;
+    }
+    .variant-label:first-child { margin-top: 0; }
+    .variant-label small {
+      display: inline-block;
+      margin-left: 6px;
+      opacity: 0.6;
+      font-weight: 400;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="nav">
+  <a href="#" class="active">Home</a>
+  <a href="#">Controls</a>
+  <a href="#">Magic</a>
+  <a href="#">Settings</a>
+</div>
+
+<div class="main">
+
+<!-- ============================================================
+     VARIANT 1: Lights on, nothing active, scheduled off later
+     ============================================================ -->
+<div class="variant-label">Variant 1 <small>· lights on, no active timer, scheduled off later</small></div>
+
+<div class="area-header">
+  <!-- Row 1: identity -->
+  <div class="ah-row1">
+    <a href="#" class="ah-back" title="Back">←</a>
+    <span class="ah-name">Entry</span>
+    <a href="#" class="ah-breadcrumb">Main</a>
+    <span class="ah-row1-spacer"></span>
+    <button class="ah-sun" title="Sun intensity">
+      <span>☀</span><span>96%</span>
+    </button>
+  </div>
+
+  <!-- Row 2: state — bri% · CT  [chips on right] -->
+  <div class="ah-row2">
+    <span class="ah-state-bri">70%</span>
+    <span class="ah-state-sep">·</span>
+    <span class="ah-state-ct">3200K</span>
+    <span class="ah-state-chips"><!-- empty --></span>
+  </div>
+
+  <!-- Row 3: Power · Freeze · Boost · Circadian -->
+  <div class="ah-row3">
+    <div class="ah-action">
+      <button class="ah-btn is-on" title="Power">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/></svg>
+      </button>
+      <span class="ah-subline" title="Tap to view schedule">▼ 10p</span>
+    </div>
+    <div class="ah-action">
+      <button class="ah-btn" title="Freeze">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><line x1="19.07" y1="4.93" x2="4.93" y2="19.07"/></svg>
+      </button>
+      <span class="ah-subline is-blank">&nbsp;</span>
+    </div>
+    <div class="ah-action">
+      <button class="ah-btn" title="Boost">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      </button>
+      <span class="ah-subline is-blank">&nbsp;</span>
+    </div>
+    <div class="ah-action">
+      <button class="ah-btn is-on" title="Circadian">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      </button>
+      <span class="ah-subline is-blank">&nbsp;</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     VARIANT 2: Lights on, motion timer active, freeze for 1h
+     ============================================================ -->
+<div class="variant-label">Variant 2 <small>· motion countdown active, freeze for 1h, boost active</small></div>
+
+<div class="area-header">
+  <div class="ah-row1">
+    <a href="#" class="ah-back" title="Back">←</a>
+    <span class="ah-name">Kitchen</span>
+    <a href="#" class="ah-breadcrumb">Main</a>
+    <span class="ah-row1-spacer"></span>
+    <button class="ah-sun"><span>☀</span><span>96%</span></button>
+  </div>
+
+  <div class="ah-row2">
+    <span class="ah-state-bri">85%</span>
+    <span class="ah-state-sep">·</span>
+    <span class="ah-state-ct">4100K</span>
+    <span class="ah-state-chips"><!-- empty: motion is active but lives in Power sub-line --></span>
+  </div>
+
+  <div class="ah-row3">
+    <div class="ah-action">
+      <button class="ah-btn is-on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/></svg></button>
+      <span class="ah-subline" title="Tap to change timer">12m</span>
+    </div>
+    <div class="ah-action">
+      <button class="ah-btn is-on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><line x1="19.07" y1="4.93" x2="4.93" y2="19.07"/></svg></button>
+      <span class="ah-subline" title="Tap to change duration">1h</span>
+    </div>
+    <div class="ah-action">
+      <button class="ah-btn is-on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></button>
+      <span class="ah-subline" title="Tap to change boost">2m</span>
+    </div>
+    <div class="ah-action">
+      <button class="ah-btn is-on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></button>
+      <span class="ah-subline is-blank">&nbsp;</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     VARIANT 3: Lights off, scheduled on, fade-in NOT running
+     ============================================================ -->
+<div class="variant-label">Variant 3 <small>· lights off, scheduled on tomorrow morning</small></div>
+
+<div class="area-header lights-off">
+  <div class="ah-row1">
+    <a href="#" class="ah-back" title="Back">←</a>
+    <span class="ah-name">Linen Big</span>
+    <a href="#" class="ah-breadcrumb">Main</a>
+    <span class="ah-row1-spacer"></span>
+    <button class="ah-sun"><span>☀</span><span>96%</span></button>
+  </div>
+
+  <div class="ah-row2">
+    <span class="ah-state-bri" style="opacity:0.5;">off</span>
+    <span class="ah-state-chips"></span>
+  </div>
+
+  <div class="ah-row3">
+    <div class="ah-action">
+      <button class="ah-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/></svg></button>
+      <span class="ah-subline" title="Tap to view schedule">▲ 7a</span>
+    </div>
+    <div class="ah-action">
+      <button class="ah-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><line x1="19.07" y1="4.93" x2="4.93" y2="19.07"/></svg></button>
+      <span class="ah-subline is-blank">&nbsp;</span>
+    </div>
+    <div class="ah-action">
+      <button class="ah-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></button>
+      <span class="ah-subline is-blank">&nbsp;</span>
+    </div>
+    <div class="ah-action">
+      <button class="ah-btn is-on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></button>
+      <span class="ah-subline is-blank">&nbsp;</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     VARIANT 4: Fade-out animation running (chip in Row 2 + timer in Power sub-line)
+     ============================================================ -->
+<div class="variant-label">Variant 4 <small>· fading out — Row 2 chip + Power sub-line timer (same countdown, two roles)</small></div>
+
+<div class="area-header">
+  <div class="ah-row1">
+    <a href="#" class="ah-back" title="Back">←</a>
+    <span class="ah-name">Living</span>
+    <a href="#" class="ah-breadcrumb">Main</a>
+    <span class="ah-row1-spacer"></span>
+    <button class="ah-sun"><span>☀</span><span>96%</span></button>
+  </div>
+
+  <div class="ah-row2">
+    <span class="ah-state-bri">45%</span>
+    <span class="ah-state-sep">·</span>
+    <span class="ah-state-ct">2800K</span>
+    <span class="ah-state-chips">
+      <span class="ah-chip"><span class="ah-chip-arrow">▼</span> 4m</span>
+    </span>
+  </div>
+
+  <div class="ah-row3">
+    <div class="ah-action">
+      <button class="ah-btn is-on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/></svg></button>
+      <span class="ah-subline">4m</span>
+    </div>
+    <div class="ah-action">
+      <button class="ah-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/><line x1="19.07" y1="4.93" x2="4.93" y2="19.07"/></svg></button>
+      <span class="ah-subline is-blank">&nbsp;</span>
+    </div>
+    <div class="ah-action">
+      <button class="ah-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></button>
+      <span class="ah-subline is-blank">&nbsp;</span>
+    </div>
+    <div class="ah-action">
+      <button class="ah-btn is-on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></button>
+      <span class="ah-subline is-blank">&nbsp;</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     Cards below header (variant 1 layout, sketched)
+     ============================================================ -->
+<div class="variant-label">Cards (collapsed, in proposed order)</div>
+
+<div class="card open">
+  <div class="card-header"><span><span class="chev">▼</span> Adjust</span><span class="right">25% · 5404K</span></div>
+  <div class="card-body">
+    <div class="adjust-divergence">
+      <b>This area diverges from rhythm</b>
+      <small>+10% brighter · −200K warmer · bed shifted to 8:16p</small>
+    </div>
+    <p style="margin:0;">Brightness / color / wake sliders would live here, with the divergence card above as the persistent reminder of "what's off-rhythm in this area".</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><span><span class="chev">›</span> Tune</span><span class="right">Bright · Subtle 0.95×</span></div>
+</div>
+
+<div class="card">
+  <div class="card-header"><span><span class="chev">›</span> Schedule</span><span class="right">on 7a · off 10p</span></div>
+</div>
+
+<div class="card">
+  <div class="card-header"><span><span class="chev">›</span> Controls</span><span class="right">11</span></div>
+</div>
+
+<div class="card">
+  <div class="card-header"><span><span class="chev">›</span> Lights</span><span class="right">1</span></div>
+</div>
+
+<div class="card">
+  <div class="card-header"><span><span class="chev">›</span> Math</span><span class="right">for nerds</span></div>
+</div>
+
+</div>
+
+</body>
+</html>

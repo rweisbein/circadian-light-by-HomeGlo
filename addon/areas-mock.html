@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home — Mock v2</title>
+  <style>
+    :root {
+      --bg: #000;
+      --panel: #111;
+      --card: #1a1a1a;
+      --row: #161616;
+      --row-line: #1f1f1f;
+      --accent: #f5d199;
+      --text: #f5f5f7;
+      --muted: #94a3b8;
+      --muted2: #64748b;
+      --line: #2a2a2a;
+      --on-tint: #f3dba8;
+      --on-tint-text: #1a1106;
+      --warm: #f0c074;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* nav */
+    .nav {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      height: 52px;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .nav-logo {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #4a3c2a, #1a1407);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 10px; color: var(--warm);
+    }
+    .nav-link { color: var(--muted); text-decoration: none; font-size: 0.95rem; }
+    .nav-link.active { color: var(--text); font-weight: 600; }
+
+    .main { max-width: 720px; margin: 0 auto; padding: 14px 12px 48px; }
+
+    /* header */
+    .page-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .page-header-left { flex: 1; min-width: 0; }
+    .page-title { font-size: 1.7rem; font-weight: 700; line-height: 1.05; }
+    .status-line {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 6px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      flex-wrap: wrap;
+    }
+    .status-line .rooms-on {
+      cursor: pointer;
+    }
+    .status-line .rooms-on:hover { color: var(--text); }
+
+    /* sun pill: minimal; only the icon glows with intensity */
+    .sun-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 8px 2px 4px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--muted);
+      background: transparent;
+    }
+    .sun-pill:hover { color: var(--text); }
+    .sun-icon {
+      display: inline-block;
+      font-size: 0.95rem;
+      /* color set inline by % */
+    }
+
+    /* mode dropdown pill */
+    .mode-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--text);
+      position: relative;
+    }
+    .mode-pill .caret { opacity: 0.55; font-size: 0.7rem; }
+
+    /* mode popover */
+    .mode-popover {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      min-width: 220px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+      padding: 6px;
+      z-index: 30;
+      display: none;
+    }
+    .mode-popover.open { display: block; }
+    .mode-section-label {
+      font-size: 0.66rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted2);
+      padding: 8px 10px 4px;
+      font-weight: 700;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .mode-section-sub {
+      font-size: 0.7rem;
+      letter-spacing: 0;
+      text-transform: none;
+      font-weight: 500;
+      color: var(--muted2);
+      opacity: 0.85;
+    }
+    .mode-divider { height: 1px; background: var(--line); margin: 4px 8px; }
+    .mode-option {
+      padding: 7px 10px;
+      border-radius: 7px;
+      cursor: pointer;
+      font-size: 0.92rem;
+      font-weight: 600;
+    }
+    .mode-option:hover { background: rgba(255,255,255,0.04); }
+    .mode-option.active { background: rgba(245,209,153,0.08); color: var(--accent); }
+
+    /* view toggle */
+    .view-toggle-wrap {
+      margin-top: 12px;
+      margin-bottom: 14px;
+    }
+    .view-toggle {
+      display: inline-flex;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 3px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .view-toggle button {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      padding: 6px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      font: inherit;
+    }
+    .view-toggle button.active {
+      background: var(--text);
+      color: #000;
+    }
+
+    /* zone */
+    .zone {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+    .zone-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 12px 12px 8px;
+      background: var(--on-tint);
+      color: var(--on-tint-text);
+      cursor: pointer;
+    }
+    /* Tune mode: neutral zone header so it doesn't suggest "current adjust state" */
+    .zone-header.tune {
+      background: var(--panel);
+      color: var(--text);
+      border-bottom: 1px solid var(--line);
+    }
+    .zone-header.tune .zone-phase { opacity: 0.5; }
+    .zone-chev {
+      width: 36px; height: 36px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 1.4rem;
+      font-weight: 700;
+      flex-shrink: 0;
+      transition: transform 0.2s;
+    }
+    .zone.collapsed .zone-chev { transform: rotate(-90deg); }
+    .zone-title {
+      flex: 1;
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      min-width: 0;
+    }
+    .zone-name {
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+    .zone-phase {
+      font-size: 0.92rem;
+      font-weight: 500;
+      opacity: 0.6;
+    }
+    .zone-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .icon-btn {
+      width: 34px; height: 34px;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.08);
+      border: 0;
+      border-radius: 8px;
+      cursor: pointer;
+      color: inherit;
+      font-size: 1rem;
+    }
+    .icon-btn:hover { background: rgba(0,0,0,0.18); }
+    .icon-btn.power {
+      background: transparent;
+      border: 1.5px solid currentColor;
+      border-radius: 50%;
+      width: 28px; height: 28px;
+      font-size: 0.85rem;
+    }
+
+    .zone-body { display: block; }
+    .zone.collapsed .zone-body { display: none; }
+
+    /* rows */
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-top: 1px solid var(--row-line);
+      min-height: 48px;
+    }
+    .row.on {
+      background: var(--on-tint);
+      color: var(--on-tint-text);
+      padding-top: 10px;
+      padding-bottom: 10px;
+    }
+    /* Tune mode: drop the warm tint to focus on tuning. Distinguish on-rooms via accent power button. */
+    .row.tune {
+      background: transparent;
+      color: var(--text);
+      padding-top: 10px;
+      padding-bottom: 10px;
+    }
+    .row.expanded {
+      padding-top: 10px;
+      padding-bottom: 10px;
+    }
+    .row-power-wrap {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .row.on .row-power-wrap .icon-btn.power {
+      background: var(--on-tint-text);
+      color: var(--on-tint);
+      border-color: var(--on-tint-text);
+    }
+    .row.tune.is-on .row-power-wrap .icon-btn.power {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+    }
+    .row .icon-btn.power { color: var(--muted2); }
+
+    .row-main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .row-line1 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .row-name {
+      font-size: 1rem;
+      font-weight: 500;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .row.on .row-name { font-weight: 600; }
+    .row-spacer { flex: 1; }
+    .readout {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: inherit;
+      opacity: 0.85;
+      white-space: nowrap;
+    }
+    .row.on .readout { opacity: 1; }
+
+    /* divergence affordance — small ↕ icon, only on diverged rows */
+    .diverge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.18);
+      color: inherit;
+      font-size: 0.85rem;
+      cursor: pointer;
+      flex-shrink: 0;
+      opacity: 0.7;
+    }
+    .row:not(.on) .diverge {
+      background: rgba(245,209,153,0.18);
+      color: var(--accent);
+    }
+    .diverge:hover { opacity: 1; }
+
+    .schedule-pill {
+      font-size: 0.78rem;
+      color: var(--muted);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .row.on .schedule-pill { color: rgba(26,17,6,0.6); }
+    .schedule-pill .arrow { opacity: 0.55; margin-right: 2px; }
+
+    .delta-chip {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: rgba(0,0,0,0.10);
+      color: inherit;
+      opacity: 0.55;
+      white-space: nowrap;
+      border: 1px solid transparent;
+    }
+    .row:not(.on) .delta-chip { background: transparent; color: var(--muted); opacity: 0.6; border-color: rgba(255,255,255,0.06); }
+    /* Active mode's chip gets emphasis */
+    .delta-chip.active-mode {
+      opacity: 1;
+      background: rgba(0,0,0,0.28);
+      border-color: rgba(0,0,0,0.35);
+    }
+    .row:not(.on) .delta-chip.active-mode {
+      background: rgba(245,209,153,0.16);
+      color: var(--accent);
+      border-color: rgba(245,209,153,0.3);
+    }
+
+    .slider-track {
+      position: relative;
+      height: 8px;
+      background: rgba(0,0,0,0.18);
+      border-radius: 999px;
+    }
+    .row:not(.on) .slider-track { background: rgba(255,255,255,0.08); }
+    .slider-fill {
+      position: absolute;
+      top: 0; left: 0; bottom: 0;
+      background: rgba(0,0,0,0.42);
+      border-radius: 999px;
+    }
+    .row:not(.on) .slider-fill { background: rgba(245,209,153,0.4); }
+    .slider-track.color {
+      background: linear-gradient(to right, #b34700 0%, #f0c074 50%, #f5e0c0 100%);
+      opacity: 0.85;
+    }
+    .slider-track.sun {
+      background: linear-gradient(to right, rgba(0,0,0,0.18), #f0c074);
+    }
+    .slider-track.bedwake {
+      background: linear-gradient(to right, rgba(245,209,153,0.18), rgba(245,209,153,0.5));
+    }
+    .slider-thumb {
+      position: absolute;
+      top: 50%;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: #fff;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    /* status / compound row beneath slider */
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.78rem;
+      color: inherit;
+      opacity: 0.78;
+    }
+    .status-row .left { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .status-row .right { flex-shrink: 0; }
+    .status-state {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-weight: 600;
+    }
+
+    /* chevrons */
+    .row-chevrons {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .row-chevrons button {
+      width: 36px; height: 26px;
+      background: rgba(0,0,0,0.08);
+      border: 0;
+      border-radius: 7px;
+      color: inherit;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+    .row:not(.on) .row-chevrons button { background: rgba(255,255,255,0.04); }
+
+    /* section labels (Upcoming etc.) */
+    .section-label {
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted2);
+      margin: 14px 4px 6px;
+      font-weight: 700;
+    }
+
+    /* mock-only mode switcher (top) */
+    .mockbar {
+      background: #0a0a0a;
+      border-bottom: 1px solid var(--line);
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-size: 0.78rem;
+    }
+    .mockbar .label {
+      color: var(--muted2);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-weight: 700;
+      margin-right: 4px;
+    }
+    .mockbar button {
+      background: var(--card);
+      border: 1px solid var(--line);
+      color: var(--muted);
+      padding: 5px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 0.78rem;
+    }
+    .mockbar button.active {
+      background: var(--accent);
+      color: #1a1106;
+      border-color: var(--accent);
+      font-weight: 700;
+    }
+
+    /* notes */
+    .notes {
+      margin-top: 32px;
+      padding: 16px;
+      background: var(--card);
+      border: 1px dashed var(--line);
+      border-radius: 10px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+    .notes h3 { color: var(--text); font-size: 0.9rem; margin-bottom: 8px; }
+    .notes ul { padding-left: 18px; }
+    .notes li { margin-bottom: 4px; }
+    .notes b { color: var(--text); }
+  </style>
+</head>
+<body>
+
+<!-- mock-only control bar -->
+<div class="mockbar">
+  <span class="label">Mock — Mode</span>
+  <button data-mode="brightness" class="active">Brightness</button>
+  <button data-mode="color">Color</button>
+  <button data-mode="bed">Bed</button>
+  <button data-mode="sun">Sun exposure</button>
+  <button data-mode="balance">Balance</button>
+  <span style="flex:1"></span>
+  <span class="label">View</span>
+  <button data-view="active" class="active">Active</button>
+  <button data-view="all">All</button>
+</div>
+
+<div class="nav">
+  <span class="nav-logo">D</span>
+  <a class="nav-link active" href="#">Home</a>
+  <a class="nav-link" href="#">Controls</a>
+  <a class="nav-link" href="#">Magic</a>
+  <a class="nav-link" href="#">Settings</a>
+</div>
+
+<div class="main">
+
+  <!-- header -->
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="page-title">Sugar shack</div>
+      <div class="status-line">
+        <span class="rooms-on" onclick="alert('all-off would fire')">2 rooms on</span>
+        <span style="opacity:0.4">·</span>
+        <span class="sun-pill" id="sunPill" onclick="alert('open sun intensity modal')">
+          <span class="sun-icon" id="sunIcon">☀</span>
+          <span>73%</span>
+        </span>
+      </div>
+    </div>
+    <div>
+      <div class="mode-pill" id="modePill" onclick="toggleModePopover(event)">
+        <span id="modeLabel">Brightness</span><span class="caret">▾</span>
+        <div class="mode-popover" id="modePopover" onclick="event.stopPropagation()">
+          <div class="mode-section-label">
+            Adjust <span class="mode-section-sub">resets @ 3a</span>
+          </div>
+          <div class="mode-option active" data-mode-opt="brightness" onclick="pickMode('brightness')">Brightness</div>
+          <div class="mode-option" data-mode-opt="color" onclick="pickMode('color')">Color</div>
+          <div class="mode-option" data-mode-opt="bed" onclick="pickMode('bed')">Bed</div>
+          <div class="mode-divider"></div>
+          <div class="mode-section-label">
+            Tune <span class="mode-section-sub">saved per area</span>
+          </div>
+          <div class="mode-option" data-mode-opt="sun" onclick="pickMode('sun')">Sun exposure</div>
+          <div class="mode-option" data-mode-opt="balance" onclick="pickMode('balance')">Balance</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- secondary toggle: Active/All in adjust modes, Area/Setting sort in tune modes -->
+  <div class="view-toggle-wrap" id="viewToggleWrap">
+    <div class="view-toggle" id="adjustToggle">
+      <button id="btn-active" class="active" onclick="setView('active')">Active</button>
+      <button id="btn-all" onclick="setView('all')">All</button>
+    </div>
+    <div class="view-toggle" id="tuneToggle" style="display:none">
+      <button id="btn-sort-area" class="active" onclick="setSort('area')">Area</button>
+      <button id="btn-sort-setting" onclick="setSort('setting')">Setting</button>
+    </div>
+  </div>
+
+  <!-- rendered content -->
+  <div id="content"></div>
+
+  <div class="notes">
+    <h3>How to read this mock</h3>
+    <ul>
+      <li><b>Mock-only top bar</b> flips Mode and View for testing. Real page only has the in-page controls.</li>
+      <li><b>Mode dropdown</b>: section headers now carry the "resets @ 3a" / "saved per area" subtitles — per-item subtitles dropped.</li>
+      <li><b>Sun pill</b>: minimal pill, only the ☀ icon glows with intensity.</li>
+      <li><b>Secondary toggle</b> swaps with mode: Adjust → Active/All filter; Tune → Area/Setting sort. Try Setting sort in Sun mode to see SunOffice rise to the top.</li>
+      <li><b>Divergence chips</b>: appear on Kitchen row in <i>any</i> Adjust mode — +8%, −400K, 10:30p. The chip matching the active mode gets emphasized (filled background, full opacity); the others stay quiet. Bed mode also shows the ↕ affordance for GloUp / GloDown.</li>
+      <li><b>Zone header in Tune mode</b>: neutral dark (no warm tint), GloZoneDown suppressed, power button kept.</li>
+      <li><b>Bed mode off rows</b>: stay compact, bed time on the right as readout. No slider unless room is on.</li>
+      <li><b>Tune mode</b>: warm row tint dropped (cleaner for focused tuning); on-rooms get an accent power button instead. Compound row reads "sun dims X% · final Y%" — no setting duplicate.</li>
+    </ul>
+  </div>
+
+</div>
+
+<script>
+  // ---- Data ----
+  // Sun "dim" values are always positive (sun always dims). Balance can go either direction.
+  // brightDelta/colorDelta/bedDiverged shown in any Adjust mode as status chips.
+  const rooms = [
+    { id: 'entry', name: 'Entry', on: false, bright: 0, kelvin: 0, bed: '10p', sun: 'Normal 1.00', sunDim: 23, balance: 'Very Dim', balanceDim: 17 },
+    { id: 'kitchen', name: 'Kitchen', on: true, bright: 55, kelvin: 3200, bed: '10:30p', bedDiverged: true, brightDelta: '+8%', colorDelta: '−400K', sun: 'Low 0.25', sunDim: 10, balance: 'Dim', balanceDim: 13, state: { label: '⚡ 2m' } },
+    { id: 'dining', name: 'Dining', on: false, bright: 0, kelvin: 0, bed: '10p', sun: 'Low 0.25', sunDim: 10, balance: 'Dim', balanceDim: 13 },
+    { id: 'living', name: 'Living', on: false, bright: 0, kelvin: 0, bed: '10p', sun: 'Medium 0.60', sunDim: 25, balance: 'Dim', balanceDim: 10, upcoming: { arrow: '▲', when: 'Sunset · 3m' } },
+    { id: 'sunoffice', name: 'SunOffice', on: true, bright: 65, kelvin: 2900, bed: '10p', sun: 'Intense 1.60', sunDim: 79, balance: 'Normal', balanceDim: 0 },
+    { id: 'master', name: 'Master', on: false, bright: 0, kelvin: 0, bed: '10p', sun: 'Moderate 0.40', sunDim: 15, balance: 'Very Dim', balanceDim: 19, upcoming: { arrow: '▲', when: '7a' } },
+    { id: 'masterbath', name: 'Master Bath', on: false, bright: 0, kelvin: 0, bed: '10p', sun: 'Moderate 0.40', sunDim: 17, balance: 'Dim', balanceDim: 12 },
+    { id: 'queen', name: 'Queen', on: false, bright: 0, kelvin: 0, bed: '10p', sun: 'Low 0.25', sunDim: 12, balance: 'Normal', balanceDim: 0 },
+    { id: 'porch', name: 'Porch', on: false, bright: 0, kelvin: 0, bed: '10p', sun: 'None 0', sunDim: 0, balance: 'Normal', balanceDim: 0 },
+  ];
+
+  // ---- State ----
+  let mode = 'brightness';  // brightness | color | bed | sun | balance
+  let view = 'active';      // active | all
+  let sort = 'area';        // area | setting (tune modes)
+
+  function isTune(m) { return m === 'sun' || m === 'balance'; }
+  function isAdjust(m) { return !isTune(m); }
+
+  // ---- Sun icon glow scales with intensity ----
+  function paintSunPill() {
+    const pct = 73;
+    const t = pct / 100;
+    // muted at 0%, warm bright at 100%
+    const r = Math.round(120 + (245 - 120) * t);
+    const g = Math.round(100 + (200 - 100) * t);
+    const b = Math.round(60 + (100 - 60) * t);
+    const icon = document.getElementById('sunIcon');
+    icon.style.color = `rgb(${r}, ${g}, ${b})`;
+    icon.style.textShadow = `0 0 ${4 + t * 8}px rgba(${r},${g},${b},${0.3 + t * 0.4})`;
+  }
+  paintSunPill();
+
+  // ---- Mode popover ----
+  function toggleModePopover(e) {
+    if (e) e.stopPropagation();
+    document.getElementById('modePopover').classList.toggle('open');
+  }
+  document.addEventListener('click', () => {
+    document.getElementById('modePopover').classList.remove('open');
+  });
+  function pickMode(m) {
+    mode = m;
+    document.querySelectorAll('.mode-option').forEach(el => {
+      el.classList.toggle('active', el.dataset.modeOpt === m);
+    });
+    document.querySelectorAll('.mockbar [data-mode]').forEach(b => {
+      b.classList.toggle('active', b.dataset.mode === m);
+    });
+    document.getElementById('modeLabel').textContent = labelForMode(m);
+    document.getElementById('modePopover').classList.remove('open');
+    // swap secondary toggle: Active/All in adjust modes, Area/Setting sort in tune modes
+    document.getElementById('adjustToggle').style.display = isTune(m) ? 'none' : 'inline-flex';
+    document.getElementById('tuneToggle').style.display = isTune(m) ? 'inline-flex' : 'none';
+    if (isTune(m)) view = 'all';
+    render();
+  }
+  function setSort(s) {
+    sort = s;
+    document.getElementById('btn-sort-area').classList.toggle('active', s === 'area');
+    document.getElementById('btn-sort-setting').classList.toggle('active', s === 'setting');
+    render();
+  }
+  function labelForMode(m) {
+    return { brightness: 'Brightness', color: 'Color', bed: 'Bed', sun: 'Sun exposure', balance: 'Balance' }[m];
+  }
+
+  // ---- View toggle ----
+  function setView(v) {
+    view = v;
+    document.getElementById('btn-active').classList.toggle('active', v === 'active');
+    document.getElementById('btn-all').classList.toggle('active', v === 'all');
+    document.querySelectorAll('.mockbar [data-view]').forEach(b => {
+      b.classList.toggle('active', b.dataset.view === v);
+    });
+    render();
+  }
+
+  // mock-bar buttons
+  document.querySelectorAll('.mockbar [data-mode]').forEach(b => {
+    b.addEventListener('click', () => pickMode(b.dataset.mode));
+  });
+  document.querySelectorAll('.mockbar [data-view]').forEach(b => {
+    b.addEventListener('click', () => setView(b.dataset.view));
+  });
+
+  // ---- Row rendering ----
+  function readoutFor(r) {
+    if (mode === 'brightness') return r.on ? `${r.bright}%` : '';
+    if (mode === 'color') return r.on ? `${r.kelvin}K` : '';
+    if (mode === 'bed') return r.bed;
+    if (mode === 'sun') return r.sun;
+    if (mode === 'balance') return r.balance;
+  }
+
+  function sliderPctFor(r) {
+    if (mode === 'brightness') return r.bright;
+    if (mode === 'color') return Math.round(((r.kelvin || 3500) - 2200) / (5500 - 2200) * 100);
+    if (mode === 'bed') return 65;   // mock position
+    if (mode === 'sun') return Math.min(100, r.sunDim * 1.2);   // proportional to dim
+    if (mode === 'balance') return Math.max(0, Math.min(100, 50 - r.balanceDim));
+  }
+
+  function sliderClass() {
+    if (mode === 'color') return 'color';
+    if (mode === 'sun') return 'sun';
+    if (mode === 'bed') return 'bedwake';
+    return '';
+  }
+
+  // Divergence chips shown in any Adjust mode. The chip matching the active mode is emphasized.
+  function divergenceChipsHTML(r) {
+    if (!isAdjust(mode)) return '';
+    const chips = [];
+    if (r.brightDelta) {
+      const cls = mode === 'brightness' ? 'delta-chip active-mode' : 'delta-chip';
+      chips.push(`<span class="${cls}">${r.brightDelta}</span>`);
+    }
+    if (r.colorDelta) {
+      const cls = mode === 'color' ? 'delta-chip active-mode' : 'delta-chip';
+      chips.push(`<span class="${cls}">${r.colorDelta}</span>`);
+    }
+    if (r.bedDiverged) {
+      const cls = mode === 'bed' ? 'delta-chip active-mode' : 'delta-chip';
+      chips.push(`<span class="${cls}">${r.bed}</span>`);
+    }
+    return chips.join('');
+  }
+
+  function statusRowHTML(r) {
+    if (isTune(mode)) {
+      // Compound: dim amount + final brightness (no setting — already in readout)
+      const dim = mode === 'sun' ? r.sunDim : r.balanceDim;
+      const label = mode === 'sun' ? 'sun dims' : (r.balanceDim >= 0 ? 'balance dims' : 'balance lifts');
+      const dimStr = `${label} ${Math.abs(dim)}%`;
+      const final = r.on ? `final ${r.bright}%` : 'off';
+      return `<div class="status-row">
+        <span class="left">${dimStr} · ${final}</span>
+      </div>`;
+    }
+    // Adjust modes: schedule + state + delta chips
+    const sched = r.upcoming ? `<span class="schedule-pill"><span class="arrow">${r.upcoming.arrow}</span>${r.upcoming.when}</span>` : '';
+    const state = r.state ? `<span class="status-state">${r.state.label}</span>` : '';
+    const chips = divergenceChipsHTML(r);
+    if (!sched && !state && !chips) return '';
+    const leftBits = [state, chips].filter(Boolean).join(' ');
+    return `<div class="status-row">
+      <span class="left">${leftBits}</span>
+      <span class="right">${sched}</span>
+    </div>`;
+  }
+
+  // Divergence affordance — ↕ icon in any Adjust mode whenever this area has any divergence
+  function divergeIconHTML(r) {
+    if (!isAdjust(mode)) return '';
+    const hasDiverge = r.brightDelta || r.colorDelta || r.bedDiverged;
+    if (!hasDiverge) return '';
+    return `<span class="diverge" title="Push up / pull down zone" onclick="event.stopPropagation();alert('Show GloUp / GloDown menu')">↕</span>`;
+  }
+
+  function rowHTML(r) {
+    // Full row only when: on (any adjust mode) OR any tune mode (all rooms tuned).
+    // Bed mode off rows stay compact — show bed time as readout on right.
+    const expanded = r.on || isTune(mode);
+    const readout = readoutFor(r);
+
+    if (!expanded) {
+      const sched = r.upcoming ? `<span class="schedule-pill"><span class="arrow">${r.upcoming.arrow}</span>${r.upcoming.when}</span>` : '';
+      // For Bed mode off rows: show bed time as readout on right
+      const offReadout = mode === 'bed' ? `<span class="readout" style="color:var(--muted)">${r.bed}</span>` : '';
+      return `<div class="row">
+        <div class="row-power-wrap"><button class="icon-btn power"></button></div>
+        <div class="row-main">
+          <div class="row-line1">
+            <span class="row-name">${r.name}</span>
+            <span class="row-spacer"></span>
+            ${offReadout || sched}
+          </div>
+        </div>
+      </div>`;
+    }
+
+    // Full row. In Tune modes we drop the warm tint; on-rooms get accent power button instead.
+    const classes = [
+      isTune(mode) ? 'tune' : (r.on ? 'on' : ''),
+      isTune(mode) && r.on ? 'is-on' : '',
+      'expanded',
+    ].filter(Boolean).join(' ');
+    return `<div class="row ${classes}">
+      <div class="row-power-wrap"><button class="icon-btn power">${r.on ? '⏻' : ''}</button></div>
+      <div class="row-main">
+        <div class="row-line1">
+          <span class="row-name">${r.name}</span>
+          ${divergeIconHTML(r)}
+          <span class="row-spacer"></span>
+          ${readout ? `<span class="readout">${readout}</span>` : ''}
+        </div>
+        <div class="slider-track ${sliderClass()}">
+          <div class="slider-fill" style="width:${sliderPctFor(r)}%"></div>
+          <div class="slider-thumb" style="left:${sliderPctFor(r)}%"></div>
+        </div>
+        ${statusRowHTML(r)}
+      </div>
+      <div class="row-chevrons">
+        <button>⌃</button>
+        <button>⌄</button>
+      </div>
+    </div>`;
+  }
+
+  // ---- Page render ----
+  function zoneHTML(roomsInZone, diverged = false) {
+    const tune = isTune(mode);
+    const resetBtn = diverged ? `<button class="icon-btn" title="Reset zone">↺</button>` : '';
+    // Suppress GloZoneDown during tuning — irrelevant to per-area sun/balance work
+    const gloDownBtn = tune ? '' : `<button class="icon-btn" title="Push zone settings to all areas">⫷</button>`;
+    return `<div class="zone">
+      <div class="zone-header ${tune ? 'tune' : ''}" onclick="this.parentElement.classList.toggle('collapsed')">
+        <span class="zone-chev">⌄</span>
+        <div class="zone-title">
+          <span class="zone-name">Main</span>
+          <span class="zone-phase">Bed 10p</span>
+        </div>
+        <div class="zone-actions">
+          ${resetBtn}
+          ${gloDownBtn}
+          <button class="icon-btn power" title="Turn zone off">⏻</button>
+        </div>
+      </div>
+      <div class="zone-body">
+        ${roomsInZone.map(rowHTML).join('')}
+      </div>
+    </div>`;
+  }
+
+  function render() {
+    const c = document.getElementById('content');
+    if (isTune(mode)) {
+      // Tune mode: always show all rooms; sort by area-order or by setting magnitude
+      let list = [...rooms];
+      if (sort === 'setting') {
+        list.sort((a, b) => {
+          const va = mode === 'sun' ? a.sunDim : a.balanceDim;
+          const vb = mode === 'sun' ? b.sunDim : b.balanceDim;
+          return vb - va; // largest dim first
+        });
+      }
+      c.innerHTML = zoneHTML(list);
+    } else if (view === 'active') {
+      const on = rooms.filter(r => r.on);
+      const upcoming = rooms.filter(r => !r.on && r.upcoming);
+      let html = zoneHTML(on);
+      if (upcoming.length) {
+        html += `<div class="section-label">Upcoming</div>`;
+        html += `<div class="zone" style="background:transparent;border-color:var(--row-line)"><div class="zone-body">${upcoming.map(rowHTML).join('')}</div></div>`;
+      }
+      c.innerHTML = html;
+    } else {
+      c.innerHTML = zoneHTML(rooms);
+    }
+  }
+  render();
+</script>
+
+</body>
+</html>

@@ -1,5 +1,25 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.317
+- **View pill rename** (Adjust modes): `Active` → `On/Off`, `All` → `Zone`. Underlying storage values unchanged; old saved prefs keep working.
+- **New "Off" group** below Upcoming in On/Off view: lists off rooms that have no scheduled auto_on/auto_off (so they wouldn't appear in Upcoming). Sort is flat, by user's custom area order across all zones (walks glozone zones in order, then areas within each zone). Collapsible chevron, persists independently from Upcoming.
+- **Area count** removed from the sticky-top in all modes except Organize. Zone-header `(N)` counts mirror this (already gated to Organize). Tune-mode count copy was meaningless anyway.
+- **Sun pill placement** finalized at row 2 left (below name+pill row, above sort row). Hidden in Balance and Organize modes. Stale-controller leak fixed on re-render.
+- **First on-row + first off-row in the first zone** get extra top padding (10px on zone-content) — covers the "first row cramped against zone header" case without affecting subsequent zones or compact rows in pseudo-zones (Upcoming/Off).
+- **Symmetric area-row padding** (8px L/R): on-row power button now aligns vertically with off-row power button. Row content gets 8px more horizontal breathing room for chips/pills.
+- **Slider track contrast pass**: 1px inset stroke at `rgba(0,0,0,0.45)` for warm-card contrast; height 4 → 6px, radius 2 → 3px.
+- **Tune row readout shows "Descriptor 0.95x"** with muted multiplier suffix (0.55 opacity, weight 400). Live drag preview matches.
+- **Tune slider snaps to discrete steps** during drag (was continuous; only the saved value snapped). Sun + Balance modes only.
+- **Cheatsheet + Buttons card multiplier-row collapse**: when 1× = `step_up`/`step_down`/`bright_up`/`bright_down`/`color_up`/`color_down` and a 2×/3×/4×/5× row is the same id with `_N` appended, the higher row is suppressed. Shared helpers `shortPressBaseActionId` + `isRedundantMultiplierRow` in `shared.js`.
+- **Inline diverge buttons** on area rows: when an area diverges, single-click Reset (↺ glo_down) and single-click Send-to-zone (↑ glo_up) instead of menu.
+- **Zone header polish**: removed power button (right side now just GloZoneDown); dropped area count; suppressed reset + frozen indicator in tune modes; dropped rhythm phase label when phase-shift chip is shown; phase divergence chip now uses `midpointToTime` inversion of `rs.brightness_mid`.
+- **Tune mode visual**: removed axis bar + per-row stripes (redundant signals); stronger mode-pill tint as the sole header-level cue.
+- **Action label renames** (`switches.py:get_categorized_actions`): `Toggle on/off` → `Power`, `Reset to Rhythm Zone` → `Reset`, `Reset to Circadian` → `Reset to rhythm`, `Push to whole Rhythm Zone` → `Full send`, `Advance to next Reach` → `Next reach`, `Reset whole Rhythm Zone` → `Reset zone`, `No Action` → `-`.
+- **Dropdown declutter**: removed "resets @ Xa" / "saved per area" subtitles under Adjust/Tune section headers in the mode pill popover.
+- **"Reorder areas"** → **"Reorder"** in the mode pill (Organize mode).
+- **Circadian-off row rebuild**: matches off-row layout — sun-icon Enable button on the left (where power lives), schedule pill on the right.
+- **Dev**: `addon/area-detail-mock.html` + `addon/areas-mock.html` mocks committed for future redesign reference.
+
 ## 1.2.316
 - **Sticky-top reflow on home page**: sun pill moves from row 2 right to row 2 left; active-room count moves from row 2 left to row 3 right (next to view/sort segments). Row 2 right is now empty by design.
 - **Tune-mode count copy**: `8 of 27 active` was meaningless in tune mode (on/off isn't the unit being tuned) — now reads `27 areas` when the pill is in Sun or Balance.
