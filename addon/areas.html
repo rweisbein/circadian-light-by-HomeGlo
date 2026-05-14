@@ -601,14 +601,19 @@
       left: 0;
       right: 0;
       top: 50%;
-      height: 4px;
+      height: 6px;
       transform: translateY(-50%);
-      border-radius: 2px;
+      border-radius: 3px;
       /* Per-mode gradient computed in JS (buildSliderTrackGradient) and
          set as an inline CSS var on each row. Falls back to the neutral
          dark bar when no mode-specific gradient is generated. */
       background: var(--slider-track-bg, rgba(0,0,0,0.35));
-      box-shadow: 0 0.5px 0 rgba(255,255,255,0.15);
+      /* Inset translucent dark stroke separates the track from warm/bright
+         row tints (e.g., 2000K bedtime rows where amber-on-amber blends).
+         Translucent so dark rows aren't visibly outlined. */
+      box-shadow:
+        inset 0 0 0 1px rgba(0,0,0,0.45),
+        0 0.5px 0 rgba(255,255,255,0.15);
     }
 
     .row-slider-fill {
@@ -1434,13 +1439,12 @@
        Force opaque bgs on the no-tint / tune variants. */
     .zone-header.no-tint { background: var(--bg); }
 
-    /* Active-room count sits on row 2 left. Muted so the row reads as
-       state info, not interactive. */
+    /* Active-room count — right-aligned on row 3 next to the view/sort
+       segments. Muted so the row reads as state info, not interactive. */
     .rooms-on-count {
       font-size: 0.82rem;
       color: var(--muted);
       cursor: default;
-      padding-left: 4px;
     }
     /* Sun pill styling lives in shared.css under .outdoor-chip / .outdoor-chip-icon */
 
@@ -2322,6 +2326,11 @@
     function computeRoomsOnText() {
       const list = areas || [];
       if (!list.length) return '…';
+      // Tune mode is about persistent per-area settings; the on/off active
+      // count isn't meaningful here. Just show the total.
+      if (isTuneMode(homePillMode)) {
+        return `${list.length} area${list.length === 1 ? '' : 's'}`;
+      }
       let onCount = 0;
       for (const a of list) {
         const s = areaStatus[a.area_id] || {};
@@ -3370,22 +3379,23 @@
             <span class="home-row-spacer"></span>
             ${modePillHtml}
           </div>
-          <!-- Row 2: active count (L) · sun intensity (R) — state -->
+          <!-- Row 2: sun intensity (L) — environment -->
           <div class="home-row home-row-2">
-            <span class="rooms-on-count" id="rooms-on-count">${computeRoomsOnText()}</span>
-            <span class="home-row-spacer"></span>
             <button type="button" class="outdoor-chip" id="home-sun-pill" aria-expanded="false" title="Sun intensity">
               <span class="outdoor-chip-icon" id="home-sun-icon" data-sun-icon style="${sunIconStyleString(_cachedSunPct)}">☀</span>
               <span id="home-sun-pct" data-sun-pct>${cachedSunPctText()}</span>
             </button>
             <div class="outdoor-chip-popover" id="home-sun-popover" hidden></div>
+            <span class="home-row-spacer"></span>
           </div>
-          <!-- Row 3: list controls (L) -->
-          <div class="seg-row home-row-3">
+          <!-- Row 3: list controls (L) · count (R) — content scope -->
+          <div class="home-row home-row-3">
             <span class="seg-label">${inTune ? 'sort' : 'view'}</span>
             <div class="view-segments-bar" id="home-view-segments" role="tablist" title="Page mode">
               ${segmentsHtml}
             </div>
+            <span class="home-row-spacer"></span>
+            <span class="rooms-on-count" id="rooms-on-count">${computeRoomsOnText()}</span>
           </div>
         </div>
       `;

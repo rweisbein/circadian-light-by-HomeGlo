@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.316
+- **Sticky-top reflow on home page**: sun pill moves from row 2 right to row 2 left; active-room count moves from row 2 left to row 3 right (next to view/sort segments). Row 2 right is now empty by design.
+- **Tune-mode count copy**: `8 of 27 active` was meaningless in tune mode (on/off isn't the unit being tuned) — now reads `27 areas` when the pill is in Sun or Balance.
+- **Row 3 alignment fix**: home-row-3 was using `.seg-row` (inline-flex) which shrank to content width and prevented the flex spacer from pushing the count to the right. Dropped the class; rely on `.home-row` (block-level flex) so the count truly right-aligns.
+- **Slider track contrast pass**: 1px inset stroke at `rgba(0,0,0,0.45)` so the gradient reads against warm card tints (bedtime rows where amber-on-amber blended). Track itself bumped 4px → 6px (radius 3px) so the gradient has more presence without changing the CCT-to-RGB color story used throughout the app.
+
 ## 1.2.315
 - **Zone header decluttered**: dropped the area `(N)` count except in Organize mode where it's load-bearing; dropped the rhythm phase label when a phase-shift divergence chip is shown (was strike-through, became cluttery); suppressed the reset (↺) button + frozen indicator in Tune modes (focus on tuning, not rhythm-zone state).
 - **Zone header power button removed** (already shipped in 1.2.314 — restate for clarity here): right side now just has GloZoneDown when there's something to push.
