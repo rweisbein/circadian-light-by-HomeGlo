@@ -384,7 +384,8 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
 .outdoor-chip-popover[hidden] { display: none; }
 .outdoor-chip-popover {
   position: absolute;
-  z-index: 50;
+  /* Sits above sticky page chrome (e.g. area.html .area-header @ z-index:100). */
+  z-index: 200;
   /* Width matches content (with a sensible cap). Tighter than the old
      340px — number column now sits adjacent to the label instead of
      pinned to the right edge with a chasm between. */

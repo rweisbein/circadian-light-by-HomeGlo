@@ -1006,6 +1006,22 @@ class LightDesignerServer:
                     f'src="data:image/png;base64,{icon_b64}"',
                 )
 
+            # Same trick for the no-badge production indicator (area-detail
+            # circadian button uses this so the D/B channel stamp doesn't
+            # double as a "circadian state" cue).
+            indicator_path = Path(__file__).parent / "icon-indicator.png"
+            if (
+                indicator_path.exists()
+                and 'src="./icon-indicator.png"' in html_content
+            ):
+                import base64
+
+                ind_b64 = base64.b64encode(indicator_path.read_bytes()).decode()
+                html_content = html_content.replace(
+                    'src="./icon-indicator.png"',
+                    f'src="data:image/png;base64,{ind_b64}"',
+                )
+
             # Substitute HA location into config when use_ha_location is true
             if config.get("use_ha_location", True):
                 config["latitude"] = float(

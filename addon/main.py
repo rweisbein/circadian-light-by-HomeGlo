@@ -7261,15 +7261,6 @@ class HomeAssistantWebSocketClient:
                     else:
                         logger.warning("freeze_toggle called without area_id")
 
-                elif service == "reset":
-                    areas = get_areas()
-                    if areas:
-                        for area in areas:
-                            logger.info(f"[{domain}] reset for area: {area}")
-                            await self.primitives.reset(area, "service_call")
-                    else:
-                        logger.warning("reset called without area_id")
-
                 elif service == "refresh":
                     # Signal the periodic updater to run immediately
                     # This uses the exact same code path as the 30s refresh

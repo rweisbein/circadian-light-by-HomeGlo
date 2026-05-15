@@ -42,89 +42,34 @@
       min-height: 100vh;
     }
 
-    /* Page header — 2-row CCT-tinted grid (Ship 1 redesign).
-       Background + text color set per-frame by updateHeaderTint() so the
-       header reads the room's current CCT. */
-    .page-header {
+    /* Area header — 3-row CCT-tinted layout (Ship 2 redesign per
+       addon/area-detail-mock.html). updateHeaderTint() sets background +
+       readable text color per-frame so the header reads the room's CCT.
+       Row 1: ← · name · "in {zone} →" · sun pill
+       Row 2: bri% · CT · state chips ·  (reset, when dirty)
+       Row 3: Power · Freeze · Boost · Circadian (each with a sub-line) */
+    .area-header {
       position: sticky;
       top: 0;
       z-index: 100;
       background: var(--panel);
       border-bottom: 1px solid var(--line);
-      padding: 6px 12px;
-      display: grid;
-      grid-template-columns: auto minmax(0, 1fr) auto;
-      grid-template-rows: auto auto;
-      column-gap: 10px;
-      row-gap: 4px;
-      align-items: center;
+      padding: 10px 14px 10px;
       transition: background 0.12s, color 0.12s;
     }
-    .page-header > .back-btn {
-      grid-column: 1;
-      grid-row: 1 / span 2;
-      align-self: center;
-    }
-    .page-header > .page-header-title-row {
-      grid-column: 2;
-      grid-row: 1;
-      align-self: center;
+
+    /* ─── Row 1: identity ─── */
+    .ah-row1 {
       display: flex;
       align-items: center;
       gap: 8px;
-      min-width: 0;
-      flex-wrap: wrap;
+      min-height: 28px;
     }
-    .page-header > .page-header-meta {
-      grid-column: 3;
-      grid-row: 1;
-      align-self: center;
-      justify-self: end;
-    }
-    .page-header > .page-header-readout-cluster {
-      grid-column: 2 / span 2;
-      grid-row: 2;
-      align-self: center;
-      justify-self: stretch;  /* fill col 2 + col 3 so margin-left: auto on
-                                 the right action group pushes circadian to
-                                 the far right edge of row 2 (per spec —
-                                 "burying" the rare-action toggle). */
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      min-width: 0;
-    }
-
-    .back-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      border: none;
-      background: transparent;
-      color: inherit;
-      cursor: pointer;
-      transition: background 0.15s;
-      flex-shrink: 0;
-      padding: 0;
-    }
-
-    .back-btn:hover {
-      background: rgba(0, 0, 0, 0.18);
-    }
-
-    .back-btn svg {
-      width: 18px;
-      height: 18px;
-    }
-
-    /* Demoted title — chrome label on row 1, not the page's visual headline.
-       The row-2 readout (% · K) is the actual focal element. */
-    .page-title {
-      font-size: 0.95rem;
-      font-weight: 600;
+    .ah-row1 .back-btn { flex-shrink: 0; }
+    .ah-name {
+      font-size: 1.35rem;
+      font-weight: 700;
+      line-height: 1.1;
       color: inherit;
       min-width: 0;
       overflow: hidden;
@@ -132,30 +77,215 @@
       white-space: nowrap;
       margin: 0;
     }
+    .ah-breadcrumb {
+      font-size: 0.82rem;
+      font-weight: 500;
+      opacity: 0.65;
+      text-decoration: none;
+      color: inherit;
+      white-space: nowrap;
+    }
+    .ah-breadcrumb:hover { opacity: 0.9; text-decoration: underline; }
+    .ah-breadcrumb::before { content: 'in '; opacity: 0.8; }
+    .ah-breadcrumb::after  { content: ' \2192'; }
+    .ah-breadcrumb:empty { display: none; }
+    .ah-row1-spacer { flex: 1 1 auto; min-width: 8px; }
+    .ah-sun {
+      display: none;  /* shown by .visible class once updateChartSunInfo finds daylight */
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 14px;
+      background: rgba(0,0,0,0.20);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: inherit;
+      border: none;
+      font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+      white-space: nowrap;
+    }
+    .ah-sun.visible { display: inline-flex; }
+    .ah-sun:hover { background: rgba(0,0,0,0.32); }
+    .area-header.is-neutral .ah-sun { background: rgba(255,255,255,0.08); }
+    .area-header.is-neutral .ah-sun:hover { background: rgba(255,255,255,0.14); }
+    /* Yellow sun glyph with a thin dark "stroke" via text-shadow so it
+       stays legible on warm-amber headers (where same-yellow-on-yellow
+       was blending). The % does the value encoding; the icon is just
+       identification. */
+    .ah-sun-icon {
+      font-size: 0.95rem;
+      line-height: 1;
+      color: #f4c75a;
+      text-shadow:
+        0 0 1px rgba(0,0,0,0.85),
+        0 0 2px rgba(0,0,0,0.55);
+    }
 
-    /* Status chips that flow next to the title on row 1, wrapping below if
-       many are active simultaneously. Each chip is a button so boost/freeze
-       can cancel via tap. Motion + fade chips render disabled (TODO: wire
-       once finish_fade / cancel_motion primitives land). */
-    .page-header-chips {
+    /* ─── Row 2: state ─── bri% · CT · chips */
+    .ah-row2 {
+      display: flex;
+      align-items: baseline;
+      gap: 0;
+      margin-top: 4px;
+      flex-wrap: wrap;
+    }
+    .ah-state-bri,
+    .ah-state-ct {
+      font-size: 1.3rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.1;
+      color: inherit;
+    }
+    .ah-state-sep {
+      opacity: 0.35;
+      font-size: 1rem;
+      margin: 0 8px;
+      line-height: 1.1;
+    }
+    .ah-state-off {
+      font-size: 1.3rem;
+      font-weight: 600;
+      opacity: 0.55;
+      line-height: 1.1;
+    }
+    /* Row 2 chips flow right after CT with small gap (per mock + last
+       in-session fixup: chips cluster on the left, not pushed to the far
+       right). The dirty-reset ↺ pushes itself to the far right via
+       margin-left: auto. */
+    .ah-state-chips {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      margin-left: 10px;
+    }
+    .ah-state-chips:empty { margin-left: 0; }
+
+    /* ─── Row 3: actions ─── Power · Freeze · Boost · Circadian
+       Left-aligned: Power flush with the row's left edge (same content
+       margin as the back button + name), the rest cluster from there. */
+    .ah-row3 {
+      display: flex;
+      justify-content: flex-start;
+      gap: 18px;
+      margin-top: 4px;
+    }
+    .ah-action {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      padding: 0;
+      border-radius: 10px;
+      min-width: 52px;  /* enough to seat sub-line text under a 42px button */
+    }
+    /* Uniform encoding for Power / Freeze / Boost: white fill + dark icon
+       when on, transparent + thin outline when off. Circadian opts out —
+       state is encoded via the logo's color/grayscale, not the pill. */
+    .ah-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 21px;
+      border: 1.5px solid rgba(0,0,0,0.18);
+      background: transparent;
+      color: inherit;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+      opacity: 0.85;
+      transition: background 0.15s, color 0.15s, opacity 0.15s, border-color 0.15s, filter 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .ah-btn:hover { background: rgba(0,0,0,0.12); opacity: 1; }
+    .ah-btn svg { width: 20px; height: 20px; }
+    .ah-btn.is-on {
+      background: #fff;
+      color: #1a1a1a;
+      border-color: rgba(0,0,0,0.25);
+      opacity: 1;
+    }
+    .ah-btn.is-on:hover { background: rgba(255,255,255,0.92); }
+    .area-header.is-neutral .ah-btn { border-color: rgba(255,255,255,0.18); }
+    .area-header.is-neutral .ah-btn:hover { background: rgba(255,255,255,0.06); }
+    /* Circadian button hosts the Circadian Light logo as its indicator.
+       ON = full color logo, button stays transparent (no white fill, no
+       borders fighting the logo). OFF = grayscale + reduced opacity.
+       Drop the outline entirely on this one so the logo is the whole
+       visual story. */
+    #toggle-circadian {
+      border-color: transparent;
+      background: transparent;
+    }
+    #toggle-circadian:hover { background: rgba(0,0,0,0.10); }
+    .area-header.is-neutral #toggle-circadian:hover { background: rgba(255,255,255,0.06); }
+    #toggle-circadian .ah-btn-logo {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: block;
+      transition: filter 0.15s, opacity 0.15s;
+    }
+    #toggle-circadian.is-off .ah-btn-logo {
+      filter: grayscale(1);
+      opacity: 0.55;
+    }
+
+    .ah-subline {
+      font-size: 0.72rem;
+      font-weight: 500;
+      opacity: 0.72;
+      min-height: 14px;
+      white-space: nowrap;
+      cursor: pointer;
+      color: inherit;
+      line-height: 1.2;
+      text-align: center;
+      transition: opacity 0.15s;
+    }
+    .ah-subline:hover { opacity: 1; }
+    .ah-subline.is-blank { opacity: 0; cursor: default; pointer-events: none; }
+    .ah-subline-arrow { opacity: 0.7; margin-right: 2px; }
+
+    /* ─── Back button + shared chrome ─── */
+    .back-btn {
       display: flex;
       align-items: center;
-      gap: 6px;
-      flex-wrap: wrap;
-      flex-shrink: 1;
-      min-width: 0;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(0,0,0,0.15);
+      color: inherit;
+      cursor: pointer;
+      transition: background 0.15s;
+      flex-shrink: 0;
+      padding: 0;
     }
+    .back-btn:hover { background: rgba(0,0,0,0.28); }
+    .back-btn svg { width: 16px; height: 16px; }
+    .area-header.is-neutral .back-btn { background: rgba(255,255,255,0.08); }
+    .area-header.is-neutral .back-btn:hover { background: rgba(255,255,255,0.16); }
+
+    /* Status chip pills — used inside Row 2 .ah-state-chips for fade
+       in/out countdown. Other timer states (motion, boost) route to
+       Row 3 button sub-lines, not chips. */
     .area-chip {
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      background: rgba(0,0,0,0.45);
-      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(0,0,0,0.22);
+      border: 1px solid rgba(0,0,0,0.18);
       color: inherit;
       font: inherit;
-      font-size: var(--font-micro);
-      font-weight: 600;
-      letter-spacing: 0.02em;
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.01em;
       padding: 2px 8px;
       border-radius: 10px;
       min-height: 20px;
@@ -165,128 +295,17 @@
       transition: background 0.15s, border-color 0.15s;
       -webkit-tap-highlight-color: transparent;
     }
-    .area-chip:hover {
-      background: rgba(0,0,0,0.6);
-      border-color: rgba(255,255,255,0.35);
+    .area-chip:hover { background: rgba(0,0,0,0.34); }
+    .area-chip:disabled { cursor: default; opacity: 0.85; }
+    .area-chip:disabled:hover { background: rgba(0,0,0,0.22); }
+    .area-header.is-neutral .area-chip {
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(255,255,255,0.14);
     }
-    .area-chip:disabled {
-      cursor: default;
-      opacity: 0.85;
-    }
-    .area-chip:disabled:hover {
-      background: rgba(0,0,0,0.45);
-      border-color: rgba(255,255,255,0.18);
-    }
-    .area-chip-icon {
-      display: inline-flex;
-      align-items: center;
-      line-height: 1;
-    }
-    /* Per-state color treatments; mirror the prior timer-* class scheme. */
-    .area-chip--frozen { color: #63b3ed; border-color: rgba(99,179,237,0.55); }
-    .area-chip--motion { color: #e2e8f0; }
-    .area-chip--boost  { color: #e2e8f0; }
-    .area-chip--fade   { color: #e2e8f0; animation: fade-pulse 2.5s ease-in-out infinite; }
-    .area-chip--warning { color: #e6a817; animation: timer-pulse 1s ease-in-out infinite; }
+    .area-header.is-neutral .area-chip:hover { background: rgba(255,255,255,0.14); }
+    .area-chip--fade { animation: fade-pulse 2.5s ease-in-out infinite; }
     .area-chip-arrow { opacity: 0.7; margin: 0 1px; }
-
-    /* Row 2 readout cluster — state controls left, readout center, dirty
-       reset + circadian-toggle right. The readout is the page's actual
-       headline (largest, boldest element). */
-    .page-header-power,
-    .page-header-freeze,
-    .page-header-circadian {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 28px;
-      height: 28px;
-      padding: 0;
-      background: transparent;
-      border: none;
-      color: inherit;
-      cursor: pointer;
-      border-radius: 8px;
-      transition: background 0.15s, opacity 0.15s, color 0.15s;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .page-header-power:hover,
-    .page-header-freeze:hover,
-    .page-header-circadian:hover { background: rgba(0,0,0,0.18); }
-    .page-header-power svg,
-    .page-header-freeze svg,
-    .page-header-circadian svg { width: 18px; height: 18px; }
-    /* Power active = lights on. Subtle white pill — power state flips
-       50/50 throughout the day so a noticeable active treatment would be
-       visual noise. The pill just confirms the icon is "engaged". */
-    .page-header-power.active { background: rgba(255, 255, 255, 0.12); }
-    .page-header-power.active:hover { background: rgba(255, 255, 255, 0.22); }
-    /* Freeze active = bright cyan icon on a tinted bg pill so the active
-       state stays visible against any header tint (cool CCT bgs were
-       washing out a color-only treatment). Stronger contrast than power
-       since frozen state IS noteworthy. */
-    .page-header-freeze.active {
-      color: #8fcef0;
-      background: rgba(40, 80, 120, 0.55);
-    }
-    .page-header-freeze.active:hover { background: rgba(40, 80, 120, 0.75); }
-    /* Circadian: neutral icon when ON (default — full opacity, color
-       inherits like the back chevron). The "burying" of this rare-action
-       toggle is via right-edge position + absence of an active pill (power
-       + freeze get pills when on; circadian doesn't), NOT via opacity —
-       earlier dim-when-on treatment was reading as "off" because users
-       hardwired bright = on. When OFF, the orange accent + bg pill makes
-       the non-default state loud + obvious. */
-    .page-header-circadian.is-off {
-      color: var(--accent);
-      background: rgba(254,172,96,0.14);
-    }
-    .page-header-circadian.is-off:hover {
-      background: rgba(254,172,96,0.28);
-      color: var(--accent-hover);
-    }
-    /* Right-side action group (reset + circadian) pushed to the far right
-       so the left-side controls + readout flow naturally on the left. */
-    .page-header-actions-right {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-left: auto;
-    }
-
-    .page-header-readout {
-      font-size: 22px;
-      font-weight: 700;
-      letter-spacing: 0.01em;
-      font-variant-numeric: tabular-nums;
-      line-height: 1.05;
-      white-space: nowrap;
-    }
-
-    /* Master reset (↺) — orange-on-dark so it stands out against any CCT
-       tint. Visible only when the area has overrides applied (dirty). */
-    .page-header-reset {
-      background: rgba(0,0,0,0.45);
-      border: 1px solid rgba(254,172,96,0.45);
-      color: var(--accent);
-      width: 26px;
-      height: 26px;
-      border-radius: 13px;
-      font-size: 14px;
-      font-weight: 700;
-      cursor: pointer;
-      font-family: inherit;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      line-height: 1;
-      transition: background 0.15s, border-color 0.15s, color 0.15s;
-    }
-    .page-header-reset:hover {
-      background: rgba(254,172,96,0.18);
-      border-color: var(--accent);
-      color: var(--accent-hover);
-    }
+    .area-chip-icon { display: inline-flex; align-items: center; line-height: 1; }
 
     /* Main content */
     .main {
@@ -295,35 +314,17 @@
       padding: 10px;
     }
 
-    /* Header meta (zone link, right-aligned in page header) */
-    .page-header-meta {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-
-    .page-header-meta a {
+    /* Compat shim — older .page-title rule kept for any stray references
+       outside the header. */
+    .page-title {
+      font-size: 0.95rem;
+      font-weight: 600;
       color: inherit;
-      text-decoration: none;
-      font-size: var(--font-display);
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
       white-space: nowrap;
-      opacity: 0.85;
-    }
-
-    .page-header-meta a:hover {
-      text-decoration: underline;
-      opacity: 1;
-    }
-
-    .page-header-meta-label {
-      font-size: var(--font-micro);
-      color: inherit;
-      opacity: 0.55;
-      white-space: nowrap;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
+      margin: 0;
     }
 
     .zone-type-chip {
@@ -405,6 +406,21 @@
       align-items: baseline;
       gap: 8px;
     }
+    /* Divergence chip next to the slider value — same visual treatment
+       as the home-page .delta-chip. Hidden when empty (no override). */
+    .hslider-delta {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: rgba(0,0,0,0.10);
+      color: inherit;
+      opacity: 0.65;
+      white-space: nowrap;
+      border: 1px solid transparent;
+      line-height: 1;
+    }
+    .hslider-delta:empty { display: none; }
     .hslider-label {
       font-size: var(--font-caps);
       font-weight: 600;
@@ -578,32 +594,8 @@
       user-select: none;
     }
     #chart-shell #mini-chart { height: 120px; margin-top: 6px; }
-    /* Sun-intensity chip — sits above the chart at solar noon (clamped to
-       the visible phase window). Borderless, transparent bg so it reads as
-       inline annotation rather than a clickable pill. Visible only when the
-       room has any sun-exposure AND the cursor is between sunrise/sunset. */
-    .chart-sun-info {
-      position: absolute;
-      top: 12px;
-      display: none;
-      align-items: center;
-      gap: 4px;
-      transform: translateX(-50%);
-      font-size: 11px;
-      font-weight: 600;
-      color: rgba(255, 225, 140, 0.92);
-      background: transparent;
-      border: none;
-      padding: 2px 4px;
-      z-index: 6;
-      cursor: pointer;
-      letter-spacing: 0.02em;
-      border-radius: 6px;
-      transition: background 0.12s;
-    }
-    .chart-sun-info:hover { background: rgba(255,255,255,0.06); }
-    .chart-sun-info.visible { display: inline-flex; }
-    .chart-sun-info-icon { font-size: 13px; line-height: 1; color: rgba(255, 225, 140, 0.95); }
+    /* (Legacy .chart-sun-info* rules removed — the sun chip moved from
+       chart-shell to header Row 1 as .ah-sun in Ship 2.) */
     /* Below-axis labels — sunrise/sunset (yellow) + wake/bed (blue), ported
        from rhythm-design's .solar-label pattern. Sit ~6px below the chart's
        x-axis; a 1px connector bridges up to the axis line. Hover reveals a
@@ -1154,59 +1146,83 @@
   <script src="./shared.js"></script>
 </head>
 <body>
-  <!-- Page Header — 2-row CCT-tinted (Ship 1 redesign).
-       Row 1: chevron · entry name + status chips · zone link
-       Row 2: power · % · K readout · reset (when dirty)
-       Background tint follows the area's current CCT (set per-frame by
-       updateHeaderTint(), invoked from updateContent()). -->
-  <header class="page-header" id="page-header">
-    <button class="back-btn" onclick="goBack()" title="Back">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polyline points="15 18 9 12 15 6"/>
-      </svg>
-    </button>
-    <div class="page-header-title-row">
-      <h1 class="page-title" id="page-title">Loading...</h1>
-      <div class="page-header-chips" id="page-header-chips"></div>
-    </div>
-    <div class="page-header-meta" id="page-header-meta">
-      <span id="header-meta-rhythm"></span>
-    </div>
-    <div class="page-header-readout-cluster">
-      <button type="button" class="page-header-power" id="toggle-power" onclick="powerToggleSmart()" title="Power">
+  <!-- Area header — 3-row CCT-tinted (Ship 2 redesign per
+       addon/area-detail-mock.html).
+       Row 1: ← · area name · "in {zone} →" · sun pill
+       Row 2: bri% · CT · state chips · ↺ reset (when dirty)
+       Row 3: Power · Freeze · Boost · Circadian (each with sub-line)
+       updateHeaderTint() tints bg + readable text per-frame from CCT. -->
+  <header class="area-header" id="page-header">
+    <!-- Row 1: identity -->
+    <div class="ah-row1">
+      <button class="back-btn" onclick="goBack()" title="Back">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/>
+          <polyline points="15 18 9 12 15 6"/>
         </svg>
       </button>
-      <button type="button" class="page-header-freeze" id="toggle-freeze" onclick="executeAction('freeze_toggle')" title="Freeze">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-             stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="2" x2="12" y2="22"/>
-          <line x1="2" y1="12" x2="22" y2="12"/>
-          <line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/>
-          <line x1="18.4" y1="5.6" x2="5.6" y2="18.4"/>
-          <line x1="12" y1="2" x2="9.5" y2="4.5"/><line x1="12" y1="2" x2="14.5" y2="4.5"/>
-          <line x1="22" y1="12" x2="19.5" y2="9.5"/><line x1="22" y1="12" x2="19.5" y2="14.5"/>
-          <line x1="12" y1="22" x2="14.5" y2="19.5"/><line x1="12" y1="22" x2="9.5" y2="19.5"/>
-          <line x1="2" y1="12" x2="4.5" y2="14.5"/><line x1="2" y1="12" x2="4.5" y2="9.5"/>
-        </svg>
+      <h1 class="ah-name" id="page-title">Loading...</h1>
+      <a class="ah-breadcrumb" id="header-meta-rhythm" href="#"></a>
+      <span class="ah-row1-spacer"></span>
+      <button type="button" class="ah-sun" id="chart-sun-info"
+              aria-expanded="false" title="Sun intensity">
+        <span class="ah-sun-icon" id="chart-sun-info-icon" data-sun-icon>&#x2600;</span>
+        <span id="chart-sun-info-pct" data-sun-pct>&mdash;</span>
       </button>
-      <span class="page-header-readout" id="page-header-readout">--% &middot; ----K</span>
-      <button type="button" class="page-header-reset" id="page-header-reset" onclick="resetAllOverrides()" title="Reset overrides" style="display:none;">&#x21BA;</button>
-      <div class="page-header-actions-right">
-        <button type="button" class="page-header-circadian" id="toggle-circadian" onclick="toggleCircadian()" title="Circadian Light">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="5"/>
-            <line x1="12" y1="1" x2="12" y2="3"/>
-            <line x1="12" y1="21" x2="12" y2="23"/>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-            <line x1="1" y1="12" x2="3" y2="12"/>
-            <line x1="21" y1="12" x2="23" y2="12"/>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </div>
+
+    <!-- Row 2: state -->
+    <div class="ah-row2">
+      <span class="ah-state-bri" id="ah-state-bri">--%</span>
+      <span class="ah-state-sep">&middot;</span>
+      <span class="ah-state-ct" id="ah-state-ct">----K</span>
+      <span class="ah-state-chips page-header-chips" id="page-header-chips"></span>
+    </div>
+
+    <!-- Row 3: actions -->
+    <div class="ah-row3">
+      <div class="ah-action">
+        <button type="button" class="ah-btn" id="toggle-power"
+                onclick="powerToggleSmart()" title="Power">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/>
           </svg>
         </button>
+        <span class="ah-subline is-blank" id="power-subline" onclick="onPowerSublineClick()">&nbsp;</span>
+      </div>
+      <div class="ah-action">
+        <button type="button" class="ah-btn" id="toggle-freeze"
+                onclick="executeAction('freeze_toggle')" title="Freeze">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+               stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="2" x2="12" y2="22"/>
+            <line x1="2" y1="12" x2="22" y2="12"/>
+            <line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/>
+            <line x1="18.4" y1="5.6" x2="5.6" y2="18.4"/>
+            <line x1="12" y1="2" x2="9.5" y2="4.5"/><line x1="12" y1="2" x2="14.5" y2="4.5"/>
+            <line x1="22" y1="12" x2="19.5" y2="9.5"/><line x1="22" y1="12" x2="19.5" y2="14.5"/>
+            <line x1="12" y1="22" x2="14.5" y2="19.5"/><line x1="12" y1="22" x2="9.5" y2="19.5"/>
+            <line x1="2" y1="12" x2="4.5" y2="14.5"/><line x1="2" y1="12" x2="4.5" y2="9.5"/>
+          </svg>
+        </button>
+        <span class="ah-subline is-blank" id="freeze-subline">&nbsp;</span>
+      </div>
+      <div class="ah-action">
+        <button type="button" class="ah-btn" id="toggle-boost"
+                onclick="onBoostClick()" title="Boost (coming soon)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+          </svg>
+        </button>
+        <span class="ah-subline is-blank" id="boost-subline">&nbsp;</span>
+      </div>
+      <div class="ah-action">
+        <button type="button" class="ah-btn" id="toggle-circadian"
+                onclick="toggleCircadian()" title="Circadian Light">
+          <img class="ah-btn-logo" src="./icon-indicator.png" alt="Circadian">
+        </button>
+        <span class="ah-subline is-blank" id="circadian-subline">&nbsp;</span>
       </div>
     </div>
   </header>
@@ -1223,11 +1239,6 @@
          spans Adjust + Schedule + Tune cards (its direct parent here). -->
     <div id="chart-shell">
       <div id="mini-chart"></div>
-      <button type="button" id="chart-sun-info" class="chart-sun-info" aria-expanded="false" title="Sun intensity">
-        <span class="chart-sun-info-icon" id="chart-sun-info-icon" data-sun-icon>&#x2600;</span>
-        <span id="chart-sun-info-pct" data-sun-pct>&mdash;</span>
-      </button>
-      <div id="chart-sun-popover" class="outdoor-chip-popover" hidden></div>
       <div class="area-solar-label" id="area-sunrise-label" data-time="">sunrise</div>
       <div class="area-solar-label" id="area-sunset-label" data-time="">sunset</div>
       <div class="area-phase-label" id="area-phase-label" data-time="">wake</div>
@@ -1249,6 +1260,7 @@
               <div class="hslider-header">
                 <span class="hslider-label">Bright</span>
                 <span class="hslider-value" id="slider-hero-brightness">78%</span>
+                <span class="delta-chip hslider-delta" id="slider-delta-brightness"></span>
                 <button class="hslider-reset hidden" id="reset-brightness" onclick="executeAction('reset_brightness_override')" title="Reset brightness">&#x21BA;</button>
               </div>
               <div class="slider-track" data-mode="brightness">
@@ -1261,6 +1273,7 @@
               <div class="hslider-header">
                 <span class="hslider-label">Color</span>
                 <span class="hslider-value" id="slider-hero-color">2910K</span>
+                <span class="delta-chip hslider-delta" id="slider-delta-color"></span>
                 <button class="hslider-reset hidden" id="reset-color" onclick="executeAction('reset_color_override')" title="Reset color">&#x21BA;</button>
               </div>
               <div class="slider-track" data-mode="color">
@@ -1304,15 +1317,7 @@
         </div>
       </div>
     </div>
-    <div class="tune-card tune-controls-card" id="tune-controls-card" style="display:none;">
-      <div class="tune-brightness-header" onclick="toggleControlsBody()">
-        <span class="tune-brightness-chevron" id="tune-controls-chevron">&#x203A;</span>
-        <span class="tune-brightness-title">Controls</span>
-        <span class="tune-brightness-val" id="tune-controls-count" style="font-size:var(--font-value);font-weight:500;color:var(--muted);"></span>
-      </div>
-      <div class="tune-brightness-body" id="tune-controls-body">
-      </div>
-    </div>
+    <div class="tune-card tune-brightness-card" id="tune-brightness-card"></div>
     <div class="auto-sched-card auto-sched-card--auto" id="schedule-card">
       <div class="auto-sched-header" onclick="toggleSchedule(event)">
         <span class="auto-sched-chevron" id="auto-outer-chevron">&#x203A;</span>
@@ -1508,14 +1513,27 @@
       </div>
     </div>
 
+    <div class="tune-card tune-controls-card" id="tune-controls-card" style="display:none;">
+      <div class="tune-brightness-header" onclick="toggleControlsBody()">
+        <span class="tune-brightness-chevron" id="tune-controls-chevron">&#x203A;</span>
+        <span class="tune-brightness-title">Controls</span>
+        <span class="tune-brightness-val" id="tune-controls-count" style="font-size:var(--font-value);font-weight:500;color:var(--muted);"></span>
+      </div>
+      <div class="tune-brightness-body" id="tune-controls-body">
+      </div>
+    </div>
         <!-- Tune Section -->
     <div id="area-tune-section" style="display:none; margin: 0 0 16px;">
-      <div class="tune-card tune-brightness-card" id="tune-brightness-card"></div>
       <div class="tune-card tune-lights-card" id="tune-lights-card" style="display:none;"></div>
       <div class="tune-save-status" id="tune-save-status">Saved</div>
     </div>
     </div><!-- end #chart-context-wrap -->
   </main>
+
+  <!-- Sun-intensity popover lives at body level so its z-index:200 escapes
+       page-chrome stacking contexts (chart-shell is sticky w/ z-index:5,
+       which trapped it pre-fix). SunIntensity.attach() binds by ID. -->
+  <div id="chart-sun-popover" class="outdoor-chip-popover" hidden></div>
 
   <script>
     // ============================================================
@@ -2784,40 +2802,19 @@
       const isOnForDot = liveAreaForDot.is_on === true && liveAreaForDot.is_circadian !== false;
       const nowDotBorder = isOnForDot ? '#fff' : '#0a0a0a';
 
-      // NOW vertical line — most-prominent vertical element on the chart.
-      // CCT-tinted to match the cursor dot + page-header readout, so the
-      // dot + line + header all read as one continuous "current moment"
-      // cluster. Two segments with a y-gap around the dot so the line
-      // doesn't overdraw it. Solid line, width 1.5, layer above so it
-      // sits over the wake/bed line during phase drag.
-      const nowLineColor = colorWithAlpha(cctToRGB(markerCCT), 0.85);
-      const nowLineStyle = { color: nowLineColor, width: 1.5 };
-      const cursorDotPaperY = cursorBulbY / 110;
-      // Dot is `size: 16` (px diameter). Plot canvas is ~86px tall (chart
-      // height 120 minus margins t=10,b=24), so the dot's radius spans
-      // ~0.093 paper units. Old gap of 0.05 was smaller than the radius,
-      // so the line visibly cut through the upper + lower halves of the
-      // circle. Bumped to 0.12 for clearance + a hair of breathing room.
-      const dotGap = 0.12;
-      shapes.push({
-        type: 'line', xref: 'x', yref: 'paper',
-        x0: cursorHour, x1: cursorHour,
-        y0: 0, y1: Math.max(0, cursorDotPaperY - dotGap),
-        line: nowLineStyle, layer: 'above',
-      });
-      shapes.push({
-        type: 'line', xref: 'x', yref: 'paper',
-        x0: cursorHour, x1: cursorHour,
-        y0: Math.min(vLineTop, cursorDotPaperY + dotGap), y1: vLineTop,
-        line: nowLineStyle, layer: 'above',
-      });
-
+      // NOW marker: dot on the curve + current-time label above it. The
+      // vertical line through the chart was retired — the dot + label sit
+      // as a quiet cluster on the curve itself, no full-height bar. Label
+      // uses a layout annotation (not trace text) so we can yshift it a
+      // few pixels above the dot for breathing room.
+      const nowTimeLabel = formatHourLabel(currentHour);
+      const nowLabelColor = colorWithAlpha(cctToRGB(markerCCT), 0.95);
       traces.push({
         type: 'scatter', mode: 'markers',
         x: [cursorHour], y: [cursorBulbY],
         marker: { size: 16, color: nowDotFill, symbol: 'circle', line: { width: 2, color: nowDotBorder } },
         cliponaxis: false,
-        hovertext: 'now · ' + formatHourLabel(currentHour),
+        hovertext: 'now · ' + nowTimeLabel,
         hoverinfo: 'text',
         hoverlabel: {
           bgcolor: 'rgba(40, 40, 40, 0.95)',
@@ -2826,8 +2823,15 @@
         },
         showlegend: false,
       });
-      // (Earlier "now" text annotation above the dot dropped — redundant
-      // with the hover tooltip and added visual noise to the chart.)
+      annotations.push({
+        x: cursorHour, y: cursorBulbY,
+        xref: 'x', yref: 'y',
+        text: nowTimeLabel,
+        showarrow: false,
+        yanchor: 'bottom',  // explicit so the text BOTTOM sits at (y + yshift)
+        yshift: 14,         // pixels above the dot's center — clears the 8px radius + a few px of breathing room
+        font: { size: 11, color: nowLabelColor, family: '-apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif' },
+      });
 
       // Stash NOW pill data for the HTML overlay (positioned after Plotly render).
       // HTML overlay path used instead of a Plotly annotation so we get crisp
@@ -3131,6 +3135,8 @@
 
       // Phase slider: label flips Wake↔Bed at the phase boundary, value
       // shows the active phase target time (live-replaced during drag).
+      // No divergence chip on this row — the slider value IS the time the
+      // user set, so a second copy would be redundant.
       const heroPhase = document.getElementById('slider-hero-phase');
       const phaseLabelEl = document.getElementById('slider-phase-label');
       if (phaseCtx) {
@@ -3443,6 +3449,14 @@
     }
 
     function buildTrackGradient(mode, cfg, currentBri, currentCCT, effectiveColorRange, phaseCtx) {
+      // Brightness slider: static black→white gradient. Matches the home
+      // page area-row slider (areas.html buildSliderTrackGradient) so the
+      // brightness axis reads as a universal "dim → bright" ramp, not
+      // CCT-tinted (which used to shift the slider's color through the
+      // day and conflated brightness with color).
+      if (mode === 'brightness') {
+        return 'linear-gradient(90deg, rgba(0,0,0,0.55) 0%, rgba(255,255,255,0.55) 100%)';
+      }
       const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
       const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
       const stops = [];
@@ -3513,10 +3527,10 @@
       const thumb = track.querySelector('.slider-thumb');
       if (!thumb) return;
       thumb.style.left = pct + '%';
-      const color = cctToRGB(cct);
-      const tinted = mode === 'color' ? color : tintColorByBrightness(color, bri);
-      thumb.style.background = tinted;
-      thumb.style.borderColor = color;
+      // Thumb stays neutral (white, per CSS default) — same convention as
+      // the home-page row sliders. The track gradient already encodes
+      // brightness/color at each position; tinting the thumb on top was
+      // double-encoding the same info.
     }
 
     function getPositionFromPointer(track, e) {
@@ -3734,10 +3748,10 @@
         if (phHeroBri) phHeroBri.textContent = Math.round(previewBri) + '%';
         const phHeroColor = document.getElementById('slider-hero-color');
         if (phHeroColor) phHeroColor.textContent = Math.round(previewCCT) + 'K';
-        const phHeaderReadout = document.getElementById('page-header-readout');
-        if (phHeaderReadout) {
-          phHeaderReadout.textContent = `${Math.round(previewBri)}% · ${Math.round(previewCCT)}K`;
-        }
+        const phBriEl = document.getElementById('ah-state-bri');
+        const phCtEl = document.getElementById('ah-state-ct');
+        if (phBriEl) phBriEl.textContent = Math.round(previewBri) + '%';
+        if (phCtEl)  phCtEl.textContent  = Math.round(previewCCT) + 'K';
         const phHeaderEl = document.getElementById('page-header');
         if (phHeaderEl) {
           const phTinted = tintColorByBrightness(cctToRGB(previewCCT), Math.round(previewBri));
@@ -3788,15 +3802,14 @@
       // the user drags so both displayed values track the thumb in real time.
       // Without this, "78%" / "2910K" stay frozen until pointerup triggers a
       // state refresh, and the header readout stays at the pre-drag value.
-      const headerReadout = document.getElementById('page-header-readout');
+      const headerBriEl = document.getElementById('ah-state-bri');
+      const headerCtEl  = document.getElementById('ah-state-ct');
       const headerEl = document.getElementById('page-header');
       if (dragMode === 'brightness') {
         const heroBri = document.getElementById('slider-hero-brightness');
         if (heroBri) heroBri.textContent = Math.round(previewBri) + '%';
-        if (headerReadout) {
-          const k = Math.round(previewCCT);
-          headerReadout.textContent = `${Math.round(previewBri)}% · ${k}K`;
-        }
+        if (headerBriEl) headerBriEl.textContent = Math.round(previewBri) + '%';
+        if (headerCtEl)  headerCtEl.textContent  = Math.round(previewCCT) + 'K';
         // Also live-tint the header background so dragging brightness
         // visibly affects the header tint (matches the tint pipeline that
         // runs on every status refresh via updateHeaderTint).
@@ -3808,10 +3821,8 @@
       } else if (dragMode === 'color') {
         const heroColor = document.getElementById('slider-hero-color');
         if (heroColor) heroColor.textContent = Math.round(previewCCT) + 'K';
-        if (headerReadout) {
-          const k = Math.round(previewCCT);
-          headerReadout.textContent = `${Math.round(previewBri)}% · ${k}K`;
-        }
+        if (headerBriEl) headerBriEl.textContent = Math.round(previewBri) + '%';
+        if (headerCtEl)  headerCtEl.textContent  = Math.round(previewCCT) + 'K';
         if (headerEl) {
           const tinted = tintColorByBrightness(cctToRGB(previewCCT), Math.round(previewBri));
           headerEl.style.background = tinted;
@@ -4167,6 +4178,14 @@
       }
       stopRefresh();
       const params = new URLSearchParams(window.location.search);
+      // ?back=<path> — explicit return target set by upstream pages
+      // (control detail, zone page, etc.) so back returns to sender.
+      const back = params.get('back');
+      if (back) {
+        const safe = back.startsWith('/') ? back : '/' + back;
+        window.location.href = basePath + safe;
+        return;
+      }
       const from = params.get('from');
       if (from === 'tune') {
         window.location.href = basePath + '/tune';
@@ -4206,29 +4225,40 @@
       updateHeaderTint();
       updateHeaderResetVisibility();
 
-      // Header meta — just the zone link now (the "Rhythm Zone" caps label was
-      // dropped as redundant chrome). color: inherit so it tracks the
-      // readableTextColor that updateHeaderTint sets on .page-header.
+      // Header Row 1 breadcrumb — "in {zone} →". The link element itself
+      // carries id="header-meta-rhythm" (was a span wrapper in Ship 1).
+      // color: inherit so it tracks the readable text the tint pipeline
+      // sets on .area-header.
       const metaRhythm = document.getElementById('header-meta-rhythm');
       const areaZoneName = selectedArea.zone_name;
-      if (areaZoneName) {
-        metaRhythm.innerHTML = `<a href="${basePath}/zone/${encodeURIComponent(areaZoneName)}?back=area/${encodeURIComponent(selectedArea.area_id)}">${areaZoneName}</a>`;
-        metaRhythm.style.display = '';
-      } else {
-        metaRhythm.innerHTML = '';
-        metaRhythm.style.display = 'none';
+      if (metaRhythm) {
+        if (areaZoneName) {
+          metaRhythm.href = `${basePath}/zone/${encodeURIComponent(areaZoneName)}?back=area/${encodeURIComponent(selectedArea.area_id)}`;
+          metaRhythm.textContent = areaZoneName;
+          metaRhythm.style.display = '';
+        } else {
+          metaRhythm.removeAttribute('href');
+          metaRhythm.textContent = '';
+          metaRhythm.style.display = 'none';
+        }
       }
 
-      // Power, freeze, circadian — three header row 2 toggles. Power active
-      // when lights are on (no special styling — readout shows 0% when off).
-      // Freeze active when frozen (cyan tint via .active). Circadian uses
-      // the inverse — `.is-off` flag flips it from de-emphasized (default)
-      // to full-prominence (the noteworthy state).
+      // Row 3 action buttons. White-fill "is-on" encodes engagement
+      // (lit-up = white), works on tinted + neutral headers alike.
+      // Freeze gets a cyan-tinted is-on variant (noteworthy state).
+      // Circadian uses inverse `.is-off` — the rare/noteworthy state
+      // is "off", which gets the orange pill; on is neutral default.
       const powerBtn = document.getElementById('toggle-power');
-      if (powerBtn) powerBtn.classList.toggle('active', selectedArea.is_on);
+      if (powerBtn) powerBtn.classList.toggle('is-on', selectedArea.is_on);
 
       const freezeBtn = document.getElementById('toggle-freeze');
-      if (freezeBtn) freezeBtn.classList.toggle('active', selectedArea.frozen);
+      if (freezeBtn) freezeBtn.classList.toggle('is-on', selectedArea.frozen);
+
+      // Boost button mirrors `selectedArea.boosted`. Phase 1: button is-on
+      // when boosted, but no duration in the sub-line yet (Phase 3 wires
+      // a duration picker via the future boost primitive).
+      const boostBtn = document.getElementById('toggle-boost');
+      if (boostBtn) boostBtn.classList.toggle('is-on', !!selectedArea.boosted);
 
       // Circadian-off overlay (greys chart + sliders, surfaces "Enable"
       // button on the chart card) + header circadian icon prominence.
@@ -4276,7 +4306,8 @@
     // current state.
     function updateHeaderTint() {
       const headerEl = document.getElementById('page-header');
-      const readoutEl = document.getElementById('page-header-readout');
+      const briEl = document.getElementById('ah-state-bri');
+      const ctEl  = document.getElementById('ah-state-ct');
       if (!headerEl || !selectedArea) return;
       // actual_brightness reflects what the bulb WOULD emit at current
       // settings — it doesn't drop to 0 when the room is off (the bulb's
@@ -4288,9 +4319,11 @@
       // Match home-page area-card treatment (areas.html getRowStyle): tint
       // with CCT only when on; when off (or circadian off), fall back to
       // var(--card) — same near-black the area cards use, so the two
-      // surfaces stay visually consistent.
+      // surfaces stay visually consistent. .is-neutral class swaps button
+      // outlines + chip backgrounds to light-on-dark for the neutral state.
+      const isNeutral = !(selectedArea.is_on && selectedArea.is_circadian !== false);
       let bg, color;
-      if (selectedArea.is_on && selectedArea.is_circadian !== false) {
+      if (!isNeutral) {
         const cctColor = cctToRGB(selectedArea.kelvin);
         const tintedColor = tintColorByBrightness(cctColor, effectiveBri);
         bg = tintedColor;
@@ -4301,137 +4334,133 @@
       }
       headerEl.style.background = bg;
       headerEl.style.color = color;
-      // Readout always shows current K — color stays informative when off,
-      // brightness reads 0% as the off indicator. Power button has no
-      // on/off styling; the % readout IS the off indicator.
-      if (readoutEl) {
-        const k = Math.round(selectedArea.kelvin ?? 0);
-        readoutEl.textContent = `${Math.round(effectiveBri)}% · ${k}K`;
-      }
+      headerEl.classList.toggle('is-neutral', isNeutral);
+      // Row 2 readout — bri% on the left, CT on the right of the · sep.
+      const k = Math.round(selectedArea.kelvin ?? 0);
+      if (briEl) briEl.textContent = Math.round(effectiveBri) + '%';
+      if (ctEl)  ctEl.textContent  = k + 'K';
     }
 
-    // Show the master reset (↺) button only when the area has any override
-    // applied — brightness, color, or phase-time. Three independent reset
-    // primitives exist server-side; this commit calls them sequentially.
-    // Replace with a single reset_all_overrides primitive in the backend
-    // follow-up commit.
+    // Populate the divergence chips next to each slider's value (Bright,
+    // Color, Wake/Bed). Same pattern as the home page .delta-chip — chip
+    // appears only when that dimension is overridden from rhythm.
+    // (Function name retained from Ship 1 since callers in updateContent
+    // reference it; the master ↺ reset itself was removed in Ship 2.)
     function updateHeaderResetVisibility() {
-      const btn = document.getElementById('page-header-reset');
-      if (!btn || !selectedArea) return;
-      const status = areaStatus[selectedArea.area_id] || {};
-      const dirty = status.brightness_override != null
-        || status.color_override != null
-        || status.brightness_mid != null
-        || status.color_mid != null;
-      btn.style.display = dirty ? '' : 'none';
-    }
-
-    // Sequential 3-call reset (brightness override, color override, phase
-    // time). Wired to the master ↺ button. Future: collapse into a single
-    // primitive (see project_area_redesign_2026_05.md backend follow-up).
-    async function resetAllOverrides() {
       if (!selectedArea) return;
-      try {
-        await executeAction('reset_brightness_override');
-        await executeAction('reset_color_override');
-        await executeAction('reset_phase');
-      } catch (e) { console.error('resetAllOverrides failed', e); }
+      const status = areaStatus[selectedArea.area_id] || {};
+
+      const briEl = document.getElementById('slider-delta-brightness');
+      if (briEl) {
+        const bo = status.brightness_override;
+        if (bo != null && Math.abs(bo) >= 1) {
+          const sign = bo > 0 ? '+' : '';
+          briEl.textContent = `${sign}${Math.round(bo)}%`;
+        } else {
+          briEl.textContent = '';
+        }
+      }
+      const colEl = document.getElementById('slider-delta-color');
+      if (colEl) {
+        const co = status.color_override;
+        if (co != null && Math.abs(co) >= 10) {
+          const sign = co > 0 ? '+' : '';
+          colEl.textContent = `${sign}${Math.round(co)}K`;
+        } else {
+          colEl.textContent = '';
+        }
+      }
+      // Phase chip is set inside the slider-hero update path (where we
+      // have phaseCtx.currentTargetTime, the user-facing target, not the
+      // raw shifted brightness_mid we'd see in `status`).
     }
 
-
-    // Render header status chips (boost / freeze / motion / fade) into
-    // page-header-chips. Each chip is a button so users can tap to cancel
-    // the active state. Boost + freeze cancellations wire to existing
-    // services; motion + fade are disabled until backend follow-up adds
-    // cancel_motion / finish_fade primitives.
+    // Render Row 2 state chips + Row 3 button sub-lines. Ship 2:
+    //   - Row 2 chips: fade in/out (▲/▼ + countdown) only. Motion + boost
+    //     no longer render as Row 2 chips - motion lives in the Power
+    //     sub-line, boost shows via the Boost button is-on state.
+    //   - Power sub-line: motion countdown > fade timer > next auto-off
+    //     (▼) when on / next auto-on (▲) when off.
+    //   - Freeze + Boost sub-lines stay blank in Phase 1 (Phase 3 wires
+    //     duration display via the boost primitive + frozen_until field).
+    //   - Frozen state shows via the freeze button .is-on (cyan) state.
     function updateTimerStatus() {
       const el = document.getElementById('page-header-chips');
       if (!el) return;
       if (!selectedArea) {
         el.innerHTML = '';
+        setSubline('power-subline', '', true);
+        setSubline('freeze-subline', '', true);
+        setSubline('boost-subline', '', true);
         return;
       }
 
+      // Row 2 chips - fade only. Motion routes to Power sub-line; boost
+      // shows via Boost button is-on; frozen via Freeze button is-on.
       const parts = [];
-      {
-        const hasMotion = selectedArea.motion_expires_at && selectedArea.motion_expires_at !== 'forever';
-        const hasBoostedMotion = selectedArea.boosted && selectedArea.is_motion_coupled;
-        const warnClass = selectedArea.motion_warning_active ? ' area-chip--warning' : '';
-        const motionTitle = 'Motion timer (cancel: TODO — needs cancel_motion primitive)';
-
-        if (hasMotion && hasBoostedMotion) {
-          const remaining = formatCountdown(selectedArea.motion_expires_at);
-          if (remaining) {
-            parts.push(
-              `<button type="button" class="area-chip area-chip--motion${warnClass}" disabled title="${motionTitle}">`
-              + `+${selectedArea.boost_brightness}%: ${remaining}`
-              + `<span class="area-chip-arrow">→</span>off</button>`
-            );
-          }
-        } else {
-          if (hasMotion) {
-            const remaining = formatCountdown(selectedArea.motion_expires_at);
-            if (remaining) {
-              parts.push(
-                `<button type="button" class="area-chip area-chip--motion${warnClass}" disabled title="${motionTitle}">`
-                + `${remaining}<span class="area-chip-arrow">→</span>off</button>`
-              );
-            }
-          }
-
-          if (selectedArea.boosted && selectedArea.boost_brightness) {
-            let text = `+${selectedArea.boost_brightness}%`;
-            if (selectedArea.boost_expires_at === 'forever') {
-              // No suffix — just show the boost percentage
-            } else if (selectedArea.boost_expires_at === 'motion') {
-              if (selectedArea.motion_expires_at) {
-                const remaining = formatCountdown(selectedArea.motion_expires_at);
-                if (remaining) {
-                  text += ` · ${remaining}<span class="area-chip-arrow">→</span>circadian`;
-                } else {
-                  text += ' · ending';
-                }
-              } else {
-                text += ' · until motion ends';
-              }
-            } else if (selectedArea.boost_expires_at) {
-              const remaining = formatCountdown(selectedArea.boost_expires_at);
-              if (remaining) {
-                const outcome = selectedArea.boost_started_from_off ? 'off' : 'circadian';
-                text += ` · ${remaining}<span class="area-chip-arrow">→</span>${outcome}`;
-              }
-            }
-            parts.push(
-              `<button type="button" class="area-chip area-chip--boost"`
-              + ` onclick="executeAction('boost')" title="Cancel boost">`
-              + `Boost: ${text}</button>`
-            );
-          }
+      if (selectedArea.fade_direction) {
+        const fadeIcon = selectedArea.fade_direction === 'in' ? '\u25B2' : '\u25BC';
+        const remaining = selectedArea.fade_remaining;
+        let countdown = '';
+        if (remaining != null && remaining > 0) {
+          const m = Math.floor(remaining / 60);
+          const s = remaining % 60;
+          countdown = m > 0 ? `${m}m` : `${s}s`;
         }
-
-        if (selectedArea.fade_direction) {
-          const fadeIcon = selectedArea.fade_direction === 'in' ? '\u25B2' : '\u25BC';
-          const target = selectedArea.fade_target_preset || (selectedArea.fade_direction === 'out' ? 'off' : 'circadian');
-          const remaining = selectedArea.fade_remaining;
-          let countdown = '';
-          if (remaining != null && remaining > 0) {
-            const m = Math.floor(remaining / 60);
-            const s = remaining % 60;
-            countdown = m > 0 ? `${m}m ${s}s` : `${s}s`;
-          }
-          parts.push(
-            `<button type="button" class="area-chip area-chip--fade" disabled`
-            + ` title="Fade in progress (cancel: TODO \u2014 needs finish_fade primitive)">`
-            + `\u23F0 ${fadeIcon} ${target} ${countdown}</button>`
-          );
-        }
-
-        // Frozen state now surfaces via the page-header freeze icon (cyan
-        // .active styling) — chip retired to avoid duplication with the
-        // always-visible header control.
+        parts.push(
+          `<button type="button" class="area-chip area-chip--fade" disabled`
+          + ` title="Fade in progress (cancel: TODO — needs finish_fade primitive)">`
+          + `<span class="area-chip-arrow">${fadeIcon}</span> ${countdown}</button>`
+        );
       }
-
       el.innerHTML = parts.join('');
+
+      // Power sub-line - motion countdown > fade timer > next-auto.
+      const hasMotion = selectedArea.motion_expires_at && selectedArea.motion_expires_at !== 'forever';
+      let powerText = '';
+      if (hasMotion) {
+        const remaining = formatCountdown(selectedArea.motion_expires_at);
+        if (remaining) powerText = remaining;
+      } else if (selectedArea.fade_direction && selectedArea.fade_remaining != null && selectedArea.fade_remaining > 0) {
+        const m = Math.floor(selectedArea.fade_remaining / 60);
+        powerText = (m > 0 ? `${m}m` : `${selectedArea.fade_remaining}s`);
+      } else {
+        // Fall back to next scheduled on/off - direction picked by current
+        // lights state (on -> next off; off -> next on).
+        const nxt = selectedArea.is_on ? _cachedNextAuto.off : _cachedNextAuto.on;
+        if (nxt && nxt.time != null) {
+          const arrow = selectedArea.is_on ? '\u25BC' : '\u25B2';
+          powerText = `<span class="ah-subline-arrow">${arrow}</span>${formatAutoTimeCompact(nxt.time)}`;
+        }
+      }
+      setSubline('power-subline', powerText, !powerText);
+
+      // Freeze + Boost sub-lines stay blank in Phase 1.
+      setSubline('freeze-subline', '', true);
+      setSubline('boost-subline', '', true);
+    }
+
+    // Helper: update a sub-line's HTML + blank class together.
+    function setSubline(id, html, blank) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.innerHTML = blank ? '&nbsp;' : html;
+      el.classList.toggle('is-blank', !!blank);
+    }
+
+    // Power sub-line tap - open Schedule and orange-flash the relevant
+    // sub-section (auto-on when lights are off, auto-off when on). Reuses
+    // focusAutoSub() which already handles open + scroll + flash.
+    function onPowerSublineClick() {
+      if (!selectedArea) return;
+      focusAutoSub(selectedArea.is_on ? 'off' : 'on');
+    }
+
+    // Boost button - placeholder until Phase 3 wires the boost primitive
+    // with duration + intensity. Phase 1 reuses the existing fixed-duration
+    // boost toggle.
+    async function onBoostClick() {
+      try { await executeAction('boost'); } catch (e) { console.error('boost failed', e); }
     }
 
     // ============================================================
@@ -4477,11 +4506,9 @@
         }
       }
       if (exposure <= 0 || sensitivity <= 0) { el.classList.remove('visible'); return; }
-      const sunrise = sunTimes?.sunrise;
-      const sunset = sunTimes?.sunset;
-      const isDay = Number.isFinite(sunrise) && Number.isFinite(sunset)
-        && currentHour >= sunrise && currentHour < sunset;
-      if (!isDay) { el.classList.remove('visible'); return; }
+      // No isDay gate — chip stays visible all day; outdoorNormalized
+      // naturally goes to 0 at night, so the % reads "0%" instead of
+      // hiding the chip entirely.
       const norm = sunTimes?.outdoorNormalized ?? 0;
       const pct = Math.round(norm * 100);
       const iconEl = document.getElementById('chart-sun-info-icon');
@@ -4489,28 +4516,9 @@
       if (iconEl) iconEl.textContent = '☀';  // sun glyph; % conveys cloudiness
       if (pctEl) pctEl.textContent = pct + '%';
       el.classList.add('visible');
-      const chartDiv = document.getElementById('mini-chart');
-      const shell = document.getElementById('chart-shell');
-      const fl = chartDiv && chartDiv._fullLayout;
-      if (fl && fl.xaxis && fl.yaxis && shell) {
-        const xRange = fl.xaxis.range;  // [phaseVisStart, phaseVisEnd]
-        const xStart = xRange[0], xEnd = xRange[1];
-        const xLen = fl.xaxis._length;
-        // Anchor at NOW (currentHour), not solar noon. The chip's value
-        // is the CURRENT outdoor sun intensity (`outdoor_normalized`), so
-        // anchoring at noon made it read as a forecast for later in the
-        // day. Anchoring at NOW makes it read as "right now's reading,"
-        // which is what the value actually is. Lift into the visible
-        // window the same way other overlays do (visHour wrap).
-        let visNow = currentHour;
-        while (visNow < xStart - 12) visNow += 24;
-        while (visNow > xEnd + 12) visNow -= 24;
-        const clampedNow = Math.max(xStart, Math.min(xEnd, visNow));
-        const chartLeftInShell = chartDiv.getBoundingClientRect().left - shell.getBoundingClientRect().left;
-        const px = chartLeftInShell + fl.xaxis._offset + ((clampedNow - xStart) / (xEnd - xStart)) * xLen;
-        el.style.left = px + 'px';
-        el.style.right = 'auto';
-      }
+      // Position is handled by flex layout in Row 1 of .area-header now
+      // (was absolute-positioned over the chart pre-Ship 2). No x-anchor
+      // math needed.
     }
 
     // Mutates areaState in place, overlaying live tuneState pipeline factors so
@@ -4631,11 +4639,11 @@
           if (action === 'lights_toggle') {
             selectedArea.is_on = !selectedArea.is_on;
             const pb = document.getElementById('toggle-power');
-            if (pb) { pb.classList.toggle('active', selectedArea.is_on); pb.blur(); }
+            if (pb) { pb.classList.toggle('is-on', selectedArea.is_on); pb.blur(); }
           } else if (action === 'freeze_toggle') {
             selectedArea.frozen = !selectedArea.frozen;
             const fb = document.getElementById('toggle-freeze');
-            if (fb) { fb.classList.toggle('active', selectedArea.frozen); fb.blur(); }
+            if (fb) { fb.classList.toggle('is-on', selectedArea.frozen); fb.blur(); }
           }
           setTimeout(async () => {
             try {

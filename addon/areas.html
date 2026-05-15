@@ -2382,12 +2382,15 @@
     function sunIconStyleString(pct) {
       if (pct == null) return '';
       const t = Math.max(0, Math.min(100, pct)) / 100;
-      const r = Math.round(120 + (245 - 120) * t);
-      const g = Math.round(100 + (200 - 100) * t);
-      const b = Math.round(60 + (100 - 60) * t);
-      const blur = 4 + t * 8;
-      const sa = 0.3 + t * 0.4;
-      return `color: rgb(${r}, ${g}, ${b}); text-shadow: 0 0 ${blur.toFixed(1)}px rgba(${r},${g},${b},${sa.toFixed(2)});`;
+      // Keep in sync with SunIntensity.paintTriggerIcon (shared.js): stay
+      // distinctly yellow at all intensities, constant dark outline so the
+      // glyph stays legible against warm-tinted backgrounds.
+      const r = Math.round(235 + (255 - 235) * t);
+      const g = Math.round(185 + (215 - 185) * t);
+      const b = Math.round(60  + (90  - 60 ) * t);
+      const blur = 5 + t * 10;
+      const sa = 0.45 + t * 0.45;
+      return `color: rgb(${r}, ${g}, ${b}); text-shadow: 0 0 ${blur.toFixed(1)}px rgba(${r},${g},${b},${sa.toFixed(2)}), 0 0 1px rgba(0,0,0,1), 0 0 3px rgba(0,0,0,0.7);`;
     }
     function cachedSunPctText() {
       return _cachedSunPct != null ? `${_cachedSunPct}%` : '–%';

@@ -1,5 +1,22 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.318
+- **Area-detail redesign — Phase 1.** New 3-row CCT-tinted header replacing the 2-row Ship-1 layout per `addon/area-detail-mock.html`:
+  - Row 1: ← back · area name (`h1`) · "in {zone} →" breadcrumb · sun pill (top-right, relocated from chart-shell).
+  - Row 2: `bri%` · `·` · `CT` · fade chip. Single source of truth — JS writes `ah-state-bri` + `ah-state-ct`; phase/brightness/color drag handlers updated.
+  - Row 3: Power · Freeze · Boost · Circadian. Flex layout, left-aligned to the row's content margin. White-fill `is-on` encoding uniform across Power/Freeze/Boost; Circadian opts out and encodes state via the logo (full color on, grayscale @ 55% off).
+  - Power sub-line: motion countdown > fade timer > next auto-off (`▼ Xp`) when on / next auto-on (`▲ Ya`) when off. Tap calls `focusAutoSub('on'|'off')` — opens Schedule, scrolls to the right sub-section, orange-flash highlight.
+  - Card reorder: Adjust → Tune → Schedule → Controls → Lights. `tune-brightness-card` moved into `auto-sched-section` between adjust + schedule; `tune-controls-card` moved after schedule. Sticky chart-context wrapper still scopes correctly across Adjust + Tune + Schedule.
+  - Divergence chips (home-page `.delta-chip` pattern) on Bright + Color slider rows. Computed from `brightness_override` / `color_override`. No phase chip (would duplicate the slider value).
+  - `goBack()` honors `?back=<path>` (in addition to legacy `?from=tune`).
+- **Circadian button uses production no-D logo** — new asset `addon/icon-indicator.png` (production icon, no D/B channel stamp); webserver inline-replaces `src="./icon-indicator.png"` the same way it does `./icon.png`. Logo grayscaled at 55% opacity when circadian is off.
+- **Chart NOW marker simplified**: vertical line through the chart retired; current time renders as a CCT-tinted Plotly annotation 14px above the dot.
+- **Sun chip always-visible**: gating dropped (`isDay` check + nighttime hide). Chip stays mounted; outdoor% naturally goes to 0 at night. Interior rooms (`natural_light_exposure == 0`) still hidden.
+- **Sun icon legibility pass** (`SunIntensity.paintTriggerIcon` in `shared.js` + `sunIconStyleString` mirror in `areas.html`): color range shifts from `rgb(120,100,60)→rgb(245,200,100)` (muddy-brown at 0%) to `rgb(235,185,60)→rgb(255,215,90)` (saturated yellow at all intensities). Constant 1px @ 1.0α + 3px @ 0.7α dark text-shadow halo keeps the glyph crisp on warm-amber headers.
+- **Outdoor popover z-index** bumped 50 → 200 (`shared.css`), and the popover host element moved out of `#chart-shell` to body-level on area-detail — the sticky chart-shell stacking context (z-index 5) was trapping it behind the header (z-index 100).
+- **Slider visuals reconciled with home page**: brightness slider gradient swapped from CCT-sampled to static `rgba(0,0,0,0.55) → rgba(255,255,255,0.55)` (matches `areas.html buildSliderTrackGradient`). Slider thumbs no longer CCT-tinted — neutral white (CSS default), inline `style.background`/`style.borderColor` overrides removed from `applyOneSlider`.
+- **Dead-code cleanup**: `elif service == "reset"` branch in `main.py:7264` (called nonexistent `primitives.reset()`) removed; orphan `resetAllOverrides()` JS in `area.html` removed.
+
 ## 1.2.317
 - **View pill rename** (Adjust modes): `Active` → `On/Off`, `All` → `Zone`. Underlying storage values unchanged; old saved prefs keep working.
 - **New "Off" group** below Upcoming in On/Off view: lists off rooms that have no scheduled auto_on/auto_off (so they wouldn't appear in Upcoming). Sort is flat, by user's custom area order across all zones (walks glozone zones in order, then areas within each zone). Collapsible chevron, persists independently from Upcoming.

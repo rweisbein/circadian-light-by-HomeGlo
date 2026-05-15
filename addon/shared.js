@@ -1407,11 +1407,20 @@ window.SunIntensity = (function () {
       if (pctEl) pctEl.textContent = pct + '%';
       if (!iconEl) return;
       const t = Math.max(0, Math.min(100, pct)) / 100;
-      const r = Math.round(120 + (245 - 120) * t);
-      const g = Math.round(100 + (200 - 100) * t);
-      const b = Math.round(60 + (100 - 60) * t);
+      // Color stays distinctly yellow at all intensities — at 0% the old
+      // rgb(120,100,60) muddied into brown and blended into warm CCT
+      // headers. Glow size + saturation scale with t so intensity still
+      // reads, and a constant dark outer text-shadow keeps the glyph
+      // legible on warm/amber backgrounds.
+      const r = Math.round(235 + (255 - 235) * t);
+      const g = Math.round(185 + (215 - 185) * t);
+      const b = Math.round(60  + (90  - 60 ) * t);
       iconEl.style.color = `rgb(${r}, ${g}, ${b})`;
-      iconEl.style.textShadow = `0 0 ${4 + t * 8}px rgba(${r},${g},${b},${0.3 + t * 0.4})`;
+      iconEl.style.textShadow = [
+        `0 0 ${5 + t * 10}px rgba(${r},${g},${b},${0.45 + t * 0.45})`,
+        `0 0 1px rgba(0,0,0,1)`,
+        `0 0 3px rgba(0,0,0,0.7)`,
+      ].join(', ');
     }
 
     async function refresh() {
