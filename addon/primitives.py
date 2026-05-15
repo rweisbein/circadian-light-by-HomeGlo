@@ -3941,6 +3941,58 @@ class CircadianLightPrimitives:
             f"glozone_reset complete: zone '{zone_name}' reset to Daily Rhythm defaults"
         )
 
+    # -------------------------------------------------------------------------
+    # GloZone per-dimension resets — clear ONE field on the zone's runtime
+    # state. Powers the home-page zone-header divergence chip tap-to-clear:
+    # each chip points at the specific override it represents, tapping it
+    # clears only that field rather than nuking the whole zone state.
+    # Does not propagate to areas; pair with glozone_down for push-through.
+    # -------------------------------------------------------------------------
+
+    async def glozone_reset_brightness_override(
+        self, zone_name: str, source: str = "service_call"
+    ):
+        """Clear the zone's brightness_override (+ set_at)."""
+        logger.info(
+            f"[{source}] glozone_reset_brightness_override for zone '{zone_name}'"
+        )
+        glozone.reload()
+        glozone_state.set_zone_state(
+            zone_name,
+            {"brightness_override": None, "brightness_override_set_at": None},
+        )
+
+    async def glozone_reset_color_override(
+        self, zone_name: str, source: str = "service_call"
+    ):
+        """Clear the zone's color_override (+ set_at)."""
+        logger.info(
+            f"[{source}] glozone_reset_color_override for zone '{zone_name}'"
+        )
+        glozone.reload()
+        glozone_state.set_zone_state(
+            zone_name,
+            {"color_override": None, "color_override_set_at": None},
+        )
+
+    async def glozone_reset_phase(
+        self, zone_name: str, source: str = "service_call"
+    ):
+        """Clear the zone's phase shift (brightness_mid + color_mid)."""
+        logger.info(f"[{source}] glozone_reset_phase for zone '{zone_name}'")
+        glozone.reload()
+        glozone_state.set_zone_state(
+            zone_name, {"brightness_mid": None, "color_mid": None}
+        )
+
+    async def glozone_reset_frozen(
+        self, zone_name: str, source: str = "service_call"
+    ):
+        """Unfreeze the zone (clear frozen_at)."""
+        logger.info(f"[{source}] glozone_reset_frozen for zone '{zone_name}'")
+        glozone.reload()
+        glozone_state.set_zone_state(zone_name, {"frozen_at": None})
+
     async def glozone_down(
         self,
         zone_name: str,

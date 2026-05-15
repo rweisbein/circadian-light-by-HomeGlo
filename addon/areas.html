@@ -310,12 +310,43 @@
       color: #e2e8f0;
       opacity: 0.9;
     }
+    /* SVG bolt inside timer-motion / timer-boost. Uses currentColor so
+       it picks up the timer's color (not the yellow-by-default ⚡ emoji). */
+    .timer-bolt {
+      width: 0.9em;
+      height: 0.9em;
+      display: inline-block;
+      vertical-align: -0.12em;
+    }
     .timer-boost-flash {
       animation: timer-motion-flash 1.4s ease-in-out infinite;
     }
 
     .timer-frozen {
       color: #63b3ed;
+      opacity: 1;
+    }
+    /* Zone-header freeze indicator — inline next to the bed/wake label.
+       Chip styled to mirror area-row .row-active-status > span: pill
+       background, color inherited from the zone header (readable on any
+       tint), uniform with the other inline pills. Tappable to unfreeze. */
+    .zone-frozen-indicator {
+      display: inline-flex;
+      align-items: center;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: rgba(0,0,0,0.18);
+      color: inherit;
+      opacity: 0.9;
+      margin-left: 8px;
+      cursor: pointer;
+      transition: opacity 0.12s, background 0.12s;
+      line-height: 1;
+    }
+    .zone-frozen-indicator:hover {
+      background: rgba(0,0,0,0.30);
       opacity: 1;
     }
 
@@ -691,6 +722,23 @@
     .row-slider-track.dragging .row-slider-thumb-ghost {
       display: block;
     }
+    /* Tune-mode default-position tick — shows where the slider was
+       before the user dragged (the "previous saved" step). Hidden by
+       default; revealed via .is-visible. Pairs with the orange
+       row-readout to cue "tap to revert". */
+    .row-slider-default-tick {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 2px;
+      height: 16px;
+      background: rgba(255,255,255,0.6);
+      border-radius: 1px;
+      pointer-events: none;
+      display: none;
+      z-index: 1;
+    }
+    .row-slider-default-tick.is-visible { display: block; }
 
     /* Drag-delta fill: faint band stretched between ghost and live thumb.
        Reinforces direction of change (brightening vs dimming) and the
@@ -709,20 +757,54 @@
       display: block;
     }
 
-    /* Inline target-% label in row header (right of area name). Only visible
-       while a drag is active on this row's slider; disappears on release. */
-    .row-drag-value {
+    /* row-drag-value retired — row-readout updates live during drag,
+       eliminating the dual-readout. (Style kept harmless for any stale
+       references but the markup is gone.) */
+    .row-drag-value { display: none !important; }
+
+    /* Inline row-level action buttons next to the area name (Adjust modes
+       when dirty): ↺ reset (glo_down) + ↑ Full Send (full_send). Spaced
+       apart deliberately — the two actions have very different effects
+       on the home's lighting and a mis-tap is costly. Extra margin-right
+       so the status chips (motion/fade/boost/freeze) don't crowd them. */
+    .row-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 18px;
       margin-left: 10px;
+      margin-right: 12px;
+    }
+    .row-action-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 12px;
+      border: 1px solid rgba(0,0,0,0.30);
+      background: rgba(255,255,255,0.85);
+      color: #1a1a1a;
       font-size: 14px;
-      font-weight: 600;
-      color: var(--row-text, var(--text));
-      opacity: 0.85;
-      display: none;
-      flex-shrink: 0;
+      line-height: 1;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.12s, transform 0.08s;
+      -webkit-tap-highlight-color: transparent;
     }
-    .area-row.slider-dragging .row-drag-value {
-      display: inline;
+    .row-action-btn:hover { background: #fff; }
+    .row-action-btn:active { transform: scale(0.95); }
+
+    /* Divergence chips wrapper on row 1 (next to the readout). Chips
+       cluster left of the readout, with a small left margin so they
+       don't crowd the row-actions buttons. */
+    .row-divchips {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: 10px;
     }
+    .row-divchips:empty { display: none; }
     /* Suppress reset chip during drag so the inline target % can use the
        horizontal space (reset isn't tappable mid-drag anyway). Reappears on
        release if the area is still dirty. */
@@ -1530,6 +1612,37 @@
       flex: 0 0 auto;
     }
     .tune-breakdown .tb-preview:empty { display: none; }
+    /* "(before → after)" parenthetical on the current readout. Hidden at
+       rest; revealed when the row's slider is being dragged. */
+    .tb-bf { color: var(--muted2); font-weight: 400; margin-left: 4px; display: none; }
+    .area-row.slider-dragging .tb-bf { display: inline; }
+    /* Tune mode status row (below slider): Peak + Current both on the
+       right, space-separated. tb-peak gets margin-left:auto so the pair
+       hugs the right edge. A touch smaller than the descriptor headline. */
+    .area-row.mode-sun .row-status-row,
+    .area-row.mode-balance .row-status-row {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      justify-content: flex-end;
+      font-size: 0.78rem;
+    }
+    .tb-peak { margin-left: auto; }
+    .tb-current { text-align: right; }
+    /* Bigger row-readout in Tune modes so the descriptor (e.g. "Bright
+       1.15x") reads as the headline value, matching area-detail's Tune
+       slider readout. */
+    .area-row.mode-sun .row-readout,
+    .area-row.mode-balance .row-readout {
+      font-size: 1rem;
+    }
+    /* In tune modes, the inline drag-value (next to area name) is
+       redundant with the dynamic row-readout which now updates during
+       drag. Hide it so the row isn't double-stating the candidate. */
+    .area-row.mode-sun .row-drag-value,
+    .area-row.mode-balance .row-drag-value {
+      display: none !important;
+    }
     /* Small "peak" tag on the row-3 LEFT slot when idle — tells the user
        the numbers next to it are the peak-impact projection (sun=100% or
        rhythm=100%) and not the current "now" reading. */
@@ -1564,6 +1677,19 @@
       /* Spacing is governed by the parent flex `gap` (status-row, zone-subrow),
          so chip-to-chip and chip-to-icon read identically. Removed redundant
          margin-right that was stacking on top of the parent gap. */
+    }
+    /* Area-row chips are tappable to clear divergence per-dimension —
+       avoids needing to switch to the right mode first. Muted treatment
+       (no orange) so the chip doesn't shout for attention; hover gives
+       the tappability cue. */
+    .delta-chip.delta-chip-action {
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s, opacity 0.12s;
+    }
+    .delta-chip.delta-chip-action:hover {
+      background: rgba(255,255,255,0.10);
+      border-color: rgba(255,255,255,0.20);
+      opacity: 1;
     }
     .area-row:not([style*="--row-bg"]) .delta-chip,
     .area-row-off .delta-chip {
@@ -1600,7 +1726,17 @@
       white-space: nowrap;
       margin-left: auto;
       padding-right: 8px;
+      transition: color 0.15s, opacity 0.15s;
     }
+    /* Dirty row-readout: orange + tappable. Doubles as the per-row reset
+       button — Adjust modes tap to glo_down (revert to zone), Tune modes
+       tap to restoreTunePrev (undo last change). */
+    .row-readout--dirty {
+      color: var(--accent);
+      opacity: 1;
+      cursor: pointer;
+    }
+    .row-readout--dirty:hover { color: var(--accent-hover); }
     /* Tune-mode multiplier suffix (e.g., "0.95x") next to the descriptor.
        Muted so the named step ("Subtle") reads as the primary value. Used
        in both the static readout and the live drag preview. */
@@ -1675,6 +1811,24 @@
     let _viewSegExpanded = false;
     // Phase 2/3: action mode pill state — 'brightness' | 'color' | 'bed' | 'sun' | 'balance'
     let homePillMode = 'brightness';
+    // Most-recently-dragged tune slider's area id. The row-readout for
+    // this area goes orange in Tune mode ("oops, I dragged to test —
+    // tap to revert"). Single-area scope: dragging a second area's
+    // slider clears the first. Cleared on mode change + page reload
+    // (in-memory). Auto-clears after 10s past the most recent change
+    // (the "oops" window expires — orange shouldn't linger).
+    let _homeRecentTuneAreaId = null;
+    let _homeRecentTuneTimer = null;
+    function setHomeRecentTune(areaId) {
+      _homeRecentTuneAreaId = areaId;
+      if (_homeRecentTuneTimer) clearTimeout(_homeRecentTuneTimer);
+      _homeRecentTuneTimer = setTimeout(() => {
+        const id = _homeRecentTuneAreaId;
+        _homeRecentTuneAreaId = null;
+        _homeRecentTuneTimer = null;
+        if (id) refreshTuneRowDom(id);  // drop the orange
+      }, 10000);
+    }
     // Phase 3: mode popover open-state — persisted across re-renders so the
     // refresh cycle doesn't kick the popover closed mid-interaction.
     let _modePopoverOpen = false;
@@ -1707,12 +1861,15 @@
 
     // Phase 3: per-area sun_exposure / balance discrete steps (matches tune.html).
     const SOLAR_STEPS = [
+      // Migrated to match area-detail's descriptors (single source of
+      // truth). Old labels: Medium @ 0.60, Strong @ 0.90 → renamed to
+      // Strong @ 0.60, Near full @ 0.90 so the pages read the same.
       { label: 'None',      exposure: 0.00 },
       { label: 'Low',       exposure: 0.25 },
       { label: 'Moderate',  exposure: 0.40 },
-      { label: 'Medium',    exposure: 0.60 },
+      { label: 'Strong',    exposure: 0.60 },
       { label: 'High',      exposure: 0.75 },
-      { label: 'Strong',    exposure: 0.90 },
+      { label: 'Near full', exposure: 0.90 },
       { label: 'Full',      exposure: 1.00 },
       { label: 'Amplified', exposure: 1.25 },
       { label: 'Intense',   exposure: 1.60 },
@@ -2234,17 +2391,21 @@
           parts.push(`<span class="timer-fade">${fadeIcon} ${countdown}</span>`);
         }
 
+        // Bolt SVG (currentColor) used for motion+boost combined and
+        // boost-solo. Avoids the \u26A1 emoji which renders yellow on most
+        // systems \u2014 area-detail uses an SVG bolt too for consistency.
+        const boltSvg = `<svg class="timer-bolt" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10"/></svg>`;
         // Motion + boost (combined or separate)
         if (hasMotion && isBoosted && isMotionCoupled) {
           const remaining = formatCountdown(status.motion_expires_at);
-          if (remaining) parts.push(`<span class="timer-motion${warnClass}">\u26A1 ${remaining}</span>`);
+          if (remaining) parts.push(`<span class="timer-motion${warnClass}">${boltSvg} ${remaining}</span>`);
         } else {
           if (hasMotion) {
             const remaining = formatCountdown(status.motion_expires_at);
             if (remaining) parts.push(`<span class="timer-motion${warnClass}">${remaining}</span>`);
           }
           if (isBoosted && status.boost_brightness && !isMotionCoupled) {
-            let text = '\u26A1';
+            let text = boltSvg;
             let boostFlash = '';
             if (status.boost_expires_at !== 'forever' && status.boost_expires_at) {
               const remaining = formatCountdown(status.boost_expires_at);
@@ -2259,7 +2420,10 @@
 
         // Frozen
         if (status.frozen) {
-          parts.push(`<span class="timer-frozen">❄</span>`);
+          // Tappable to unfreeze the area (freeze_toggle flips it off
+          // when frozen). cursor:pointer inline since timer-frozen is a
+          // generic status pill.
+          parts.push(`<span class="timer-frozen" onclick="event.stopPropagation(); rowAction('${areaId}', 'freeze_toggle')" title="Unfreeze area" style="cursor:pointer;">❄</span>`);
         }
 
         // Build a structure signature (count + classes) to detect when
@@ -2629,11 +2793,25 @@
     function clearTunePrev(areaId, dim) {
       try { localStorage.removeItem(tunePrevKey(areaId, dim)); } catch (e) {}
     }
+    // Dispatcher for the row-readout reset tap. Mode-aware: Adjust modes
+    // go to zone state (glo_down), Tune modes revert to the previous
+    // saved tune value (restoreTunePrev).
+    function rowReadoutReset(areaId) {
+      if (isTuneMode(homePillMode)) {
+        restoreTunePrev(areaId);
+      } else {
+        rowAction(areaId, 'glo_down');
+      }
+    }
+
     async function restoreTunePrev(areaId) {
       const dim = homePillMode === 'sun' ? 'sun' : 'balance';
       const prev = getTunePrev(areaId, dim);
       if (prev == null) return;
       clearTunePrev(areaId, dim);
+      // Clear the most-recent marker — after revert there's no pending
+      // change to flag.
+      if (_homeRecentTuneAreaId === areaId) _homeRecentTuneAreaId = null;
       const payload = dim === 'sun'
         ? { natural_light_exposure: prev }
         : { brightness_factor: prev };
@@ -3543,20 +3721,19 @@
             zoneTextColor = 'var(--text)';
           }
 
-          // Zone diverged from pure rhythm — show a clickable reset affordance
-          // next to the zone name (replaces the standalone reset button that used
-          // to live on the right side). Single-click resets; no menu (zone has
-          // only one reasonable action: snap back to rhythm). Tune modes
-          // suppress this — focus on tuning, not rhythm-zone state.
+          // Dynamic reset dot retired — the row-controls reset button on
+          // the right side of the header now owns the zone-reset action
+          // (always rendered, no more "appears when dirty").
           const rs = zs.runtime_state;
-          if (!tuneNeutralHeader && rs && (rs.brightness_mid != null || rs.color_mid != null || rs.frozen_at != null ||
-                     rs.color_override != null || rs.brightness_override != null)) {
-            zoneMismatchDot = `<span class="mismatch-dot-area diverge-tune" onclick="event.stopPropagation(); glozoneReset('${escapedZoneName}')" title="Reset zone to rhythm"></span>`;
-          }
 
           // Frozen indicator on zone header — suppressed in tune mode.
           if (!tuneNeutralHeader && rs && rs.frozen_at != null) {
-            zoneFrozenIndicator = `<span class="row-status-sym timer-frozen">❄</span>`;
+            // Indicator sits inline inside zone-title-row, right of the
+            // bed/wake label. Cyan glyph at proper size (not the tiny
+            // 0.6rem .row-status-sym treatment from elsewhere). Tappable
+            // to unfreeze the zone (clear frozen_at).
+            const escFrozen = zoneName.replace(/'/g, "\\'");
+            zoneFrozenIndicator = `<span class="zone-frozen-indicator" onclick="event.stopPropagation(); zoneAction('${escFrozen}', 'glozone_reset_frozen')" title="Unfreeze zone">❄</span>`;
           }
         }
 
@@ -3581,13 +3758,13 @@
                       <a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" style="color: ${zoneTextColor};">${zoneName}</a>
                       ${currentMode === 'organize' ? `<span class="zone-count">(${sorted.length})</span>` : ''}
                       ${rhythmPhase && !phaseChip ? `<span class="zone-phase-label" style="color: ${zoneTextColor};">${rhythmPhase}</span>` : ''}
+                      ${zoneFrozenIndicator}
                     </span>
                     ${subrow}
                   </div>`;
               })()}
-              ${zoneFrozenIndicator}
               <div class="row-controls">
-                ${(tuneNeutralHeader || glozoneAffectedAreas(zoneName).length === 0) ? '' : `<button class="row-btn" onclick="event.stopPropagation(); glozoneDown('${escapedZoneName}')" title="Push rhythm zone state to all areas">${glozoneDownIcon}</button>`}
+                ${tuneNeutralHeader ? '' : `<button class="row-btn" onclick="event.stopPropagation(); glozoneResetFull('${escapedZoneName}')" title="Reset zone + push to all areas">${glozoneResetIcon}</button>`}
               </div>
             </div>
             <div class="zone-content ${isCollapsed ? 'hidden' : ''}" data-zone-table="${zoneName}">
@@ -3873,6 +4050,41 @@
       const phaseMidpoint = getPhaseMidpoint(area);
       const readout = getModeReadout(area);
       const divChips = getDivergenceChips(area);
+      // Default-position tick for Tune-mode slider: shown only for the
+      // recent-tune area (matches the orange row-readout), pointing at
+      // the previous saved step. Both vanish together on 10s timeout.
+      let tickVisible = false;
+      let tickPct = 0;
+      if (isTuneMode(homePillMode) && area.area_id === _homeRecentTuneAreaId) {
+        const dim = homePillMode === 'sun' ? 'sun' : 'balance';
+        const prev = getTunePrev(area.area_id, dim);
+        if (prev != null) {
+          const steps = homePillMode === 'sun' ? SOLAR_STEPS : LUMEN_STEPS;
+          const prevIdx = nearestStepIndex(steps, prev, homePillMode === 'sun' ? 'exposure' : 'factor');
+          tickPct = (prevIdx / (steps.length - 1)) * 100;
+          tickVisible = true;
+        }
+      }
+      // Tune mode: only the MOST RECENT area's row-readout goes orange.
+      // Single global _homeRecentTuneAreaId pointer; cleared on mode change
+      // or page reload (in-memory). "Oops I dragged to test" recovery.
+      const readoutDirty = isTuneMode(homePillMode)
+        ? (area.area_id === _homeRecentTuneAreaId)
+        : false;  // Adjust modes use the inline ↺/↑ buttons instead.
+      const readoutClass = readoutDirty ? 'row-readout row-readout--dirty' : 'row-readout';
+      const readoutOnclick = readoutDirty
+        ? `onclick="event.stopPropagation(); rowReadoutReset('${area.area_id}')"`
+        : '';
+      // Adjust mode row-actions: reset + full-send inline after the name
+      // when the area diverges from zone. Tune modes skip these — orange
+      // row-readout serves the same purpose there.
+      const adjustDirty = !isTuneMode(homePillMode) && isAreaDirty(area);
+      const rowActionsHtml = adjustDirty
+        ? `<span class="row-actions">`
+          + `<button class="row-action-btn" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_down')" title="Reset to rhythm">&#x21BA;</button>`
+          + `<button class="row-action-btn row-action-btn--send" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'full_send')" title="Full Send (this area's state to zone, then zone to all)">&#x2191;</button>`
+          + `</span>`
+        : '';
 
       // Phase 1+2: off rooms collapse to a single-line row in Adjust modes —
       // power · name · status · chips · schedule pill. In Tune mode, off rooms
@@ -3905,13 +4117,12 @@
       // Tune mode replaces the entire strip with the impact compound.
       const inTune = isTuneMode(homePillMode);
       const tuneImpactHtml = inTune ? getTuneImpactHtml(area) : '';
-      // Adjust mode row 3 layout:
-      //   left:  reset dot + divergence chips  (symmetric with zone header)
-      //   right: schedule pill                  (margin-left:auto)
-      // Active-state chip moves up to row 1, inline with name.
+      // Adjust mode row 3 layout: divergence chips on the left,
+      // schedule pill on the right. (The reset / full-send actions
+      // moved up to row 1 next to the area name.)
       const statusStripContent = inTune
         ? tuneImpactHtml
-        : `${divChips}${mismatchDot}<span class="row-schedule-pill" data-area-timer="${area.area_id}"></span>`;
+        : `${divChips}<span class="row-schedule-pill" data-area-timer="${area.area_id}"></span>`;
       const statusRowAttr = inTune ? '' : `data-area-schedule="${area.area_id}" data-zone-name="${area.zone_name || ''}"`;
       return `
         <div class="area-row mode-${homePillMode}" style="--row-bg: ${style.bg}; --row-text: ${style.textColor}; --row-fill: ${style.fill.toFixed(3)}; --slider-track-bg: ${buildSliderTrackGradient(area) || 'rgba(0,0,0,0.35)'};">
@@ -3919,13 +4130,14 @@
           <div class="row-middle">
             <div class="row-middle-top">
               <span class="area-row-name" onclick="openAreaModal('${area.area_id}')">${area.name}</span>
+              ${rowActionsHtml}
               ${inTune ? '' : `<span class="row-active-status" data-area-active="${area.area_id}"></span>`}
-              <span class="row-drag-value" data-area-drag-value="${area.area_id}"></span>
-              <span class="row-readout" data-area-readout="${area.area_id}">${readout}</span>
+              <span class="${readoutClass}" data-area-readout="${area.area_id}" ${readoutOnclick}>${readout}</span>
             </div>
             <div class="row-slider-track" data-area-id="${area.area_id}" data-bmin="${area.min_brightness ?? 1}" data-bmax="${area.max_brightness ?? 100}" data-cmin="${getColorSliderRange(area).cMin}" data-cmax="${getColorSliderRange(area).cMax}">
               <div class="row-slider-fill"></div>
               <div class="row-slider-fill-drag"></div>
+              <div class="row-slider-default-tick${tickVisible ? ' is-visible' : ''}" data-tick="${area.area_id}" style="left: ${tickPct.toFixed(1)}%"></div>
               <div class="row-slider-thumb-ghost"></div>
               <div class="row-slider-thumb" style="left: ${sliderPct.toFixed(1)}%"></div>
             </div>
@@ -4008,10 +4220,11 @@
     // page-level "Tuning: Sun exposure / Balance" pill already names what
     // the slider controls, no need to repeat per row.
     function formatBreakdownNowHtml(b) {
-      const isLift = b.delta > 0;
-      const op = isLift ? '+' : '&minus;';
-      const impactHtml = `<strong class="tb-impact">${op} ${Math.abs(b.delta)}%</strong>`;
-      return `<span class="tb-peak-label">current:</span> ${b.baseline}% ${impactHtml} &rarr; ${b.final}%`;
+      // Current readout: just the signed impact ("current: ↓ 17%"). The
+      // before/after parenthetical was retired as too noisy.
+      const arrow = b.delta > 0 ? '&uarr;' : (b.delta < 0 ? '&darr;' : '');
+      const impactHtml = `<strong class="tb-impact">${arrow} ${Math.abs(b.delta)}%</strong>`;
+      return `<span class="tb-peak-label">current:</span> ${impactHtml}`;
     }
     // Keep legacy alias for any callers still using the old name.
     const formatBreakdownLeft = formatBreakdownNowHtml;
@@ -4060,25 +4273,21 @@
     }
     function formatBreakdownPeakHtml(area, overrideValue) {
       const b = computeTuneBreakdownPeak(area, overrideValue);
-      // Peak slot shows just the signed impact (e.g. "-15%"). The "now"
-      // formula on the right gives the full breakdown.
-      const sign = b.delta > 0 ? '+' : '−';
+      // Peak slot: signed impact with up/down arrow direction. Pairs with
+      // formatBreakdownNowHtml's arrow treatment.
+      const arrow = b.delta > 0 ? '&uarr;' : (b.delta < 0 ? '&darr;' : '');
       return '<span class="tb-peak-label">peak</span> '
-        + `<strong class="tb-impact">${sign}${Math.abs(b.delta)}%</strong>`;
+        + `<strong class="tb-impact">${arrow} ${Math.abs(b.delta)}%</strong>`;
     }
     function getTuneImpactHtml(area) {
+      // Row 3 (below slider): Peak (left) + Current (right), mirroring
+      // area-detail's tune slider footer. Both dynamic during drag —
+      // updateTunePreview pushes candidate-value content into both. The
+      // Current's "(before → after)" parenthetical is hidden at rest
+      // and revealed via .area-row.slider-dragging .tb-bf CSS.
       const b = computeTuneBreakdown(area);
-      // Row 3 layout:
-      //   left  = peak-impact formula by default; replaced by live drag
-      //           preview when the slider is being dragged (updateTunePreview).
-      //   right = static "now" formula (Baseline · Δ · Final).
-      // The peak/dynamic slot is `.tb-preview` to keep the existing wiring
-      // (data-tune-preview attribute) — the contents just rebrand to peak
-      // when no drag is active.
-      return `<span class="tune-breakdown" data-tune-breakdown="${area.area_id}">`
-        + `<span class="tb-preview" data-tune-preview="${area.area_id}">${formatBreakdownPeakHtml(area)}</span>`
-        + `<span class="tb-static">${formatBreakdownLeft(b)}</span>`
-        + `</span>`;
+      return `<span class="tb-peak" data-tune-peak="${area.area_id}">${formatBreakdownPeakHtml(area)}</span>`
+        + `<span class="tb-current" data-tune-current="${area.area_id}">${formatBreakdownNowHtml(b)}</span>`;
     }
 
     function getStatusBadge(area) {
@@ -4109,19 +4318,18 @@
     }
 
     function getMismatchDot(area) {
-      // Tune modes: single-click undo to the previous saved tune value. No menu.
-      if (isTuneMode(homePillMode)) {
-        const dim = homePillMode === 'sun' ? 'sun' : 'balance';
-        if (getTunePrev(area.area_id, dim) == null) return '';
-        const title = dim === 'sun' ? 'Restore previous sun exposure' : 'Restore previous balance';
-        return `<span class="mismatch-dot-area diverge-tune" onclick="event.stopPropagation(); restoreTunePrev('${area.area_id}')" title="${title}"></span>`;
-      }
-      // Adjust modes: render reset (↺ glo_down) and send-to-zone (↑ glo_up)
-      // as two inline buttons. Reset is the dominant action, so direct-click
-      // beats a 2-option menu.
+      // Tune modes: tap-undo lives on the row-readout itself now (orange
+      // when dirty), so the dot is retired here too.
+      if (isTuneMode(homePillMode)) return '';
+      // Adjust modes: the reset affordance moved to the row-readout
+      // (which goes orange + tappable when dirty). Only the "Full Send"
+      // (glo_up) action remains as an inline button — it's the
+      // non-redundant action.
       if (!isAreaDirty(area)) return '';
-      return `<span class="mismatch-dot-area diverge-reset" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_down')" title="Reset to rhythm"></span>`
-           + `<span class="mismatch-dot-area diverge-send" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'glo_up')" title="Send to zone"></span>`;
+      // "Full Send" = full_send primitive: glo_up (push area state to
+      // zone) + glozone_down (push zone state to all areas). Old glo_up
+      // alone only did half the job.
+      return `<span class="mismatch-dot-area diverge-send" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'full_send')" title="Full Send"></span>`;
     }
 
     function resolveEffectiveTime(zc, phase) {
@@ -4146,15 +4354,19 @@
       const rs = zoneStates[zoneName]?.runtime_state;
       if (!rs) return '';
       const chips = [];
+      // Each chip is now tappable: clears just that override component
+      // via the matching glozone_reset_* primitive. Same UX as the
+      // area-row divergence chips on home page.
+      const esc = encodeURIComponent(zoneName);
       const bo = rs.brightness_override;
       if (bo != null && Math.abs(bo) >= 1) {
         const sign = bo > 0 ? '+' : '';
-        chips.push(`<span class="delta-chip zone-delta-chip">${sign}${Math.round(bo)}%</span>`);
+        chips.push(`<span class="delta-chip zone-delta-chip delta-chip-action" onclick="event.stopPropagation(); zoneAction('${zoneName.replace(/'/g, "\\'")}', 'glozone_reset_brightness_override')" title="Clear zone brightness override">${sign}${Math.round(bo)}%</span>`);
       }
       const co = rs.color_override;
       if (co != null && Math.abs(co) >= 10) {
         const sign = co > 0 ? '+' : '';
-        chips.push(`<span class="delta-chip zone-delta-chip">${sign}${Math.round(co)}K</span>`);
+        chips.push(`<span class="delta-chip zone-delta-chip delta-chip-action" onclick="event.stopPropagation(); zoneAction('${zoneName.replace(/'/g, "\\'")}', 'glozone_reset_color_override')" title="Clear zone color override">${sign}${Math.round(co)}K</span>`);
       }
       if (!chips.length) return '';
       return chips.join(' ');
@@ -4236,7 +4448,10 @@
       const wrappedDiff = Math.min(diff, 24 - diff);
       if (wrappedDiff < 0.05) return '';
       const label = phase === 'wake' ? 'Wake' : 'Bed';
-      return `<span class="delta-chip zone-delta-chip">${label} ${formatDecimalHour(effMid)}</span>`;
+      // Tappable to clear just the zone's phase shift (brightness_mid +
+      // color_mid). Same UX as the brightness/color zone chips above.
+      const escZone = zoneName.replace(/'/g, "\\'");
+      return `<span class="delta-chip zone-delta-chip delta-chip-action" onclick="event.stopPropagation(); zoneAction('${escZone}', 'glozone_reset_phase')" title="Clear zone phase shift">${label} ${formatDecimalHour(effMid)}</span>`;
     }
 
     function formatDecimalHour(h) {
@@ -4270,10 +4485,12 @@
     }
 
     function getSliderPct(brightness, area) {
-      // Use area's effective min/max from its rhythm
-      const bMin = area?.min_brightness ?? 1;
-      const bMax = area?.max_brightness ?? 100;
-      return bMax > bMin ? Math.max(0, Math.min(100, (brightness - bMin) / (bMax - bMin) * 100)) : 0;
+      // Slider = full bulb capability (0–100%), not normalized into the
+      // zone's [bMin, bMax] rhythm range. The bMin/bMax bound the curve,
+      // not the override — dragging the slider IS an override and can
+      // reach the full physical range. Matches area-detail's convention
+      // and keeps drag space proportional to actual brightness change.
+      return Math.max(0, Math.min(100, brightness));
     }
 
     // Phase 2/3: slider thumb position by active mode.
@@ -4348,20 +4565,26 @@
     }
 
     // Phase 2/3: right-side readout reflecting current mode value.
-    function getModeReadout(area) {
+    function getModeReadout(area, candidateValue) {
       if (homePillMode === 'color') return `${area.kelvin || 4000}K`;
       if (homePillMode === 'bed') {
         const mid = areaStatus[area.area_id]?.phase_midpoint;
         return mid != null ? formatDecimalHour(mid) : '';
       }
+      // Tune modes: step descriptor "Label N.NNx" — mirrors area-detail's
+      // slider top-right readout. Dynamic during drag — updateTunePreview
+      // pushes the candidate-step descriptor here so the user sees the
+      // value change as they slide.
       if (homePillMode === 'sun') {
-        const t = getAreaTune(area.area_id);
-        const s = SOLAR_STEPS[nearestStepIndex(SOLAR_STEPS, t.natural_light_exposure, 'exposure')];
+        const exposure = candidateValue != null ? candidateValue
+          : getAreaTune(area.area_id).natural_light_exposure;
+        const s = SOLAR_STEPS[nearestStepIndex(SOLAR_STEPS, exposure, 'exposure')];
         return s ? `${s.label} <span class="tune-mult">${s.exposure.toFixed(2)}x</span>` : '';
       }
       if (homePillMode === 'balance') {
-        const t = getAreaTune(area.area_id);
-        const s = LUMEN_STEPS[nearestStepIndex(LUMEN_STEPS, t.brightness_factor, 'factor')];
+        const factor = candidateValue != null ? candidateValue
+          : getAreaTune(area.area_id).brightness_factor;
+        const s = LUMEN_STEPS[nearestStepIndex(LUMEN_STEPS, factor, 'factor')];
         return s ? `${s.label} <span class="tune-mult">${s.factor.toFixed(2)}x</span>` : '';
       }
       return `${Math.round(area.brightness || 0)}%`;
@@ -4376,26 +4599,31 @@
       // Order: bed/wake → brightness → color.
       const zoneName = area.zone_name;
       const zoneRs = (zoneName ? zoneStates[zoneName]?.runtime_state : null) || {};
+      // Divergence chips on home-page area rows are tappable to clear
+      // the per-dimension divergence. Fixes the "can't reach the color
+      // override clear without switching to color mode" pain. Each chip
+      // gets cursor:pointer in CSS via .delta-chip-action and dispatches
+      // the right reset primitive on click.
       if (zoneName) {
         const zoneMid = _zoneEffectiveMidpoint[zoneName];
         const areaMid = areaStatus[area.area_id]?.phase_midpoint;
         if (zoneMid != null && areaMid != null && Math.abs(areaMid - zoneMid) >= 0.05) {
           const phase = areaStatus[area.area_id]?.phase || getHomePhase();
           const prefix = phase === 'wake' ? 'Wake' : 'Bed';
-          chips.push(`<span class="delta-chip">${prefix} ${formatDecimalHour(areaMid)}</span>`);
+          chips.push(`<span class="delta-chip delta-chip-action" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'reset_phase')" title="Tap to clear phase shift">${prefix} ${formatDecimalHour(areaMid)}</span>`);
         }
       }
       const bo = area.brightness_override ?? 0;
       const zBo = zoneRs.brightness_override ?? 0;
       if (Math.abs(bo - zBo) >= 1) {
         const sign = bo > 0 ? '+' : '';
-        chips.push(`<span class="delta-chip">${sign}${Math.round(bo)}%</span>`);
+        chips.push(`<span class="delta-chip delta-chip-action" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'reset_brightness_override')" title="Tap to clear brightness override">${sign}${Math.round(bo)}%</span>`);
       }
       const co = area.color_override ?? 0;
       const zCo = zoneRs.color_override ?? 0;
       if (Math.abs(co - zCo) >= 10) {
         const sign = co > 0 ? '+' : '';
-        chips.push(`<span class="delta-chip">${sign}${Math.round(co)}K</span>`);
+        chips.push(`<span class="delta-chip delta-chip-action" onclick="event.stopPropagation(); rowAction('${area.area_id}', 'reset_color_override')" title="Tap to clear color override">${sign}${Math.round(co)}K</span>`);
       }
       return chips.join('');
     }
@@ -4457,11 +4685,16 @@
         return 'linear-gradient(90deg, ' + stops.join(', ') + ')';
       }
       if (mode === 'sun') {
-        // Slider position 0% = exposure 0, ~67% = exposure 1.0 (Full),
-        // 100% = exposure 2.0 (Sun room). Amber ramps from neutral at 0
-        // to full saturation at exposure 1.0 (slider 66.7%), then stays
-        // flat amber from there to 100% — matches the stripe semantic.
-        return 'linear-gradient(90deg, rgba(0,0,0,0.40) 0%, rgba(230,170,80,0.85) 66.7%, rgba(230,170,80,0.85) 100%)';
+        // Blue at left (exposure 0), darkening to black at exposure=1.0
+        // and staying flat past that. Encodes "more exposure = more sun
+        // absorbed by the room". Peak position computed from SOLAR_STEPS.
+        let peakIdx = SOLAR_STEPS.length - 1;
+        for (let i = 0; i < SOLAR_STEPS.length; i++) {
+          if (SOLAR_STEPS[i].exposure >= 1.0) { peakIdx = i; break; }
+        }
+        const peakPct = (peakIdx / (SOLAR_STEPS.length - 1)) * 100;
+        const blue = 'rgba(120,170,230,0.85)';
+        return `linear-gradient(90deg, ${blue} 0%, rgba(0,0,0,0.40) ${peakPct.toFixed(1)}%, rgba(0,0,0,0.40) 100%)`;
       }
       if (mode === 'balance') {
         // Divergent hue: amber-on-left (dim) → neutral-middle → blue-on-right (lift).
@@ -4606,6 +4839,9 @@ function updateSliderFill(el) {
           const wasOrganize = currentMode === 'organize';
           if (newMode && newMode !== homePillMode) {
             homePillMode = newMode;
+            // Mode change clears the most-recent-tune marker — orange
+            // row-readout is scoped to the current tune mode.
+            _homeRecentTuneAreaId = null;
             savePreferences();
             if (isTuneMode(newMode) && !Object.keys(cachedAreaTune).length) {
               loadAreaTuneData().then(renderAreas);
@@ -4778,7 +5014,10 @@ function updateSliderFill(el) {
 
         const ghost = track.querySelector('.row-slider-thumb-ghost');
         const fillDrag = track.querySelector('.row-slider-fill-drag');
-        const valueEl = row.querySelector(`[data-area-drag-value="${areaId}"]`);
+        // row-readout doubles as the live drag readout — drop the
+        // separate row-drag-value span. updateTunePreview also targets
+        // the readout for tune modes.
+        const valueEl = row.querySelector(`[data-area-readout="${areaId}"]`);
         let startPct = 0;
 
         const updateFillDrag = (fromPct, toPct) => {
@@ -4801,11 +5040,10 @@ function updateSliderFill(el) {
           startPct = parseFloat(thumb.style.left) || 0;
           if (ghost) ghost.style.left = startPct + '%';
           updateFillDrag(startPct, startPct);
-          // Seed the inline value so it's visible on tap even before move
-          if (valueEl) {
-            const brightness = Math.round(bMin + (bMax - bMin) * startPct / 100);
-            valueEl.textContent = brightness + '%';
-          }
+          // No drag-start seed — the readout already shows the saved
+          // value, and the first pointermove will replace it with the
+          // candidate. Prevents brightness-format leaks into color/bed
+          // modes (the old seed always wrote "%").
           // Pre-fetch preview points for live color preview
           if (areaId) fetchSliderPreview(areaId);
         });
@@ -4880,9 +5118,11 @@ function updateSliderFill(el) {
             } else if (homePillMode === 'sun') {
               const idx = Math.round(pct / 100 * (SOLAR_STEPS.length - 1));
               saveAreaTune(areaId, { natural_light_exposure: SOLAR_STEPS[idx].exposure });
+              setHomeRecentTune(areaId);
             } else if (homePillMode === 'balance') {
               const idx = Math.round(pct / 100 * (LUMEN_STEPS.length - 1));
               saveAreaTune(areaId, { brightness_factor: LUMEN_STEPS[idx].factor });
+              setHomeRecentTune(areaId);
             } else {
               // Brightness mode: drag percent maps directly to brightness target.
               rowAction(areaId, 'set_position', Math.round(pct), 'brightness');
@@ -4909,19 +5149,25 @@ function updateSliderFill(el) {
     // Tune-mode drag preview: both LEFT (peak with candidate) and RIGHT
     // (now-formula with candidate) update live as the slider moves.
     function updateTunePreview(areaId, candidateValue) {
-      const el = document.querySelector(`[data-tune-preview="${areaId}"]`);
-      if (!el) return;
+      // During drag, refresh all three tune readouts on the row from the
+      // candidate value:
+      //   - Row 1 right (descriptor): "Standard 1.00x"
+      //   - Row 3 left  (peak):       "peak ↓ 75%"
+      //   - Row 3 right (current):    "current: ↓ 17% (X% → Y%)"
+      // All three are .area-row scoped, so one row lookup suffices.
+      const readoutEl = document.querySelector(`[data-area-readout="${areaId}"]`);
+      const row = readoutEl ? readoutEl.closest('.area-row') : null;
+      if (!row) return;
       const area = areas.find(a => a.area_id === areaId);
       if (!area) return;
       const merged = { ...area, ...(areaStatus[areaId] || {}) };
-      // LEFT: peak impact recomputed with the candidate value.
-      el.innerHTML = formatBreakdownPeakHtml(merged, candidateValue);
-      // RIGHT: "now" formula recomputed with the candidate.
-      const row = el.closest('.area-row');
-      const staticEl = row ? row.querySelector('.tb-static') : null;
-      if (staticEl) {
+      if (readoutEl) readoutEl.innerHTML = getModeReadout(merged, candidateValue);
+      const peakEl = row.querySelector(`[data-tune-peak="${areaId}"]`);
+      if (peakEl) peakEl.innerHTML = formatBreakdownPeakHtml(merged, candidateValue);
+      const currentEl = row.querySelector(`[data-tune-current="${areaId}"]`);
+      if (currentEl) {
         const b = computeTuneBreakdown(merged, candidateValue);
-        staticEl.innerHTML = formatBreakdownNowHtml(b);
+        currentEl.innerHTML = formatBreakdownNowHtml(b);
       }
     }
     function clearTunePreview(areaId) {
@@ -4940,20 +5186,37 @@ function updateSliderFill(el) {
     // Avoids re-rendering the whole list when only the tuned row needs to
     // refresh. Called after optimistic cache update on drag release.
     function refreshTuneRowDom(areaId) {
-      const previewEl = document.querySelector(`[data-tune-preview="${areaId}"]`);
-      const row = previewEl ? previewEl.closest('.area-row') : null;
+      // On pointerup / save / 10s timer expiry, restore all three tune
+      // readouts to the at-rest format AND drop the dirty cues (orange
+      // row-readout + slider default tick) if the area is no longer the
+      // recent-tune one.
+      const readoutEl = document.querySelector(`[data-area-readout="${areaId}"]`);
+      const row = readoutEl ? readoutEl.closest('.area-row') : null;
       if (!row || !areaId) return;
       const baseArea = areas.find(a => a.area_id === areaId);
       if (!baseArea) return;
       const merged = { ...baseArea, ...(areaStatus[areaId] || {}) };
-      // 1. Row 1 right readout
-      const readoutEl = row.querySelector(`[data-area-readout="${areaId}"]`);
       if (readoutEl) readoutEl.innerHTML = getModeReadout(merged);
-      // 2. Row 3 right static formula
-      const staticEl = row.querySelector('.tb-static');
-      if (staticEl) staticEl.innerHTML = formatBreakdownLeft(computeTuneBreakdown(merged));
-      // 3. Row 3 left peak (restore — drag-preview overrides this slot)
-      previewEl.innerHTML = formatBreakdownPeakHtml(merged);
+      const peakEl = row.querySelector(`[data-tune-peak="${areaId}"]`);
+      if (peakEl) peakEl.innerHTML = formatBreakdownPeakHtml(merged);
+      const currentEl = row.querySelector(`[data-tune-current="${areaId}"]`);
+      if (currentEl) {
+        const b = computeTuneBreakdown(merged);
+        currentEl.innerHTML = formatBreakdownNowHtml(b);
+      }
+      // Sync the orange row-readout + tick visibility with the recent-tune
+      // pointer. Cheap DOM toggle — no full row re-render.
+      const isRecent = (areaId === _homeRecentTuneAreaId);
+      if (readoutEl) {
+        readoutEl.classList.toggle('row-readout--dirty', isRecent);
+        if (isRecent) {
+          readoutEl.setAttribute('onclick', `event.stopPropagation(); rowReadoutReset('${areaId}')`);
+        } else {
+          readoutEl.removeAttribute('onclick');
+        }
+      }
+      const tickEl = row.querySelector(`[data-tick="${areaId}"]`);
+      if (tickEl) tickEl.classList.toggle('is-visible', isRecent);
     }
 
   </script>

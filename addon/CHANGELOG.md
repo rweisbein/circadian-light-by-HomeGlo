@@ -1,5 +1,48 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.319
+- **Area-detail Phase 2 — Tune card refocus + new Math card** (`addon/area.html`):
+  - Split Tune card: Sun + Balance sliders stay; the full waterfall (Curve → +Sun → +Balance → +User → +Boost → +Dim → +Fade → = total) moved to a new **Math** card at the bottom of the card stack ("for nerds"; collapsed by default).
+  - Tune sliders use the same custom `.slider-track + .slider-thumb` machinery as Adjust card sliders (replacing native `<input type=range>`); shared drag pipeline, thumb, gradient track support. `data-mode="sun"` + `data-mode="balance"` branches added to `buildTrackGradient` / `previewSlider` / `applyOneSlider` / `updateAllSliders`. Save/Cancel bar removed — drag release auto-persists via `saveBrightnessChanges`.
+  - Visual: Tune rows indented 16px from label's left, thin divider between Sun and Balance groups, Peak + Current footer below each slider both right-aligned. Tune readout sized to match Adjust readout (`Strong 0.60x` with muted `.tune-mult` suffix).
+- **Header + slider polish:**
+  - Adjust card slider rows restructured: `LABEL · (chip) · ⌃ −/+ buttons · VALUE` with 28×28 step buttons (bright_up/down, color_up/down, phase-aware step_up/step_down on Wake/Bed). Value pinned right with `min-width: 4.5em` so step button x-positions stay consistent across rows.
+  - Value goes accent-orange when dirty; tap-to-reset wired (`onValueReset(dim)` → reset_brightness_override / reset_color_override / reset_phase). Tune values use a separate page-load `_tuneSessionSnapshot` for the dirty reference + 10s `_tuneOrangeSuppressed[dim]` timer to auto-clear the orange "oops" cue past the recovery window.
+  - Brightness divergence chip (`.delta-chip`) restored next to label on Bright + Color rows; muted treatment (not orange) so the value is the louder of the two cues.
+  - Default-position tick on slider track when dirty: brightness uses `calcMiniBrightness(skipOverride) × sun_bright_factor` to match `actual_brightness`'s scale (the thumb's reference) — clearing the override lands the thumb exactly where the tick was.
+  - Sun-exposure track gradient: blue at exposure=0 → darkening to black at exposure=1.0 (computed from `SOLAR_STEPS`) → flat past that. Balance track: amber → dark → blue divergent.
+  - NOW chart marker simplified: vertical line removed; current time renders as a Plotly annotation with `yshift: 14`. Slider thumbs neutral white (not CCT-tinted). `.hslider-reset` button hidden permanently — value-tap handles reset.
+
+- **Home page (`addon/areas.html`) polish:**
+  - Row 1 restructure: `[power] [name] [↺ reset + ↑ Full Send when dirty] [state chips] [readout]`. Step descriptor (`Standard 1.00x`) lives in `row-readout` — updates live during drag in all modes. Separate `row-drag-value` retired.
+  - Inline ↺/↑ row-actions render only when `isAreaDirty`. Spaced 18px apart with 12px right margin so the state chips don't crowd them. Reset = `glo_down` (revert to zone state); Full Send = `full_send` primitive (`glo_up` + `glozone_down`).
+  - Tune row-readout dirty state: single `_homeRecentTuneAreaId` pointer, 10s auto-clear via `setHomeRecentTune` timer. Moving a second area's Tune slider clears the first's orange. Slider default-position tick (`.row-slider-default-tick`) shows at the previous saved step for the recent-tune area.
+  - Tune row 3 layout: Peak + Current both right-aligned (was peak-left/current-right space-between). Current's `(before → after)` parenthetical retired as too noisy. Up/down arrows (`↑`/`↓`) replace `+`/`−` on Peak + Current readouts; matched on area-detail's Peak + Current rows.
+  - `SOLAR_STEPS` descriptors migrated to match area-detail (Strong @ 0.60, Near full @ 0.90).
+  - Brightness slider position math: `getSliderPct` no longer normalizes through `[bMin, bMax]` — slider span = full 0–100 bulb range (overrides can push past zone curve bounds). Matches area-detail convention.
+  - Boost icon: replaced `⚡` emoji (renders yellow by default) with inline SVG bolt + `currentColor` (consistent with area-detail).
+  - Divergence chips on home-page area rows tappable to clear that dimension (brightness/color/phase). Muted hover treatment (no orange shouting).
+  - Zone header rework: dynamic ↺ reset dot retired; the right-side button now does `glozone_reset_full` (reset zone + push to all areas). Zone-level divergence chips (brightness override, color override, phase shift) tappable to clear that specific override.
+  - Zone freeze indicator (❄) moved inline next to bed/wake label, chip-styled (pill bg, inherited color so legible on any tint), tappable to unfreeze the zone.
+  - Area row ❄ tappable to unfreeze the area (`freeze_toggle`).
+
+- **Backend (Python) — per-dimension zone-state primitives** (`primitives.py` + `main.py` + `webserver.py`):
+  - `primitives.glozone_reset_brightness_override(zone_name)`
+  - `primitives.glozone_reset_color_override(zone_name)`
+  - `primitives.glozone_reset_phase(zone_name)` — clears `brightness_mid` + `color_mid`
+  - `primitives.glozone_reset_frozen(zone_name)` — clears `frozen_at`
+  - Each dispatched via `service == "..."` in `main.py:handle_zone_service_event`. Added to `webserver.py:VALID_ZONE_ACTIONS` whitelist (whitelist rejection was the "chip blinks but doesn't reset" bug). None propagate to areas — pair with `glozone_down` for push-through.
+
+- **`shared.js` / `shared.css`:**
+  - Outdoor popover `z-index: 50 → 200` (was being trapped behind the sticky `.area-header`'s stacking context).
+  - `SunIntensity.paintTriggerIcon` color range shifted from `rgb(120,100,60)→rgb(245,200,100)` (muddy-brown at 0%) to `rgb(235,185,60)→rgb(255,215,90)` (saturated yellow at all intensities) + constant `1px @ 1.0α + 3px @ 0.7α` dark text-shadow halo. Mirrored on `areas.html:sunIconStyleString`. Sun chip always visible (no isDay gate); naturally reads `0%` at night.
+
+- **Cleanup:**
+  - Dead `elif service == "reset"` branch in `main.py:7264` (called nonexistent `primitives.reset()`) removed.
+  - Orphan `resetAllOverrides()` JS in `area.html` removed.
+  - Legacy `.chart-sun-info*` CSS in `area.html` removed (chip relocated to header in v1.2.318).
+  - New asset `addon/icon-indicator.png` (production no-D logo); `webserver.py` inlines via base64 for `src="./icon-indicator.png"`.
+
 ## 1.2.318
 - **Area-detail redesign — Phase 1.** New 3-row CCT-tinted header replacing the 2-row Ship-1 layout per `addon/area-detail-mock.html`:
   - Row 1: ← back · area name (`h1`) · "in {zone} →" breadcrumb · sun pill (top-right, relocated from chart-shell).

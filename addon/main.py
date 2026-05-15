@@ -6065,6 +6065,18 @@ class HomeAssistantWebSocketClient:
         elif service == "glozone_reset_full":
             await self.primitives.glozone_reset(zone_name, "webserver")
             await self.primitives.glozone_down(zone_name, "webserver")
+        elif service == "glozone_reset_brightness_override":
+            await self.primitives.glozone_reset_brightness_override(
+                zone_name, "webserver"
+            )
+        elif service == "glozone_reset_color_override":
+            await self.primitives.glozone_reset_color_override(
+                zone_name, "webserver"
+            )
+        elif service == "glozone_reset_phase":
+            await self.primitives.glozone_reset_phase(zone_name, "webserver")
+        elif service == "glozone_reset_frozen":
+            await self.primitives.glozone_reset_frozen(zone_name, "webserver")
         elif service == "glozone_down":
             await self.primitives.glozone_down(zone_name, "webserver")
         else:

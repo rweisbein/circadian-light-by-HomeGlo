@@ -391,7 +391,7 @@
     .adjust-section {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 16px;  /* breathing room between Bright/Color/Wake groups */
       padding: 4px 4px 2px;
       -webkit-user-select: none;
       user-select: none;
@@ -403,7 +403,8 @@
     }
     .hslider-header {
       display: flex;
-      align-items: baseline;
+      align-items: center;  /* value + 28px step buttons need vertical-center
+                               alignment; baseline put text above buttons */
       gap: 8px;
     }
     /* Divergence chip next to the slider value — same visual treatment
@@ -433,7 +434,75 @@
       font-size: var(--font-card-title);
       font-weight: 500;
       color: var(--text);
+      transition: color 0.15s;
+      /* Fixed cell width with right-aligned text so the value's right
+         edge always sits at the row's right edge AND the step buttons
+         to its left have consistent x-positions across rows (cluster
+         total width = constant). 4.5em fits "2354K" / "Amplified 1.25"
+         / "7:26a" / "32%" / "Subtle -5%" comfortably. */
+      min-width: 4.5em;
+      text-align: right;
     }
+    /* When the dimension is dirty (off-rhythm for Adjust, off-snapshot
+       for Tune), the value goes accent-orange and becomes tappable to
+       reset. Pairs with the divergence chip orange so both signal
+       "you're not at default". */
+    .hslider-value.is-dirty {
+      color: var(--accent);
+      cursor: pointer;
+    }
+    .hslider-value.is-dirty:hover { color: var(--accent-hover); }
+    /* Muted treatment when dirty — chip is tappable to clear, but doesn't
+       shout for attention. Orange is reserved for the value itself. */
+    .hslider-delta.is-dirty {
+      cursor: pointer;
+      background: rgba(255,255,255,0.06);
+      border-color: rgba(255,255,255,0.10);
+      color: var(--muted);
+      opacity: 0.85;
+    }
+    .hslider-delta.is-dirty:hover {
+      background: rgba(255,255,255,0.12);
+      color: var(--text);
+      opacity: 1;
+    }
+    /* Right-side cluster (step buttons + value + reset). Margin-left auto
+       pushes the whole cluster to the row's right edge, with the value's
+       right edge consistent across Adjust + Tune. */
+    .hslider-right {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    /* Step (−/+) buttons live in .hslider-right between the chip cluster
+       and the value. 28×28 for proper mobile tap targets. */
+    .hslider-step {
+      width: 28px;
+      height: 28px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.03);
+      color: var(--text);
+      font-size: 18px;
+      font-weight: 500;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+      -webkit-tap-highlight-color: transparent;
+      align-self: center;  /* baseline-align inside the flex parent looks
+                              odd for an icon button — recenter on its
+                              vertical axis. */
+    }
+    .hslider-step:hover {
+      background: rgba(255,255,255,0.10);
+      border-color: rgba(255,255,255,0.30);
+    }
+    .hslider-step:active { background: rgba(255,255,255,0.18); }
     .hslider-reset {
       background: transparent;
       border: 1px solid rgba(255,255,255,0.15);
@@ -458,6 +527,11 @@
       opacity: 0;
       pointer-events: none;
     }
+    /* Phase 2 redesign: value + chip are both tappable to reset, so the
+       dedicated ↺ buttons are redundant. Hide them permanently. Markup
+       retained for Phase-3-recovery if discoverability of value-tap is
+       a problem; flip this rule to revive. */
+    .hslider-reset { display: none !important; }
     .slider-track {
       position: relative;
       width: 100%;
@@ -481,6 +555,24 @@
     .slider-track.dragging .slider-track-bg {
       filter: saturate(1);
     }
+    /* Default-position tick. Hidden by default; shown when the row's
+       value is overridden (slider thumb has moved away from rhythm).
+       Positioned via inline style.left = "%". Thin, slightly taller than
+       the track so it reads as a separate "marker on the rail" rather
+       than part of the track itself. */
+    .slider-default-tick {
+      position: absolute;
+      top: -3px;
+      bottom: -3px;
+      width: 2px;
+      background: rgba(255,255,255,0.55);
+      transform: translateX(-50%);
+      pointer-events: none;
+      border-radius: 1px;
+      display: none;
+      z-index: 1;
+    }
+    .slider-default-tick.is-visible { display: block; }
     .slider-thumb {
       position: absolute;
       top: 50%;
@@ -983,6 +1075,12 @@
     .tune-brightness-card.is-open .tune-brightness-val { opacity: 0; }
     .tune-brightness-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; padding-bottom: 0; }
     .tune-brightness-card.is-open .tune-brightness-body { max-height: 2000px; opacity: 1; padding-bottom: 8px; }
+    /* Math card uses the same chevron + body machinery as the Tune /
+       Controls cards; just needs its own is-open rule since the existing
+       rules are scoped per-card-class. */
+    .tune-math-card.is-open .tune-brightness-chevron { transform: rotate(90deg); }
+    .tune-math-card.is-open .tune-brightness-val { opacity: 0; }
+    .tune-math-card.is-open .tune-brightness-body { max-height: 2000px; opacity: 1; padding-bottom: 8px; }
     .tune-detail-sub { padding: 0 22px 2px 52px; font-size: var(--font-muted); color: var(--muted2); }
     .tune-col-headers { display: grid; grid-template-columns: 1fr auto; padding: 0 14px 2px; gap: 0 12px; }
     .tune-col-header { font-size: 11px; color: var(--muted2); text-align: right; white-space: nowrap; }
@@ -1131,6 +1229,67 @@
     }
     .tune-slider-word .tune-solar-main { font-size: var(--font-body); font-weight: 600; color: var(--text); }
     .tune-slider-word .tune-solar-peak { color: var(--muted2); font-size: var(--font-muted); }
+    /* ── Phase 2: tune slider rows aligned with Adjust card sliders ── */
+    /* Muted multiplier suffix ("0.60x") next to the Tune step descriptor.
+       Mirrors home page .tune-mult so both pages read the same. */
+    .tune-mult {
+      font-weight: 400;
+      opacity: 0.55;
+      margin-left: 2px;
+    }
+    /* Tune slider rows. Sun + Balance now use the same .slider-track
+       custom slider as Adjust card (Bright/Color/Wake), so they share
+       the thumb + drag pipeline. Indented from the label's left so the
+       row reads as a visual group ("this slider belongs to that label"). */
+    .tune-srow {
+      padding: 4px 14px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .tune-srow + .tune-srow {
+      padding-top: 10px;
+      border-top: 1px solid var(--line);  /* divider between Sun + Balance groups */
+    }
+    .tune-srow .hslider-header { padding: 0; }
+    /* Inherits .hslider-value's base size (var(--font-card-title) / weight
+       500) so Tune readouts match Adjust readouts in scale. The "x"
+       multiplier is muted via .tune-mult. */
+    /* Indent slider + footer 16px from the label's left edge so the label
+       hangs at column 0 and its machinery is visually subordinated. */
+    .tune-srow .slider-track,
+    .tune-srow .tune-srow-footer {
+      margin-left: 16px;
+      width: calc(100% - 16px);
+    }
+    .tune-srow-footer {
+      display: flex;
+      justify-content: flex-end;
+      align-items: baseline;
+      gap: 18px;
+      font-size: var(--font-body);  /* halfway between micro + value —
+                                       readable without competing with the
+                                       Tune readout headline. */
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      padding-top: 6px;
+    }
+    .tune-srow-peak { letter-spacing: 0.02em; }
+    /* Both Peak and Current use the same strong-value treatment so the
+       eye reads them as parallel readouts. */
+    .tune-srow-peak strong,
+    .tune-srow-current strong { color: var(--text); font-weight: 600; }
+    /* "(before → after)" parenthetical on the Current readout.
+       Hidden at rest, revealed while the slider is actively dragged. */
+    .tune-srow-bf {
+      color: var(--muted2);
+      font-weight: 400;
+      margin-left: 2px;
+      display: none;
+    }
+    .tune-srow .slider-track.dragging ~ .tune-srow-footer .tune-srow-bf {
+      display: inline;
+    }
 
     /* Individual section: peer header to "Adjustments" with leading chevron */
     .tune-individual-toggle {
@@ -1259,12 +1418,17 @@
             <div class="hslider-row">
               <div class="hslider-header">
                 <span class="hslider-label">Bright</span>
-                <span class="hslider-value" id="slider-hero-brightness">78%</span>
-                <span class="delta-chip hslider-delta" id="slider-delta-brightness"></span>
-                <button class="hslider-reset hidden" id="reset-brightness" onclick="executeAction('reset_brightness_override')" title="Reset brightness">&#x21BA;</button>
+                <span class="delta-chip hslider-delta" id="slider-delta-brightness" onclick="onValueReset('brightness')" title="Tap to clear override"></span>
+                <span class="hslider-right">
+                  <button class="hslider-step" onclick="executeAction('bright_down')" title="Dim">&minus;</button>
+                  <button class="hslider-step" onclick="executeAction('bright_up')" title="Brighten">+</button>
+                  <span class="hslider-value" id="slider-hero-brightness" onclick="onValueReset('brightness')" title="Tap to reset to rhythm">78%</span>
+                  <button class="hslider-reset hidden" id="reset-brightness" onclick="executeAction('reset_brightness_override')" title="Reset brightness">&#x21BA;</button>
+                </span>
               </div>
               <div class="slider-track" data-mode="brightness">
                 <div class="slider-track-bg"></div>
+                <div class="slider-default-tick"></div>
                 <div class="slider-thumb-ghost"></div>
                 <div class="slider-thumb"></div>
               </div>
@@ -1272,12 +1436,17 @@
             <div class="hslider-row">
               <div class="hslider-header">
                 <span class="hslider-label">Color</span>
-                <span class="hslider-value" id="slider-hero-color">2910K</span>
-                <span class="delta-chip hslider-delta" id="slider-delta-color"></span>
-                <button class="hslider-reset hidden" id="reset-color" onclick="executeAction('reset_color_override')" title="Reset color">&#x21BA;</button>
+                <span class="delta-chip hslider-delta" id="slider-delta-color" onclick="onValueReset('color')" title="Tap to clear override"></span>
+                <span class="hslider-right">
+                  <button class="hslider-step" onclick="executeAction('color_down')" title="Warmer">&minus;</button>
+                  <button class="hslider-step" onclick="executeAction('color_up')" title="Cooler">+</button>
+                  <span class="hslider-value" id="slider-hero-color" onclick="onValueReset('color')" title="Tap to reset to rhythm">2910K</span>
+                  <button class="hslider-reset hidden" id="reset-color" onclick="executeAction('reset_color_override')" title="Reset color">&#x21BA;</button>
+                </span>
               </div>
               <div class="slider-track" data-mode="color">
                 <div class="slider-track-bg"></div>
+                <div class="slider-default-tick"></div>
                 <div class="slider-thumb-ghost"></div>
                 <div class="slider-thumb"></div>
               </div>
@@ -1289,11 +1458,16 @@
             <div class="hslider-row">
               <div class="hslider-header">
                 <span class="hslider-label" id="slider-phase-label">Wake</span>
-                <span class="hslider-value" id="slider-hero-phase">—</span>
-                <button class="hslider-reset hidden" id="reset-phase" onclick="executeAction('reset_phase')" title="Reset wake/bed time">&#x21BA;</button>
+                <span class="hslider-right">
+                  <button class="hslider-step" onclick="adjustPhaseStep(-1)" title="Less light now">&minus;</button>
+                  <button class="hslider-step" onclick="adjustPhaseStep(+1)" title="More light now">+</button>
+                  <span class="hslider-value" id="slider-hero-phase" onclick="onValueReset('phase')" title="Tap to reset to rhythm">—</span>
+                  <button class="hslider-reset hidden" id="reset-phase" onclick="executeAction('reset_phase')" title="Reset wake/bed time">&#x21BA;</button>
+                </span>
               </div>
               <div class="slider-track" data-mode="phase">
                 <div class="slider-track-bg"></div>
+                <div class="slider-default-tick"></div>
                 <div class="slider-thumb-ghost"></div>
                 <div class="slider-thumb"></div>
               </div>
@@ -1525,6 +1699,18 @@
         <!-- Tune Section -->
     <div id="area-tune-section" style="display:none; margin: 0 0 16px;">
       <div class="tune-card tune-lights-card" id="tune-lights-card" style="display:none;"></div>
+      <!-- Phase 2: Math card — full waterfall (Curve → +Sun → +Balance →
+           +User → +Boost → +Dim → +Fade → = Area Brightness). The Tune
+           card above now owns just the Sun + Balance sliders; the math
+           rendering lives here, default collapsed ("for nerds"). -->
+      <div class="tune-card tune-math-card" id="tune-math-card" style="display:none;">
+        <div class="tune-brightness-header" onclick="toggleMathBody()">
+          <span class="tune-brightness-chevron" id="tune-math-chevron">&#x203A;</span>
+          <span class="tune-brightness-title">Math</span>
+          <span class="tune-brightness-val" id="tune-math-header-val" style="color:var(--muted2);font-weight:500;">for nerds</span>
+        </div>
+        <div class="tune-brightness-body" id="tune-math-body"></div>
+      </div>
       <div class="tune-save-status" id="tune-save-status">Saved</div>
     </div>
     </div><!-- end #chart-context-wrap -->
@@ -1638,6 +1824,26 @@
     let sliderInteracting = false;
     let sliderPreviewPoints = null;  // [{brightness, kelvin}, ...] from backend
     let tuneSnapshot = null;
+    // Page-load snapshot — captured once when the user first opens the
+    // page, untouched by subsequent saves. Used for "dirty since you
+    // opened the page" semantics so the orange-value + reset affordance
+    // work even though every drag saves to the backend immediately.
+    let _tuneSessionSnapshot = null;
+    // Per-dimension orange-suppress flag. After 10s of no further change
+    // on a Tune slider, set true to drop the orange "oops, revert" cue
+    // — the window for accidental drags is over. New drag resets the
+    // flag for that dimension.
+    let _tuneOrangeSuppressed = { solar: false, balance: false };
+    let _tuneOrangeTimer = { solar: null, balance: null };
+    function bumpTuneOrangeTimer(dim) {
+      _tuneOrangeSuppressed[dim] = false;
+      if (_tuneOrangeTimer[dim]) clearTimeout(_tuneOrangeTimer[dim]);
+      _tuneOrangeTimer[dim] = setTimeout(() => {
+        _tuneOrangeSuppressed[dim] = true;
+        _tuneOrangeTimer[dim] = null;
+        if (typeof updateTuneButtons === 'function') updateTuneButtons();
+      }, 10000);
+    }
 
     // ============================================================
     // Circadian Curve Calculation (from areas.html modal)
@@ -3107,11 +3313,74 @@
           pct = phaseCtx.currentTargetPct;
           thumbBri = currentBri;
           thumbCCT = currentCCT;
+        } else if (mode === 'sun' || mode === 'balance') {
+          // Tune sliders: position derived from tuneState step index. Thumb
+          // gets neutral white treatment (applyOneSlider doesn't set
+          // background/border for these modes anymore — see the function).
+          if (!tuneState || !tuneState.initialized) return;
+          const steps = mode === 'sun' ? SOLAR_STEPS : LUMEN_STEPS;
+          const idx = mode === 'sun' ? tuneState.solarStep : tuneState.lumenStep;
+          const n = steps.length - 1;
+          pct = n > 0 ? (idx / n) * 100 : 0;
+          thumbBri = currentBri;
+          thumbCCT = currentCCT;
         } else {
           return;
         }
         (track.querySelector('.slider-track-bg') || track).style.background = buildTrackGradient(mode, cfg, currentBri, currentCCT, effRange, phaseCtx);
         applyOneSlider(track, pct, thumbBri, thumbCCT, mode);
+        // Default-position tick: show where the slider WOULD be without
+        // the override (Adjust) or at the session snapshot (Tune). Gives
+        // visual context for "you've moved this much from rhythm."
+        const tick = track.querySelector('.slider-default-tick');
+        if (tick) {
+          let defaultPct = null;
+          if (mode === 'brightness' && areaState.brightness_override != null
+              && Math.abs(areaState.brightness_override) >= 1) {
+            // Tick = "where the bulb lands if you clear this override RIGHT
+            // NOW" = curve × area_factor × sun_bright_factor. Computed from
+            // the rhythm directly so it doesn't lag actual_brightness (which
+            // tracks the physical bulb's transition + the next status
+            // refresh — can lag the user's drag by many seconds).
+            const pureRoom = calcMiniBrightness(currentHour, cfg, areaState, currentHour, { skipOverride: true }) * 100;
+            const sbf = areaStatus[selectedArea?.area_id]?.sun_bright_factor ?? 1.0;
+            defaultPct = Math.max(0, Math.min(100, pureRoom * sbf));
+          } else if (mode === 'color' && areaState.color_override != null) {
+            const defaultCCT = effectiveCCT - areaState.color_override;
+            defaultPct = cMax > cMin ? Math.max(0, Math.min(100, (defaultCCT - cMin) / (cMax - cMin) * 100)) : 50;
+          } else if (mode === 'phase' && phaseCtx && areaState.brightness_mid != null) {
+            // Default phase target = zone's saved wake/bed (cfg.wake_time
+            // / cfg.bed_time). Convert to slider %.
+            const defaultTarget = phaseCtx.cursorInAscend ? cfg.wake_time : cfg.bed_time;
+            const span = phaseCtx.phaseMax - phaseCtx.phaseMin;
+            // Lift defaultTarget into the visible phase window the same
+            // way phaseCtx.currentTargetTime is computed.
+            let dt48 = defaultTarget;
+            while (dt48 < phaseCtx.phaseMin - 12) dt48 += 24;
+            while (dt48 > phaseCtx.phaseMax + 12) dt48 -= 24;
+            defaultPct = span > 0 ? Math.max(0, Math.min(100, (dt48 - phaseCtx.phaseMin) / span * 100)) : 50;
+          } else if ((mode === 'sun' || mode === 'balance') && _tuneSessionSnapshot != null && tuneState && tuneState.initialized) {
+            // Tick honors the 10s orange-suppress flag: when the
+            // dimension is suppressed, drop the tick too (orange,
+            // tick, and tap-to-reset go away together).
+            const dim = mode === 'sun' ? 'solar' : 'balance';
+            if (!_tuneOrangeSuppressed[dim]) {
+              const steps = mode === 'sun' ? SOLAR_STEPS : LUMEN_STEPS;
+              const cur = mode === 'sun' ? tuneState.solarStep : tuneState.lumenStep;
+              const snap = mode === 'sun' ? _tuneSessionSnapshot.solarStep : _tuneSessionSnapshot.lumenStep;
+              if (cur !== snap) {
+                const n = steps.length - 1;
+                defaultPct = n > 0 ? (snap / n) * 100 : 0;
+              }
+            }
+          }
+          if (defaultPct != null) {
+            tick.style.left = defaultPct + '%';
+            tick.classList.add('is-visible');
+          } else {
+            tick.classList.remove('is-visible');
+          }
+        }
         // Stronger mute on color + phase sliders when room is off; bright
         // stays at full visual prominence so the user can drag it to turn
         // the room on at a desired brightness.
@@ -3127,11 +3396,17 @@
       // (e.g. "84%") next to a thumb at 0%, which read inverted. Showing
       // 0% here pairs the thumb position with the readout the user sees.
       const briDisp = isRoomOff ? 0 : Math.round(areaState.actual_brightness ?? currentBri);
-      if (heroBri) heroBri.textContent = briDisp + '%';
+      if (heroBri) {
+        heroBri.textContent = briDisp + '%';
+        heroBri.classList.toggle('is-dirty', areaState.brightness_override != null);
+      }
 
       const heroColor = document.getElementById('slider-hero-color');
       const kDisp = Math.round(effectiveCCT);
-      if (heroColor) heroColor.textContent = kDisp + 'K';
+      if (heroColor) {
+        heroColor.textContent = kDisp + 'K';
+        heroColor.classList.toggle('is-dirty', areaState.color_override != null);
+      }
 
       // Phase slider: label flips Wake↔Bed at the phase boundary, value
       // shows the active phase target time (live-replaced during drag).
@@ -3142,6 +3417,10 @@
       if (phaseCtx) {
         if (phaseLabelEl) phaseLabelEl.textContent = phaseCtx.cursorInAscend ? 'Wake' : 'Bed';
         if (heroPhase) heroPhase.textContent = formatPhaseTime(phaseCtx.currentTargetTime);
+      }
+      if (heroPhase) {
+        const phaseDirty = areaState.brightness_mid != null || areaState.color_mid != null;
+        heroPhase.classList.toggle('is-dirty', phaseDirty);
       }
 
       // Collapsed Adjust card header mirror — live brightness + kelvin
@@ -3457,6 +3736,29 @@
       if (mode === 'brightness') {
         return 'linear-gradient(90deg, rgba(0,0,0,0.55) 0%, rgba(255,255,255,0.55) 100%)';
       }
+      // Sun-exposure slider: blue at left → black at the SOLAR_STEPS index
+      // where exposure==1 → flat black to the right. Direction encodes
+      // "as exposure grows, sun absorbs more of the room — the slider
+      // darkens toward 'absorbed by the sun' at peak and stays flat past
+      // that point".
+      if (mode === 'sun') {
+        const nSteps = (typeof SOLAR_STEPS !== 'undefined') ? SOLAR_STEPS.length : 10;
+        let peakIdx = nSteps - 1;
+        if (typeof SOLAR_STEPS !== 'undefined') {
+          for (let i = 0; i < SOLAR_STEPS.length; i++) {
+            if (SOLAR_STEPS[i].exposure >= 1.0) { peakIdx = i; break; }
+          }
+        }
+        const peakPct = (peakIdx / (nSteps - 1)) * 100;
+        const blue = 'rgba(120,170,230,0.85)';
+        const black = 'rgba(0,0,0,0.55)';
+        return `linear-gradient(90deg, ${blue} 0%, ${black} ${peakPct.toFixed(1)}%, ${black} 100%)`;
+      }
+      // Room-balance slider: divergent — amber-left (dim) → neutral-mid
+      // → blue-right (lift). Matches the home page balance gradient.
+      if (mode === 'balance') {
+        return 'linear-gradient(90deg, rgba(230,170,80,0.85) 0%, rgba(0,0,0,0.40) 50%, rgba(120,170,230,0.85) 100%)';
+      }
       const bMin = cfg.min_brightness, bMax = cfg.max_brightness;
       const cMin = cfg.min_color_temp, cMax = cfg.max_color_temp;
       const stops = [];
@@ -3549,6 +3851,8 @@
 
     function initSliderHandlers() {
       document.querySelectorAll('.slider-track').forEach(track => {
+        if (track._wired) return;
+        track._wired = true;
         let lastPos = null;
         const mode = track.dataset.mode;
 
@@ -3647,6 +3951,14 @@
             const targetTime = pctToPhaseTargetTime(lastPos, phaseCtx);
             if (targetTime != null) executeSetPhaseTime(targetTime);
             else sliderInteracting = false;
+          } else if (mode === 'sun' || mode === 'balance') {
+            // Tune sliders persist on release — no Save button to click.
+            // tuneState was already updated by previewSlider's snap; just
+            // POST to backend and capture new snapshot. Start the 10s
+            // orange-suppress timer for this dimension.
+            const dim = mode === 'sun' ? 'solar' : 'balance';
+            bumpTuneOrangeTimer(dim);
+            saveBrightnessChanges().finally(() => { sliderInteracting = false; });
           } else {
             // Brightness drag while the room is OFF doubles as the turn-on
             // gesture: dragging the slider up implies "turn on at this
@@ -3778,6 +4090,37 @@
           };
           renderMiniChart(cfg, previewAreaState, cachedSunTimes, currentHour, isActive, adjustedTimes, { bri: previewBri, cct: previewCCT });
         }
+        return;
+      }
+
+      // Sun + Balance sliders: snap position to nearest discrete step,
+      // update tuneState, refresh Math card + slider word + chart preview.
+      // No backend write here — that happens on pointerup.
+      if (dragMode === 'sun' || dragMode === 'balance') {
+        const steps = dragMode === 'sun' ? SOLAR_STEPS : LUMEN_STEPS;
+        const n = steps.length - 1;
+        const stepIdx = Math.max(0, Math.min(n, Math.round((position / 100) * n)));
+        const snapPct = (stepIdx / n) * 100;
+        // Update tuneState
+        if (dragMode === 'sun') {
+          tuneState.solarStep = stepIdx;
+        } else {
+          tuneState.lumenStep = stepIdx;
+          tuneState.areaFactor = LUMEN_STEPS[stepIdx].factor;
+        }
+        // Position thumb at snapped step
+        const thumb = track.querySelector('.slider-thumb');
+        if (thumb) thumb.style.left = snapPct + '%';
+        // Repaint track gradient (static for these modes — same call so
+        // the rendered background matches the live state).
+        const bgEl = track.querySelector('.slider-track-bg') || track;
+        bgEl.style.background = buildTrackGradient(dragMode, cfg, currentBri, currentCCT, effRange, phaseCtx);
+        // Recompute math card waterfall + slider word + chart with the
+        // new tuneState. recalcTune writes to the Math card spans + the
+        // .hslider-value word + the Peak / Current footer.
+        recalcTune();
+        updateTuneButtons();  // refresh is-dirty on value word
+        if (selectedArea) renderMiniChartForArea(selectedArea.area_id);
         return;
       }
 
@@ -4356,8 +4699,10 @@
         if (bo != null && Math.abs(bo) >= 1) {
           const sign = bo > 0 ? '+' : '';
           briEl.textContent = `${sign}${Math.round(bo)}%`;
+          briEl.classList.add('is-dirty');
         } else {
           briEl.textContent = '';
+          briEl.classList.remove('is-dirty');
         }
       }
       const colEl = document.getElementById('slider-delta-color');
@@ -4366,8 +4711,10 @@
         if (co != null && Math.abs(co) >= 10) {
           const sign = co > 0 ? '+' : '';
           colEl.textContent = `${sign}${Math.round(co)}K`;
+          colEl.classList.add('is-dirty');
         } else {
           colEl.textContent = '';
+          colEl.classList.remove('is-dirty');
         }
       }
       // Phase chip is set inside the slider-hero update path (where we
@@ -4607,6 +4954,52 @@
     function toggleCircadian() {
       if (!selectedArea) return;
       const action = selectedArea.is_circadian ? 'circadian_off' : 'circadian_on';
+      executeAction(action);
+    }
+
+    // Tap-to-reset on a slider's value OR divergence chip. Universal:
+    // Adjust dimensions (brightness/color/phase) hit the corresponding
+    // reset_*_override service; Tune dimensions (sun/balance) delegate
+    // to the existing reset-button click handlers, which revert to the
+    // page-load snapshot and persist. No-op when not dirty.
+    function onValueReset(dim) {
+      if (dim === 'brightness') return executeAction('reset_brightness_override');
+      if (dim === 'color')      return executeAction('reset_color_override');
+      if (dim === 'phase')      return executeAction('reset_phase');
+      // Tune dimensions: only fire when the value is actually dirty (the
+      // 10s orange-suppress timer may have cleared the dirty cue but the
+      // onclick stays on the markup). Reading .is-dirty mirrors what the
+      // user can see, so a stale tap is a no-op.
+      if (dim === 'sun') {
+        const el = document.getElementById('tune-solar-word');
+        if (!el || !el.classList.contains('is-dirty')) return;
+        const btn = document.getElementById('tune-reset-solar');
+        if (btn) btn.click();
+        return;
+      }
+      if (dim === 'balance') {
+        const el = document.getElementById('tune-lumen-word');
+        if (!el || !el.classList.contains('is-dirty')) return;
+        const btn = document.getElementById('tune-reset-lumen');
+        if (btn) btn.click();
+        return;
+      }
+    }
+
+    // Phase up/down on the Adjust card's Wake/Bed slider. Mirrors the
+    // home page's homeStepUp/homeStepDown semantics: + means "more light
+    // NOW" regardless of phase, so the action inverts between Wake (ascend)
+    // and Bed (descend). The slider-phase-label DOM text carries which
+    // phase we're in (updated by updateAllSliders per phaseCtx.cursorInAscend).
+    function adjustPhaseStep(dir) {
+      const labelEl = document.getElementById('slider-phase-label');
+      const isAscend = (labelEl && labelEl.textContent === 'Wake');
+      // Wake (ascend): step_up shifts wake LATER → less light now;
+      //                step_down shifts wake EARLIER → more light now.
+      // Bed (descend): step_up shifts bed LATER → more light now;
+      //                step_down shifts bed EARLIER → less light now.
+      const moreLightNow = dir > 0;
+      const action = (isAscend ? !moreLightNow : moreLightNow) ? 'step_up' : 'step_down';
       executeAction(action);
     }
 
@@ -5035,15 +5428,22 @@
     function isAutoSchedDirty() { return isAutoDirty('on') || isAutoDirty('off'); }
 
     function updateTuneButtons() {
-      const briBar = document.getElementById('tune-action-bar');
-      if (briBar) briBar.style.display = isBrightnessDirty() ? 'flex' : 'none';
+      // Tune action bar (Save/Cancel) was removed in Ship 2 refactor —
+      // sun + balance now save on drag-release. Lights card still has its
+      // staged save (preset edits), so keep that bar wired.
       const lightsBar = document.getElementById('lights-action-bar');
       if (lightsBar) lightsBar.style.display = isLightsDirty() ? 'flex' : 'none';
-      // Show/hide individual slider reset links based on dirty state
-      const rl = document.getElementById('tune-reset-lumen');
-      if (rl) rl.classList.toggle('is-dirty', tuneSnapshot != null && tuneState.lumenStep !== tuneSnapshot.lumenStep);
-      const rs = document.getElementById('tune-reset-solar');
-      if (rs) rs.classList.toggle('is-dirty', tuneSnapshot != null && tuneState.solarStep !== tuneSnapshot.solarStep);
+      // Tune dirty state vs page-load snapshot (NOT tuneSnapshot which
+      // updates on every save). value text gets orange + tappable to
+      // revert when current step differs from the session snapshot.
+      // Orange auto-clears 10s after a drag (oops-window expired).
+      const ss = _tuneSessionSnapshot;
+      const lumenDirty = ss != null && tuneState.lumenStep !== ss.lumenStep && !_tuneOrangeSuppressed.balance;
+      const solarDirty = ss != null && tuneState.solarStep !== ss.solarStep && !_tuneOrangeSuppressed.solar;
+      const wl = document.getElementById('tune-lumen-word');
+      if (wl) wl.classList.toggle('is-dirty', lumenDirty);
+      const ws = document.getElementById('tune-solar-word');
+      if (ws) ws.classList.toggle('is-dirty', solarDirty);
     }
 
     function updateAutoButtons(type) {
@@ -5395,26 +5795,60 @@
       ts._lastAreaBri = areaBri;
       ts._lastCtFactor = ctFactor;
 
-      // -- Brightness card: slider word labels --
+      // -- Tune card: slider top-right word + footer Peak / Current --
+      // Readout format mirrors home page: "Label N.NNx" with the multiplier
+      // suffix muted via .tune-mult. For Sun, the factor is the exposure
+      // value (0..2). For Balance, it's the brightness factor (0..2).
+      const lf = LUMEN_STEPS[ts.lumenStep].factor;
       const elLumenWord = document.getElementById('tune-lumen-word');
       if (elLumenWord) {
-        const lf = LUMEN_STEPS[ts.lumenStep].factor;
-        const lfSuffix = Math.abs(lf - 1.0) < 0.005 ? '' : (Math.round((lf - 1.0) * 100) > 0 ? ' +' : ' ') + Math.round((lf - 1.0) * 100) + '%';
-        elLumenWord.textContent = LUMEN_STEPS[ts.lumenStep].label + lfSuffix;
+        elLumenWord.innerHTML = LUMEN_STEPS[ts.lumenStep].label
+          + ' <span class="tune-mult">' + lf.toFixed(2) + 'x</span>';
       }
       const elSolarWord = document.getElementById('tune-solar-word');
       if (elSolarWord) {
         const sLabel = SOLAR_STEPS[ts.solarStep].label;
         const sExposure = SOLAR_STEPS[ts.solarStep].exposure;
-        let leftText = sExposure > 0 ? sLabel + ' ' + sExposure.toFixed(2) : sLabel;
-        let rightText = '';
-        if (sExposure > 0) {
-          const peakNl = Math.max(0.0, 1.0 - sExposure * 1.0 * ts.brightnessSensitivity);
-          const peakDrop = Math.round((1.0 - peakNl) * 100);
-          rightText = 'peak sun \u2193 ' + Math.min(peakDrop, 100) + '%';
-        }
-        elSolarWord.innerHTML = '<span class="tune-solar-main">' + leftText + '</span>' + (rightText ? '<span class="tune-solar-peak">' + rightText + '</span>' : '');
+        elSolarWord.innerHTML = sExposure > 0
+          ? sLabel + ' <span class="tune-mult">' + sExposure.toFixed(2) + 'x</span>'
+          : sLabel;
       }
+      // Sun "Peak": max possible dimming at peak outdoor (sun_factor=1) for
+      // the current exposure step. Always a drop (sun dims) \u2192 down arrow.
+      const elSolarPeak = document.getElementById('tune-solar-peak');
+      if (elSolarPeak) {
+        const sExp = SOLAR_STEPS[ts.solarStep].exposure;
+        if (sExp > 0) {
+          const peakNl = Math.max(0, 1.0 - sExp * 1.0 * ts.brightnessSensitivity);
+          const peakDrop = Math.min(100, Math.round((1.0 - peakNl) * 100));
+          elSolarPeak.innerHTML = 'Peak <strong>\u2193 ' + peakDrop + '%</strong>';
+        } else {
+          elSolarPeak.innerHTML = 'Peak <strong>0%</strong>';
+        }
+      }
+      // Balance "Peak": net contribution at the curve's max effect point.
+      // Up arrow for lift, down arrow for dim.
+      const elLumenPeak = document.getElementById('tune-lumen-peak');
+      if (elLumenPeak) {
+        const isLift = lf > 1.0;
+        const peakDelta = isLift
+          ? Math.round((100 - 100 / lf))         // lift: 100 - (100/factor)
+          : Math.round(100 * (lf - 1.0));        // dim:  100 * (factor - 1) (negative)
+        const arrow = peakDelta > 0 ? '\u2191' : (peakDelta < 0 ? '\u2193' : '');
+        elLumenPeak.innerHTML = 'Peak <strong>' + arrow + ' ' + Math.abs(peakDelta) + '%</strong>';
+      }
+      // "Current: \u2191/\u2193X%" \u2014 this slider's contribution right now.
+      // The before/after parenthetical was retired as too noisy.
+      const fmtCurrent = (impact, after) => {
+        const rounded = Math.round(impact);
+        const arrow = rounded > 0 ? '\u2191' : (rounded < 0 ? '\u2193' : '');
+        const pct = arrow + ' ' + Math.abs(rounded) + '%';
+        return 'Current: <strong>' + pct + '</strong>';
+      };
+      const elSolarCurrent = document.getElementById('tune-solar-current');
+      const elLumenCurrent = document.getElementById('tune-lumen-current');
+      if (elSolarCurrent) elSolarCurrent.innerHTML = fmtCurrent(solarImpact, areaBri);
+      if (elLumenCurrent) elLumenCurrent.innerHTML = fmtCurrent(lumenImpact, areaBri);
 
       // -- Card 3: Lights --
       const briRange = ts.maxBri - ts.minBri;
@@ -5696,9 +6130,26 @@
         boostBrightness: status.boost_brightness || 0,
       });
 
-      // ── Tune card (waterfall equation) ──
+      // Capture the session snapshot ONCE on first render. Subsequent
+      // saveBrightnessChanges calls update tuneSnapshot to match the
+      // backend, but _tuneSessionSnapshot keeps the "what the user
+      // started with this page open" value so reset reverts there.
+      if (_tuneSessionSnapshot == null) {
+        _tuneSessionSnapshot = { lumenStep: lumenStep, solarStep: solarStep };
+      }
+
+      // ── Tune card: just the Sun + Balance sliders (Phase 2 refocus).
+      //    The full waterfall (Curve → +Sun → +Balance → +User → +Boost
+      //    → +Dim → +Fade → = total) moved to the Math card below. The
+      //    tune-det-* IDs the slider handlers read live in Math now; JS
+      //    finds them via getElementById so location doesn't matter.
       const brightnessCard = document.getElementById('tune-brightness-card');
       const briExpanded = _pageFocus === 'tune' || (_persistCards && localStorage.getItem('tune_collapsed') !== 'true');
+      // Initial-render multiplier suffixes (recalcTune refreshes them on
+      // any state change). Format: "N.NNx", muted via .tune-mult.
+      const lumenWordSuffix = ' <span class="tune-mult">' + factor.toFixed(2) + 'x</span>';
+      const solarExposure = SOLAR_STEPS[solarStep].exposure;
+      const solarWordSuffix = solarExposure > 0 ? ' <span class="tune-mult">' + solarExposure.toFixed(2) + 'x</span>' : '';
       let bhtml = '<div class="tune-brightness-header" onclick="toggleBrightnessBody()">';
       bhtml += '<span class="tune-brightness-chevron" id="tune-brightness-chevron">&#x203A;</span>';
       bhtml += '<span class="tune-brightness-title">Tune</span>';
@@ -5706,72 +6157,115 @@
       bhtml += '</div>';
       bhtml += '<div class="tune-brightness-body" id="tune-brightness-body">';
       bhtml += '<div class="tune-wf">';
-      // Curve (starting value)
-      bhtml += '<div class="tune-wf-row">'
+      // Sun + Balance sliders use the same .slider-track machinery as the
+      // Adjust card (Bright/Color/Wake) — same drag, same thumb, same
+      // gradient pipeline (buildTrackGradient now has 'sun' + 'balance'
+      // branches). data-mode routes them through initSliderHandlers and
+      // previewSlider. Save-on-release model: no Save/Cancel action bar
+      // — every drop persists.
+      const solarPctInit = (SOLAR_STEPS.length - 1) > 0 ? Math.round((solarStep / (SOLAR_STEPS.length - 1)) * 100) : 0;
+      const lumenPctInit = (LUMEN_STEPS.length - 1) > 0 ? Math.round((lumenStep / (LUMEN_STEPS.length - 1)) * 100) : 0;
+      bhtml += '<div class="tune-srow">'
+        + '<div class="hslider-header">'
+        +   '<span class="hslider-label">Sun exposure</span>'
+        +   '<span class="hslider-right">'
+        +     '<span class="hslider-value" id="tune-solar-word" onclick="onValueReset(\'sun\')" title="Tap to revert">' + SOLAR_STEPS[solarStep].label + solarWordSuffix + '</span>'
+        +     '<button class="hslider-reset hidden" id="tune-reset-solar" title="Reset sun exposure">&#x21BA;</button>'
+        +   '</span>'
+        + '</div>'
+        + '<div class="slider-track tune-slider-track" id="tune-slider-solar" data-mode="sun">'
+        +   '<div class="slider-track-bg"></div>'
+        +   '<div class="slider-default-tick"></div>'
+        +   '<div class="slider-thumb-ghost"></div>'
+        +   '<div class="slider-thumb" style="left:' + solarPctInit + '%;"></div>'
+        + '</div>'
+        + '<div class="tune-srow-footer">'
+        +   '<span class="tune-srow-peak" id="tune-solar-peak"></span>'
+        +   '<span class="tune-srow-current" id="tune-solar-current">Current: 0%</span>'
+        + '</div>'
+        + '</div>';
+      bhtml += '<div class="tune-srow">'
+        + '<div class="hslider-header">'
+        +   '<span class="hslider-label">Room balance</span>'
+        +   '<span class="hslider-right">'
+        +     '<span class="hslider-value" id="tune-lumen-word" onclick="onValueReset(\'balance\')" title="Tap to revert">' + LUMEN_STEPS[lumenStep].label + lumenWordSuffix + '</span>'
+        +     '<button class="hslider-reset hidden" id="tune-reset-lumen" title="Reset room balance">&#x21BA;</button>'
+        +   '</span>'
+        + '</div>'
+        + '<div class="slider-track tune-slider-track" id="tune-slider-lumen" data-mode="balance">'
+        +   '<div class="slider-track-bg"></div>'
+        +   '<div class="slider-default-tick"></div>'
+        +   '<div class="slider-thumb-ghost"></div>'
+        +   '<div class="slider-thumb" style="left:' + lumenPctInit + '%;"></div>'
+        + '</div>'
+        + '<div class="tune-srow-footer">'
+        +   '<span class="tune-srow-peak" id="tune-lumen-peak"></span>'
+        +   '<span class="tune-srow-current" id="tune-lumen-current">Current: 0%</span>'
+        + '</div>'
+        + '</div>';
+      bhtml += '</div>'; // end .tune-wf
+      bhtml += '</div>'; // end .tune-brightness-body
+
+      // ── Math card: full waterfall, populated as a sibling of Tune. ──
+      const mathCard = document.getElementById('tune-math-card');
+      const mathExpanded = _persistCards && localStorage.getItem('math_collapsed') === 'false';
+      let mhtml = '<div class="tune-wf">';
+      mhtml += '<div class="tune-wf-row">'
         + '<span class="tune-wf-op"></span>'
         + '<span class="tune-wf-label">Curve</span>'
         + '<span class="tune-wf-reset"></span>'
         + '<span class="tune-wf-val" id="tune-det-base-total">' + baseBri + '%</span>'
         + '</div>';
-      // + Sun exposure (with slider beneath)
-      bhtml += '<div class="tune-wf-row">'
+      mhtml += '<div class="tune-wf-row">'
         + '<span class="tune-wf-op">+</span>'
         + '<span class="tune-wf-label">Sun exposure</span>'
-        + '<span class="tune-wf-reset" id="tune-reset-solar">reset</span>'
+        + '<span class="tune-wf-reset"></span>'
         + '<span class="tune-wf-val" id="tune-det-solar-val">0%</span>'
         + '</div>';
-      bhtml += '<div class="tune-wf-slider">'
-        + '<input type="range" class="tune-inline-slider tune-inline-slider--sun" id="tune-slider-solar" min="0" max="9" step="1" value="' + solarStep + '">'
-        + '<span class="tune-slider-word" id="tune-solar-word"><span class="tune-solar-main">' + SOLAR_STEPS[solarStep].label + '</span></span></div>';
-      // + Room balance (with slider beneath)
-      bhtml += '<div class="tune-wf-row">'
+      mhtml += '<div class="tune-wf-row">'
         + '<span class="tune-wf-op">+</span>'
         + '<span class="tune-wf-label">Room balance</span>'
-        + '<span class="tune-wf-reset" id="tune-reset-lumen">reset</span>'
+        + '<span class="tune-wf-reset"></span>'
         + '<span class="tune-wf-val" id="tune-det-lumen-val">0%</span>'
         + '</div>';
-      bhtml += '<div class="tune-wf-slider">'
-        + '<input type="range" class="tune-inline-slider tune-inline-slider--light" id="tune-slider-lumen" min="0" max="8" step="1" value="' + lumenStep + '">'
-        + '<span class="tune-slider-word" id="tune-lumen-word">' + LUMEN_STEPS[lumenStep].label + (function(f){ if(Math.abs(f-1)<0.005) return ''; var p=Math.round((f-1)*100); return (p>0?' +':' ')+p+'%'; })(factor) + '</span></div>';
-      // + User override / Boost / Dimming / Fade (show 0% rows)
-      bhtml += '<div class="tune-wf-row" id="tune-det-override-row">'
+      mhtml += '<div class="tune-wf-row" id="tune-det-override-row">'
         + '<span class="tune-wf-op">+</span>'
         + '<span class="tune-wf-label" id="tune-det-override-label">User brightened</span>'
         + '<span class="tune-wf-reset"></span>'
         + '<span class="tune-wf-val" id="tune-det-override-val">0%</span>'
         + '</div>';
-      bhtml += '<div class="tune-wf-row" id="tune-det-boost-row">'
+      mhtml += '<div class="tune-wf-row" id="tune-det-boost-row">'
         + '<span class="tune-wf-op">+</span>'
         + '<span class="tune-wf-label">Boost</span>'
         + '<span class="tune-wf-reset"></span>'
         + '<span class="tune-wf-val" id="tune-det-boost-val">0%</span>'
         + '</div>';
-      bhtml += '<div class="tune-wf-row" id="tune-det-dim-row">'
+      mhtml += '<div class="tune-wf-row" id="tune-det-dim-row">'
         + '<span class="tune-wf-op">+</span>'
         + '<span class="tune-wf-label">Dimming</span>'
         + '<span class="tune-wf-reset"></span>'
         + '<span class="tune-wf-val" id="tune-det-dim-val">0%</span>'
         + '</div>';
-      bhtml += '<div class="tune-wf-row" id="tune-det-fade-row">'
+      mhtml += '<div class="tune-wf-row" id="tune-det-fade-row">'
         + '<span class="tune-wf-op">+</span>'
         + '<span class="tune-wf-label" id="tune-det-fade-label">Auto-on fade</span>'
         + '<span class="tune-wf-reset"></span>'
         + '<span class="tune-wf-val" id="tune-det-fade-val">0%</span>'
         + '</div>';
-      // Divider + total
-      bhtml += '<div class="tune-wf-divider"></div>';
-      bhtml += '<div class="tune-wf-row tune-wf-total">'
+      mhtml += '<div class="tune-wf-divider"></div>';
+      mhtml += '<div class="tune-wf-row tune-wf-total">'
         + '<span class="tune-wf-op">=</span>'
         + '<span class="tune-wf-label">Area Brightness</span>'
         + '<span class="tune-wf-reset"></span>'
         + '<span class="tune-wf-val" id="tune-det-final-val">--</span>'
         + '</div>';
-      bhtml += '</div>'; // end .tune-wf
-      bhtml += '<div class="section-action-bar" id="tune-action-bar" style="display:none;">';
-      bhtml += '<button class="section-cancel-btn" onclick="cancelBrightnessChanges()">Cancel</button>';
-      bhtml += '<button class="section-save-btn" onclick="saveBrightnessChanges()">Save</button>';
-      bhtml += '</div>';
-      bhtml += '</div>';
+      mhtml += '</div>'; // end .tune-wf
+      if (mathCard) {
+        mathCard.querySelector('#tune-math-body').innerHTML = mhtml;
+        mathCard.style.display = '';
+        if (mathExpanded) mathCard.classList.add('is-open');
+        else mathCard.classList.remove('is-open');
+      }
       brightnessCard.innerHTML = bhtml;
 
       // Set initial expanded state
@@ -5861,70 +6355,63 @@
 
       // ── Wire events ──
 
-      // Lumen slider
+      // Tune sliders (sun + balance) are now .slider-track divs driven by
+      // initSliderHandlers — the same drag pipeline as Adjust card sliders.
+      // No native <input> event handlers needed. Drag-end persists via
+      // saveBrightnessChanges (called from previewSlider/onUp's sun+balance
+      // branch). Reset buttons trigger the snapshot revert + save in one
+      // step so the slider visibly snaps back AND persists.
       const lumenSlider = document.getElementById('tune-slider-lumen');
-      if (lumenSlider) {
-        updateSliderFill(lumenSlider);
-        lumenSlider.addEventListener('input', () => {
-          sliderInteracting = true;
-          tuneState.lumenStep = parseInt(lumenSlider.value);
-          recalcTune();
-          updateTuneButtons();
-          updateSliderFill(lumenSlider);
-          if (selectedArea) renderMiniChartForArea(selectedArea.area_id);
-          updateAllSliders();
-        });
-        lumenSlider.addEventListener('change', () => {
-          sliderInteracting = false;
-          updateTuneButtons();
-        });
-      }
-
-      // Solar slider
       const solarSlider = document.getElementById('tune-slider-solar');
+      // Paint initial gradients + wire the drag pipeline. initSliderHandlers
+      // is idempotent (skips tracks with _wired=true) so calling it here
+      // attaches handlers to the newly-rendered tune slider DOM without
+      // duplicating listeners on Adjust card tracks.
       if (solarSlider) {
-        updateSliderFill(solarSlider);
-        solarSlider.addEventListener('input', () => {
-          sliderInteracting = true;
-          tuneState.solarStep = parseInt(solarSlider.value);
-          recalcTune();
-          updateTuneButtons();
-          updateSliderFill(solarSlider);
-          if (selectedArea) renderMiniChartForArea(selectedArea.area_id);
-          updateAllSliders();
-        });
-        solarSlider.addEventListener('change', () => {
-          sliderInteracting = false;
-          updateTuneButtons();
-        });
+        const bg = solarSlider.querySelector('.slider-track-bg');
+        if (bg) bg.style.background = buildTrackGradient('sun', cachedConfig || {}, 0, 0, null, null);
       }
+      if (lumenSlider) {
+        const bg = lumenSlider.querySelector('.slider-track-bg');
+        if (bg) bg.style.background = buildTrackGradient('balance', cachedConfig || {}, 0, 0, null, null);
+      }
+      initSliderHandlers();
 
-      // Reset lumen to last saved value
       const resetLumen = document.getElementById('tune-reset-lumen');
       if (resetLumen) {
-        resetLumen.onclick = (e) => {
+        resetLumen.onclick = async (e) => {
           e.stopPropagation();
-          const savedStep = tuneSnapshot ? tuneSnapshot.lumenStep : 4;
+          // Revert to the page-load session snapshot, not tuneSnapshot
+          // (which updates on every save). Lets "tap value to revert"
+          // undo all changes made since the user opened this page.
+          const savedStep = _tuneSessionSnapshot ? _tuneSessionSnapshot.lumenStep : 4;
           tuneState.lumenStep = savedStep;
           tuneState.areaFactor = LUMEN_STEPS[savedStep].factor;
-          if (lumenSlider) { lumenSlider.value = savedStep; updateSliderFill(lumenSlider); }
+          if (lumenSlider) {
+            const pct = (LUMEN_STEPS.length - 1) > 0 ? (savedStep / (LUMEN_STEPS.length - 1)) * 100 : 0;
+            const thumb = lumenSlider.querySelector('.slider-thumb');
+            if (thumb) thumb.style.left = pct + '%';
+          }
           recalcTune();
-          updateTuneButtons();
+          await saveBrightnessChanges();
           if (selectedArea) renderMiniChartForArea(selectedArea.area_id);
           updateAllSliders();
         };
       }
 
-      // Reset solar to last saved value
       const resetSolar = document.getElementById('tune-reset-solar');
       if (resetSolar) {
-        resetSolar.onclick = (e) => {
+        resetSolar.onclick = async (e) => {
           e.stopPropagation();
-          const savedStep = tuneSnapshot ? tuneSnapshot.solarStep : 0;
+          const savedStep = _tuneSessionSnapshot ? _tuneSessionSnapshot.solarStep : 0;
           tuneState.solarStep = savedStep;
-          if (solarSlider) { solarSlider.value = savedStep; updateSliderFill(solarSlider); }
+          if (solarSlider) {
+            const pct = (SOLAR_STEPS.length - 1) > 0 ? (savedStep / (SOLAR_STEPS.length - 1)) * 100 : 0;
+            const thumb = solarSlider.querySelector('.slider-thumb');
+            if (thumb) thumb.style.left = pct + '%';
+          }
           recalcTune();
-          updateTuneButtons();
+          await saveBrightnessChanges();
           if (selectedArea) renderMiniChartForArea(selectedArea.area_id);
           updateAllSliders();
         };
@@ -6219,6 +6706,13 @@
       if (!card) return;
       const isOpen = card.classList.toggle('is-open');
       _setAreaCard('lights_collapsed', isOpen ? 'false' : 'true');
+    }
+
+    function toggleMathBody() {
+      const card = document.querySelector('.tune-math-card');
+      if (!card) return;
+      const isOpen = card.classList.toggle('is-open');
+      _setAreaCard('math_collapsed', isOpen ? 'false' : 'true');
     }
 
     // ============================================================

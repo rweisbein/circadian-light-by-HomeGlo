@@ -5385,6 +5385,10 @@ class LightDesignerServer:
             "color_down",
             "glozone_reset",
             "glozone_reset_full",
+            "glozone_reset_brightness_override",
+            "glozone_reset_color_override",
+            "glozone_reset_phase",
+            "glozone_reset_frozen",
             "glozone_down",
             "set_position",
         }
