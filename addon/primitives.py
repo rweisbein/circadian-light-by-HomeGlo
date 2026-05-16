@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import glozone
 import glozone_state
+import history
 import state
 from brain import (
     CircadianLight,
@@ -1130,6 +1131,13 @@ class CircadianLightPrimitives:
                 await self.client.update_lights_in_circadian_mode(
                     area_id, log_periodic=True
                 )
+            history.record(
+                area_id, "brightness", source,
+                brightness=int(round(target_actual)),
+                kelvin=state.get_last_sent_kelvin(area_id),
+                from_value=round(current_raw, 1),
+                to_value=target_actual,
+            )
             return
 
         if mode == "color":
@@ -1158,6 +1166,12 @@ class CircadianLightPrimitives:
                 logger.info(
                     f"set_position color state updated (lights off): {result.color_temp}K"
                 )
+            history.record(
+                area_id, "color", source,
+                brightness=state.get_last_sent_brightness(area_id),
+                kelvin=result.color_temp,
+                to_value=result.color_temp,
+            )
             return
 
         # mode == "step": walk the curve via midpoints (existing behavior)
@@ -1186,6 +1200,14 @@ class CircadianLightPrimitives:
             logger.info(
                 f"set_position state updated (lights off): {result.brightness}%, {result.color_temp}K"
             )
+        # Step mode shifts both brightness AND phase via midpoint walk.
+        # Record as 'phase' (the underlying user intent is "shift the curve").
+        history.record(
+            area_id, "phase", source,
+            brightness=result.brightness,
+            kelvin=result.color_temp,
+            to_value=value,
+        )
 
     async def set_phase_time(
         self,
@@ -1253,6 +1275,12 @@ class CircadianLightPrimitives:
             await self.client.update_lights_in_circadian_mode(
                 area_id, log_periodic=True
             )
+        history.record(
+            area_id, "phase", source,
+            brightness=state.get_last_sent_brightness(area_id),
+            kelvin=state.get_last_sent_kelvin(area_id),
+            to_value=float(target_time),
+        )
 
     async def reset_brightness_override(
         self, area_id: str, source: str = "service_call", _send_command: bool = True
@@ -1268,6 +1296,11 @@ class CircadianLightPrimitives:
             await self.client.update_lights_in_circadian_mode(
                 area_id, log_periodic=True
             )
+        history.record(
+            area_id, "reset_brightness_override", source,
+            brightness=state.get_last_sent_brightness(area_id),
+            kelvin=state.get_last_sent_kelvin(area_id),
+        )
 
     async def reset_color_override(
         self, area_id: str, source: str = "service_call", _send_command: bool = True
@@ -1283,6 +1316,11 @@ class CircadianLightPrimitives:
             await self.client.update_lights_in_circadian_mode(
                 area_id, log_periodic=True
             )
+        history.record(
+            area_id, "reset_color_override", source,
+            brightness=state.get_last_sent_brightness(area_id),
+            kelvin=state.get_last_sent_kelvin(area_id),
+        )
 
     async def reset_phase(
         self, area_id: str, source: str = "service_call", _send_command: bool = True
@@ -1297,6 +1335,11 @@ class CircadianLightPrimitives:
             await self.client.update_lights_in_circadian_mode(
                 area_id, log_periodic=True
             )
+        history.record(
+            area_id, "reset_phase", source,
+            brightness=state.get_last_sent_brightness(area_id),
+            kelvin=state.get_last_sent_kelvin(area_id),
+        )
 
     # -------------------------------------------------------------------------
     # Per-axis override up/down (brightness and color buttons)
@@ -1675,6 +1718,15 @@ class CircadianLightPrimitives:
                 f"lights_on for area {area_id}: {final_brightness}%, {result.color_temp}K "
                 f"(hour={hour:.2f}, was_circadian={was_circadian}, lights_were_on={lights_were_on})"
             )
+        # User-facing history: turn_on only when bulb actually transitioned
+        # off→on. Calls with lights_were_on=True are re-applies (e.g. zone
+        # push, override change) — those are logged by their own primitives.
+        if not lights_were_on:
+            history.record(
+                area_id, "turn_on", source,
+                brightness=final_brightness,
+                kelvin=result.color_temp,
+            )
 
     async def lights_off(self, area_id: str, source: str = "service_call"):
         """Turn off lights and set is_on=False (Circadian enforces off state).
@@ -1734,11 +1786,17 @@ class CircadianLightPrimitives:
         state.set_off_enforced(area_id, False)
 
         # Turn off lights (uses ZHA groups when available) and switch entities
+        last_bri_pre = state.get_last_sent_brightness(area_id)
+        last_kel_pre = state.get_last_sent_kelvin(area_id)
         transition = self._get_turn_off_transition()
         await self.client.turn_off_lights(area_id, transition=transition)
         await self.client.turn_off_switch_entities(area_id)
 
         logger.info(f"lights_off for area {area_id} (was_circadian={was_circadian})")
+        history.record(
+            area_id, "turn_off", source,
+            brightness=last_bri_pre, kelvin=last_kel_pre,
+        )
 
     async def circadian_off(self, area_id: str, source: str = "service_call"):
         """Release Circadian control for an area (lights unchanged).
@@ -1770,6 +1828,11 @@ class CircadianLightPrimitives:
 
         state.set_is_circadian(area_id, False)
         logger.info(f"Circadian Light disabled for area {area_id}, lights unchanged")
+        history.record(
+            area_id, "circadian_off", source,
+            brightness=state.get_last_sent_brightness(area_id),
+            kelvin=state.get_last_sent_kelvin(area_id),
+        )
 
     async def circadian_on(self, area_id: str, source: str = "service_call"):
         """Resume Circadian control for an area with preserved settings.
@@ -1832,6 +1895,11 @@ class CircadianLightPrimitives:
             transition = self._get_turn_off_transition()
             await self._turn_off_area(area_id, transition=transition)
             logger.info(f"circadian_on enforced off state (is_on=False)")
+        history.record(
+            area_id, "circadian_on", source,
+            brightness=state.get_last_sent_brightness(area_id),
+            kelvin=state.get_last_sent_kelvin(area_id),
+        )
 
     async def lights_toggle(self, area_id: str, source: str = "service_call"):
         """Toggle lights under Circadian control.
@@ -2199,6 +2267,16 @@ class CircadianLightPrimitives:
             f"[{source}] Boosted area {area_id}: {result.brightness}% + {boost_amount}% = {boosted_brightness}%, "
             f"{result.color_temp}K, expires={expires_at}"
         )
+        history.record(
+            area_id, "boost", source,
+            brightness=boosted_brightness,
+            kelvin=result.color_temp,
+            duration_minutes=(
+                None if (is_forever or from_motion)
+                else max(1, duration_seconds // 60)
+            ),
+            intensity=boost_amount,
+        )
 
     async def _apply_current_boost(self, area_id: str, boost_amount: int):
         """Re-apply lighting with current boost level (for when boost % increases)."""
@@ -2287,6 +2365,7 @@ class CircadianLightPrimitives:
             logger.info(
                 f"[{source}] Boost ended for area {area_id}, turned off (started from off)"
             )
+            history.record(area_id, "boost_end", source, brightness=0, kelvin=result.color_temp)
             return True
         else:
             # Lights were on - return to current circadian settings (is_on stays True)
@@ -2321,6 +2400,10 @@ class CircadianLightPrimitives:
                 f"{result.brightness}%, {result.color_temp}K"
                 f"{f', override={effective_override:.1f}' if effective_override else ''}"
                 f" (transition={transition}s)"
+            )
+            history.record(
+                area_id, "boost_end", source,
+                brightness=result.brightness, kelvin=result.color_temp,
             )
             return False
 
@@ -2575,6 +2658,8 @@ class CircadianLightPrimitives:
             logger.warning(f"Could not store CT for area {area_id}: {e}")
 
         # Turn off (set is_on=False, Circadian enforces off state)
+        last_bri_pre = state.get_last_sent_brightness(area_id)
+        last_kel_pre = state.get_last_sent_kelvin(area_id)
         transition = self._get_turn_off_transition()
         await self._turn_off_area(area_id, transition=transition)
         await self.client.turn_off_switch_entities(area_id)
@@ -2582,6 +2667,13 @@ class CircadianLightPrimitives:
         state.set_off_enforced(area_id, False)
         logger.info(
             f"[{source}] Auto-off timer expired for area {area_id}, turned off"
+        )
+        # Record as turn_off with source_kind='timer' so the user sees
+        # "Turn off — Timer" regardless of who originally set the timer
+        # (motion sensor or explicit user picker — both write to auto_off_at).
+        history.record(
+            area_id, "turn_off", "timer",
+            brightness=last_bri_pre, kelvin=last_kel_pre,
         )
 
     async def check_expired_auto_off(self, log_periodic: bool = False):
@@ -2624,6 +2716,7 @@ class CircadianLightPrimitives:
         state.mark_user_action(area_id)
         if not duration_minutes or duration_minutes <= 0:
             state.clear_auto_off_at(area_id)
+            history.record(area_id, "auto_off_cleared", source)
             return
         from datetime import datetime, timedelta
 
@@ -2634,6 +2727,10 @@ class CircadianLightPrimitives:
         logger.info(
             f"[{source}] Auto-off scheduled for {area_id} in {duration_minutes}m (at {expires_at})"
         )
+        history.record(
+            area_id, "auto_off_set", source,
+            duration_minutes=duration_minutes,
+        )
 
     async def clear_auto_off(self, area_id: str, source: str = "service_call"):
         """Cancel any auto-off timer (without turning lights off)."""
@@ -2641,6 +2738,7 @@ class CircadianLightPrimitives:
             return
         state.clear_auto_off_at(area_id)
         logger.info(f"[{source}] Auto-off cleared for {area_id}")
+        history.record(area_id, "auto_off_cleared", source)
 
     # -------------------------------------------------------------------------
     # Auto On/Off Schedules
@@ -3836,6 +3934,11 @@ class CircadianLightPrimitives:
             # Was frozen → unfreeze all (set_frozen_at clears frozen_until too)
             for area_id in circadian_areas:
                 self._unfreeze_internal(area_id, source)
+                history.record(
+                    area_id, "unfreeze", source,
+                    brightness=state.get_last_sent_brightness(area_id),
+                    kelvin=state.get_last_sent_kelvin(area_id),
+                )
             logger.info(
                 f"[{source}] Freeze toggle: {len(circadian_areas)} area(s) unfrozen"
             )
@@ -3853,6 +3956,12 @@ class CircadianLightPrimitives:
                 state.set_frozen_at(area_id, frozen_at)
                 if frozen_until_iso:
                     state.set_frozen_until(area_id, frozen_until_iso)
+                history.record(
+                    area_id, "freeze", source,
+                    brightness=state.get_last_sent_brightness(area_id),
+                    kelvin=state.get_last_sent_kelvin(area_id),
+                    duration_minutes=duration_minutes if duration_minutes else None,
+                )
             dur_log = f" (auto-expires in {duration_minutes}m)" if frozen_until_iso else ""
             logger.info(
                 f"[{source}] Freeze toggle: {len(circadian_areas)} area(s) frozen at hour {frozen_at:.2f}{dur_log}"
@@ -3958,6 +4067,11 @@ class CircadianLightPrimitives:
             logger.info(
                 f"glo_reset complete for area {area_id} (not circadian or lights off, no lighting change)"
             )
+        history.record(
+            area_id, "glo_reset", source,
+            brightness=state.get_last_sent_brightness(area_id),
+            kelvin=state.get_last_sent_kelvin(area_id),
+        )
 
     # -------------------------------------------------------------------------
     # GloZone Primitives - Zone-based state synchronization
@@ -4000,6 +4114,11 @@ class CircadianLightPrimitives:
         glozone_state.set_zone_state(zone_name, runtime_state)
         logger.info(
             f"glo_up complete: pushed state to zone '{zone_name}': {runtime_state}"
+        )
+        history.record(
+            area_id, "glo_up", source,
+            brightness=state.get_last_sent_brightness(area_id),
+            kelvin=state.get_last_sent_kelvin(area_id),
         )
 
     async def glo_down(
@@ -4066,6 +4185,11 @@ class CircadianLightPrimitives:
             logger.info(
                 f"glo_down complete for {area_id} (state updated, command deferred)"
             )
+        history.record(
+            area_id, "glo_down", source,
+            brightness=state.get_last_sent_brightness(area_id),
+            kelvin=state.get_last_sent_kelvin(area_id),
+        )
 
     # -------------------------------------------------------------------------
     # GloZone-level Primitives - Zone state operations
@@ -4231,6 +4355,11 @@ class CircadianLightPrimitives:
         await self.glozone_down(zone_name, source)
 
         logger.info(f"full_send complete for area {area_id} in zone '{zone_name}'")
+        history.record(
+            area_id, "full_send", source,
+            brightness=state.get_last_sent_brightness(area_id),
+            kelvin=state.get_last_sent_kelvin(area_id),
+        )
 
     # -------------------------------------------------------------------------
     # Zone-level actions (modify zone state only, no light control)

@@ -557,6 +557,11 @@ class LightDesignerServer:
         self.app.router.add_post(
             "/api/area-settings/{area_id}", self.save_area_settings
         )
+        # User-facing event history (per area).
+        self.app.router.add_route(
+            "GET", "/{path:.*}/api/area-history/{area_id}", self.get_area_history
+        )
+        self.app.router.add_get("/api/area-history/{area_id}", self.get_area_history)
         self.app.router.add_post("/api/apply-light", self.apply_light)
         self.app.router.add_post("/api/circadian-mode", self.set_circadian_mode)
         # Live Design heartbeat — browser pings ~30s while page is open;
@@ -3579,6 +3584,28 @@ class LightDesignerServer:
         except Exception as e:
             logger.error(f"[RefreshOutdoor] Error: {e}", exc_info=True)
             return web.json_response({"error": str(e)}, status=500)
+
+    async def get_area_history(self, request: Request) -> Response:
+        """Return the user-facing event log for one area.
+
+        Query params:
+            limit: max number of entries (newest-first). Default 50, cap 100.
+
+        Each entry is a dict (see history.HistoryEntry). Empty list when the
+        area has no recorded events (e.g., fresh boot — history is in-memory
+        only, lost on restart).
+        """
+        import history as history_mod
+
+        area_id = request.match_info.get("area_id")
+        if not area_id:
+            return web.json_response({"error": "area_id is required"}, status=400)
+        try:
+            limit = int(request.query.get("limit", "50"))
+        except ValueError:
+            limit = 50
+        limit = max(1, min(100, limit))
+        return web.json_response({"entries": history_mod.get(area_id, limit=limit)})
 
     async def get_area_settings(self, request: Request) -> Response:
         """Get settings for a specific area.

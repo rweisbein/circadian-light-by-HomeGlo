@@ -1,5 +1,15 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.322
+- **Area-detail History card** — new collapsible card at the bottom of the area-detail stack, populated from a fresh in-memory event log per area. Filtered to user-facing actions only (periodic-tick recomputes + motion-extend-timer pings are dropped). Stable schema:
+  - **Actions tracked**: `turn_on`, `turn_off`, `brightness`, `color`, `phase`, `freeze`, `unfreeze`, `boost`, `boost_end`, `circadian_on`, `circadian_off`, `auto_off_set`, `auto_off_cleared`, `glo_down`, `glo_up`, `glo_reset`, `full_send`, `reset_brightness_override`, `reset_color_override`, `reset_phase`.
+  - **Source attribution**: each entry carries `source_kind` (`switch`/`motion`/`contact`/`app`/`auto_schedule`/`timer`/`service_call`/`system`) and optional `source_entity` for entity-tagged sources.
+  - **State snapshot**: every entry records `brightness` + `kelvin` at the time of the action; `from_value`/`to_value` for changes; `duration_minutes`/`intensity` for freeze/boost/auto_off_set; `is_2step` for turn_on; `is_zone_action` for fan-outs.
+  - **Coalescing**: rapid same-action/same-source `brightness`/`color`/`phase` events within 5s collapse into a single row whose `to_value` advances. So a 4-press dim from a switch shows as ONE row, not four. `turn_on`/`turn_off`/`freeze`/`boost`/`reset` never coalesce.
+  - **Storage**: in-memory ring buffer (`deque(maxlen=100)`) per area. ~1 MB total at full saturation. Lost on restart — persistence is a future upgrade.
+  - **API**: new `GET /api/area-history/{area_id}?limit=N`.
+  - **UI**: collapsible card under Math (default closed; persisted across visits). Table layout: When · Action · Source · Details. Compact relative timestamps (`3:42p` for today, `Yesterday 3:42p`, `Mon 5/12 3:42p`, `5/12/26 3:42p`). Refreshes after every executeAction/executeSetPosition if open.
+
 ## 1.2.321
 - **Fix `set_position(brightness)` crash on areas where motion warning has fired** (`primitives.py`): `_compute_current_area_brightness_pair` read `dim_factor` via `state.get_area(...).get("dim_factor", 1.0)`, which returns the stored value (including `None`) when the key exists — and `clear_motion_warning` stores `dim_factor: None` after the warning ends. Pipeline then computed `fade_factor * None` and raised `TypeError: unsupported operand type(s) for *: 'float' and 'NoneType'`, so every brightness drag/step on that area silently errored at the server. Switched to the existing `state.get_dim_factor()` helper which coerces None → 1.0. Latent pre-Phase-3 bug — surfaced now because the new raw-brightness path goes through the pipeline on every set_position call (was using cached `last_sent_brightness` before).
 - **Manage-mode dropdown double-highlight fix** (`areas.html`): the mode pill popover was showing both "Manage" AND whichever Adjust/Tune option was the most recent `homePillMode` (e.g. Bed) as active simultaneously. Now suppresses the homePillMode active class while `currentMode === 'manage'` so only "Manage" reads as active in the dropdown.

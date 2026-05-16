@@ -1125,6 +1125,33 @@
     .tune-math-card.is-open .tune-brightness-chevron { transform: rotate(90deg); }
     .tune-math-card.is-open .tune-brightness-val { opacity: 0; }
     .tune-math-card.is-open .tune-brightness-body { max-height: 2000px; opacity: 1; padding-bottom: 8px; }
+    /* History card mirrors Math card open/close mechanics. The body is a
+       table (Date/Time | Action | Source | Details), small font, narrow
+       padding so dozens of rows fit without scrolling forever. */
+    .tune-history-card.is-open .tune-brightness-chevron { transform: rotate(90deg); }
+    .tune-history-card.is-open .tune-brightness-val { opacity: 0; }
+    .tune-history-card.is-open .tune-brightness-body {
+      max-height: 4000px; opacity: 1; padding-bottom: 8px; overflow-x: auto;
+    }
+    .tune-history-table {
+      width: 100%; border-collapse: collapse; font-size: 0.78rem;
+      color: var(--text); font-variant-numeric: tabular-nums;
+    }
+    .tune-history-table th {
+      text-align: left; font-weight: 500; color: var(--muted2);
+      padding: 4px 8px; border-bottom: 1px solid var(--line);
+      font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .tune-history-table td {
+      padding: 4px 8px; border-bottom: 1px solid rgba(255,255,255,0.04);
+      vertical-align: top; white-space: nowrap;
+    }
+    .tune-history-table td.th-details { white-space: normal; color: var(--muted); }
+    .tune-history-table tr:last-child td { border-bottom: none; }
+    .tune-history-empty {
+      padding: 16px 14px; color: var(--muted2); font-size: 0.82rem;
+      text-align: center;
+    }
     .tune-detail-sub { padding: 0 22px 2px 52px; font-size: var(--font-muted); color: var(--muted2); }
     .tune-col-headers { display: grid; grid-template-columns: 1fr auto; padding: 0 14px 2px; gap: 0 12px; }
     .tune-col-header { font-size: 11px; color: var(--muted2); text-align: right; white-space: nowrap; }
@@ -1760,6 +1787,17 @@
         </div>
         <div class="tune-brightness-body" id="tune-math-body"></div>
       </div>
+      <!-- History card — user-facing event log. In-memory, lost on
+           restart. Reads /api/area-history/{area_id}. Bottom of stack,
+           collapsed by default. -->
+      <div class="tune-card tune-history-card" id="tune-history-card">
+        <div class="tune-brightness-header" onclick="toggleHistoryBody()">
+          <span class="tune-brightness-chevron" id="tune-history-chevron">&#x203A;</span>
+          <span class="tune-brightness-title">History</span>
+          <span class="tune-brightness-val" id="tune-history-header-val" style="color:var(--muted2);font-weight:500;">recent events</span>
+        </div>
+        <div class="tune-brightness-body" id="tune-history-body"></div>
+      </div>
       <div class="tune-save-status" id="tune-save-status">Saved</div>
     </div>
     </div><!-- end #chart-context-wrap -->
@@ -1811,7 +1849,7 @@
     const _AREA_CARD_KEYS = [
       'adjust_collapsed', 'schedule_collapsed', 'tune_collapsed',
       'tune_adj_open', 'tune_individual_open', 'tune_controls_expanded',
-      'lights_collapsed',
+      'lights_collapsed', 'math_collapsed', 'history_collapsed',
     ];
 
     // One-time rename. Run BEFORE the freshness check so a user upgrading
@@ -5280,6 +5318,9 @@
               }
               updateContent();
               renderMiniChartForArea(areaId);
+              // Refresh History (only if open — avoids a needless fetch)
+              const _histCard = document.getElementById('tune-history-card');
+              if (_histCard && _histCard.classList.contains('is-open')) loadHistory();
               updateAllSliders();
             } catch (err) {
               console.error('Error refreshing after action:', err);
@@ -6527,6 +6568,21 @@
         if (mathExpanded) mathCard.classList.add('is-open');
         else mathCard.classList.remove('is-open');
       }
+
+      // History card init: open it if user left it open last time;
+      // otherwise leave collapsed (default). Body is populated lazily on
+      // open so we don't fetch on every recalcTune tick.
+      const historyCard = document.getElementById('tune-history-card');
+      const historyExpanded = _persistCards && localStorage.getItem('history_collapsed') === 'false';
+      if (historyCard) {
+        if (historyExpanded) {
+          historyCard.classList.add('is-open');
+          loadHistory();
+        } else {
+          historyCard.classList.remove('is-open');
+        }
+      }
+
       brightnessCard.innerHTML = bhtml;
 
       // Set initial expanded state
@@ -6974,6 +7030,182 @@
       if (!card) return;
       const isOpen = card.classList.toggle('is-open');
       _setAreaCard('math_collapsed', isOpen ? 'false' : 'true');
+    }
+
+    // ============================================================
+    // History card
+    // ============================================================
+    // In-memory event log on the backend (history.py). We poll for fresh
+    // entries any time we open the card or after a user action.
+
+    function toggleHistoryBody() {
+      const card = document.querySelector('.tune-history-card');
+      if (!card) return;
+      const isOpen = card.classList.toggle('is-open');
+      _setAreaCard('history_collapsed', isOpen ? 'false' : 'true');
+      if (isOpen) loadHistory();
+    }
+
+    async function loadHistory() {
+      if (!selectedArea) return;
+      const body = document.getElementById('tune-history-body');
+      if (!body) return;
+      try {
+        const res = await fetch(basePath + `/api/area-history/${encodeURIComponent(selectedArea.area_id)}?limit=100`);
+        if (!res.ok) {
+          body.innerHTML = '<div class="tune-history-empty">Couldn’t load history</div>';
+          return;
+        }
+        const data = await res.json();
+        const entries = data.entries || [];
+        body.innerHTML = renderHistoryTable(entries);
+      } catch (e) {
+        console.error('loadHistory failed', e);
+        body.innerHTML = '<div class="tune-history-empty">Couldn’t load history</div>';
+      }
+    }
+
+    // Format a unix timestamp into a tight relative-or-absolute string.
+    //   Today        → "3:42p"
+    //   Yesterday    → "Yesterday 3:42p"
+    //   This year    → "Mon 5/12 3:42p"
+    //   Older        → "5/12/26 3:42p"
+    function formatHistoryTs(ts) {
+      const d = new Date(ts * 1000);
+      const now = new Date();
+      const sameDay = d.toDateString() === now.toDateString();
+      const yest = new Date(now); yest.setDate(yest.getDate() - 1);
+      const isYesterday = d.toDateString() === yest.toDateString();
+      const sameYear = d.getFullYear() === now.getFullYear();
+      let h = d.getHours(), m = d.getMinutes();
+      const suffix = h >= 12 ? 'p' : 'a';
+      const hr12 = ((h + 11) % 12) + 1;
+      const mins = m === 0 ? '' : ':' + (m < 10 ? '0' + m : m);
+      const time = hr12 + mins + suffix;
+      if (sameDay) return time;
+      if (isYesterday) return 'Yesterday ' + time;
+      const mo = d.getMonth() + 1;
+      const day = d.getDate();
+      if (sameYear) {
+        const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        return days[d.getDay()] + ' ' + mo + '/' + day + ' ' + time;
+      }
+      const yr2 = String(d.getFullYear() % 100).padStart(2, '0');
+      return mo + '/' + day + '/' + yr2 + ' ' + time;
+    }
+
+    // Map raw action enum to a short user-facing label.
+    const HIST_ACTION_LABEL = {
+      'turn_on': 'Turn on',
+      'turn_off': 'Turn off',
+      'brightness': 'Brightness',
+      'color': 'Color',
+      'phase': 'Phase',
+      'freeze': 'Freeze',
+      'unfreeze': 'Unfreeze',
+      'boost': 'Boost',
+      'boost_end': 'Boost ended',
+      'circadian_on': 'Circadian on',
+      'circadian_off': 'Circadian off',
+      'auto_off_set': 'Off-timer set',
+      'auto_off_cleared': 'Off-timer cleared',
+      'glo_down': 'Reset (zone defaults)',
+      'glo_up': 'Push to zone',
+      'glo_reset': 'Reset (rhythm)',
+      'full_send': 'Full send',
+      'reset_brightness_override': 'Reset brightness',
+      'reset_color_override': 'Reset color',
+      'reset_phase': 'Reset phase',
+    };
+
+    // Map source_kind to a display word; entity (if present) appears after.
+    const HIST_SOURCE_LABEL = {
+      'switch': 'Switch',
+      'motion': 'Motion',
+      'contact': 'Contact',
+      'app': 'App',
+      'auto_schedule': 'Schedule',
+      'timer': 'Timer',
+      'service_call': 'Service',
+      'system': 'System',
+    };
+
+    function formatHistorySource(entry) {
+      const word = HIST_SOURCE_LABEL[entry.source_kind] || entry.source_kind;
+      if (entry.source_entity) {
+        return word + ': ' + entry.source_entity;
+      }
+      return word;
+    }
+
+    // Build the Details cell. Empty for binary actions; populated for
+    // value-bearing actions (brightness/color/phase/duration/intensity).
+    function formatHistoryDetails(entry) {
+      const parts = [];
+      if (entry.action === 'brightness') {
+        if (entry.from_value != null && entry.to_value != null) {
+          parts.push(Math.round(entry.from_value) + '% → ' + Math.round(entry.to_value) + '%');
+        } else if (entry.brightness != null) {
+          parts.push(entry.brightness + '%');
+        }
+      } else if (entry.action === 'color') {
+        if (entry.from_value != null && entry.to_value != null) {
+          parts.push(Math.round(entry.from_value) + 'K → ' + Math.round(entry.to_value) + 'K');
+        } else if (entry.kelvin != null) {
+          parts.push(entry.kelvin + 'K');
+        }
+      } else if (entry.action === 'phase') {
+        if (entry.to_value != null) parts.push('pos ' + Math.round(entry.to_value));
+      } else if (entry.action === 'freeze' || entry.action === 'boost' || entry.action === 'auto_off_set') {
+        if (entry.duration_minutes != null) {
+          parts.push(formatDurationRemaining(entry.duration_minutes, ''));
+        } else if (entry.action !== 'auto_off_set') {
+          parts.push('forever');
+        }
+        if (entry.action === 'boost' && entry.intensity != null) {
+          parts.push('+' + entry.intensity + '%');
+        }
+      } else if (entry.action === 'turn_on' || entry.action === 'turn_off') {
+        const bri = entry.brightness, ke = entry.kelvin;
+        const bits = [];
+        if (bri != null) bits.push(bri + '%');
+        if (ke != null) bits.push(ke + 'K');
+        if (bits.length) parts.push(bits.join(', '));
+        if (entry.is_2step) parts.push('2-step');
+      } else if (entry.brightness != null || entry.kelvin != null) {
+        // Reset / glo_* / circadian_on/off → show landing state context.
+        const bits = [];
+        if (entry.brightness != null) bits.push(entry.brightness + '%');
+        if (entry.kelvin != null) bits.push(entry.kelvin + 'K');
+        if (bits.length) parts.push(bits.join(', '));
+      }
+      if (entry.is_zone_action) parts.push('(zone-wide)');
+      return parts.join(' · ');
+    }
+
+    function renderHistoryTable(entries) {
+      if (!entries.length) {
+        return '<div class="tune-history-empty">No events yet — history starts when the addon last restarted.</div>';
+      }
+      const rows = entries.map(e => {
+        const ts = formatHistoryTs(e.ts);
+        const action = HIST_ACTION_LABEL[e.action] || e.action;
+        const source = formatHistorySource(e);
+        const details = formatHistoryDetails(e);
+        // Basic HTML-escape on user-derived strings (entity ids are mostly
+        // safe but defensive escape doesn't cost anything here).
+        const esc = (s) => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+        return '<tr>'
+          + '<td>' + esc(ts) + '</td>'
+          + '<td>' + esc(action) + '</td>'
+          + '<td>' + esc(source) + '</td>'
+          + '<td class="th-details">' + esc(details) + '</td>'
+          + '</tr>';
+      }).join('');
+      return '<table class="tune-history-table">'
+        + '<thead><tr><th>When</th><th>Action</th><th>Source</th><th>Details</th></tr></thead>'
+        + '<tbody>' + rows + '</tbody>'
+        + '</table>';
     }
 
     // ============================================================
