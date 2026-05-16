@@ -998,7 +998,11 @@ class CircadianLightPrimitives:
             boost_state = state.get_boost_state(area_id)
             boost_brightness = boost_state.get("boost_brightness")
 
-        dim_factor = state.get_area(area_id).get("dim_factor", 1.0)
+        # Use the helper, NOT .get('dim_factor', 1.0) — clear_motion_warning
+        # stores `dim_factor: None`, and `.get(key, default)` returns the
+        # stored value (including None) when the key exists. Pipeline then
+        # does `fade_factor * None` and blows up. get_dim_factor() coerces.
+        dim_factor = state.get_dim_factor(area_id)
 
         ctx = PipelineContext(
             area_id=area_id,

@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.321
+- **Fix `set_position(brightness)` crash on areas where motion warning has fired** (`primitives.py`): `_compute_current_area_brightness_pair` read `dim_factor` via `state.get_area(...).get("dim_factor", 1.0)`, which returns the stored value (including `None`) when the key exists — and `clear_motion_warning` stores `dim_factor: None` after the warning ends. Pipeline then computed `fade_factor * None` and raised `TypeError: unsupported operand type(s) for *: 'float' and 'NoneType'`, so every brightness drag/step on that area silently errored at the server. Switched to the existing `state.get_dim_factor()` helper which coerces None → 1.0. Latent pre-Phase-3 bug — surfaced now because the new raw-brightness path goes through the pipeline on every set_position call (was using cached `last_sent_brightness` before).
+- **Manage-mode dropdown double-highlight fix** (`areas.html`): the mode pill popover was showing both "Manage" AND whichever Adjust/Tune option was the most recent `homePillMode` (e.g. Bed) as active simultaneously. Now suppresses the homePillMode active class while `currentMode === 'manage'` so only "Manage" reads as active in the dropdown.
+
 ## 1.2.320
 - **Area-detail Phase 3 — duration primitives + sub-line affordances**:
   - **`frozen_until`** field on area state. `freeze_toggle` accepts optional `duration_minutes`; freeze button on area-details applies the Lab default ("Default freeze duration") on tap-on. New `freeze_set_duration` primitive lets the freeze sub-line change duration without unfreezing. `check_expired_freezes` periodic tick auto-unfreezes when `frozen_until` passes.

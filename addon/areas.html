@@ -3597,8 +3597,13 @@
       const activeModeLabel = (currentMode === 'manage'
         ? 'Manage'
         : (modeLabels[homePillMode] || 'Brightness'));
+      // When in Manage mode, no Adjust/Tune option is "active" in the
+      // dropdown — only Manage is. homePillMode persists from before
+      // entering Manage so the user can exit back to their last mode, but
+      // visually it shouldn't read as a second active selection.
       const modeOption = (val, label) => {
-        const cls = homePillMode === val ? 'action-popover-option active' : 'action-popover-option';
+        const isActive = currentMode !== 'manage' && homePillMode === val;
+        const cls = isActive ? 'action-popover-option active' : 'action-popover-option';
         return `<div class="${cls}" data-pill-mode="${val}">${label}</div>`;
       };
       const popoverOpenClass = _modePopoverOpen ? ' open' : '';
