@@ -23,6 +23,7 @@ import state
 import switches
 import glozone
 import glozone_state
+import history
 import lux_tracker
 from brain import (
     CircadianLight,
@@ -562,6 +563,11 @@ class LightDesignerServer:
             "GET", "/{path:.*}/api/area-history/{area_id}", self.get_area_history
         )
         self.app.router.add_get("/api/area-history/{area_id}", self.get_area_history)
+        # All-areas activity feed (home-page Activity page).
+        self.app.router.add_route(
+            "GET", "/{path:.*}/api/history", self.get_all_history
+        )
+        self.app.router.add_get("/api/history", self.get_all_history)
         self.app.router.add_post("/api/apply-light", self.apply_light)
         self.app.router.add_post("/api/circadian-mode", self.set_circadian_mode)
         # Live Design heartbeat — browser pings ~30s while page is open;
@@ -944,6 +950,8 @@ class LightDesignerServer:
         self.app.router.add_get("/zone/{zone_name}", self.serve_zone_detail)
         self.app.router.add_get("/tune", self.serve_tune)
         self.app.router.add_get("/settings", self.serve_settings)
+        self.app.router.add_get("/activity", self.serve_activity)
+        self.app.router.add_route("GET", "/{path:.*}/activity", self.serve_activity)
         self.app.router.add_get("/moment/{moment_id}", self.serve_moment_detail)
         self.app.router.add_get("/moments", self.serve_moments)
         self.app.router.add_get("/", self.serve_home)
@@ -1113,6 +1121,10 @@ class LightDesignerServer:
     async def serve_settings(self, request: Request) -> Response:
         """Serve the Settings page."""
         return await self.serve_page("settings")
+
+    async def serve_activity(self, request: Request) -> Response:
+        """Serve the home-wide Activity page."""
+        return await self.serve_page("activity")
 
     async def get_light_filters(self, request: Request) -> Response:
         """Get all data for the Filters page.
@@ -3269,6 +3281,11 @@ class LightDesignerServer:
                         "auto_off_at": auto_off_at,
                         "motion_warning_active": motion_warning_active,
                         "frozen_until": state.get_frozen_until(area_id),
+                        # Newest history entry's timestamp — frontend uses
+                        # this to detect "something new happened" without
+                        # fetching the full history payload every 3s.
+                        # None when this area has no entries yet.
+                        "history_last_ts": history.last_ts(area_id),
                         "dim_factor": state.get_dim_factor(area_id),
                         **self._get_fade_info(area_id),
                         "zone_name": zone_name if zone_name != "Unassigned" else None,
@@ -3446,6 +3463,7 @@ class LightDesignerServer:
                         "auto_off_at": state.get_auto_off_at(area_id),
                         "motion_warning_active": state.is_motion_warned(area_id),
                         "frozen_until": state.get_frozen_until(area_id),
+                        "history_last_ts": history.last_ts(area_id),
                         **self._get_fade_info(area_id),
                         "zone_name": (zone_name if zone_name != "Unassigned" else None),
                         "preset_name": zone_name,
@@ -3584,6 +3602,19 @@ class LightDesignerServer:
         except Exception as e:
             logger.error(f"[RefreshOutdoor] Error: {e}", exc_info=True)
             return web.json_response({"error": str(e)}, status=500)
+
+    async def get_all_history(self, request: Request) -> Response:
+        """Return event history merged across all areas, newest first.
+
+        Each entry carries an `area_id` field. Used by the home-page
+        Activity surface. Frontend filters client-side (by area, etc.).
+        """
+        try:
+            limit = int(request.query.get("limit", "200"))
+        except ValueError:
+            limit = 200
+        limit = max(1, min(500, limit))
+        return web.json_response({"entries": history.get_all(limit=limit)})
 
     async def get_area_history(self, request: Request) -> Response:
         """Return the user-facing event log for one area.

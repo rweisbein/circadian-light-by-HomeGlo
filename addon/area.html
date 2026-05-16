@@ -1783,18 +1783,20 @@
         <div class="tune-brightness-header" onclick="toggleMathBody()">
           <span class="tune-brightness-chevron" id="tune-math-chevron">&#x203A;</span>
           <span class="tune-brightness-title">Math</span>
-          <span class="tune-brightness-val" id="tune-math-header-val" style="color:var(--muted2);font-weight:500;">for nerds</span>
+          <span class="tune-brightness-val" id="tune-math-header-val" style="color:var(--muted2);font-weight:500;">nerds only</span>
         </div>
         <div class="tune-brightness-body" id="tune-math-body"></div>
       </div>
-      <!-- History card — user-facing event log. In-memory, lost on
+      <!-- Activity card — user-facing event log. In-memory, lost on
            restart. Reads /api/area-history/{area_id}. Bottom of stack,
-           collapsed by default. -->
+           collapsed by default. Subtitle shows "Xm ago" pulled from
+           areaStatus.history_last_ts (already piggybacked on the 3s
+           refresh) — visible only when collapsed. -->
       <div class="tune-card tune-history-card" id="tune-history-card">
         <div class="tune-brightness-header" onclick="toggleHistoryBody()">
           <span class="tune-brightness-chevron" id="tune-history-chevron">&#x203A;</span>
-          <span class="tune-brightness-title">History</span>
-          <span class="tune-brightness-val" id="tune-history-header-val" style="color:var(--muted2);font-weight:500;">recent events</span>
+          <span class="tune-brightness-title">Activity</span>
+          <span class="tune-brightness-val" id="tune-history-header-val" style="color:var(--muted2);font-weight:500;"></span>
         </div>
         <div class="tune-brightness-body" id="tune-history-body"></div>
       </div>
@@ -1815,6 +1817,11 @@
     let selectedArea = null;
     let areaStatus = {};
     let zoneStates = {};
+    // Newest history-entry ts the page has loaded into the open History
+    // card. The 3s periodic refresh compares the latest backend value
+    // against this; when it advances, re-fetch (only if card is open).
+    // null means "never loaded" or "no entries yet."
+    let _lastSeenHistoryTs = null;
 
     // Page entry mode — determines card persistence behavior
     // 'home': restore from localStorage, save toggles
@@ -4485,6 +4492,17 @@
               const singleStatus = await res.json();
               Object.assign(areaStatus, singleStatus);
 
+              // History piggyback: status response carries the newest
+              // history entry's ts for this area. If it advanced AND the
+              // card is open, re-fetch history. Zero extra requests when
+              // nothing's happened; one targeted GET when there's news.
+              const _newHistTs = (singleStatus[selectedArea.area_id] || {}).history_last_ts;
+              if (_newHistTs && _newHistTs !== _lastSeenHistoryTs) {
+                _lastSeenHistoryTs = _newHistTs;
+                const _hc = document.getElementById('tune-history-card');
+                if (_hc && _hc.classList.contains('is-open')) loadHistory();
+              }
+
               // Update cachedSunTimes with outdoor_normalized and condition multiplier
               const ls0 = singleStatus[selectedArea.area_id] || {};
               if (cachedSunTimes && cachedConfig) {
@@ -4662,6 +4680,14 @@
       if (resetBtn) {
         resetBtn.classList.toggle('is-dirty', isAreaDirtyVsZone());
         resetBtn.title = `Reset ${selectedArea.name || 'area'}`;
+      }
+
+      // Activity card subtitle: "Xm ago" from the latest backend
+      // history_last_ts. Hidden when card is open (CSS opacity:0).
+      const activitySub = document.getElementById('tune-history-header-val');
+      if (activitySub) {
+        const aStatus = areaStatus[selectedArea.area_id] || {};
+        activitySub.textContent = formatRelativeAgo(aStatus.history_last_ts);
       }
 
       // Row 3 action buttons. White-fill "is-on" encodes engagement
@@ -7058,174 +7084,26 @@
         }
         const data = await res.json();
         const entries = data.entries || [];
-        body.innerHTML = renderHistoryTable(entries);
+        // Remember the newest ts so the 3s piggyback check doesn't
+        // immediately re-fetch the same data on the next tick.
+        if (entries.length && entries[0].ts) {
+          _lastSeenHistoryTs = entries[0].ts;
+        }
+        // Per-area card: scrollable mode with a 50vh cap so a saturated
+        // 100-entry ring doesn't push the page into infinity. Render helpers
+        // (formatHistoryTs, renderHistoryTable, etc.) live in shared.js
+        // and are also used by the home-page Activity surface.
+        body.innerHTML = renderHistoryTable(entries, {
+          scrollable: true,
+          maxHeight: '50vh',
+          controlNames: buildControlNameLookup(areaControls),
+        });
       } catch (e) {
         console.error('loadHistory failed', e);
         body.innerHTML = '<div class="tune-history-empty">Couldn’t load history</div>';
       }
     }
 
-    // Format a unix timestamp into a tight relative-or-absolute string.
-    //   Today        → "3:42p"
-    //   Yesterday    → "Yesterday 3:42p"
-    //   This year    → "Mon 5/12 3:42p"
-    //   Older        → "5/12/26 3:42p"
-    function formatHistoryTs(ts) {
-      const d = new Date(ts * 1000);
-      const now = new Date();
-      const sameDay = d.toDateString() === now.toDateString();
-      const yest = new Date(now); yest.setDate(yest.getDate() - 1);
-      const isYesterday = d.toDateString() === yest.toDateString();
-      const sameYear = d.getFullYear() === now.getFullYear();
-      let h = d.getHours(), m = d.getMinutes();
-      const suffix = h >= 12 ? 'p' : 'a';
-      const hr12 = ((h + 11) % 12) + 1;
-      const mins = m === 0 ? '' : ':' + (m < 10 ? '0' + m : m);
-      const time = hr12 + mins + suffix;
-      if (sameDay) return time;
-      if (isYesterday) return 'Yesterday ' + time;
-      const mo = d.getMonth() + 1;
-      const day = d.getDate();
-      if (sameYear) {
-        const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-        return days[d.getDay()] + ' ' + mo + '/' + day + ' ' + time;
-      }
-      const yr2 = String(d.getFullYear() % 100).padStart(2, '0');
-      return mo + '/' + day + '/' + yr2 + ' ' + time;
-    }
-
-    // Map raw action enum to a short user-facing label.
-    const HIST_ACTION_LABEL = {
-      'restart': 'Addon started',
-      'turn_on': 'Turn on',
-      'turn_off': 'Turn off',
-      'brightness': 'Brightness',
-      'color': 'Color',
-      'phase': 'Phase',
-      'freeze': 'Freeze',
-      'unfreeze': 'Unfreeze',
-      'boost': 'Boost',
-      'boost_end': 'Boost ended',
-      'circadian_on': 'Circadian on',
-      'circadian_off': 'Circadian off',
-      'auto_off_set': 'Off-timer set',
-      'auto_off_cleared': 'Off-timer cleared',
-      'glo_down': 'Reset (zone defaults)',
-      'glo_up': 'Push to zone',
-      'glo_reset': 'Reset (rhythm)',
-      'full_send': 'Full send',
-      'reset_brightness_override': 'Reset brightness',
-      'reset_color_override': 'Reset color',
-      'reset_phase': 'Reset phase',
-    };
-
-    // Map source_kind to a display word; entity (if present) appears after.
-    const HIST_SOURCE_LABEL = {
-      'switch': 'Switch',
-      'motion': 'Motion',
-      'contact': 'Contact',
-      'app': 'App',
-      'auto_schedule': 'Schedule',
-      'timer': 'Timer',
-      'service_call': 'Service',
-      'system': 'System',
-    };
-
-    // Build a {control_identifier: friendly_name} map from the already-
-    // loaded areaControls list. Keys by BOTH `id` and `device_id` so the
-    // lookup works whether the entry stored an HA entity_id (motion /
-    // contact) or an IEEE address (switch) — backend chose whichever it
-    // had available when recording.
-    function _buildControlNameLookup() {
-      const map = {};
-      for (const c of (areaControls || [])) {
-        if (c.id) map[c.id] = c.name || c.id;
-        if (c.device_id) map[c.device_id] = c.name || c.device_id;
-      }
-      return map;
-    }
-
-    function formatHistorySource(entry) {
-      const word = HIST_SOURCE_LABEL[entry.source_kind] || entry.source_kind;
-      if (!entry.source_entity) return word;
-      const map = _buildControlNameLookup();
-      const name = map[entry.source_entity];
-      if (name) return word + ': ' + name;
-      // Lookup miss — control was re-paired (new IEEE), removed from HA,
-      // or renamed. Either way, we can't show a friendly name. Match HA's
-      // own "unavailable" semantic; covers all three causes neutrally.
-      return word + ' (unavailable)';
-    }
-
-    // Build the Details cell. Empty for binary actions; populated for
-    // value-bearing actions (brightness/color/phase/duration/intensity).
-    function formatHistoryDetails(entry) {
-      const parts = [];
-      if (entry.action === 'brightness') {
-        if (entry.from_value != null && entry.to_value != null) {
-          parts.push(Math.round(entry.from_value) + '% → ' + Math.round(entry.to_value) + '%');
-        } else if (entry.brightness != null) {
-          parts.push(entry.brightness + '%');
-        }
-      } else if (entry.action === 'color') {
-        if (entry.from_value != null && entry.to_value != null) {
-          parts.push(Math.round(entry.from_value) + 'K → ' + Math.round(entry.to_value) + 'K');
-        } else if (entry.kelvin != null) {
-          parts.push(entry.kelvin + 'K');
-        }
-      } else if (entry.action === 'phase') {
-        if (entry.to_value != null) parts.push('pos ' + Math.round(entry.to_value));
-      } else if (entry.action === 'freeze' || entry.action === 'boost' || entry.action === 'auto_off_set') {
-        if (entry.duration_minutes != null) {
-          parts.push(formatDurationRemaining(entry.duration_minutes, ''));
-        } else if (entry.action !== 'auto_off_set') {
-          parts.push('forever');
-        }
-        if (entry.action === 'boost' && entry.intensity != null) {
-          parts.push('+' + entry.intensity + '%');
-        }
-      } else if (entry.action === 'turn_on' || entry.action === 'turn_off') {
-        const bri = entry.brightness, ke = entry.kelvin;
-        const bits = [];
-        if (bri != null) bits.push(bri + '%');
-        if (ke != null) bits.push(ke + 'K');
-        if (bits.length) parts.push(bits.join(', '));
-        if (entry.is_2step) parts.push('2-step');
-      } else if (entry.brightness != null || entry.kelvin != null) {
-        // Reset / glo_* / circadian_on/off → show landing state context.
-        const bits = [];
-        if (entry.brightness != null) bits.push(entry.brightness + '%');
-        if (entry.kelvin != null) bits.push(entry.kelvin + 'K');
-        if (bits.length) parts.push(bits.join(', '));
-      }
-      if (entry.is_zone_action) parts.push('(zone-wide)');
-      return parts.join(' · ');
-    }
-
-    function renderHistoryTable(entries) {
-      if (!entries.length) {
-        return '<div class="tune-history-empty">No events yet — history starts when the addon last restarted.</div>';
-      }
-      const rows = entries.map(e => {
-        const ts = formatHistoryTs(e.ts);
-        const action = HIST_ACTION_LABEL[e.action] || e.action;
-        const source = formatHistorySource(e);
-        const details = formatHistoryDetails(e);
-        // Basic HTML-escape on user-derived strings (entity ids are mostly
-        // safe but defensive escape doesn't cost anything here).
-        const esc = (s) => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-        return '<tr>'
-          + '<td>' + esc(ts) + '</td>'
-          + '<td>' + esc(action) + '</td>'
-          + '<td>' + esc(source) + '</td>'
-          + '<td class="th-details">' + esc(details) + '</td>'
-          + '</tr>';
-      }).join('');
-      return '<table class="tune-history-table">'
-        + '<thead><tr><th>When</th><th>Action</th><th>Source</th><th>Details</th></tr></thead>'
-        + '<tbody>' + rows + '</tbody>'
-        + '</table>';
-    }
 
     // ============================================================
     // Auto Schedule (On / Off)

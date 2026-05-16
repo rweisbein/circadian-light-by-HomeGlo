@@ -2273,6 +2273,17 @@
           // Phase 2/3: load pill mode (action) preference
           const savedPill = prefs.pill_mode || 'brightness';
           homePillMode = ['brightness', 'color', 'bed', 'sun', 'balance'].includes(savedPill) ? savedPill : 'brightness';
+          // ?mode=X URL param overrides the saved pref — used when returning
+          // from the Activity page so the user lands back in the same mode
+          // they were in (e.g., Brightness → Activity → Brightness again).
+          // Honored for adjust/tune modes only; 'manage' lands via direct
+          // enterManageMode call which would still need re-entry logic.
+          try {
+            const urlMode = new URLSearchParams(window.location.search).get('mode');
+            if (urlMode && ['brightness', 'color', 'bed', 'sun', 'balance'].includes(urlMode)) {
+              homePillMode = urlMode;
+            }
+          } catch (_) {}
           homeTuneSort = prefs.tune_sort === 'setting' ? 'setting' : 'custom';
 
           // Compute sun times client-side from config lat/lon
@@ -3629,6 +3640,7 @@
             ${modeOption('balance', 'Balance')}
             <div class="action-popover-divider"></div>
             <div class="action-popover-option ${currentMode === 'manage' ? 'active' : ''}" data-pill-mode="manage">Manage</div>
+            <div class="action-popover-option" data-pill-mode="activity">Activity</div>
           </div>
         </div>
       `;
@@ -4897,6 +4909,13 @@ function updateSliderFill(el) {
           e.stopPropagation();
           const newMode = opt.dataset.pillMode;
           _modePopoverOpen = false;
+          // Activity is a separate page — navigate, don't try to swap mode.
+          if (newMode === 'activity') {
+            // basePath isn't stable in areas.html; use a relative path so
+            // HA ingress routing works either way.
+            window.location.href = './activity';
+            return;
+          }
           // Manage is special — it's a page mode, not a slider/chevron knob.
           if (newMode === 'manage') {
             enterManageMode();

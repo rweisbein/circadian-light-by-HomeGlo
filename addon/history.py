@@ -205,6 +205,38 @@ def get(area_id: str, limit: int = 50) -> List[dict]:
     return [asdict(e) for e in items]
 
 
+def get_all(limit: int = 200) -> List[dict]:
+    """Return entries flattened across all areas, newest first.
+
+    Each entry gets an `area_id` field added so the caller can identify
+    which area it came from. Used by the home-page Activity surface.
+    """
+    out = []
+    for area_id, buf in _history.items():
+        for e in buf:
+            row = asdict(e)
+            row["area_id"] = area_id
+            out.append(row)
+    out.sort(key=lambda x: x["ts"], reverse=True)
+    if limit and len(out) > limit:
+        out = out[:limit]
+    return out
+
+
+def last_ts(area_id: str) -> Optional[float]:
+    """Return the timestamp of the newest entry for `area_id` (or None).
+
+    Cheap to compute (peek at deque tail) — used by the area-status
+    response so the frontend can detect new entries without fetching the
+    full history payload on every periodic refresh. When this value
+    changes, the frontend re-fetches; when it doesn't, no extra request.
+    """
+    buf = _history.get(area_id)
+    if not buf:
+        return None
+    return buf[-1].ts
+
+
 def clear(area_id: Optional[str] = None) -> None:
     """Clear history for one area, or all areas if `area_id` is None."""
     if area_id is None:

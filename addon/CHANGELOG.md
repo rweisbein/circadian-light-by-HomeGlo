@@ -1,5 +1,15 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.324
+- **Home-wide Activity page** (`activity.html`): new dedicated page reachable from the home page Mode pill ("Activity" option, added to the same dropdown as Brightness/Color/Bed/Sun/Balance/Manage). Mirrors home-page chrome (home name + mode pill) so it reads as a sibling view; mode-pill options on Activity navigate back to `/areas?mode=X` so the user lands in the same tuning mode they came from.
+  - **Backend**: new `GET /api/history?limit=N` endpoint that flattens entries across all areas, sorts newest-first, and tags each with `area_id`. Cap 500, default 200.
+  - **Frontend filter**: native `<select>` for area filter ("All" + each area alphabetically). Filter applied client-side; backend returns everything. Persists via localStorage (`activity_area_filter`). Future filters (action type, source kind, time range) parked.
+  - **3s polling refresh** to pick up new events while the page is open.
+- **Activity render helpers lifted to `shared.js`**: `formatHistoryTs`, `formatRelativeAgo`, `formatHistorySource`, `formatHistoryDetails`, `renderHistoryTable`, `buildControlNameLookup`, `HIST_ACTION_LABEL`, `HIST_SOURCE_LABEL`. `renderHistoryTable` now parameterized with `showArea` (Activity page) + `scrollable` / `maxHeight` (both surfaces). Per-area Activity card on area-details now opts in to `scrollable: true, maxHeight: 50vh` so a saturated 100-entry ring doesn't push the page into infinity.
+- **Home page Activity card subtitle**: shows "Xm ago" pulled from the existing `history_last_ts` piggyback on the 3s status refresh. Empty when no entries. Subtitle is hidden when the card is expanded (existing CSS).
+- **`history_last_ts` piggyback**: area-status response now carries `history_last_ts` (newest entry's ts per area). The 3s refresh compares against the last-loaded ts; when it advances AND the per-area Activity card is open, re-fetch — otherwise no extra request. Solves "events in this room while the page is open don't appear" without polling.
+- **Activity card rename**: card title is now "Activity" (was "History"). Math card subtitle now reads "nerds only" (was "for nerds").
+
 ## 1.2.323
 - **History — control source attribution**: switch / motion / contact entries now identify the specific control that fired. Backend (`main.py`) plumbs entity_id (or device_id for ZHA-event motion sensors, IEEE for switches) through every primitive call as `source=f"<kind>:<identifier>"`. `history.py:_classify_source` was already entity-aware; only the upstream changes were needed. Frontend builds a `{id|device_id: name}` lookup from the already-cached `areaControls` list and renders `Switch: Living Hue Dimmer`, `Motion: Master Motion`, `Contact: Front Door`. Lookup miss (re-paired device new IEEE, removed from HA, or renamed) renders as `Switch (unavailable)` / `Motion (unavailable)` etc. — neutral about cause.
 - **History fixes since v1.2.322**:

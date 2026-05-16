@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Circadian Light - Activity</title>
+  <link rel="stylesheet" href="./shared.css">
+  <style>
+    :root {
+      --bg: #000;
+      --panel: #111;
+      --card: #1a1a1a;
+      --accent: #feac60;
+      --accent-hover: #ffc078;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --muted2: #64748b;
+      --line: #334155;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --font-hero: 1.4rem;
+      --font-display: 1.1rem;
+      --font-card-title: 0.95rem;
+      --font-value: 0.85rem;
+      --font-body: 0.78rem;
+      --font-muted: 0.7rem;
+      --font-caps: 0.65rem;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* Mirror home-page chrome (home-name-heading + sticky-top container).
+       Reused class names so shared.css picks them up; per-page tweaks here. */
+    .home-name-heading {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 0.01em;
+      padding: 4px 8px;
+      border-radius: 6px;
+      cursor: default;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .activity-sticky-top {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: var(--bg);
+      padding: 12px 14px 8px;
+      border-bottom: 1px solid var(--line);
+    }
+    .activity-header-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .activity-spacer { flex: 1 1 auto; }
+    .activity-filter-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .activity-filter-label {
+      font-size: 0.78rem;
+      color: var(--muted2);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .activity-filter-select {
+      font-size: 0.85rem;
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .activity-body {
+      padding: 12px 14px 32px;
+    }
+    .activity-body .tune-history-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+    .activity-body .tune-history-table th {
+      text-align: left;
+      font-weight: 500;
+      color: var(--muted2);
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: var(--bg);
+      position: sticky;
+      top: 0;
+    }
+    .activity-body .tune-history-table td {
+      padding: 6px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      vertical-align: top;
+      white-space: nowrap;
+    }
+    .activity-body .tune-history-table td.th-details {
+      white-space: normal;
+      color: var(--muted);
+    }
+    .activity-body .tune-history-empty {
+      padding: 32px 14px;
+      color: var(--muted2);
+      font-size: 0.9rem;
+      text-align: center;
+    }
+
+    /* Mode pill — shared with home page via shared.css. Tap-to-open popover,
+       options navigate back to /areas or stay on /activity. */
+  </style>
+  <script src="./shared.js"></script>
+</head>
+<body>
+  <!-- Navigation (same chrome as home/tune/settings) -->
+  <nav class="nav">
+    <a href="./" class="nav-brand">
+      <img class="nav-logo" src="./icon.png" alt="Circadian Light">
+      Home
+    </a>
+    <div class="nav-links">
+      <a href="./switches" class="nav-link">Controls</a>
+      <a href="./moments" class="nav-link">Magic</a>
+      <a href="./settings" class="nav-link">Settings</a>
+    </div>
+    <button class="nav-more" aria-label="More pages">&middot;&middot;&middot;</button>
+    <div class="nav-overflow"></div>
+  </nav>
+
+  <main class="main">
+    <!-- Sticky header: home name (left) + mode pill (right). -->
+    <div class="activity-sticky-top" id="activity-sticky-top">
+      <div class="activity-header-row">
+        <span class="home-name-heading" id="home-name-heading">Loading…</span>
+        <span class="activity-spacer"></span>
+        <div class="action-pill" id="activity-mode-pill" title="Switch mode">
+          <span class="action-pill-prefix"></span><span id="activity-mode-label">View: Activity</span>
+          <span class="action-pill-caret">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 5 6 8 9 5"/>
+            </svg>
+          </span>
+          <div class="action-popover" id="activity-mode-popover">
+            <div class="action-popover-section-label">Adjust</div>
+            <div class="action-popover-option" data-pill-mode="brightness">Brightness</div>
+            <div class="action-popover-option" data-pill-mode="color">Color</div>
+            <div class="action-popover-option" data-pill-mode="bed">Bed time</div>
+            <div class="action-popover-divider"></div>
+            <div class="action-popover-section-label">Tune</div>
+            <div class="action-popover-option" data-pill-mode="sun">Sun exposure</div>
+            <div class="action-popover-option" data-pill-mode="balance">Balance</div>
+            <div class="action-popover-divider"></div>
+            <div class="action-popover-option" data-pill-mode="manage">Manage</div>
+            <div class="action-popover-option active" data-pill-mode="activity">Activity</div>
+          </div>
+        </div>
+      </div>
+      <div class="activity-filter-row">
+        <span class="activity-filter-label">Area:</span>
+        <select class="activity-filter-select" id="activity-area-filter">
+          <option value="">All</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="activity-body" id="activity-body">
+      <div class="tune-history-empty">Loading…</div>
+    </div>
+  </main>
+
+  <script>
+    let cachedConfig = null;
+    let allAreas = [];           // [{area_id, name}, ...]
+    let areaNameMap = {};        // {area_id: name}
+    let allControls = [];        // for source-name lookup
+    let controlNameMap = {};
+    let allEntries = [];         // most recent fetch
+    let _modePopoverOpen = false;
+    let _refreshTimer = null;
+    let _lastTopTs = null;       // for change-detection
+
+    // Persisted area filter — survives reloads, like the per-area card
+    // open/closed state on area-details.
+    const _AREA_FILTER_KEY = 'activity_area_filter';
+    let activeAreaFilter = localStorage.getItem(_AREA_FILTER_KEY) || '';
+
+    // --- Path / base detection (HA ingress aware) ---
+    let basePath = '';
+    function _resolveBasePath() {
+      // Strip trailing /activity to derive base. Mirrors area.html pattern.
+      const m = window.location.pathname.match(/^(.*)\/activity\/?$/);
+      basePath = m ? m[1] : '';
+      // basePath of '' means root; otherwise it's the HA ingress prefix.
+      if (!basePath) basePath = '';
+    }
+
+    async function loadStaticData() {
+      try {
+        const [cfgRes, areasRes, controlsRes] = await Promise.all([
+          fetch(basePath + '/api/config'),
+          fetch(basePath + '/api/areas'),
+          fetch(basePath + '/api/controls').catch(() => null),
+        ]);
+        if (cfgRes && cfgRes.ok) cachedConfig = await cfgRes.json();
+        if (areasRes && areasRes.ok) {
+          const ad = await areasRes.json();
+          allAreas = ad.areas || [];
+          areaNameMap = {};
+          for (const a of allAreas) {
+            if (a.area_id) areaNameMap[a.area_id] = a.name || a.area_id;
+          }
+        }
+        if (controlsRes && controlsRes.ok) {
+          const cd = await controlsRes.json();
+          allControls = cd.controls || [];
+          controlNameMap = buildControlNameLookup(allControls);
+        }
+        window.cachedConfig = cachedConfig;
+      } catch (e) {
+        console.error('static load failed', e);
+      }
+    }
+
+    function renderHomeName() {
+      const el = document.getElementById('home-name-heading');
+      if (el) el.textContent = (cachedConfig && cachedConfig.home_name) || 'Your home';
+    }
+
+    function renderAreaFilterOptions() {
+      const sel = document.getElementById('activity-area-filter');
+      if (!sel) return;
+      const current = activeAreaFilter;
+      const sorted = [...allAreas].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      const opts = ['<option value="">All</option>']
+        .concat(sorted.map(a => `<option value="${a.area_id}">${a.name || a.area_id}</option>`));
+      sel.innerHTML = opts.join('');
+      sel.value = current;
+    }
+
+    async function loadActivity() {
+      try {
+        const res = await fetch(basePath + '/api/history?limit=300');
+        if (!res.ok) return;
+        const data = await res.json();
+        allEntries = data.entries || [];
+        _lastTopTs = allEntries.length ? allEntries[0].ts : null;
+        renderActivity();
+      } catch (e) {
+        console.error('loadActivity failed', e);
+      }
+    }
+
+    function renderActivity() {
+      const body = document.getElementById('activity-body');
+      if (!body) return;
+      let entries = allEntries;
+      if (activeAreaFilter) {
+        entries = entries.filter(e => e.area_id === activeAreaFilter);
+      }
+      body.innerHTML = renderHistoryTable(entries, {
+        showArea: true,
+        areaNames: areaNameMap,
+        controlNames: controlNameMap,
+        emptyMessage: activeAreaFilter
+          ? 'No activity for this area since the addon last restarted.'
+          : 'No activity yet — recording starts when the addon last restarts.',
+      });
+    }
+
+    // Mode pill open/close + option routing. Options that aren't "activity"
+    // navigate back to home with the picked mode preselected.
+    function _wireModePill() {
+      const pill = document.getElementById('activity-mode-pill');
+      const pop = document.getElementById('activity-mode-popover');
+      if (!pill || !pop) return;
+      pill.addEventListener('click', (e) => {
+        // Did the user click an option? Route accordingly.
+        const opt = e.target.closest('[data-pill-mode]');
+        if (opt) {
+          const val = opt.dataset.pillMode;
+          if (val === 'activity') {
+            _modePopoverOpen = false;
+            pop.classList.remove('open');
+            return;
+          }
+          // All other options navigate back to home with mode query param.
+          // areas.html honors ?mode=X on load (we'll wire that in a moment).
+          const url = basePath + '/areas' + (val ? `?mode=${encodeURIComponent(val)}` : '');
+          window.location.href = url;
+          return;
+        }
+        _modePopoverOpen = !_modePopoverOpen;
+        pop.classList.toggle('open', _modePopoverOpen);
+      });
+      // Outside click closes
+      document.addEventListener('click', (e) => {
+        if (!pill.contains(e.target) && _modePopoverOpen) {
+          _modePopoverOpen = false;
+          pop.classList.remove('open');
+        }
+      });
+    }
+
+    function _wireFilter() {
+      const sel = document.getElementById('activity-area-filter');
+      if (!sel) return;
+      sel.addEventListener('change', () => {
+        activeAreaFilter = sel.value;
+        localStorage.setItem(_AREA_FILTER_KEY, activeAreaFilter);
+        renderActivity();
+      });
+    }
+
+    async function init() {
+      _resolveBasePath();
+      await loadStaticData();
+      renderHomeName();
+      renderAreaFilterOptions();
+      _wireModePill();
+      _wireFilter();
+      await loadActivity();
+      // Poll every 3s for new entries (same cadence as the home page).
+      _refreshTimer = setInterval(loadActivity, 3000);
+    }
+
+    init();
+  </script>
+</body>
+</html>

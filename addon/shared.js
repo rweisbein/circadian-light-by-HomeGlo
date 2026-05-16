@@ -1729,3 +1729,214 @@ window.SunIntensity = (function () {
 
   return { attach };
 })();
+
+// =============================================================================
+// Activity / History rendering — shared across the per-area Activity card
+// (area.html) and the all-rooms Activity page (activity.html). Pure rendering
+// helpers; callers pass any lookup maps they need so this module stays
+// dependency-free from any specific page's state.
+// =============================================================================
+
+// User-facing action labels. Keep in sync with primitives.history.record's
+// `action` enum.
+const HIST_ACTION_LABEL = {
+  'restart': 'Addon started',
+  'turn_on': 'Turn on',
+  'turn_off': 'Turn off',
+  'brightness': 'Brightness',
+  'color': 'Color',
+  'phase': 'Phase',
+  'freeze': 'Freeze',
+  'unfreeze': 'Unfreeze',
+  'boost': 'Boost',
+  'boost_end': 'Boost ended',
+  'circadian_on': 'Circadian on',
+  'circadian_off': 'Circadian off',
+  'auto_off_set': 'Off-timer set',
+  'auto_off_cleared': 'Off-timer cleared',
+  'glo_down': 'Reset (zone defaults)',
+  'glo_up': 'Push to zone',
+  'glo_reset': 'Reset (rhythm)',
+  'full_send': 'Full send',
+  'reset_brightness_override': 'Reset brightness',
+  'reset_color_override': 'Reset color',
+  'reset_phase': 'Reset phase',
+};
+
+// Source kind → display word. Entity follows after a colon when known.
+const HIST_SOURCE_LABEL = {
+  'switch': 'Switch',
+  'motion': 'Motion',
+  'contact': 'Contact',
+  'app': 'App',
+  'auto_schedule': 'Schedule',
+  'timer': 'Timer',
+  'service_call': 'Service',
+  'system': 'System',
+};
+
+// Format an absolute timestamp into a compact relative-or-absolute string.
+//   Today        → "3:42p"
+//   Yesterday    → "Yesterday 3:42p"
+//   This year    → "Mon 5/12 3:42p"
+//   Older        → "5/12/26 3:42p"
+function formatHistoryTs(ts) {
+  const d = new Date(ts * 1000);
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  const yest = new Date(now); yest.setDate(yest.getDate() - 1);
+  const isYesterday = d.toDateString() === yest.toDateString();
+  const sameYear = d.getFullYear() === now.getFullYear();
+  let h = d.getHours(), m = d.getMinutes();
+  const suffix = h >= 12 ? 'p' : 'a';
+  const hr12 = ((h + 11) % 12) + 1;
+  const mins = m === 0 ? '' : ':' + (m < 10 ? '0' + m : m);
+  const time = hr12 + mins + suffix;
+  if (sameDay) return time;
+  if (isYesterday) return 'Yesterday ' + time;
+  const mo = d.getMonth() + 1;
+  const day = d.getDate();
+  if (sameYear) {
+    const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    return days[d.getDay()] + ' ' + mo + '/' + day + ' ' + time;
+  }
+  const yr2 = String(d.getFullYear() % 100).padStart(2, '0');
+  return mo + '/' + day + '/' + yr2 + ' ' + time;
+}
+
+// "Xm ago" compact relative time — used by the Activity card subtitle and
+// anywhere else we want freshness-at-a-glance.
+function formatRelativeAgo(ts) {
+  if (!ts) return '';
+  const diff = Date.now() / 1000 - ts;
+  if (diff < 0) return '';
+  if (diff < 30) return 'just now';
+  if (diff < 60) return Math.floor(diff) + 's ago';
+  const m = Math.floor(diff / 60);
+  if (m < 60) return m + 'm ago';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + 'h ago';
+  const d = Math.floor(h / 24);
+  if (d < 7) return d + 'd ago';
+  return Math.floor(d / 7) + 'w ago';
+}
+
+// Build a {control_identifier: friendly_name} map from a controls list.
+// Keys by BOTH `id` and `device_id` so the lookup works whether the entry
+// stored an HA entity_id (motion / contact) or an IEEE (switch).
+function buildControlNameLookup(controls) {
+  const map = {};
+  for (const c of (controls || [])) {
+    if (c.id) map[c.id] = c.name || c.id;
+    if (c.device_id) map[c.device_id] = c.name || c.device_id;
+  }
+  return map;
+}
+
+// "Switch: Living Hue Dimmer" / "Motion: Master Motion" / "Timer".
+// Lookup miss (re-paired device, removed entity, renamed) renders as
+// "<word> (unavailable)" — covers all three causes neutrally.
+function formatHistorySource(entry, controlNames) {
+  const word = HIST_SOURCE_LABEL[entry.source_kind] || entry.source_kind;
+  if (!entry.source_entity) return word;
+  const name = controlNames && controlNames[entry.source_entity];
+  if (name) return word + ': ' + name;
+  return word + ' (unavailable)';
+}
+
+// Details cell content. Empty for binary actions; populated for value-bearing
+// actions (brightness/color/phase delta, duration, intensity, etc.).
+function formatHistoryDetails(entry) {
+  const parts = [];
+  if (entry.action === 'brightness') {
+    if (entry.from_value != null && entry.to_value != null) {
+      parts.push(Math.round(entry.from_value) + '% → ' + Math.round(entry.to_value) + '%');
+    } else if (entry.brightness != null) {
+      parts.push(entry.brightness + '%');
+    }
+  } else if (entry.action === 'color') {
+    if (entry.from_value != null && entry.to_value != null) {
+      parts.push(Math.round(entry.from_value) + 'K → ' + Math.round(entry.to_value) + 'K');
+    } else if (entry.kelvin != null) {
+      parts.push(entry.kelvin + 'K');
+    }
+  } else if (entry.action === 'phase') {
+    if (entry.to_value != null) parts.push('pos ' + Math.round(entry.to_value));
+  } else if (entry.action === 'freeze' || entry.action === 'boost' || entry.action === 'auto_off_set') {
+    if (entry.duration_minutes != null) {
+      parts.push(formatDurationRemaining(entry.duration_minutes, ''));
+    } else if (entry.action !== 'auto_off_set') {
+      parts.push('forever');
+    }
+    if (entry.action === 'boost' && entry.intensity != null) {
+      parts.push('+' + entry.intensity + '%');
+    }
+  } else if (entry.action === 'turn_on' || entry.action === 'turn_off') {
+    const bri = entry.brightness, ke = entry.kelvin;
+    const bits = [];
+    if (bri != null) bits.push(bri + '%');
+    if (ke != null) bits.push(ke + 'K');
+    if (bits.length) parts.push(bits.join(', '));
+    if (entry.is_2step) parts.push('2-step');
+  } else if (entry.brightness != null || entry.kelvin != null) {
+    // Reset / glo_* / circadian_on/off → show landing state context.
+    const bits = [];
+    if (entry.brightness != null) bits.push(entry.brightness + '%');
+    if (entry.kelvin != null) bits.push(entry.kelvin + 'K');
+    if (bits.length) parts.push(bits.join(', '));
+  }
+  if (entry.is_zone_action) parts.push('(zone-wide)');
+  return parts.join(' · ');
+}
+
+// Render a list of history entries as an HTML table.
+//
+// opts:
+//   showArea     — prepend an "Area" column (Activity page; default false)
+//   areaNames    — { area_id: friendly_name } map (required when showArea)
+//   controlNames — { id|device_id: name } map for source attribution
+//   scrollable   — wrap the table in a fixed-height scroll container
+//   maxHeight    — CSS height for the scroll container (e.g. "70vh", "400px")
+//   emptyMessage — text shown when entries is empty
+function renderHistoryTable(entries, opts) {
+  opts = opts || {};
+  if (!entries || !entries.length) {
+    const msg = opts.emptyMessage || 'No activity yet — recording starts when the addon last restarts.';
+    return '<div class="tune-history-empty">' + msg + '</div>';
+  }
+  const showArea = !!opts.showArea;
+  const areaNames = opts.areaNames || {};
+  const controlNames = opts.controlNames || {};
+  const esc = (s) => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+  const rows = entries.map(e => {
+    const ts = formatHistoryTs(e.ts);
+    const action = HIST_ACTION_LABEL[e.action] || e.action;
+    const source = formatHistorySource(e, controlNames);
+    const details = formatHistoryDetails(e);
+    let row = '<tr>';
+    if (showArea) {
+      const aName = e.area_id ? (areaNames[e.area_id] || e.area_id) : '';
+      row += '<td>' + esc(aName) + '</td>';
+    }
+    row += '<td>' + esc(ts) + '</td>'
+      + '<td>' + esc(action) + '</td>'
+      + '<td>' + esc(source) + '</td>'
+      + '<td class="th-details">' + esc(details) + '</td>'
+      + '</tr>';
+    return row;
+  }).join('');
+
+  const headerCells = (showArea ? '<th>Area</th>' : '')
+    + '<th>When</th><th>Action</th><th>Source</th><th>Details</th>';
+  const table = '<table class="tune-history-table">'
+    + '<thead><tr>' + headerCells + '</tr></thead>'
+    + '<tbody>' + rows + '</tbody>'
+    + '</table>';
+
+  if (opts.scrollable) {
+    const h = opts.maxHeight || '60vh';
+    return '<div class="tune-history-scroll" style="max-height:' + h + ';overflow-y:auto;">' + table + '</div>';
+  }
+  return table;
+}
