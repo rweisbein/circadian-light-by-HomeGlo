@@ -1497,6 +1497,46 @@
     }
     .move-zone-select:focus { border-color: dodgerblue; color: var(--text); }
 
+    /* Circadian on/off toggle in Manage mode (one per area row). Pairs
+       semantically with the drag handle — both are structural per-area
+       decisions ("where" and "should HomeGlo manage"). Logo colored when
+       on, heavily-dimmed grayscale when off. The off state also dims the
+       sibling area-name so the whole row reads as "muted" at a glance. */
+    .edit-row-circadian {
+      width: 26px;
+      height: 26px;
+      border: none;
+      background: transparent;
+      padding: 0;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      flex-shrink: 0;
+      transition: filter 0.15s, opacity 0.15s, background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .edit-row-circadian:hover { background: rgba(255,255,255,0.06); }
+    .edit-row-circadian img {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: block;
+      transition: filter 0.15s, opacity 0.15s;
+    }
+    .edit-row-circadian.is-off img {
+      filter: grayscale(1) brightness(0.55);
+      opacity: 0.30;
+    }
+    /* Dim the area name on circadian-off rows so the whole row reads as
+       "this room is off the system" instead of just having a slightly
+       grayer icon. Scoped to the area-name span (the flex:1 span after
+       the toggle button). */
+    .edit-mode-row.is-circadian-off .edit-row-name {
+      opacity: 0.45;
+    }
+
     .home-name-heading {
       font-size: 1.25rem;
       font-weight: 700;
@@ -1897,7 +1937,7 @@
     }
     let cachedConfig = null;
     let cachedSunTimes = null; // { sunrise, sunset, solarNoon, solarMid } in local hours
-    let currentMode = 'view'; // 'view' | 'organize'
+    let currentMode = 'view'; // 'view' | 'manage'
     let cachedGlozones = null; // raw glozone data for edit mode ordering
     let homeRefreshTimer = null;     // Home page card refresh timer
     let homeTickTimer = null;        // 1s home page timer countdown tick
@@ -2372,7 +2412,7 @@
       document.querySelectorAll('[data-area-active]').forEach(el => {
         const areaId = el.getAttribute('data-area-active');
         const status = areaStatus[areaId] || {};
-        const hasMotion = status.motion_expires_at && status.motion_expires_at !== 'forever';
+        const hasMotion = status.auto_off_at && status.auto_off_at !== 'forever';
         const isBoosted = status.boosted || false;
         const isMotionCoupled = status.is_motion_coupled || false;
         const warnClass = status.motion_warning_active ? ' timer-warning' : '';
@@ -2397,11 +2437,11 @@
         const boltSvg = `<svg class="timer-bolt" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10"/></svg>`;
         // Motion + boost (combined or separate)
         if (hasMotion && isBoosted && isMotionCoupled) {
-          const remaining = formatCountdown(status.motion_expires_at);
+          const remaining = formatCountdown(status.auto_off_at);
           if (remaining) parts.push(`<span class="timer-motion${warnClass}">${boltSvg} ${remaining}</span>`);
         } else {
           if (hasMotion) {
-            const remaining = formatCountdown(status.motion_expires_at);
+            const remaining = formatCountdown(status.auto_off_at);
             if (remaining) parts.push(`<span class="timer-motion${warnClass}">${remaining}</span>`);
           }
           if (isBoosted && status.boost_brightness && !isMotionCoupled) {
@@ -2524,8 +2564,8 @@
     function computeRoomsOnText() {
       const list = areas || [];
       if (!list.length) return '…';
-      // Tune + Organize: on/off isn't the unit of meaning; show the total.
-      if (isTuneMode(homePillMode) || currentMode === 'organize') {
+      // Tune + Manage: on/off isn't the unit of meaning; show the total.
+      if (isTuneMode(homePillMode) || currentMode === 'manage') {
         return `${list.length} area${list.length === 1 ? '' : 's'}`;
       }
       // Adjust modes: how many rooms are currently on.
@@ -2569,7 +2609,7 @@
     // timer handles true-source freshness (cachedConfig.outdoor_refresh_interval).
     function attachSunIntensity() {
       // Detach any prior controller first — the pill is mode-conditional
-      // (suppressed in Balance + Organize), so a re-render may have removed
+      // (suppressed in Balance + Manage), so a re-render may have removed
       // the trigger entirely. Keeping a controller bound to a missing DOM
       // node leaks the polling timer.
       if (_sunIntensityCtrl && typeof _sunIntensityCtrl.detach === 'function') {
@@ -3011,11 +3051,11 @@
     }
 
     // ============================================================
-    // Mode Functions (Organize)
+    // Mode Functions (Manage)
     // ============================================================
 
-    function enterOrganizeMode() {
-      currentMode = 'organize';
+    function enterManageMode() {
+      currentMode = 'manage';
       stopHomeRefresh();
       renderAreas();
     }
@@ -3432,7 +3472,7 @@
           boost_expires_at: status.boost_expires_at || null,
           boost_started_from_off: status.boost_started_from_off || false,
           is_motion_coupled: status.is_motion_coupled || false,
-          motion_expires_at: status.motion_expires_at || null,
+          auto_off_at: status.auto_off_at || null,
           motion_warning_active: status.motion_warning_active || false,
           zone_name: status.zone_name || null,
           min_brightness: status.min_brightness ?? null,
@@ -3481,8 +3521,8 @@
 
       // Tune mode requires a zone + zone runtime state to compute Baseline /
       // Final. Areas without zone state can't be tuned, so hide them — except
-      // in Organize mode where the user manages them.
-      const filtered = (isTuneMode(homePillMode) && currentMode !== 'organize')
+      // in Manage mode where the user manages them.
+      const filtered = (isTuneMode(homePillMode) && currentMode !== 'manage')
         ? mergedAreas.filter(a => a.zone_name && zoneStates[a.zone_name])
         : mergedAreas;
 
@@ -3522,8 +3562,8 @@
       // Build toolbar HTML
       const homeName = cachedConfig?.home_name || 'Your home';
       // Phase 1: always-visible segmented bar with 3 pills. No popover collapse.
-      const viewValue = currentMode === 'organize'
-        ? 'organize'
+      const viewValue = currentMode === 'manage'
+        ? 'manage'
         : (viewMode === 'onoff' ? 'onoff' : 'home');
       const VIEWS = [
         { value: 'onoff',    label: 'On/Off' },
@@ -3547,15 +3587,15 @@
       const homePhase = getHomePhase();  // 'wake' | 'bed' | null
       const bedLabel = homePhase === 'wake' ? 'Wake time' : 'Bed time';
       const modeLabels = { brightness: 'Brightness', color: 'Color', bed: bedLabel, sun: 'Sun exposure', balance: 'Balance' };
-      // In organize mode the pill reflects that, so the user has a way back out
-      // (clicking any other option exits organize via the click handler).
+      // In Manage mode the pill reflects that, so the user has a way back out
+      // (clicking any other option exits Manage via the click handler).
       // Mode prefix: "Adjusting" for Brightness/Color/Bed, "Tuning" for Sun/Balance.
-      // Organize mode skips the prefix (the label is its own complete phrase).
-      const modePrefix = currentMode === 'organize'
+      // Manage mode skips the prefix (the label is its own complete phrase).
+      const modePrefix = currentMode === 'manage'
         ? ''
         : (isTuneMode(homePillMode) ? 'Tune: ' : 'Adjust: ');
-      const activeModeLabel = (currentMode === 'organize'
-        ? 'Reorder'
+      const activeModeLabel = (currentMode === 'manage'
+        ? 'Manage'
         : (modeLabels[homePillMode] || 'Brightness'));
       const modeOption = (val, label) => {
         const cls = homePillMode === val ? 'action-popover-option active' : 'action-popover-option';
@@ -3583,7 +3623,7 @@
             ${modeOption('sun', 'Sun exposure')}
             ${modeOption('balance', 'Balance')}
             <div class="action-popover-divider"></div>
-            <div class="action-popover-option ${currentMode === 'organize' ? 'active' : ''}" data-pill-mode="organize">Reorder</div>
+            <div class="action-popover-option ${currentMode === 'manage' ? 'active' : ''}" data-pill-mode="manage">Manage</div>
           </div>
         </div>
       `;
@@ -3592,9 +3632,9 @@
       // Wrapped in .home-sticky-top so the title, status, mode pill, and view
       // segments stay pinned beneath the nav as the user scrolls.
       // Sun pill is suppressed in Balance (the "lift/dim" axis isn't tied to
-      // sun-driven dimming) and in Organize mode (irrelevant to reordering).
+      // sun-driven dimming) and in Manage mode (irrelevant to managing rooms).
       // All other modes show it — including Sun mode itself.
-      const showSunPill = homePillMode !== 'balance' && currentMode !== 'organize';
+      const showSunPill = homePillMode !== 'balance' && currentMode !== 'manage';
       const sunPillHtml = showSunPill ? `
         <button type="button" class="outdoor-chip" id="home-sun-pill" aria-expanded="false" title="Sun intensity">
           <span class="outdoor-chip-icon" id="home-sun-icon" data-sun-icon style="${sunIconStyleString(_cachedSunPct)}">☀</span>
@@ -3611,7 +3651,7 @@
             ${modePillHtml}
           </div>
           <!-- Row 2: list controls (L) · sun pill (R) — content scope + environment -->
-          <!-- Area count only shown in Organize mode (matches the zone-header counts). -->
+          <!-- Area count only shown in Manage mode (matches the zone-header counts). -->
           <div class="home-row home-row-3">
             <span class="seg-label">${inTune ? 'sort' : 'view'}</span>
             <div class="view-segments-bar" id="home-view-segments" role="tablist" title="Page mode">
@@ -3619,17 +3659,17 @@
             </div>
             <span class="home-row-spacer"></span>
             ${sunPillHtml}
-            ${currentMode === 'organize' ? `<span class="rooms-on-count" id="rooms-on-count">${computeRoomsOnText()}</span>` : ''}
+            ${currentMode === 'manage' ? `<span class="rooms-on-count" id="rooms-on-count">${computeRoomsOnText()}</span>` : ''}
           </div>
         </div>
       `;
 
       const renderZoneGroup = (zoneName, areasInZone, zoneIndex, totalZones, { allOff = false } = {}) => {
         const isCollapsed = collapsedState[zoneName] || false;
-        const sorted = currentMode === 'organize' ? areasInZone : sortAreas(areasInZone);
+        const sorted = currentMode === 'manage' ? areasInZone : sortAreas(areasInZone);
         const escapedZoneName = zoneName.replace(/'/g, "\\'");
 
-        if (currentMode === 'organize') {
+        if (currentMode === 'manage') {
           // Edit mode: simplified header with arrows, rename, delete
           const upDisabled = zoneIndex === 0 ? 'disabled' : '';
           const downDisabled = zoneIndex === totalZones - 1 ? 'disabled' : '';
@@ -3639,18 +3679,28 @@
           const otherZones = allZoneNames.filter(z => z !== zoneName).sort();
           const moveOptions = otherZones.map(z => `<option value="${z}">${z}</option>`).join('');
 
-          const areaRows = sorted.map(area => `
-            <div class="edit-mode-row" draggable="true" data-area-id="${area.area_id}"
+          const areaRows = sorted.map(area => {
+            const s = areaStatus[area.area_id] || {};
+            const aIsCircadian = s.is_circadian !== false;
+            const circAction = aIsCircadian ? 'circadian_off' : 'circadian_on';
+            const circTitle = aIsCircadian ? 'Disable Circadian for this area' : 'Enable Circadian for this area';
+            return `
+            <div class="edit-mode-row ${aIsCircadian ? '' : 'is-circadian-off'}" draggable="true" data-area-id="${area.area_id}"
               ondragstart="onDragStart(event, '${area.area_id}', '${escapedZoneName}')"
               ondragend="onDragEnd(event)">
               <span class="drag-handle">&#9776;</span>
-              <span style="flex: 1; font-size: 0.9rem;">${area.name}</span>
+              <button class="edit-row-circadian ${aIsCircadian ? '' : 'is-off'}"
+                onclick="event.stopPropagation(); onCircadianToggleClick(this, '${area.area_id}')"
+                title="${circTitle}">
+                <img src="./icon-indicator.png" alt="Circadian">
+              </button>
+              <span class="edit-row-name" style="flex: 1; font-size: 0.9rem;">${area.name}</span>
               ${otherZones.length > 0 ? `<select class="move-zone-select" onchange="moveAreaToZone(this, '${area.area_id}', '${escapedZoneName}')">
                 <option value="" disabled selected>Move to\u2026</option>
                 ${moveOptions}
               </select>` : ''}
             </div>
-          `).join('');
+          `;}).join('');
 
           // Find stale areas: in zone config but not in HA
           const haAreaIds = new Set(areas.map(a => a.area_id));
@@ -3756,7 +3806,7 @@
                   <div class="zone-name-group" style="color: ${zoneTextColor};">
                     <span class="zone-title-row">
                       <a class="zone-rhythm-link" href="./zone/${encodeURIComponent(zoneName)}?back=home" style="color: ${zoneTextColor};">${zoneName}</a>
-                      ${currentMode === 'organize' ? `<span class="zone-count">(${sorted.length})</span>` : ''}
+                      ${currentMode === 'manage' ? `<span class="zone-count">(${sorted.length})</span>` : ''}
                       ${rhythmPhase && !phaseChip ? `<span class="zone-phase-label" style="color: ${zoneTextColor};">${rhythmPhase}</span>` : ''}
                       ${zoneFrozenIndicator}
                     </span>
@@ -3774,8 +3824,8 @@
         `;
       };
 
-      if (currentMode === 'organize') {
-        // Organize mode: use glozone API order (preserves user ordering)
+      if (currentMode === 'manage') {
+        // Manage mode: use glozone API order (preserves user ordering)
         const gzZonesObj = cachedGlozones?.zones || {};
         const gzZoneNames = Object.keys(gzZonesObj);
         const totalZones = gzZoneNames.length;
@@ -3820,7 +3870,15 @@
           return Math.min(...evs.map(e => (e.fire_offset ?? e.offset ?? 999) * 24 + (e.decimal_hour ?? 0)));
         };
         const onAreas = filtered.filter(isEffectivelyOn);
-        const upcomingAreas = filtered.filter(a => !isEffectivelyOn(a) && hasUpcoming(a));
+        // Separate Upcoming section is only useful when there are no on
+        // rooms — it's the one signal worth highlighting then. As soon as
+        // any room is on, the visual priority is "find the off ones," so
+        // fold Upcoming into Off (otherwise an upcoming-scheduled off
+        // room hides under its own header and is hard to locate quickly).
+        const showUpcomingSection = onAreas.length === 0;
+        const upcomingAreas = showUpcomingSection
+          ? filtered.filter(a => !isEffectivelyOn(a) && hasUpcoming(a))
+          : [];
 
         // Group on rooms by zone, ordered by glozone API zone order.
         if (onAreas.length > 0) {
@@ -3881,7 +3939,11 @@
         // zones in glozone order, walk areas within each zone in custom
         // order, then unassigned). Independent collapsible header from
         // Upcoming so the two persist separately.
-        const offAreas = filtered.filter(a => !isEffectivelyOn(a) && !hasUpcoming(a));
+        // When the Upcoming section is suppressed, Off absorbs everything
+        // that isn't effectively on (including rooms with schedules).
+        const offAreas = showUpcomingSection
+          ? filtered.filter(a => !isEffectivelyOn(a) && !hasUpcoming(a))
+          : filtered.filter(a => !isEffectivelyOn(a));
         if (offAreas.length > 0) {
           const gzZonesObj = cachedGlozones?.zones || {};
           const orderIndex = new Map();
@@ -4813,10 +4875,10 @@ function updateSliderFill(el) {
           return;
         }
         const v = seg.dataset.view;
-        if (v === 'organize') { enterOrganizeMode(); return; }
+        if (v === 'manage') { enterManageMode(); return; }
         viewMode = (v === 'onoff') ? 'onoff' : 'custom';
         savePreferences();
-        if (currentMode === 'organize') {
+        if (currentMode === 'manage') {
           exitMode();
         } else {
           renderAreas();
@@ -4830,13 +4892,13 @@ function updateSliderFill(el) {
           e.stopPropagation();
           const newMode = opt.dataset.pillMode;
           _modePopoverOpen = false;
-          // Reorder is special — it's a page mode, not a slider/chevron knob.
-          if (newMode === 'organize') {
-            enterOrganizeMode();
+          // Manage is special — it's a page mode, not a slider/chevron knob.
+          if (newMode === 'manage') {
+            enterManageMode();
             return;
           }
-          // Selecting any non-Reorder option while in organize mode = exit organize.
-          const wasOrganize = currentMode === 'organize';
+          // Selecting any non-Manage option while in Manage mode = exit Manage.
+          const wasManage = currentMode === 'manage';
           if (newMode && newMode !== homePillMode) {
             homePillMode = newMode;
             // Mode change clears the most-recent-tune marker — orange
@@ -4847,7 +4909,7 @@ function updateSliderFill(el) {
               loadAreaTuneData().then(renderAreas);
             }
           }
-          if (wasOrganize) {
+          if (wasManage) {
             exitMode();
           } else {
             renderAreas();
@@ -4912,6 +4974,24 @@ function updateSliderFill(el) {
 
     function openZoneModal(zoneName) {
       window.location.href = './zone/' + encodeURIComponent(zoneName);
+    }
+
+    // Manage-mode circadian toggle. Optimistic UI: flip the visual state
+    // immediately so the user sees the tap register, then send the rowAction
+    // and let renderAreas reconcile when the refresh lands. Without this,
+    // the 500ms server roundtrip feels like a broken button — tap, no
+    // change, wait, change.
+    function onCircadianToggleClick(btn, areaId) {
+      const row = btn.closest('.edit-mode-row');
+      const wasOn = !btn.classList.contains('is-off');
+      // Flip optimistically
+      btn.classList.toggle('is-off', wasOn);
+      if (row) row.classList.toggle('is-circadian-off', wasOn);
+      // Mirror into areaStatus so renderAreas (post-refresh) renders the
+      // same flipped state even if the lite endpoint races our request.
+      if (!areaStatus[areaId]) areaStatus[areaId] = {};
+      areaStatus[areaId].is_circadian = !wasOn;
+      rowAction(areaId, wasOn ? 'circadian_off' : 'circadian_on');
     }
 
     async function rowAction(areaId, action, value, mode) {

@@ -123,13 +123,16 @@
         0 0 2px rgba(0,0,0,0.55);
     }
 
-    /* ─── Row 2: state ─── bri% · CT · chips */
+    /* ─── Row 2: state ─── bri% · CT · chips
+       Left padding matches Row 1's back-btn (28px) + gap (8px) so the
+       brightness readout aligns with the area name's left edge. */
     .ah-row2 {
       display: flex;
       align-items: baseline;
       gap: 0;
       margin-top: 4px;
       flex-wrap: wrap;
+      padding-left: 36px;
     }
     .ah-state-bri,
     .ah-state-ct {
@@ -164,15 +167,48 @@
     }
     .ah-state-chips:empty { margin-left: 0; }
 
-    /* ─── Row 3: actions ─── Power · Freeze · Boost · Circadian
-       Left-aligned: Power flush with the row's left edge (same content
-       margin as the back button + name), the rest cluster from there. */
+    /* Master reset button — inline right after the CT readout (not
+       right-aligned), visible only when something diverges from the zone.
+       Single tap → glo_down, no confirm. Same ↺ glyph the per-slider
+       resets use, sized up slightly so it reads as "bulk". */
+    .ah-row2-reset {
+      margin-left: 10px;
+      align-self: center;
+      display: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(0,0,0,0.22);
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.05rem;
+      line-height: 1;
+      padding: 0;
+      font-family: inherit;
+      opacity: 0.75;
+      transition: opacity 0.15s, background 0.15s;
+    }
+    .ah-row2-reset.is-dirty { display: inline-flex; }
+    .ah-row2-reset:hover { opacity: 1; background: rgba(0,0,0,0.10); }
+    .area-header.is-neutral .ah-row2-reset { border-color: rgba(255,255,255,0.22); }
+    .area-header.is-neutral .ah-row2-reset:hover { background: rgba(255,255,255,0.08); }
+
+    /* ─── Row 3: actions ─── Power · Freeze · Boost + Sun (right)
+       Left padding matches Row 2 so the first action button (Power) lines
+       up with the area name on Row 1 and the brightness readout on Row 2.
+       Sun chip is pushed to the right via margin-left: auto. */
     .ah-row3 {
       display: flex;
       justify-content: flex-start;
+      align-items: flex-start;
       gap: 18px;
       margin-top: 4px;
+      padding-left: 36px;
     }
+    .ah-row3 .ah-sun { margin-left: auto; align-self: center; }
     .ah-action {
       display: flex;
       flex-direction: column;
@@ -250,6 +286,14 @@
     .ah-subline:hover { opacity: 1; }
     .ah-subline.is-blank { opacity: 0; cursor: default; pointer-events: none; }
     .ah-subline-arrow { opacity: 0.7; margin-right: 2px; }
+    /* Bump glyph-only sub-lines (timer affordance) up so the ⏱ glyph
+       reads as iconography, not stray punctuation. */
+    .ah-subline-glyph {
+      font-size: 1.05rem;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: -2px;
+    }
 
     /* ─── Back button + shared chrome ─── */
     .back-btn {
@@ -1307,12 +1351,15 @@
 <body>
   <!-- Area header — 3-row CCT-tinted (Ship 2 redesign per
        addon/area-detail-mock.html).
-       Row 1: ← · area name · "in {zone} →" · sun pill
-       Row 2: bri% · CT · state chips · ↺ reset (when dirty)
-       Row 3: Power · Freeze · Boost · Circadian (each with sub-line)
-       updateHeaderTint() tints bg + readable text per-frame from CCT. -->
+       Row 1: ← · area name · "in {zone} →" · Circadian button (top right)
+       Row 2: (indented to name) bri% · CT · state chips
+       Row 3: (indented to name) Power · Freeze · Boost · sun pill (right)
+       Indent matches the back-btn width + gap so row 2/3 content lines up
+       with the area name on row 1. updateHeaderTint() tints bg + readable
+       text per-frame from CCT. -->
   <header class="area-header" id="page-header">
-    <!-- Row 1: identity -->
+    <!-- Row 1: identity + Circadian button (semantically distinct from the
+         power/freeze/boost cluster, so it sits up top with the name). -->
     <div class="ah-row1">
       <button class="back-btn" onclick="goBack()" title="Back">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1322,22 +1369,26 @@
       <h1 class="ah-name" id="page-title">Loading...</h1>
       <a class="ah-breadcrumb" id="header-meta-rhythm" href="#"></a>
       <span class="ah-row1-spacer"></span>
-      <button type="button" class="ah-sun" id="chart-sun-info"
-              aria-expanded="false" title="Sun intensity">
-        <span class="ah-sun-icon" id="chart-sun-info-icon" data-sun-icon>&#x2600;</span>
-        <span id="chart-sun-info-pct" data-sun-pct>&mdash;</span>
+      <button type="button" class="ah-btn ah-btn--top" id="toggle-circadian"
+              onclick="toggleCircadian()" title="Circadian Light">
+        <img class="ah-btn-logo" src="./icon-indicator.png" alt="Circadian">
       </button>
     </div>
 
-    <!-- Row 2: state -->
+    <!-- Row 2: state. Indented to align with the area name. Master reset
+         (↺) is inline right after the CT readout (only visible when ANY
+         override is set relative to the zone — glo_down would change
+         something). Chips flow after the reset. -->
     <div class="ah-row2">
       <span class="ah-state-bri" id="ah-state-bri">--%</span>
       <span class="ah-state-sep">&middot;</span>
       <span class="ah-state-ct" id="ah-state-ct">----K</span>
+      <button type="button" class="ah-row2-reset" id="ah-row2-reset"
+              onclick="onResetArea()" title="Reset">&#x21BA;</button>
       <span class="ah-state-chips page-header-chips" id="page-header-chips"></span>
     </div>
 
-    <!-- Row 3: actions -->
+    <!-- Row 3: action buttons (left, aligned with name) + sun pill (right). -->
     <div class="ah-row3">
       <div class="ah-action">
         <button type="button" class="ah-btn" id="toggle-power"
@@ -1347,11 +1398,11 @@
             <path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/>
           </svg>
         </button>
-        <span class="ah-subline is-blank" id="power-subline" onclick="onPowerSublineClick()">&nbsp;</span>
+        <span class="ah-subline is-blank" id="power-subline" onclick="onPowerSublineClick(event)">&nbsp;</span>
       </div>
       <div class="ah-action">
         <button type="button" class="ah-btn" id="toggle-freeze"
-                onclick="executeAction('freeze_toggle')" title="Freeze">
+                onclick="onFreezeButtonClick()" title="Freeze">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
                stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="2" x2="12" y2="22"/>
@@ -1364,25 +1415,23 @@
             <line x1="2" y1="12" x2="4.5" y2="14.5"/><line x1="2" y1="12" x2="4.5" y2="9.5"/>
           </svg>
         </button>
-        <span class="ah-subline is-blank" id="freeze-subline">&nbsp;</span>
+        <span class="ah-subline is-blank" id="freeze-subline" onclick="onFreezeSublineClick(event)">&nbsp;</span>
       </div>
       <div class="ah-action">
         <button type="button" class="ah-btn" id="toggle-boost"
-                onclick="onBoostClick()" title="Boost (coming soon)">
+                onclick="onBoostClick()" title="Boost">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                stroke-linecap="round" stroke-linejoin="round">
             <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
           </svg>
         </button>
-        <span class="ah-subline is-blank" id="boost-subline">&nbsp;</span>
+        <span class="ah-subline is-blank" id="boost-subline" onclick="onBoostSublineClick(event)">&nbsp;</span>
       </div>
-      <div class="ah-action">
-        <button type="button" class="ah-btn" id="toggle-circadian"
-                onclick="toggleCircadian()" title="Circadian Light">
-          <img class="ah-btn-logo" src="./icon-indicator.png" alt="Circadian">
-        </button>
-        <span class="ah-subline is-blank" id="circadian-subline">&nbsp;</span>
-      </div>
+      <button type="button" class="ah-sun" id="chart-sun-info"
+              aria-expanded="false" title="Sun intensity">
+        <span class="ah-sun-icon" id="chart-sun-info-icon" data-sun-icon>&#x2600;</span>
+        <span id="chart-sun-info-pct" data-sun-pct>&mdash;</span>
+      </button>
     </div>
   </header>
 
@@ -2448,16 +2497,17 @@
       const diffMs = expires - now;
       if (diffMs <= 0) return null;
       const totalSec = Math.floor(diffMs / 1000);
-      // Below a minute: show seconds. At/above a minute: drop seconds entirely
-      // (chip in the page header has limited horizontal space, and seconds
-      // ticking inside a minutes-scale countdown adds visual noise without
-      // useful precision). At/above an hour: show hours + minutes.
+      // Single-unit format — pick the largest unit where the count is >= 1.
+      // Sub-line + page-header chip are both tight; multi-unit ("3h 15m")
+      // adds noise without useful precision. Examples: 12s, 5m, 3h, 5d, 2w.
       if (totalSec < 60) return `${totalSec}s`;
       const min = Math.floor(totalSec / 60);
       if (min < 60) return `${min}m`;
       const hr = Math.floor(min / 60);
-      const remMin = min % 60;
-      return remMin > 0 ? `${hr}h ${remMin}m` : `${hr}h`;
+      if (hr < 24) return `${hr}h`;
+      const day = Math.floor(hr / 24);
+      if (day < 7) return `${day}d`;
+      return `${Math.floor(day / 7)}w`;
     }
 
     // Stub kept for back-compat: chart drag was retired in Ship 2 (chart is
@@ -2951,29 +3001,11 @@
       // .solar-label treatment).
       const cursorHour = shiftIntoWindow(currentHour);
       const images = [];
-      // Sunrise/sunset hover targets — invisible markers along the x-axis at
-      // sunrise/sunset hours so users can see the time chip on hover.
-      // Above-axis sun + moon images and SVG icons replaced by HTML
-      // .area-solar-label overlays positioned below the x-axis (see
-      // positionChartLabels). Hover targets retained for chart tooltips.
-      if (Number.isFinite(sunrise)) {
-        traces.push({
-          type: 'scatter', mode: 'markers',
-          x: [sunriseX], y: [100],
-          marker: { size: 18, color: 'rgba(0,0,0,0)' },
-          hovertext: 'sunrise \u00B7 ' + formatHourLabel(sunrise),
-          hoverinfo: 'text', showlegend: false, cliponaxis: false
-        });
-      }
-      if (Number.isFinite(sunset)) {
-        traces.push({
-          type: 'scatter', mode: 'markers',
-          x: [sunsetX], y: [100],
-          marker: { size: 18, color: 'rgba(0,0,0,0)' },
-          hovertext: 'sunset \u00B7 ' + formatHourLabel(sunset),
-          hoverinfo: 'text', showlegend: false, cliponaxis: false
-        });
-      }
+      // Sunrise/sunset on-chart hover tooltips were redundant — the
+      // .area-solar-label overlays under the x-axis already show the time
+      // ("sunset 8:15p"). Hovering those labels still extends the yellow
+      // vertical line through the plot (via _areaSunriseLabelHover /
+      // _areaSunsetLabelHover above), which is the useful interaction.
 
       // Cursor: NOW dot only, no dashed vertical line (Ship 2 chart simplification).
       const isFrozen = state && state.frozen_at != null;
@@ -3020,13 +3052,7 @@
         x: [cursorHour], y: [cursorBulbY],
         marker: { size: 16, color: nowDotFill, symbol: 'circle', line: { width: 2, color: nowDotBorder } },
         cliponaxis: false,
-        hovertext: 'now · ' + nowTimeLabel,
-        hoverinfo: 'text',
-        hoverlabel: {
-          bgcolor: 'rgba(40, 40, 40, 0.95)',
-          bordercolor: 'rgba(255, 255, 255, 0.2)',
-          font: { color: '#fff', size: 12 },
-        },
+        hoverinfo: 'skip',
         showlegend: false,
       });
       annotations.push({
@@ -4242,6 +4268,10 @@
       const data = window.circadianData || {};
       const selectedAreaId = data.selectedAreaId;
       cachedConfig = data.config;
+      // Mirror onto window so shared.js helpers (getDurationOptions,
+      // getDefaultFreezeDurationValue, etc.) can read Lab settings —
+      // they look at window.cachedConfig, not the local `let`.
+      window.cachedConfig = cachedConfig;
 
       // Compute sun times client-side from config lat/lon as a synchronous
       // fallback, then immediately replace sunrise/sunset/noon/midnight with
@@ -4367,6 +4397,7 @@
         actual_brightness: status.actual_brightness ?? (status.curve_brightness || status.brightness || 0),
         kelvin: status.kelvin || 4000,
         frozen: status.frozen || false,
+        frozen_until: status.frozen_until || null,
         boosted: status.boosted || false,
         zone_name: status.zone_name || null,
         preset_name: status.preset_name || null,
@@ -4375,8 +4406,8 @@
         boost_expires_at: status.boost_expires_at || null,
         boost_started_from_off: status.boost_started_from_off || false,
         is_motion_coupled: status.is_motion_coupled || false,
-        motion_expires_at: status.motion_expires_at || null,
         motion_warning_active: status.motion_warning_active || false,
+        auto_off_at: status.auto_off_at || null,
         fade_direction: status.fade_direction || null,
         fade_target_preset: status.fade_target_preset || null,
         fade_remaining: status.fade_remaining ?? null
@@ -4550,6 +4581,7 @@
         actual_brightness: status.actual_brightness ?? (status.curve_brightness || status.brightness || 0),
         kelvin: status.kelvin || 4000,
         frozen: status.frozen || false,
+        frozen_until: status.frozen_until || null,
         boosted: status.boosted || false,
         zone_name: status.zone_name || null,
         preset_name: status.preset_name || null,
@@ -4558,8 +4590,8 @@
         boost_expires_at: status.boost_expires_at || null,
         boost_started_from_off: status.boost_started_from_off || false,
         is_motion_coupled: status.is_motion_coupled || false,
-        motion_expires_at: status.motion_expires_at || null,
         motion_warning_active: status.motion_warning_active || false,
+        auto_off_at: status.auto_off_at || null,
         fade_direction: status.fade_direction || null
       });
 
@@ -4586,6 +4618,14 @@
         }
       }
 
+      // Row 2 master reset button — visible only when something differs
+      // from the zone's defaults (i.e., glo_down would change state).
+      const resetBtn = document.getElementById('ah-row2-reset');
+      if (resetBtn) {
+        resetBtn.classList.toggle('is-dirty', isAreaDirtyVsZone());
+        resetBtn.title = `Reset ${selectedArea.name || 'area'}`;
+      }
+
       // Row 3 action buttons. White-fill "is-on" encodes engagement
       // (lit-up = white), works on tinted + neutral headers alike.
       // Freeze gets a cyan-tinted is-on variant (noteworthy state).
@@ -4597,11 +4637,13 @@
       const freezeBtn = document.getElementById('toggle-freeze');
       if (freezeBtn) freezeBtn.classList.toggle('is-on', selectedArea.frozen);
 
-      // Boost button mirrors `selectedArea.boosted`. Phase 1: button is-on
-      // when boosted, but no duration in the sub-line yet (Phase 3 wires
-      // a duration picker via the future boost primitive).
+      // Boost button mirrors `selectedArea.boosted`. Sub-line shows the
+      // remaining duration when boost has a finite expiry (Phase 3).
       const boostBtn = document.getElementById('toggle-boost');
-      if (boostBtn) boostBtn.classList.toggle('is-on', !!selectedArea.boosted);
+      if (boostBtn) {
+        boostBtn.classList.toggle('is-on', !!selectedArea.boosted);
+        boostBtn.title = selectedArea.boosted ? 'Boost (tap to end)' : 'Boost';
+      }
 
       // Circadian-off overlay (greys chart + sliders, surfaces "Enable"
       // button on the chart card) + header circadian icon prominence.
@@ -4762,29 +4804,67 @@
       }
       el.innerHTML = parts.join('');
 
-      // Power sub-line - motion countdown > fade timer > next-auto.
-      const hasMotion = selectedArea.motion_expires_at && selectedArea.motion_expires_at !== 'forever';
+      // Sub-line rule (Phase 3): when the dimension is ON, always show
+      // something tappable \u2014 either the active countdown or "forever".
+      // When OFF, leave blank (existing behavior; pointer-events:none).
+      //
+      // Power "on" priority: auto-off timer (sensor OR user-set; same field) >
+      // fade > scheduled next-off > "forever".
+      const hasAutoOff = selectedArea.auto_off_at && selectedArea.auto_off_at !== 'forever';
       let powerText = '';
-      if (hasMotion) {
-        const remaining = formatCountdown(selectedArea.motion_expires_at);
-        if (remaining) powerText = remaining;
-      } else if (selectedArea.fade_direction && selectedArea.fade_remaining != null && selectedArea.fade_remaining > 0) {
-        const m = Math.floor(selectedArea.fade_remaining / 60);
-        powerText = (m > 0 ? `${m}m` : `${selectedArea.fade_remaining}s`);
+      if (selectedArea.is_on) {
+        if (hasAutoOff) {
+          const remaining = formatCountdown(selectedArea.auto_off_at);
+          if (remaining) powerText = `<span class="ah-subline-arrow">\u25BC</span>${remaining}`;
+        } else if (selectedArea.fade_direction && selectedArea.fade_remaining != null && selectedArea.fade_remaining > 0) {
+          const m = Math.floor(selectedArea.fade_remaining / 60);
+          powerText = (m > 0 ? `${m}m` : `${selectedArea.fade_remaining}s`);
+        } else {
+          const nxt = _cachedNextAuto.off;
+          if (nxt && nxt.time != null) {
+            powerText = `<span class="ah-subline-arrow">\u25BC</span>${formatAutoTimeCompact(nxt.time)}`;
+          } else {
+            powerText = '<span class="ah-subline-glyph">◷</span>';
+          }
+        }
       } else {
-        // Fall back to next scheduled on/off - direction picked by current
-        // lights state (on -> next off; off -> next on).
-        const nxt = selectedArea.is_on ? _cachedNextAuto.off : _cachedNextAuto.on;
+        // Lights off \u2014 show next scheduled auto-on only (no "forever" here;
+        // that would be wrong while lights are already off).
+        const nxt = _cachedNextAuto.on;
         if (nxt && nxt.time != null) {
-          const arrow = selectedArea.is_on ? '\u25BC' : '\u25B2';
-          powerText = `<span class="ah-subline-arrow">${arrow}</span>${formatAutoTimeCompact(nxt.time)}`;
+          powerText = `<span class="ah-subline-arrow">\u25B2</span>${formatAutoTimeCompact(nxt.time)}`;
         }
       }
       setSubline('power-subline', powerText, !powerText);
 
-      // Freeze + Boost sub-lines stay blank in Phase 1.
-      setSubline('freeze-subline', '', true);
-      setSubline('boost-subline', '', true);
+      // Freeze sub-line: when frozen, show countdown if frozen_until set,
+      // else "timer" as a tap-to-set affordance. Blank when not frozen.
+      let freezeText = '';
+      if (selectedArea.frozen) {
+        if (selectedArea.frozen_until) {
+          const remaining = formatCountdown(selectedArea.frozen_until);
+          freezeText = remaining || '<span class="ah-subline-glyph">◷</span>';
+        } else {
+          freezeText = '<span class="ah-subline-glyph">◷</span>';
+        }
+      }
+      setSubline('freeze-subline', freezeText, !freezeText);
+
+      // Boost sub-line: when boosted, show countdown (finite), "motion" for
+      // motion-coupled boost, or "timer" affordance for indefinite boost.
+      let boostText = '';
+      if (selectedArea.boosted) {
+        const bx = selectedArea.boost_expires_at;
+        if (bx === 'forever' || !bx) {
+          boostText = '<span class="ah-subline-glyph">◷</span>';
+        } else if (bx === 'motion') {
+          boostText = 'motion';
+        } else {
+          const remaining = formatCountdown(bx);
+          boostText = remaining || '<span class="ah-subline-glyph">◷</span>';
+        }
+      }
+      setSubline('boost-subline', boostText, !boostText);
     }
 
     // Helper: update a sub-line's HTML + blank class together.
@@ -4795,19 +4875,151 @@
       el.classList.toggle('is-blank', !!blank);
     }
 
-    // Power sub-line tap - open Schedule and orange-flash the relevant
-    // sub-section (auto-on when lights are off, auto-off when on). Reuses
-    // focusAutoSub() which already handles open + scroll + flash.
-    function onPowerSublineClick() {
+    // Master reset — glo_down resets the area's per-dimension overrides
+    // and midpoints back to the zone defaults. Power state + circadian
+    // enable are preserved. Triggered from the Row 2 ↺ button (visible
+    // only when isAreaDirtyVsZone() returns true). No confirmation —
+    // single-tap action; user can re-adjust if it was a misfire.
+    async function onResetArea() {
       if (!selectedArea) return;
-      focusAutoSub(selectedArea.is_on ? 'off' : 'on');
+      try { await executeAction('glo_down'); } catch (e) { console.error('reset failed', e); }
     }
 
-    // Boost button - placeholder until Phase 3 wires the boost primitive
-    // with duration + intensity. Phase 1 reuses the existing fixed-duration
-    // boost toggle.
+    // Mirrors the home page's isAreaDirty: returns true when this area's
+    // runtime state diverges from its zone defaults across any dimension
+    // that glo_down would clear (midpoints, frozen_at, color/brightness
+    // overrides). Used to gate the Row 2 ↺ button visibility.
+    function isAreaDirtyVsZone() {
+      if (!selectedArea) return false;
+      const zoneName = selectedArea.zone_name;
+      if (!zoneName || !zoneStates[zoneName]) return false;
+      const status = areaStatus[selectedArea.area_id] || {};
+      const rs = zoneStates[zoneName].runtime_state || {};
+      const differs = (a, b, tol) => {
+        if (a == null && b == null) return false;
+        if (a == null || b == null) return true;
+        return Math.abs(a - b) >= tol;
+      };
+      return (differs(status.brightness_mid, rs.brightness_mid, 0.05) ||
+              differs(status.color_mid, rs.color_mid, 0.05) ||
+              differs(status.frozen_at, rs.frozen_at, 0.05) ||
+              differs(status.color_override, rs.color_override, 10) ||
+              differs(status.brightness_override, rs.brightness_override, 1) ||
+              differs(status.brightness_override_set_at, rs.brightness_override_set_at, 0.1) ||
+              differs(status.color_override_set_at, rs.color_override_set_at, 0.1));
+    }
+
+    // --------------------------------------------------------------------
+    // Sub-line tap handlers (Phase 3) — open the shared duration picker
+    // (defined in shared.js) to set / change / clear the duration field on
+    // the current area for freeze, boost, or user-set auto-off.
+    // --------------------------------------------------------------------
+
+    // Resolve the picker's initial value for a given dimension. Snaps the
+    // active expires_at (or frozen_until) to the closest preset value when
+    // possible; otherwise falls back to the per-context default Lab setting.
+    function _pickerStartValueForDuration(expiresAt, fallbackResolver) {
+      if (!expiresAt || expiresAt === 'forever' || expiresAt === 'motion') {
+        return fallbackResolver();
+      }
+      const remMs = new Date(expiresAt) - Date.now();
+      if (!Number.isFinite(remMs) || remMs <= 0) return fallbackResolver();
+      const mins = remMs / 60000;
+      // Snap to nearest preset bucket (mirrors switches.html pause-picker mapping).
+      const opts = getDurationOptions();
+      let bestVal = fallbackResolver();
+      let bestDiff = Infinity;
+      for (const o of opts) {
+        if (o.value === 'forever') continue;
+        const diff = Math.abs((o.minutes || 0) - mins);
+        if (diff < bestDiff) { bestDiff = diff; bestVal = o.value; }
+      }
+      return bestVal;
+    }
+
+    // Power sub-line tap. Three cases:
+    //   1. Lights off → open Schedule (existing behavior — there's no "off
+    //      timer" to set when already off).
+    //   2. Lights on + active auto_off_at → tapping opens the picker to
+    //      change it; selecting "Forever" clears the timer.
+    //   3. Lights on + no auto_off_at → open the picker; selecting any
+    //      duration starts the timer. "Forever" is a no-op (just close).
+    function onPowerSublineClick(ev) {
+      if (!selectedArea) return;
+      if (!selectedArea.is_on) {
+        focusAutoSub('on');
+        return;
+      }
+      const anchor = (ev && ev.currentTarget) ? ev.currentTarget : document.getElementById('power-subline');
+      const currentVal = _pickerStartValueForDuration(selectedArea.auto_off_at, getDefaultPowerOffDurationValue);
+      showDurationPicker(anchor, currentVal, async (val) => {
+        const mins = durationValueToMinutes(val);
+        if (mins == null) {
+          // Forever: clear any existing timer; don't set anything.
+          if (selectedArea.auto_off_at) await executeAction('clear_auto_off');
+        } else {
+          await executeAction('set_auto_off', { duration_minutes: mins });
+        }
+      });
+    }
+
+    // Freeze button. Tap to freeze (using the Lab default duration) or
+    // unfreeze. Distinct from the sub-line tap (which only fires when
+    // already frozen and re-opens the picker to change the duration).
+    async function onFreezeButtonClick() {
+      if (!selectedArea) return;
+      if (selectedArea.frozen) {
+        // Toggle off — no duration param needed.
+        await executeAction('freeze_toggle');
+      } else {
+        const val = getDefaultFreezeDurationValue();
+        const mins = durationValueToMinutes(val);
+        const params = mins ? { duration_minutes: mins } : {};
+        await executeAction('freeze_toggle', params);
+      }
+    }
+
+    // Freeze sub-line tap — only meaningful when already frozen. Opens
+    // the picker to change frozen_until. "Forever" clears the auto-expire.
+    function onFreezeSublineClick(ev) {
+      if (!selectedArea || !selectedArea.frozen) return;
+      const anchor = (ev && ev.currentTarget) ? ev.currentTarget : document.getElementById('freeze-subline');
+      const currentVal = _pickerStartValueForDuration(selectedArea.frozen_until, getDefaultFreezeDurationValue);
+      showDurationPicker(anchor, currentVal, async (val) => {
+        const mins = durationValueToMinutes(val);
+        await executeAction('freeze_set_duration', { duration_minutes: mins });
+      });
+    }
+
+    // Boost button — toggle on (with Lab default duration + intensity) or off.
     async function onBoostClick() {
-      try { await executeAction('boost'); } catch (e) { console.error('boost failed', e); }
+      if (!selectedArea) return;
+      if (selectedArea.boosted) {
+        // Toggle off — no params.
+        try { await executeAction('boost'); } catch (e) { console.error('boost failed', e); }
+      } else {
+        const val = getDefaultBoostDurationValue();
+        const mins = durationValueToMinutes(val);
+        const intensity = getDefaultBoostIntensity();
+        const params = { intensity: intensity };
+        if (mins) params.duration_minutes = mins;
+        try { await executeAction('boost', params); } catch (e) { console.error('boost failed', e); }
+      }
+    }
+
+    // Boost sub-line tap — opens picker to change duration of an active
+    // boost. "Forever" upgrades to indefinite. Send `duration_minutes: 0`
+    // (backend's forever sentinel) when user picks Forever, because a
+    // null/missing param + no other field would fall into the toggle-off
+    // branch on the backend.
+    function onBoostSublineClick(ev) {
+      if (!selectedArea || !selectedArea.boosted) return;
+      const anchor = (ev && ev.currentTarget) ? ev.currentTarget : document.getElementById('boost-subline');
+      const currentVal = _pickerStartValueForDuration(selectedArea.boost_expires_at, getDefaultBoostDurationValue);
+      showDurationPicker(anchor, currentVal, async (val) => {
+        const mins = durationValueToMinutes(val);
+        await executeAction('boost', { duration_minutes: mins == null ? 0 : mins });
+      });
     }
 
     // ============================================================
@@ -5003,14 +5215,18 @@
       executeAction(action);
     }
 
-    async function executeAction(action) {
+    async function executeAction(action, extraParams) {
       if (!selectedArea) return;
 
       try {
+        const body = { area_id: selectedArea.area_id, action: action };
+        if (extraParams && typeof extraParams === 'object') {
+          Object.assign(body, extraParams);
+        }
         const response = await fetch(basePath + '/api/area/action', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ area_id: selectedArea.area_id, action: action })
+          body: JSON.stringify(body)
         });
 
         if (response.ok) {
@@ -5322,11 +5538,11 @@
       actualBrightness: null,
     };
 
-    function showTuneSave() {
-      const el = document.getElementById('tune-save-status');
-      el.classList.add('visible');
-      setTimeout(() => el.classList.remove('visible'), 2000);
-    }
+    // Tune save-confirmation toast retired — Tune drags auto-persist via
+    // saveBrightnessChanges, the readout already reflects committed state,
+    // and the green "Saved" pill was distracting. Function kept as a no-op
+    // so existing callers don't need to be updated.
+    function showTuneSave() {}
 
     function saveTuneAreaBrightness(areaId, fields) {
       const key = 'tune_' + areaId + JSON.stringify(fields);
@@ -5795,6 +6011,33 @@
       ts._lastAreaBri = areaBri;
       ts._lastCtFactor = ctFactor;
 
+      // Raw (pre-clamp) brightness — same additive math but without the
+      // [0, 100] clamps that running applies along the way. Surfaces the
+      // headroom area_factor > 1.0 can produce; the Math card uses this to
+      // show the "Raw → ↓ Bulb max → Area Brightness" step when clamping
+      // actually changes the output.
+      const rawBri = Math.round(
+        baseBriPct * sunBrightFactor * ts.areaFactor + briOverride + boostAmount
+      );
+      const elDetRawRow = document.getElementById('tune-det-raw-row');
+      const elDetRawVal = document.getElementById('tune-det-raw-val');
+      const elDetCapRow = document.getElementById('tune-det-cap-row');
+      const elDetCapLabel = document.getElementById('tune-det-cap-label');
+      const elDetCapVal = document.getElementById('tune-det-cap-val');
+      const capping = (rawBri > 100) || (rawBri < 1);
+      if (elDetRawRow) elDetRawRow.style.display = capping ? '' : 'none';
+      if (elDetCapRow) elDetCapRow.style.display = capping ? '' : 'none';
+      if (elDetRawVal) elDetRawVal.textContent = rawBri + '%';
+      if (capping && elDetCapLabel && elDetCapVal) {
+        if (rawBri > 100) {
+          elDetCapLabel.textContent = 'Bulb max';
+          elDetCapVal.textContent = '100%';
+        } else {
+          elDetCapLabel.textContent = 'Bulb min';
+          elDetCapVal.textContent = '1%';
+        }
+      }
+
       // -- Tune card: slider top-right word + footer Peak / Current --
       // Readout format mirrors home page: "Label N.NNx" with the multiplier
       // suffix muted via .tune-mult. For Sun, the factor is the exposure
@@ -6253,6 +6496,24 @@
         + '<span class="tune-wf-val" id="tune-det-fade-val">0%</span>'
         + '</div>';
       mhtml += '<div class="tune-wf-divider"></div>';
+      // Raw + bulb-max rows show only when the pipeline's pre-clamp value
+      // differs from the clamped result. For rooms with area_factor=1.0 and
+      // no override pushing past 100%, these stay hidden (no extra noise).
+      // When area_factor > 1.0 ("Brite/Max"), raw can exceed 100% and the
+      // bulb-max row makes the clamping visible — explains why a small
+      // brightness drag has no visible effect until it exceeds the headroom.
+      mhtml += '<div class="tune-wf-row tune-wf-raw" id="tune-det-raw-row" style="display:none;">'
+        + '<span class="tune-wf-op">=</span>'
+        + '<span class="tune-wf-label">Raw</span>'
+        + '<span class="tune-wf-reset"></span>'
+        + '<span class="tune-wf-val" id="tune-det-raw-val">--</span>'
+        + '</div>';
+      mhtml += '<div class="tune-wf-row" id="tune-det-cap-row" style="display:none;">'
+        + '<span class="tune-wf-op">↓</span>'
+        + '<span class="tune-wf-label" id="tune-det-cap-label">Bulb max</span>'
+        + '<span class="tune-wf-reset"></span>'
+        + '<span class="tune-wf-val" id="tune-det-cap-val">100%</span>'
+        + '</div>';
       mhtml += '<div class="tune-wf-row tune-wf-total">'
         + '<span class="tune-wf-op">=</span>'
         + '<span class="tune-wf-label">Area Brightness</span>'

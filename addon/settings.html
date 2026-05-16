@@ -1171,6 +1171,67 @@
 
         <div class="form-row">
           <label class="form-label">
+            Duration picker presets
+            <span class="info-icon">i<span class="info-tooltip">Comma-separated list of preset durations (in minutes, or "forever") shown in every duration picker — pause, freeze, boost, power-off timer. Default: 5,60,240,1440,10080,forever (5 min, 1 hr, 4 hr, Day, Week, Forever).</span></span>
+          </label>
+          <div class="form-control">
+            <input type="text" class="form-input" id="duration-picker-presets" style="width: 280px;" placeholder="5,60,240,1440,10080,forever">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            Default freeze duration
+            <span class="info-icon">i<span class="info-tooltip">Tap-to-pick default for the area-details freeze sub-line. "Forever" preserves the existing indefinite-freeze behavior — pick a duration to auto-unfreeze after the timer.</span></span>
+          </label>
+          <div class="form-control">
+            <select id="default-freeze-duration" style="width: 120px;">
+              <option value="5">5 min</option>
+              <option value="60" selected>1 hour</option>
+              <option value="240">4 hours</option>
+              <option value="1440">Day</option>
+              <option value="10080">Week</option>
+              <option value="0">Forever</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            Default boost duration
+            <span class="info-icon">i<span class="info-tooltip">Tap-to-pick default for the area-details boost sub-line. Boost ends and lighting returns to circadian when the timer elapses.</span></span>
+          </label>
+          <div class="form-control">
+            <select id="default-boost-duration" style="width: 120px;">
+              <option value="5" selected>5 min</option>
+              <option value="60">1 hour</option>
+              <option value="240">4 hours</option>
+              <option value="1440">Day</option>
+              <option value="10080">Week</option>
+              <option value="0">Forever</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
+            Default power-off timer
+            <span class="info-icon">i<span class="info-tooltip">Tap-to-pick default for the area-details power sub-line. Sets a user timer to turn lights off — independent of motion timers.</span></span>
+          </label>
+          <div class="form-control">
+            <select id="default-power-off-duration" style="width: 120px;">
+              <option value="5">5 min</option>
+              <option value="60">1 hour</option>
+              <option value="240">4 hours</option>
+              <option value="1440">Day</option>
+              <option value="10080">Week</option>
+              <option value="0" selected>Forever</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">
             Read-only ZHA
             <span class="info-icon">i<span class="info-tooltip">For dual-addon setups (dev + prod on the same Home Assistant). When ON, this addon will NOT sync ZHA group membership — it'll only read group state and dispatch to existing groups. The OTHER addon owns ZHA group membership in this case. Prevents the two addons from racing on the 4 AM daily sync (and on startup / "Sync devices") and clobbering each other's groups.</span></span>
           </label>
@@ -1403,6 +1464,10 @@
           document.getElementById('read-only-zha').checked = !!config.read_only_zha;
           document.getElementById('outdoor-refresh-interval').value = config.outdoor_refresh_interval ?? 60;
           document.getElementById('default-pause-duration').value = String(config.default_pause_duration_minutes ?? 240);
+          document.getElementById('duration-picker-presets').value = config.duration_picker_presets ?? '5,60,240,1440,10080,forever';
+          document.getElementById('default-freeze-duration').value = String(config.default_freeze_duration_minutes ?? 60);
+          document.getElementById('default-boost-duration').value = String(config.default_boost_duration_minutes ?? 5);
+          document.getElementById('default-power-off-duration').value = String(config.default_power_off_duration_minutes ?? 0);
           // Shadow into localStorage so card-persistence pages can read
           // it synchronously on init (before they fetch /api/config).
           localStorage.setItem('homeglo_card_freshness_min', String(config.card_freshness_minutes ?? 15));
@@ -1460,7 +1525,11 @@
         controls_recent_window_minutes: parseInt(document.getElementById('controls-recent-window-minutes').value, 10) || 5,
         read_only_zha: document.getElementById('read-only-zha').checked,
         outdoor_refresh_interval: parseInt(document.getElementById('outdoor-refresh-interval').value, 10) || 60,
-        default_pause_duration_minutes: parseInt(document.getElementById('default-pause-duration').value, 10)
+        default_pause_duration_minutes: parseInt(document.getElementById('default-pause-duration').value, 10),
+        duration_picker_presets: document.getElementById('duration-picker-presets').value.trim() || '5,60,240,1440,10080,forever',
+        default_freeze_duration_minutes: parseInt(document.getElementById('default-freeze-duration').value, 10),
+        default_boost_duration_minutes: parseInt(document.getElementById('default-boost-duration').value, 10),
+        default_power_off_duration_minutes: parseInt(document.getElementById('default-power-off-duration').value, 10),
       };
       // Shadow Lab values to localStorage so pages can read them
       // synchronously at init (before /api/config fetch resolves).
@@ -1748,6 +1817,10 @@
     document.getElementById('read-only-zha').addEventListener('change', saveSettings);
     document.getElementById('outdoor-refresh-interval').addEventListener('blur', saveSettings);
     document.getElementById('default-pause-duration').addEventListener('change', saveSettings);
+    document.getElementById('duration-picker-presets').addEventListener('blur', saveSettings);
+    document.getElementById('default-freeze-duration').addEventListener('change', saveSettings);
+    document.getElementById('default-boost-duration').addEventListener('change', saveSettings);
+    document.getElementById('default-power-off-duration').addEventListener('change', saveSettings);
 
     // Location functions
     function updateLocationSection(config) {

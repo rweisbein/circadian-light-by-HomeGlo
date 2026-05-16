@@ -390,7 +390,7 @@ class CircadianLightPrimitives:
             for area_id in timer_areas:
                 t = turn_on_timers[area_id]
                 expires_at = (now + timedelta(seconds=t)).isoformat()
-                state.set_motion_expires(area_id, expires_at)
+                state.set_auto_off_at(area_id, expires_at)
             logger.info(f"[{source}] Set auto-off timers for {len(timer_areas)} areas")
 
     async def _turn_off_area(self, area_id: str, transition: float = 0.3) -> None:
@@ -969,7 +969,23 @@ class CircadianLightPrimitives:
     def _compute_current_area_brightness(
         self, area_id, hour, config, area_state, sun_times
     ) -> int:
-        """Compute current area brightness via pipeline (cold start fallback)."""
+        """Compute current area brightness via pipeline (cold start fallback).
+
+        Returns the CLAMPED area_brightness ([1, 100]).
+        """
+        return self._compute_current_area_brightness_pair(
+            area_id, hour, config, area_state, sun_times
+        )[1]
+
+    def _compute_current_area_brightness_pair(
+        self, area_id, hour, config, area_state, sun_times
+    ) -> "Tuple[float, int]":
+        """Run the pipeline and return (raw_brightness, area_brightness).
+
+        raw_brightness = pre-clamp pipeline output (can exceed 100 when
+        area_factor > 1.0). area_brightness = the clamped value the bulbs
+        will actually receive.
+        """
         import lux_tracker
         from pipeline import PipelineContext
         import pipeline as pipeline_mod
@@ -1005,7 +1021,7 @@ class CircadianLightPrimitives:
             ct_comp_factor=raw_config.get("ct_comp_factor", 1.7),
         )
         result = pipeline_mod.compute(ctx)
-        return result.area_brightness
+        return result.raw_brightness, result.area_brightness
 
     def _compute_override_decay_factor(self, area_id: str) -> float:
         """Get the current decay factor (0.0-1.0) for brightness override.
@@ -1074,16 +1090,26 @@ class CircadianLightPrimitives:
             # Target maps slider 0-100 to actual brightness 0-100%.
             target_actual = max(0, min(100, value))
 
-            # Current area brightness from pipeline cache (includes all area-level factors)
-            current_actual = state.get_last_sent_brightness(area_id)
-            if current_actual is None:
-                # Cold start fallback: compute via pipeline
-                current_actual = self._compute_current_area_brightness(
+            # Use the PRE-CLAMP pipeline value as "current". For rooms with
+            # area_factor > 1.0 (Brite/Max), the visible bulb sits at 100%
+            # while the math wanted (e.g.) 132%. Computing delta against the
+            # clamped 100 silently absorbed any drag below the ceiling; a
+            # drag to 80% would set override=-20 but bulb stayed at 100
+            # (132 - 20 = 112 → still clamped). Using the raw value, the
+            # same drag computes delta = 80 - 132 = -52, and bulb correctly
+            # lands at 80.
+            current_raw, _current_clamped = (
+                self._compute_current_area_brightness_pair(
                     area_id, hour, config, area_state, sun_times
                 )
+            )
 
-            delta = round(target_actual - current_actual, 1)
+            # current_raw includes the existing override (pipeline applied
+            # it before returning). delta = target - current_raw therefore
+            # equals (new_override - existing_override), so:
+            #   new_override = existing_override + delta
             existing_override = area_state.brightness_override or 0
+            delta = round(target_actual - current_raw, 1)
             new_override = round(existing_override + delta, 1)
             self._update_area_state(
                 area_id,
@@ -1094,7 +1120,7 @@ class CircadianLightPrimitives:
             )
             logger.info(
                 f"[{source}] set_position({value}, brightness) for area {area_id}: "
-                f"target={target_actual}, current={current_actual}, delta={delta}, override={new_override}"
+                f"target={target_actual}, raw={current_raw:.1f}, delta={delta}, override={new_override}"
             )
             if _send_command and area_state.is_on:
                 await self.client.update_lights_in_circadian_mode(
@@ -1673,8 +1699,8 @@ class CircadianLightPrimitives:
             logger.info(f"Cleared boost for area {area_id}")
 
         # Clear motion on_off timer if active
-        if state.has_motion_timer(area_id):
-            state.clear_motion_expires(area_id)
+        if state.has_auto_off_timer(area_id):
+            state.clear_auto_off_at(area_id)
 
         # Store CT before turning off for smart 2-step on next turn-on
         try:
@@ -1731,8 +1757,8 @@ class CircadianLightPrimitives:
             logger.info(f"Cleared boost for area {area_id}")
 
         # Clear motion on_off timer if active
-        if state.has_motion_timer(area_id):
-            state.clear_motion_expires(area_id)
+        if state.has_auto_off_timer(area_id):
+            state.clear_auto_off_at(area_id)
 
         if not state.is_circadian(area_id):
             logger.info(f"Circadian Light already disabled for area {area_id}")
@@ -1886,8 +1912,8 @@ class CircadianLightPrimitives:
                     logger.info(f"Cleared boost for area {area_id}")
 
                 # Clear motion on_off timer if active
-                if state.has_motion_timer(area_id):
-                    state.clear_motion_expires(area_id)
+                if state.has_auto_off_timer(area_id):
+                    state.clear_auto_off_at(area_id)
 
                 # Enable circadian and set is_on=False
                 state.enable_circadian_and_set_on(area_id, False)
@@ -2409,8 +2435,8 @@ class CircadianLightPrimitives:
         has_boost = boost_brightness is not None and boost_duration is not None
 
         # Check if area has an active motion timer (was turned on by on_off motion)
-        if state.has_motion_timer(area_id):
-            current_expires = state.get_motion_expires(area_id)
+        if state.has_auto_off_timer(area_id):
+            current_expires = state.get_auto_off_at(area_id)
             current_is_forever = current_expires == "forever"
 
             # MAX logic for timer
@@ -2421,7 +2447,7 @@ class CircadianLightPrimitives:
                 )
             elif is_forever:
                 # New timer is forever, upgrade to forever
-                state.extend_motion_expires(area_id, "forever")
+                state.extend_auto_off_at(area_id, "forever")
                 logger.info(
                     f"[{source}] motion_on_off: upgraded timer to forever for area {area_id}"
                 )
@@ -2436,7 +2462,7 @@ class CircadianLightPrimitives:
                     new_expires = (
                         now + timedelta(seconds=duration_seconds)
                     ).isoformat()
-                    state.extend_motion_expires(area_id, new_expires)
+                    state.extend_auto_off_at(area_id, new_expires)
                     logger.debug(
                         f"[{source}] motion_on_off: extended timer for area {area_id} to {new_expires}"
                     )
@@ -2484,7 +2510,7 @@ class CircadianLightPrimitives:
             if is_forever
             else (datetime.now() + timedelta(seconds=duration_seconds)).isoformat()
         )
-        state.set_motion_expires(area_id, expires_at)
+        state.set_auto_off_at(area_id, expires_at)
 
         # Turn on with circadian values (enables circadian control if needed)
         # Pass boost params so we go directly to final brightness (no intermediate step)
@@ -2497,26 +2523,28 @@ class CircadianLightPrimitives:
             send_command=send_command,
         )
 
-    async def end_motion_on_off(self, area_id: str, source: str = "timer"):
-        """End motion on_off timer and turn off lights.
+    async def fire_auto_off(self, area_id: str, source: str = "timer"):
+        """Fire the auto-off timer for an area: clear timer + turn off lights.
 
-        Called when motion on_off timer expires.
-        Also clears any motion-coupled boost (boost_expires_at == "motion").
+        Single chokepoint for any expired auto-off timer regardless of source
+        (motion sensor, user-set picker, anything else writing auto_off_at).
+        Also clears any motion-coupled boost (boost_expires_at == "motion")
+        since the boost is tied to the same timer.
 
         Args:
             area_id: The area ID
-            source: Source of the action
+            source: Source of the action (for logs)
         """
-        if not state.has_motion_timer(area_id):
+        if not state.has_auto_off_timer(area_id):
             logger.debug(
-                f"[{source}] Area {area_id} has no motion timer, nothing to end"
+                f"[{source}] Area {area_id} has no auto-off timer, nothing to fire"
             )
             return
 
-        # Clear motion timer
-        state.clear_motion_expires(area_id)
+        # Clear timer first so re-entry is idempotent if turn-off is slow.
+        state.clear_auto_off_at(area_id)
 
-        # Clear any motion-coupled boost (it ends with the motion timer)
+        # Clear any motion-coupled boost (it ends with the auto-off timer)
         if state.is_boost_motion_coupled(area_id):
             state.clear_boost(area_id)
             logger.info(f"[{source}] Cleared motion-coupled boost for area {area_id}")
@@ -2549,19 +2577,66 @@ class CircadianLightPrimitives:
         state.set_is_on(area_id, False)
         state.set_off_enforced(area_id, False)
         logger.info(
-            f"[{source}] Motion on_off timer expired for area {area_id}, turned off"
+            f"[{source}] Auto-off timer expired for area {area_id}, turned off"
         )
 
-    async def check_expired_motion(self, log_periodic: bool = False):
-        """Check for and handle any expired motion on_off timers.
+    async def check_expired_auto_off(self, log_periodic: bool = False):
+        """Check for and handle any expired auto-off timers.
 
-        Called every second from the fast tick loop.
+        Called every second from the fast tick loop. One sweep for all
+        sources (motion sensors, user-set pickers, future schedule-based).
         """
-        expired = state.get_expired_motion()
+        expired = state.get_expired_auto_off()
         for area_id in expired:
-            # Clear any warning state before turning off
+            # Clear any motion warning before turning off (motion-driven only;
+            # cheap to call when no warning is active).
             state.clear_motion_warning(area_id)
-            await self.end_motion_on_off(area_id, source="timer_expired")
+            await self.fire_auto_off(area_id, source="timer_expired")
+
+    # -------------------------------------------------------------------------
+    # User-driven auto-off timer (sub-line picker on area-details). Sensor-
+    # driven path is motion_on_off elsewhere in this file.
+    # -------------------------------------------------------------------------
+
+    async def set_auto_off(
+        self,
+        area_id: str,
+        duration_minutes: Optional[int],
+        source: str = "service_call",
+    ):
+        """Set an auto-off timer for an area (user-driven entry point).
+
+        Replaces any existing timer with the user's explicit duration —
+        REPLACE semantics, not MAX. Rationale: motion's MAX-extend (in
+        bright_boost / motion_on_off) is right for sensor pings, but a
+        deliberate "off in 30m" pick from the picker should win over a
+        longer ambient motion timer. None / 0 clears the timer.
+
+        Args:
+            area_id: The area ID
+            duration_minutes: Minutes until auto-off; None/0 clears the timer.
+            source: Source of the action (for logs)
+        """
+        state.mark_user_action(area_id)
+        if not duration_minutes or duration_minutes <= 0:
+            state.clear_auto_off_at(area_id)
+            return
+        from datetime import datetime, timedelta
+
+        expires_at = (
+            datetime.now() + timedelta(minutes=duration_minutes)
+        ).isoformat()
+        state.set_auto_off_at(area_id, expires_at)
+        logger.info(
+            f"[{source}] Auto-off scheduled for {area_id} in {duration_minutes}m (at {expires_at})"
+        )
+
+    async def clear_auto_off(self, area_id: str, source: str = "service_call"):
+        """Cancel any auto-off timer (without turning lights off)."""
+        if state.get_auto_off_at(area_id) is None:
+            return
+        state.clear_auto_off_at(area_id)
+        logger.info(f"[{source}] Auto-off cleared for {area_id}")
 
     # -------------------------------------------------------------------------
     # Auto On/Off Schedules
@@ -3222,7 +3297,7 @@ class CircadianLightPrimitives:
             source: Source of the action
         """
         # Clear any motion timer
-        state.clear_motion_expires(area_id)
+        state.clear_auto_off_at(area_id)
 
         # Store CT before turning off for smart 2-step on next turn-on
         try:
@@ -3644,13 +3719,16 @@ class CircadianLightPrimitives:
         new_bri_mid = inverse_midpoint(lifted_hour, frozen_bri, slope, b_min, b_max)
         new_color_mid = inverse_midpoint(lifted_hour, frozen_color, slope, c_min, c_max)
 
-        # Update state with new midpoints and clear frozen_at
+        # Update state with new midpoints and clear frozen_at + frozen_until
+        # (clearing frozen_until is critical — a leftover stale timestamp
+        # would re-trigger check_expired_freezes on the very next freeze).
         state.update_area(
             area_id,
             {
                 "brightness_mid": new_bri_mid,
                 "color_mid": new_color_mid,
                 "frozen_at": None,
+                "frozen_until": None,
             },
         )
 
@@ -3702,7 +3780,12 @@ class CircadianLightPrimitives:
             f"bri_mid={new_bri_mid:.2f}, color_mid={new_color_mid:.2f}"
         )
 
-    async def freeze_toggle(self, area_id: str, source: str = "service_call"):
+    async def freeze_toggle(
+        self,
+        area_id: str,
+        source: str = "service_call",
+        duration_minutes: Optional[int] = None,
+    ):
         """Toggle freeze state for a single area.
 
         Visual feedback is handled separately by the caller via _feedback_cue.
@@ -3710,12 +3793,18 @@ class CircadianLightPrimitives:
         Args:
             area_id: The area ID
             source: Source of the action
+            duration_minutes: If provided AND we're freezing (not unfreezing),
+                sets frozen_until = now + duration so the freeze auto-expires.
+                None or 0 = indefinite freeze (current behavior).
         """
         state.mark_user_action(area_id)
-        await self.freeze_toggle_multiple([area_id], source)
+        await self.freeze_toggle_multiple([area_id], source, duration_minutes)
 
     async def freeze_toggle_multiple(
-        self, area_ids: list, source: str = "service_call"
+        self,
+        area_ids: list,
+        source: str = "service_call",
+        duration_minutes: Optional[int] = None,
     ):
         """Toggle freeze state for multiple areas.
 
@@ -3725,6 +3814,7 @@ class CircadianLightPrimitives:
         Args:
             area_ids: List of area IDs
             source: Source of the action
+            duration_minutes: Optional auto-expire duration when freezing. None or 0 = indefinite.
         """
         if not area_ids:
             return
@@ -3739,7 +3829,7 @@ class CircadianLightPrimitives:
         is_frozen = state.is_frozen(circadian_areas[0])
 
         if is_frozen:
-            # Was frozen → unfreeze all
+            # Was frozen → unfreeze all (set_frozen_at clears frozen_until too)
             for area_id in circadian_areas:
                 self._unfreeze_internal(area_id, source)
             logger.info(
@@ -3748,11 +3838,68 @@ class CircadianLightPrimitives:
         else:
             # Was unfrozen → freeze all at current time
             frozen_at = get_current_hour()
+            frozen_until_iso = None
+            if duration_minutes and duration_minutes > 0:
+                from datetime import datetime, timedelta
+
+                frozen_until_iso = (
+                    datetime.now() + timedelta(minutes=duration_minutes)
+                ).isoformat()
             for area_id in circadian_areas:
                 state.set_frozen_at(area_id, frozen_at)
+                if frozen_until_iso:
+                    state.set_frozen_until(area_id, frozen_until_iso)
+            dur_log = f" (auto-expires in {duration_minutes}m)" if frozen_until_iso else ""
             logger.info(
-                f"[{source}] Freeze toggle: {len(circadian_areas)} area(s) frozen at hour {frozen_at:.2f}"
+                f"[{source}] Freeze toggle: {len(circadian_areas)} area(s) frozen at hour {frozen_at:.2f}{dur_log}"
             )
+
+    async def freeze_set_duration(
+        self,
+        area_id: str,
+        duration_minutes: Optional[int],
+        source: str = "service_call",
+    ):
+        """Change the auto-expire duration of an already-frozen area.
+
+        If the area isn't frozen, this is a no-op (freeze first, then set
+        duration). Pass duration_minutes=None or 0 to remove auto-expire
+        and make the freeze indefinite.
+
+        Args:
+            area_id: The area ID
+            duration_minutes: New auto-expire duration; None/0 = indefinite.
+            source: Source of the action
+        """
+        if not state.is_frozen(area_id):
+            logger.info(
+                f"[{source}] freeze_set_duration ignored for {area_id} (not frozen)"
+            )
+            return
+        if duration_minutes and duration_minutes > 0:
+            from datetime import datetime, timedelta
+
+            until_iso = (
+                datetime.now() + timedelta(minutes=duration_minutes)
+            ).isoformat()
+            state.set_frozen_until(area_id, until_iso)
+            logger.info(
+                f"[{source}] Freeze duration set for {area_id}: {duration_minutes}m (until {until_iso})"
+            )
+        else:
+            state.set_frozen_until(area_id, None)
+            logger.info(f"[{source}] Freeze duration cleared for {area_id} (indefinite)")
+        state.mark_user_action(area_id)
+
+    async def check_expired_freezes(self, log_periodic: bool = False):
+        """Auto-unfreeze any area whose frozen_until has passed.
+
+        Called every second from the fast tick loop.
+        """
+        expired = state.get_expired_freezes()
+        for area_id in expired:
+            self._unfreeze_internal(area_id, source="timer_expired")
+            logger.info(f"[timer_expired] Freeze auto-expired for {area_id}")
 
     # -------------------------------------------------------------------------
     # Reset

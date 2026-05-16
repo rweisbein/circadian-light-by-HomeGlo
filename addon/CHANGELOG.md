@@ -1,5 +1,34 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.320
+- **Area-detail Phase 3 — duration primitives + sub-line affordances**:
+  - **`frozen_until`** field on area state. `freeze_toggle` accepts optional `duration_minutes`; freeze button on area-details applies the Lab default ("Default freeze duration") on tap-on. New `freeze_set_duration` primitive lets the freeze sub-line change duration without unfreezing. `check_expired_freezes` periodic tick auto-unfreezes when `frozen_until` passes.
+  - **Real boost primitive** — webserver `boost` handler accepts `duration_minutes` + `intensity`. Boost button applies Lab defaults on tap-on; boost sub-line opens picker to change duration; "Forever" upgrades to indefinite (was toggling boost off).
+  - **`auto_off_at` field unified with `motion_expires_at`** — single canonical field for any auto-off timer (motion sensor OR user-set picker). Motion sensors keep MAX-extend semantics so a user-set 1h timer isn't shortened by motion pings; user picks use REPLACE semantics so an explicit "off in 30m" wins over a longer ambient motion timer. New `set_auto_off`/`clear_auto_off` primitives. `fire_auto_off` (renamed from `end_motion_on_off`) is the single chokepoint for any expired timer. State-file migration runs on load (`motion_expires_at` → `auto_off_at`).
+  - **Lights-off clears `auto_off_at`** — putting the clear in `state.set_is_on(False)` so every off path (manual, switch, motion expiry, timer fire) gets the cleanup automatically. No more phantom "6d left" sub-line after toggling lights off+on.
+  - **`_unfreeze_internal` clears `frozen_until`** — was leaving the stale timestamp, causing the next freeze to auto-expire instantly. Migration plus fix.
+  - **Sub-line rule**: when a dimension is ON, sub-line always shows the active countdown or a `◷` (timer affordance). When OFF, blank.
+  - **Shared duration picker** (`shared.js:showDurationPicker`) reused by pause / freeze / boost / power-off. Presets configurable via new Lab setting `duration_picker_presets` (CSV). Per-context defaults: `default_freeze_duration_minutes` (ships 1h), `default_boost_duration_minutes` (ships 5min), `default_power_off_duration_minutes` (ships Forever).
+- **Pipeline — expose raw (pre-clamp) brightness** (`pipeline.py`, `primitives.py`, `webserver.py`):
+  - `PipelineResult.raw_brightness` is the math output before the [0, 100] clamp. Single math pass, two outputs.
+  - `set_position(mode='brightness')` computes delta against raw, not clamped — fixes "drag absorbed by area_factor headroom" bug on Brite/Max rooms. One drag = one visible step, even when curve × area_factor > 100%.
+  - `/api/area-status` returns `raw_brightness` alongside `actual_brightness`.
+  - Area-detail Math card adds **Raw** + **↓ Bulb max** rows (visible only when the clamp absorbs something).
+- **Area-detail header restructure** (`area.html`):
+  - **Circadian** button → top right of Row 1 (semantically distinct from Power/Freeze/Boost).
+  - **Sun intensity** chip → bottom right of Row 3.
+  - **Brightness/CT readout + action buttons** indented to align with the area name.
+  - **Master reset** (`↺`) added inline right of the CT readout, visible only when something diverges from the zone (calls `glo_down`).
+- **Chart polish** (`area.html`):
+  - Sunrise/sunset/now hover tooltips removed — the labels under the x-axis already show the time; the hover bubble was redundant.
+  - `formatCountdown` rewritten to single-unit format (`Xs / Xm / Xh / Xd / Xw`) with `Math.floor` truncation — so "1 week" decays to "6d" almost immediately, not "1w" for half the week.
+- **Home page Manage mode** (renamed from "Reorder"; `areas.html`):
+  - Mode pill option renamed "Reorder" → "Manage"; internal `currentMode === 'organize'` → `'manage'`.
+  - **Per-row Circadian toggle** in Manage rows (icon-indicator.png, colored when on, heavily dimmed when off + area name dims too). Optimistic UI on tap; bulk-toggle multiple areas without leaving the page.
+- **Home page on/off view** (`areas.html`):
+  - "Upcoming" section folds into "Off" when any room is on (priority shifts to finding the off rooms). When zero rooms are on, "Upcoming" stays separate (its original useful state).
+- **Tune "Saved" toast retired** — drags auto-persist via `saveBrightnessChanges`; the green pill was visual noise.
+
 ## 1.2.319
 - **Area-detail Phase 2 — Tune card refocus + new Math card** (`addon/area.html`):
   - Split Tune card: Sun + Balance sliders stay; the full waterfall (Curve → +Sun → +Balance → +User → +Boost → +Dim → +Fade → = total) moved to a new **Math** card at the bottom of the card stack ("for nerds"; collapsed by default).

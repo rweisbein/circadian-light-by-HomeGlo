@@ -671,41 +671,75 @@ async function openAreaPicker(options = {}) {
 }
 
 // =============================================================================
-// Duration picker — shared between sky-clarity override (settings) and control
-// pause (controls list). Six options: 5 min / 1 hour / 4 hours / Day / Week /
-// Forever. Pause uses all six; sky clarity uses all six.
+// Duration picker — shared across pause-control, freeze, boost, power-off.
+// Preset list comes from the HomeGlo Lab `duration_picker_presets` setting
+// (CSV of minutes + "forever"); a default list applies when unset.
 // =============================================================================
 
-const DURATION_OPTIONS = [
-  { value: '5',       label: '5 min',  minutes: 5 },
-  { value: '60',      label: '1 hour', minutes: 60 },
-  { value: '240',     label: '4 hours', minutes: 240 },
-  { value: '1440',    label: 'Day',    minutes: 1440 },
-  { value: '10080',   label: 'Week',   minutes: 10080 },
-  { value: 'forever', label: 'Forever', minutes: null },
-];
+const DEFAULT_DURATION_PRESETS = '5,60,240,1440,10080,forever';
+const DURATION_DEFAULT = '240';  // 4 hours — common case across pickers.
 
-const DURATION_DEFAULT = '240';  // 4 hours — common case for both flows.
-
-// Pause-specific default. Reads `default_pause_duration_minutes` from the
-// HomeGlo Lab setting via window.cachedConfig if available; falls back to
-// DURATION_DEFAULT. Returns a DURATION_OPTIONS `value` string (e.g.,
-// '60', '240', 'forever'). Used by pause picker initial state on both
-// control-detail and the controls-list per-card flow.
-function getDefaultPauseDurationValue() {
-  try {
-    const m = (typeof window !== 'undefined' && window.cachedConfig)
-      ? window.cachedConfig.default_pause_duration_minutes
-      : null;
-    if (m == null) return DURATION_DEFAULT;
-    if (m === 0 || m === 'forever') return 'forever';
-    // Snap to an option that exists in DURATION_OPTIONS; if not in the
-    // canonical list, use the raw number anyway — the picker will handle it.
-    const str = String(m);
-    return DURATION_OPTIONS.find(o => o.value === str) ? str : DURATION_DEFAULT;
-  } catch (_) {
-    return DURATION_DEFAULT;
+// Format a minute count into the picker label ("5 min", "1 hour", "Day").
+function formatDurationLabel(m) {
+  if (m === 1440) return 'Day';
+  if (m === 10080) return 'Week';
+  if (m < 60) return m + ' min';
+  if (m % 60 === 0) {
+    const h = m / 60;
+    return h === 1 ? '1 hour' : h + ' hours';
   }
+  return m + ' min';
+}
+
+// Build a single { value, label, minutes } option from a raw preset token.
+// Returns null for invalid tokens (silently dropped).
+function _makeDurationOption(token) {
+  const t = String(token).trim();
+  if (!t) return null;
+  if (t === 'forever') return { value: 'forever', label: 'Forever', minutes: null };
+  const m = parseInt(t, 10);
+  if (!Number.isFinite(m) || m <= 0) return null;
+  return { value: String(m), label: formatDurationLabel(m), minutes: m };
+}
+
+// Resolve the active preset list from config (or fall back to default).
+// Returned array is always non-empty; if config parses to nothing, defaults
+// are used so pickers always have at least one row to render.
+function getDurationOptions() {
+  const csv = (typeof window !== 'undefined' && window.cachedConfig)
+    ? window.cachedConfig.duration_picker_presets : null;
+  const raw = (typeof csv === 'string' && csv.trim()) ? csv : DEFAULT_DURATION_PRESETS;
+  const opts = raw.split(',').map(_makeDurationOption).filter(Boolean);
+  return opts.length ? opts : DEFAULT_DURATION_PRESETS.split(',').map(_makeDurationOption).filter(Boolean);
+}
+
+// Resolve a config minute-count to a picker `value` string. Snaps to an
+// existing option when possible; otherwise returns the fallback.
+function _resolveDefaultDuration(key, fallback) {
+  try {
+    const cfg = (typeof window !== 'undefined' && window.cachedConfig) ? window.cachedConfig : {};
+    const m = cfg[key];
+    if (m == null) return fallback;
+    if (m === 0 || m === 'forever') return 'forever';
+    const str = String(m);
+    return getDurationOptions().find(o => o.value === str) ? str : fallback;
+  } catch (_) {
+    return fallback;
+  }
+}
+
+// Per-context default duration helpers — all return a picker `value` string.
+function getDefaultPauseDurationValue() { return _resolveDefaultDuration('default_pause_duration_minutes', DURATION_DEFAULT); }
+function getDefaultFreezeDurationValue() { return _resolveDefaultDuration('default_freeze_duration_minutes', '60'); }
+function getDefaultBoostDurationValue() { return _resolveDefaultDuration('default_boost_duration_minutes', '5'); }
+function getDefaultPowerOffDurationValue() { return _resolveDefaultDuration('default_power_off_duration_minutes', 'forever'); }
+
+// Default boost intensity %, falling back to the existing boost_default setting.
+function getDefaultBoostIntensity() {
+  const cfg = (typeof window !== 'undefined' && window.cachedConfig) ? window.cachedConfig : {};
+  const v = cfg.boost_default;
+  if (typeof v === 'number' && v > 0 && v <= 100) return v;
+  return 30;
 }
 
 // Resolve a picker value to actual minutes, or null for "forever" (no expiry).
@@ -746,11 +780,60 @@ function formatDurationRemaining(minutes, suffix) {
 // used anywhere, both pickers now include Forever).
 function buildDurationOptions(selectedValue, excludeForever) {
   const opts = excludeForever
-    ? DURATION_OPTIONS.filter(o => o.value !== 'forever')
-    : DURATION_OPTIONS;
+    ? getDurationOptions().filter(o => o.value !== 'forever')
+    : getDurationOptions();
   return opts
     .map(o => `<option value="${o.value}"${o.value === selectedValue ? ' selected' : ''}>${o.label}</option>`)
     .join('');
+}
+
+// =============================================================================
+// Inline duration popover — shared between switches (pause), area-details
+// (freeze / boost / power-off sub-lines), and any future caller. Anchors to
+// an element, calls back with the chosen `value` ('5' | '60' | ... | 'forever').
+// =============================================================================
+let _durationPopoverEl = null;
+function showDurationPicker(anchorEl, currentVal, onPick) {
+  hideDurationPicker();
+  const opts = getDurationOptions();
+  const pop = document.createElement('div');
+  pop.className = 'pause-dur-popover';
+  pop.innerHTML = opts.map(o =>
+    '<button class="pause-dur-opt' + (o.value === currentVal ? ' active' : '')
+      + '" data-val="' + o.value + '">' + o.label + '</button>'
+  ).join('');
+  document.body.appendChild(pop);
+  const r = anchorEl.getBoundingClientRect();
+  const vw = window.innerWidth;
+  pop.style.top = (r.bottom + 4) + 'px';
+  const popW = pop.offsetWidth || 130;
+  let left = r.left + r.width / 2 - popW / 2;
+  if (left + popW + 8 > vw) left = vw - popW - 8;
+  if (left < 8) left = 8;
+  pop.style.left = left + 'px';
+  pop.addEventListener('click', (e) => {
+    const opt = e.target.closest('[data-val]');
+    if (opt) {
+      try { onPick(opt.dataset.val); } catch (err) { console.error(err); }
+      hideDurationPicker();
+    }
+  });
+  // Defer outside-click handler so the click that opened the popover doesn't
+  // immediately close it.
+  setTimeout(() => {
+    document.addEventListener('click', _onDurationPickerOutside);
+  }, 0);
+  _durationPopoverEl = pop;
+}
+function hideDurationPicker() {
+  if (_durationPopoverEl) {
+    _durationPopoverEl.remove();
+    _durationPopoverEl = null;
+  }
+  document.removeEventListener('click', _onDurationPickerOutside);
+}
+function _onDurationPickerOutside(e) {
+  if (_durationPopoverEl && !_durationPopoverEl.contains(e.target)) hideDurationPicker();
 }
 
 // =============================================================================

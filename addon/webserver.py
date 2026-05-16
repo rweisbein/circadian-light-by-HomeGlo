@@ -2025,6 +2025,10 @@ class LightDesignerServer:
         "outdoor_brightness_source",  # Preferred outdoor brightness source: "lux", "weather", or "angle"
         "outdoor_refresh_interval",  # HomeGlo Lab: cadence (s) for sun-intensity chip poll AND server-side expired-pause sweep (default 60, range 10–600)
         "default_pause_duration_minutes",  # HomeGlo Lab: preselected duration for pause picker (0 = forever, default 240 = 4h)
+        "duration_picker_presets",  # HomeGlo Lab: CSV of preset durations shown in the picker (e.g. "5,60,240,1440,10080,forever"); used by pause, freeze, boost, power-off
+        "default_freeze_duration_minutes",  # HomeGlo Lab: preselected freeze duration (0 = forever, default 0)
+        "default_boost_duration_minutes",  # HomeGlo Lab: preselected boost duration (0 = forever, default 60 = 1h)
+        "default_power_off_duration_minutes",  # HomeGlo Lab: preselected power-off timer duration (0 = forever, default 60 = 1h)
         "power_recovery",  # Power failure recovery: "bright" or "last_state" (default "last_state")
         "advanced_logging_until",  # ISO timestamp or "forever" for advanced logging expiry
         "confirm_zone_pushes",  # Show confirmation dialogs for zone push actions (default true)
@@ -3066,8 +3070,8 @@ class LightDesignerServer:
                         (boost_state.get("boost_brightness") or 0) if is_boosted else 0
                     )
 
-                    # Get motion timer state
-                    motion_expires_at = state.get_motion_expires(area_id)
+                    # Auto-off timer state (unified for sensor + user-set)
+                    auto_off_at = state.get_auto_off_at(area_id)
                     motion_warning_active = state.is_motion_warned(area_id)
 
                     # Natural light factor for this area
@@ -3141,22 +3145,21 @@ class LightDesignerServer:
                     # Use cached last-sent brightness — always matches what
                     # pipeline computed and delivered to lights
                     last_bri = state.get_last_sent_brightness(area_id)
+                    # raw_brightness = pre-clamp pipeline value. Same math
+                    # as actual_brightness, sans the [0, 100] clamp. Used by
+                    # the area-detail Math card to show the "raw → bulb max
+                    # 100% → final" step when area_factor pushes brightness
+                    # past the ceiling. Set_position(brightness) reads this
+                    # too (well, recomputes it server-side) to size its delta.
+                    raw_brightness = (
+                        brightness * area_factor
+                        + effective_bri_override
+                        + boost_amount
+                    )
                     actual_brightness = (
                         last_bri
                         if last_bri is not None
-                        else int(
-                            min(
-                                100,
-                                max(
-                                    0,
-                                    round(
-                                        brightness * area_factor
-                                        + effective_bri_override
-                                        + boost_amount
-                                    ),
-                                ),
-                            )
-                        )
+                        else int(min(100, max(0, round(raw_brightness))))
                     )
 
                     # --- Adjusted bed/wake time from midpoint shift ---
@@ -3258,8 +3261,9 @@ class LightDesignerServer:
                             if is_boosted
                             else False
                         ),
-                        "motion_expires_at": motion_expires_at,
+                        "auto_off_at": auto_off_at,
                         "motion_warning_active": motion_warning_active,
+                        "frozen_until": state.get_frozen_until(area_id),
                         "dim_factor": state.get_dim_factor(area_id),
                         **self._get_fade_info(area_id),
                         "zone_name": zone_name if zone_name != "Unassigned" else None,
@@ -3284,6 +3288,7 @@ class LightDesignerServer:
                         "frozen_at": area_state.frozen_at,
                         # Override + area factor derived values
                         "actual_brightness": actual_brightness,
+                        "raw_brightness": round(raw_brightness, 1),
                         "area_factor": round(area_factor, 3),
                         "eff_wake_time": eff_wake,
                         "eff_bed_time": eff_bed,
@@ -3433,8 +3438,9 @@ class LightDesignerServer:
                             if is_boosted
                             else False
                         ),
-                        "motion_expires_at": state.get_motion_expires(area_id),
+                        "auto_off_at": state.get_auto_off_at(area_id),
                         "motion_warning_active": state.is_motion_warned(area_id),
+                        "frozen_until": state.get_frozen_until(area_id),
                         **self._get_fade_info(area_id),
                         "zone_name": (zone_name if zone_name != "Unassigned" else None),
                         "preset_name": zone_name,
@@ -5117,10 +5123,13 @@ class LightDesignerServer:
             "color_up",
             "color_down",
             "freeze_toggle",
+            "freeze_set_duration",
             "glo_up",
             "glo_down",
             "glo_reset",
             "boost",
+            "set_auto_off",
+            "clear_auto_off",
             "full_send",
             "set_nitelite",
             "set_britelite",
@@ -5150,32 +5159,63 @@ class LightDesignerServer:
                     status=400,
                 )
 
-            # For boost, set state directly for immediate UI feedback
+            # For boost, set state directly for immediate UI feedback.
+            # Optional request fields (Phase 3):
+            #   duration_minutes: None/0 = forever; positive = auto-expire after N minutes
+            #   intensity: None = boost_default; positive = override brightness add %
+            # No params + already boosted → toggle off. No params + not boosted → start with defaults.
+            # Params + already boosted → update existing boost (no toggle off).
             if action == "boost":
-                # State is shared in-memory (same process as main.py)
-                if state.is_boosted(area_id):
-                    # End boost: clear state, restore lighting
+                duration_minutes = data.get("duration_minutes")
+                intensity = data.get("intensity")
+                has_params = duration_minutes is not None or intensity is not None
+
+                def _compute_boost_expires(dm):
+                    if dm is None or dm == 0:
+                        return "forever"
+                    from datetime import datetime, timedelta
+
+                    return (
+                        datetime.now() + timedelta(minutes=int(dm))
+                    ).isoformat()
+
+                if state.is_boosted(area_id) and not has_params:
+                    # Tap-toggle off
                     state.clear_boost(area_id)
                     logger.info(
                         f"[boost] Cleared boost state for area {area_id}, restoring lighting"
                     )
                     action = "boost_off"
+                elif state.is_boosted(area_id) and has_params:
+                    # Modify existing boost (duration and/or intensity)
+                    new_expires = _compute_boost_expires(duration_minutes) if duration_minutes is not None else None
+                    new_brightness = int(intensity) if intensity is not None else None
+                    if new_brightness is not None:
+                        state.update_boost_brightness(area_id, new_brightness)
+                    if new_expires is not None:
+                        state.update_boost_expires(area_id, new_expires)
+                    logger.info(
+                        f"[boost] Updated boost for area {area_id} (intensity={new_brightness}, expires={new_expires})"
+                    )
+                    action = "boost_on"
                 else:
-                    # Start boost: set state, apply lighting
+                    # Start boost (with params or defaults)
                     raw_config = glozone.load_config_from_files()
-                    boost_amount = raw_config.get("boost_default", 30)
+                    default_amount = raw_config.get("boost_default", 30)
+                    boost_amount = int(intensity) if intensity is not None else default_amount
+                    expires_at = _compute_boost_expires(duration_minutes)
                     is_on = state.is_circadian(area_id) and state.get_is_on(area_id)
                     state.set_boost(
                         area_id,
                         started_from_off=not is_on,
-                        expires_at="forever",
+                        expires_at=expires_at,
                         brightness=boost_amount,
                     )
                     if not glozone.is_area_in_any_zone(area_id):
                         glozone.add_area_to_default_zone(area_id)
                     state.enable_circadian_and_set_on(area_id, True)
                     logger.info(
-                        f"[boost] Set boost state for area {area_id} (amount={boost_amount}%), applying lighting"
+                        f"[boost] Set boost state for area {area_id} (amount={boost_amount}%, expires={expires_at}), applying lighting"
                     )
                     action = "boost_on"
 
@@ -5208,6 +5248,24 @@ class LightDesignerServer:
                 value = data.get("value")
                 if value is not None:
                     extra_kwargs["brightness"] = float(value)
+            elif action == "freeze_toggle":
+                # Optional auto-expire duration (Phase 3). When freezing, this
+                # sets frozen_until = now + duration. None/0 = indefinite.
+                dm = data.get("duration_minutes")
+                if dm is not None:
+                    extra_kwargs["duration_minutes"] = int(dm)
+            elif action == "freeze_set_duration":
+                # Change the duration of an already-frozen area. None/0 = indefinite.
+                dm = data.get("duration_minutes")
+                extra_kwargs["duration_minutes"] = int(dm) if dm is not None else None
+            elif action == "set_auto_off":
+                dm = data.get("duration_minutes")
+                if dm is None:
+                    return web.json_response(
+                        {"error": "duration_minutes required for set_auto_off"},
+                        status=400,
+                    )
+                extra_kwargs["duration_minutes"] = int(dm)
 
             if self.client:
                 result = await self.client.handle_service_event(

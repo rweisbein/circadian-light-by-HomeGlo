@@ -674,3 +674,41 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
   font-weight: 700;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.10);
 }
+
+/* Floating duration picker. Reparented to <body> on open so no ancestor
+   stacking / overflow / sticky-header can clip it. Used by the pause
+   picker on switches + the freeze/boost/power sub-line pickers on
+   area-details. */
+.pause-dur-popover {
+  position: fixed;
+  z-index: 9999;
+  background: rgb(20, 20, 22);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  min-width: 110px;
+}
+.pause-dur-popover .pause-dur-opt {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 12px;
+  border-radius: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  font-family: inherit;
+}
+.pause-dur-popover .pause-dur-opt:hover { background: rgba(255,255,255,0.06); }
+.pause-dur-popover .pause-dur-opt.active {
+  background: rgba(255,255,255,0.10);
+  font-weight: 700;
+}

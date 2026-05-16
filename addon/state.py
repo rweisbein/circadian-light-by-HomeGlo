@@ -37,6 +37,8 @@ def _get_default_area_state() -> Dict[str, Any]:
         "is_on": False,  # Target light power state (only meaningful when is_circadian is True)
         # frozen_at: None = unfrozen, float = frozen at that hour (0-24)
         "frozen_at": None,
+        # frozen_until: None = indefinite freeze (or unfrozen). ISO timestamp = auto-unfreeze at that moment.
+        "frozen_until": None,
         # Midpoints (None = use config wake_time/bed_time based on phase)
         "brightness_mid": None,
         "color_mid": None,
@@ -54,8 +56,9 @@ def _get_default_area_state() -> Dict[str, Any]:
         "boost_started_from_off": False,  # If true, turn off when boost ends; else restore circadian
         "boost_expires_at": None,  # ISO timestamp string when boost expires (None = not boosted, 0 = forever)
         "boost_brightness": None,  # Current boost brightness percentage (None = not boosted)
-        # Motion on_off state (on_only has no timer, so doesn't need state)
-        "motion_expires_at": None,  # ISO timestamp when on_off motion timer expires (None = not from motion)
+        # Auto-off timer (lights turn off when this expires; set by motion
+        # sensors via motion_on_off OR by the user via set_auto_off picker).
+        "auto_off_at": None,  # ISO timestamp; None = no timer; "forever" = no expiry
         # Motion warning state
         "motion_warning_at": None,  # ISO timestamp when warning was triggered (None = not warned)
         "motion_pre_warning_brightness": None,  # Brightness % before warning (to restore if motion detected)
@@ -114,6 +117,30 @@ def init(state_file: Optional[str] = None) -> None:
             if isinstance(data, dict) and "areas" in data:
                 _state = data.get("areas", {})
                 logger.info(f"Loaded state for {len(_state)} area(s) from {_state_file_path}")
+                # Migration: motion_expires_at → auto_off_at. Single unified
+                # field for any auto-off timer regardless of source (motion
+                # sensor or user-set picker). If both exist, prefer the later
+                # timestamp (or "forever" beats any timestamp).
+                migrated = 0
+                for area_id, s in _state.items():
+                    if "motion_expires_at" not in s:
+                        continue
+                    legacy = s.pop("motion_expires_at")
+                    current = s.get("auto_off_at")
+                    if legacy is None and current is None:
+                        s["auto_off_at"] = None
+                    elif current is None:
+                        s["auto_off_at"] = legacy
+                    elif legacy is None:
+                        pass  # current wins
+                    elif current == "forever" or legacy == "forever":
+                        s["auto_off_at"] = "forever"
+                    else:
+                        s["auto_off_at"] = max(current, legacy)
+                    migrated += 1
+                if migrated:
+                    logger.info(f"Migrated motion_expires_at → auto_off_at on {migrated} area(s)")
+                    _save()
             else:
                 logger.warning(f"Invalid state file format at {_state_file_path}, starting fresh")
 
@@ -214,13 +241,17 @@ def set_frozen_at(area_id: str, frozen_at: Optional[float]) -> None:
     """Set the frozen time for an area.
 
     When frozen_at is set, calculations use that hour instead of current time.
-    Periodic updates still run but output the same values.
+    Periodic updates still run but output the same values. Unfreezing also
+    clears frozen_until so a stale auto-expire doesn't reappear next freeze.
 
     Args:
         area_id: The area ID
         frozen_at: Hour to freeze at (0-24), or None to unfreeze
     """
-    update_area(area_id, {"frozen_at": frozen_at})
+    updates: Dict[str, Any] = {"frozen_at": frozen_at}
+    if frozen_at is None:
+        updates["frozen_until"] = None
+    update_area(area_id, updates)
     if frozen_at is not None:
         logger.info(f"Area {area_id} frozen at hour {frozen_at:.2f}")
     else:
@@ -234,6 +265,44 @@ def get_frozen_at(area_id: str) -> Optional[float]:
         The frozen hour (0-24), or None if not frozen.
     """
     return get_area(area_id).get("frozen_at")
+
+
+def set_frozen_until(area_id: str, frozen_until: Optional[str]) -> None:
+    """Set the auto-unfreeze timestamp for an area.
+
+    Args:
+        area_id: The area ID
+        frozen_until: ISO timestamp when freeze should auto-expire, or None for indefinite.
+    """
+    update_area(area_id, {"frozen_until": frozen_until})
+    if frozen_until is not None:
+        logger.info(f"Area {area_id} freeze auto-expires at {frozen_until}")
+
+
+def get_frozen_until(area_id: str) -> Optional[str]:
+    """Get the auto-unfreeze timestamp for an area (or None for indefinite)."""
+    return get_area(area_id).get("frozen_until")
+
+
+def get_expired_freezes() -> List[str]:
+    """Return area_ids whose frozen_until has passed.
+
+    Skips areas with frozen_until == None (indefinite freeze) or where the
+    area isn't actually frozen.
+    """
+    from datetime import datetime
+
+    now = datetime.now().isoformat()
+    expired = []
+    for area_id, s in _state.items():
+        if s.get("frozen_at") is None:
+            continue
+        until = s.get("frozen_until")
+        if not until:
+            continue
+        if until <= now:
+            expired.append(area_id)
+    return expired
 
 
 def is_circadian(area_id: str) -> bool:
@@ -256,6 +325,9 @@ def set_is_on(area_id: str, is_on: bool) -> None:
         # Reset off enforcement so periodic update sends redundant offs
         updates["off_enforced"] = False
         updates["off_confirm_count"] = 0
+        # Clear any auto-off timer — stale auto_off_at would otherwise
+        # surface on the next power-on as a phantom "6d left" sub-line.
+        updates["auto_off_at"] = None
     update_area(area_id, updates)
     logger.debug(f"Area {area_id} is_on set to {is_on}")
 
@@ -598,8 +670,8 @@ def is_boost_motion_coupled(area_id: str) -> bool:
     """Check if an area's boost is coupled to its motion timer.
 
     When boost is triggered by a motion/contact sensor, boost_expires_at is set
-    to "motion" instead of a timestamp. The boost ends only when the motion
-    timer ends (via end_motion_on_off), not independently.
+    to "motion" instead of a timestamp. The boost ends only when the auto-off
+    timer expires (via fire_auto_off), not independently.
     """
     return get_area(area_id).get("boost_expires_at") == "motion"
 
@@ -674,70 +746,60 @@ def get_expired_boosts() -> List[str]:
 
 
 # ============================================================================
-# Motion on_off state management
+# Auto-off timer (single field; sources include motion sensors via motion_on_off
+# and explicit user picks via set_auto_off). Reasons for one field across both:
+# motion's MAX-extend semantics (primitives.bright_boost-style) preserve a
+# longer user-set timer when sensor pings would otherwise shorten it. Storing
+# only one timestamp keeps the periodic expiry tick simple.
 # ============================================================================
 
-def set_motion_expires(area_id: str, expires_at: str) -> None:
-    """Set motion on_off timer for an area.
+def set_auto_off_at(area_id: str, expires_at: Optional[str]) -> None:
+    """Set the auto-off timer for an area.
 
     Args:
         area_id: The area ID
-        expires_at: ISO timestamp string when motion timer expires
+        expires_at: ISO timestamp string when lights should turn off, "forever"
+            for no expiry, or None to clear.
     """
-    update_area(area_id, {"motion_expires_at": expires_at})
-    logger.info(f"Motion on_off timer set for area {area_id} (expires={expires_at})")
+    update_area(area_id, {"auto_off_at": expires_at})
+    if expires_at is not None:
+        logger.info(f"Auto-off timer set for area {area_id} (expires={expires_at})")
+    else:
+        logger.info(f"Auto-off timer cleared for area {area_id}")
 
 
-def clear_motion_expires(area_id: str) -> None:
-    """Clear motion on_off timer for an area.
-
-    Args:
-        area_id: The area ID
-    """
-    if get_area(area_id).get("motion_expires_at") is not None:
-        update_area(area_id, {"motion_expires_at": None})
-        logger.info(f"Motion on_off timer cleared for area {area_id}")
+def clear_auto_off_at(area_id: str) -> None:
+    """Clear the auto-off timer for an area (no-op if not set)."""
+    if get_area(area_id).get("auto_off_at") is not None:
+        update_area(area_id, {"auto_off_at": None})
+        logger.info(f"Auto-off timer cleared for area {area_id}")
 
 
-def extend_motion_expires(area_id: str, expires_at: str) -> None:
-    """Extend motion on_off timer for an area.
-
-    Args:
-        area_id: The area ID
-        expires_at: New ISO timestamp string when motion timer expires
-    """
-    update_area(area_id, {"motion_expires_at": expires_at})
-    logger.debug(f"Motion on_off timer extended for area {area_id} (expires={expires_at})")
+def extend_auto_off_at(area_id: str, expires_at: str) -> None:
+    """Extend / replace the auto-off timer (caller chose MAX semantics already)."""
+    update_area(area_id, {"auto_off_at": expires_at})
+    logger.debug(f"Auto-off timer extended for area {area_id} (expires={expires_at})")
 
 
-def has_motion_timer(area_id: str) -> bool:
-    """Check if an area has an active motion on_off timer."""
-    return get_area(area_id).get("motion_expires_at") is not None
+def has_auto_off_timer(area_id: str) -> bool:
+    """True when an auto-off timer is currently set."""
+    return get_area(area_id).get("auto_off_at") is not None
 
 
-def get_motion_expires(area_id: str) -> Optional[str]:
-    """Get the motion on_off timer expiry timestamp for an area.
-
-    Returns:
-        ISO timestamp string when motion timer expires, or None if not set
-    """
-    return get_area(area_id).get("motion_expires_at")
+def get_auto_off_at(area_id: str) -> Optional[str]:
+    """Return the auto-off timer expiry ISO string (or "forever" or None)."""
+    return get_area(area_id).get("auto_off_at")
 
 
-def get_expired_motion() -> List[str]:
-    """Get list of areas with expired motion on_off timers.
-
-    Returns:
-        List of area_ids with expired motion timers (excludes "forever" timers)
-    """
+def get_expired_auto_off() -> List[str]:
+    """Return area_ids whose auto_off_at has passed (excludes "forever")."""
     from datetime import datetime
 
     now = datetime.now().isoformat()
     expired = []
 
     for area_id, s in _state.items():
-        expires_at = s.get("motion_expires_at")
-        # Skip if no timer, or if timer is "forever" (never expires)
+        expires_at = s.get("auto_off_at")
         if not expires_at or expires_at == "forever":
             continue
         if expires_at <= now:
@@ -832,11 +894,11 @@ def get_areas_needing_warning(warning_seconds: int) -> List[str]:
         if warning_at is not None:
             continue
 
-        # Check motion timer
-        motion_expires = s.get("motion_expires_at")
-        if motion_expires and motion_expires != "forever":
+        # Check auto-off timer (sensor or user-set; either way warning fires)
+        auto_off = s.get("auto_off_at")
+        if auto_off and auto_off != "forever":
             try:
-                expiry_time = datetime.fromisoformat(motion_expires)
+                expiry_time = datetime.fromisoformat(auto_off)
                 if now < expiry_time <= warning_threshold:
                     needs_warning.append(area_id)
                     continue  # Already added, skip boost check

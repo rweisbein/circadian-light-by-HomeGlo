@@ -814,41 +814,6 @@
     }
     .ctrl-pause-dur:hover { background: rgba(255,255,255,0.06); color: var(--text); }
 
-    /* Tiny floating duration picker. Reparented to <body> on open so no
-       ancestor stacking / overflow / sticky-header can clip it. */
-    .pause-dur-popover {
-      position: fixed;
-      z-index: 9999;
-      background: rgb(20, 20, 22);
-      border: 1px solid rgba(255,255,255,0.18);
-      border-radius: 10px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-      padding: 4px;
-      display: flex;
-      flex-direction: column;
-      min-width: 110px;
-    }
-    .pause-dur-popover .pause-dur-opt {
-      display: block;
-      width: 100%;
-      text-align: left;
-      padding: 7px 12px;
-      border-radius: 6px;
-      border: 0;
-      background: transparent;
-      color: var(--text);
-      font-size: 0.85rem;
-      font-weight: 500;
-      cursor: pointer;
-      -webkit-appearance: none;
-      appearance: none;
-      font-family: inherit;
-    }
-    .pause-dur-popover .pause-dur-opt:hover { background: rgba(255,255,255,0.06); }
-    .pause-dur-popover .pause-dur-opt.active {
-      background: rgba(255,255,255,0.10);
-      font-weight: 700;
-    }
     /* Flipped — card stayed in the snapshot list after the user took the
        opposite action. Subtle dim (not so aggressive that it looks
        removed) + a "stayed here, you flipped it" left-edge marker so the
@@ -1920,7 +1885,7 @@
         } else {
           const perCard = window._pendingPauseDurations && window._pendingPauseDurations[c.id];
           const val = perCard || getDefaultPauseDurationValue();
-          const opt = DURATION_OPTIONS.find(o => o.value === val);
+          const opt = getDurationOptions().find(o => o.value === val);
           durLabel = opt ? opt.label.replace(' ', '') : '4hr';
         }
         primaryHtml = '<div class="ctrl-pause-action" data-pause-card="' + safeId + '">'
@@ -2049,7 +2014,7 @@
       } else if (window._pendingPauseDurations && window._pendingPauseDurations[controlId]) {
         currentVal = window._pendingPauseDurations[controlId];
       }
-      _showPausePicker(anchorEl, currentVal, async (newVal) => {
+      showDurationPicker(anchorEl, currentVal, async (newVal) => {
         if (c.inactive) {
           const mins = durationValueToMinutes(newVal);
           const newUntil = mins === null
@@ -2077,51 +2042,8 @@
       });
     }
 
-    // Tiny inline duration popover (positioned beside the clicked label).
-    // Closes on outside-click or selection. Reparented to <body> so no
-    // ancestor stacking / overflow can clip it.
-    let _durPopoverEl = null;
-    function _showPausePicker(anchorEl, currentVal, onPick) {
-      _hidePausePicker();
-      const pop = document.createElement('div');
-      pop.className = 'pause-dur-popover';
-      pop.innerHTML = DURATION_OPTIONS.map(o =>
-        '<button class="pause-dur-opt' + (o.value === currentVal ? ' active' : '')
-          + '" data-val="' + o.value + '">' + o.label + '</button>'
-      ).join('');
-      document.body.appendChild(pop);
-      const r = anchorEl.getBoundingClientRect();
-      const vw = window.innerWidth;
-      pop.style.top = (r.bottom + 4) + 'px';
-      const popW = pop.offsetWidth || 130;
-      let left = r.left + r.width / 2 - popW / 2;
-      if (left + popW + 8 > vw) left = vw - popW - 8;
-      if (left < 8) left = 8;
-      pop.style.left = left + 'px';
-      pop.addEventListener('click', (e) => {
-        const opt = e.target.closest('[data-val]');
-        if (opt) {
-          onPick(opt.dataset.val);
-          _hidePausePicker();
-        }
-      });
-      // Defer outside-click handler so this click doesn't close the popover
-      // immediately on first open.
-      setTimeout(() => {
-        document.addEventListener('click', _onPausePickerOutside);
-      }, 0);
-      _durPopoverEl = pop;
-    }
-    function _hidePausePicker() {
-      if (_durPopoverEl) {
-        _durPopoverEl.remove();
-        _durPopoverEl = null;
-      }
-      document.removeEventListener('click', _onPausePickerOutside);
-    }
-    function _onPausePickerOutside(e) {
-      if (_durPopoverEl && !_durPopoverEl.contains(e.target)) _hidePausePicker();
-    }
+    // (Duration picker now lives in shared.js as showDurationPicker /
+    // hideDurationPicker — reused by switches, area-details, etc.)
 
     // Bucket collapse/expand state — generic across bucket types
     // (recency time-buckets, battery percentage buckets, future

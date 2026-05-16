@@ -674,17 +674,17 @@ class HomeAssistantWebSocketClient:
                 if now < until:
                     # Still cooled down — extend timers but don't re-trigger
                     self._motion_cooldown_until[cd_key] = now + cd
-                    if area_config.mode == "on_off" and state.has_motion_timer(
+                    if area_config.mode == "on_off" and state.has_auto_off_timer(
                         area_config.area_id
                     ):
                         new_exp = (
                             datetime.now() + timedelta(seconds=area_config.duration)
                         ).isoformat()
-                        current_exp = state.get_motion_expires(area_config.area_id)
+                        current_exp = state.get_auto_off_at(area_config.area_id)
                         if current_exp != "forever" and (
                             current_exp is None or new_exp > current_exp
                         ):
-                            state.extend_motion_expires(area_config.area_id, new_exp)
+                            state.extend_auto_off_at(area_config.area_id, new_exp)
                     logger.debug(
                         f"[Motion] Area {area_config.area_id} cooled down ({cd}s), skipping"
                     )
@@ -808,7 +808,7 @@ class HomeAssistantWebSocketClient:
                 ):
                     areas_needing_commands.append(area_id)
 
-            # Note: For on_off, the timer is managed via motion_expires_at state
+            # Note: For on_off, the timer is managed via auto_off_at state
             # When motion clears, we don't need to do anything - the timer continues
             # If motion is detected again, motion_on_off extends the timer
 
@@ -927,17 +927,17 @@ class HomeAssistantWebSocketClient:
                 until = self._motion_cooldown_until.get(cd_key, 0)
                 if now < until:
                     self._motion_cooldown_until[cd_key] = now + cd
-                    if area_config.mode == "on_off" and state.has_motion_timer(
+                    if area_config.mode == "on_off" and state.has_auto_off_timer(
                         area_config.area_id
                     ):
                         new_exp = (
                             datetime.now() + timedelta(seconds=area_config.duration)
                         ).isoformat()
-                        current_exp = state.get_motion_expires(area_config.area_id)
+                        current_exp = state.get_auto_off_at(area_config.area_id)
                         if current_exp != "forever" and (
                             current_exp is None or new_exp > current_exp
                         ):
-                            state.extend_motion_expires(area_config.area_id, new_exp)
+                            state.extend_auto_off_at(area_config.area_id, new_exp)
                     logger.debug(
                         f"[ZHA Motion] Area {area_config.area_id} cooled down ({cd}s), skipping"
                     )
@@ -1191,7 +1191,7 @@ class HomeAssistantWebSocketClient:
                         # end_boost already turned off lights with transition - just
                         # clean up motion timer to avoid a duplicate turn_off command
                         # which can interrupt the transition on some ZigBee lights
-                        state.clear_motion_expires(area_id)
+                        state.clear_auto_off_at(area_id)
                         logger.info(
                             f"[contact_sensor] Contact closed: boost already turned off area {area_id}, cleared motion timer"
                         )
@@ -5926,7 +5926,25 @@ class HomeAssistantWebSocketClient:
             target = kwargs.get("target_brightness")
             await self.primitives.circadian_adjust(area_id, target, "webserver")
         elif service == "freeze_toggle":
-            await self.primitives.freeze_toggle(area_id, "webserver")
+            await self.primitives.freeze_toggle(
+                area_id,
+                "webserver",
+                duration_minutes=kwargs.get("duration_minutes"),
+            )
+        elif service == "freeze_set_duration":
+            await self.primitives.freeze_set_duration(
+                area_id,
+                kwargs.get("duration_minutes"),
+                "webserver",
+            )
+        elif service == "set_auto_off":
+            await self.primitives.set_auto_off(
+                area_id,
+                kwargs.get("duration_minutes"),
+                "webserver",
+            )
+        elif service == "clear_auto_off":
+            await self.primitives.clear_auto_off(area_id, "webserver")
         elif service == "glo_up":
             await self.primitives.glo_up(area_id, "webserver")
         elif service == "glo_down":
@@ -6437,7 +6455,9 @@ class HomeAssistantWebSocketClient:
 
                 # Check for expired boosts and motion timers
                 await self.primitives.check_expired_boosts(log_periodic=log_periodic)
-                await self.primitives.check_expired_motion(log_periodic=log_periodic)
+                await self.primitives.check_expired_auto_off(log_periodic=log_periodic)
+                # Phase 3: auto-unfreeze
+                await self.primitives.check_expired_freezes(log_periodic=log_periodic)
 
                 # Check for auto on/off schedules
                 await self.primitives.check_auto_schedules()

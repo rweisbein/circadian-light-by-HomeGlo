@@ -119,6 +119,13 @@ class PipelineResult:
     phase: str  # "ascend" or "descend"
     # Sun bright adjustment factor applied
     sun_bright_factor: float = 1.0
+    # Pre-clamp brightness — same math as area_brightness but without the
+    # max(1, min(100, ...)) bulb-max clamp. Used by set_position(brightness)
+    # for delta math (so a drag below the visible 100% ceiling registers an
+    # override large enough to escape area_factor headroom) AND by the
+    # area-detail Math card to show the "raw → bulb max" step. Survives the
+    # fade/dim multiplier identically to area_brightness for symmetry.
+    raw_brightness: float = 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -175,25 +182,28 @@ def compute(ctx: PipelineContext) -> PipelineResult:
         brightness = max(1, int(round(brightness * sun_bright_factor)))
 
     # --- Steps 6-8: Area brightness (area_factor + override + boost) ---
-    area_brightness = brightness * ctx.area_factor
+    # Track the raw (pre-clamp) value alongside the clamped one so set_position
+    # can compute delta against unclamped current (otherwise drags below the
+    # 100% ceiling get silently absorbed when area_factor pushes brightness
+    # past 100). Same math, just keep both numbers.
+    raw_brightness = brightness * ctx.area_factor
     if ctx.brightness_override is not None:
-        area_brightness = max(1, min(100, area_brightness + ctx.brightness_override))
+        raw_brightness = raw_brightness + ctx.brightness_override
     if ctx.boost_brightness is not None and ctx.boost_brightness > 0:
-        area_brightness = min(100, area_brightness + ctx.boost_brightness)
-    # Defensive cap: area_factor can exceed 1.0 (Tune mode's brightness_factor
-    # tops out at 1.40 = "Max"). The override + boost branches above already
-    # clamp when they apply, but with neither set the multiplication in
-    # step 6 can leave area_brightness > 100. Downstream purpose filter +
-    # bulbs would still clamp the delivered command, but the
-    # PipelineResult.area_brightness value (which the home/area-detail UIs
-    # read for display) was leaking the uncapped number.
-    area_brightness = max(1, min(100, area_brightness))
-    area_brightness = int(round(area_brightness))
+        raw_brightness = raw_brightness + ctx.boost_brightness
+    # Clamp to [1, 100] for what the bulbs will actually receive. area_factor
+    # can exceed 1.0 (Tune mode's brightness_factor tops out at 1.40 = "Max"),
+    # so this clamp is load-bearing for delivery — even with no override/boost
+    # set, the multiplication in step 6 can push area_brightness > 100.
+    area_brightness = int(round(max(1, min(100, raw_brightness))))
 
     # --- Step 9: Fade / dim factor ---
+    # Applied to both raw and clamped for symmetry; the multiplier reduces,
+    # so it can't push raw past the clamp ceiling.
     post_factor = ctx.fade_factor * ctx.dim_factor
     if post_factor < 1.0:
         area_brightness = max(1, int(round(area_brightness * post_factor)))
+        raw_brightness = max(1.0, raw_brightness * post_factor)
 
     # --- Steps 10-12: Per-purpose pipeline ---
     purpose_groups = _group_by_purpose(ctx)
@@ -239,6 +249,7 @@ def compute(ctx: PipelineContext) -> PipelineResult:
         rhythm_kelvin=rhythm_kelvin,
         phase=phase,
         sun_bright_factor=sun_bright_factor,
+        raw_brightness=raw_brightness,
     )
 
 
