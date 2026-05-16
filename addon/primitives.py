@@ -1726,6 +1726,7 @@ class CircadianLightPrimitives:
                 area_id, "turn_on", source,
                 brightness=final_brightness,
                 kelvin=result.color_temp,
+                is_2step=state.pop_last_2step(area_id),
             )
 
     async def lights_off(self, area_id: str, source: str = "service_call"):
@@ -2011,6 +2012,15 @@ class CircadianLightPrimitives:
             logger.info(
                 f"[{source}] lights_toggle_multiple: turned off {len(area_ids)} area(s){batch_note}"
             )
+            # Record turn_off per area (lights_toggle_multiple has its own
+            # inlined batch path that bypasses primitives.lights_off, so
+            # the history.record there doesn't fire — record here).
+            for area_id in area_ids:
+                history.record(
+                    area_id, "turn_off", source,
+                    brightness=state.get_last_sent_brightness(area_id),
+                    kelvin=state.get_last_sent_kelvin(area_id),
+                )
 
         else:
             # Turn on all areas with Circadian values
@@ -2079,6 +2089,16 @@ class CircadianLightPrimitives:
             logger.info(
                 f"[{source}] lights_toggle_multiple: turned on {len(area_ids)} area(s){batch_note}"
             )
+            # Record turn_on per area (same reason as turn_off above —
+            # this path doesn't go through primitives.lights_on).
+            for area_id in area_ids:
+                pipe = area_pipeline_results.get(area_id)
+                history.record(
+                    area_id, "turn_on", source,
+                    brightness=(pipe.area_brightness if pipe else None),
+                    kelvin=(pipe.area_kelvin if pipe else None),
+                    is_2step=state.pop_last_2step(area_id),
+                )
 
     # -------------------------------------------------------------------------
     # Bright Boost - Temporary brightness increase

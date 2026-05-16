@@ -73,6 +73,12 @@ _history: Dict[str, Deque[HistoryEntry]] = defaultdict(
     lambda: deque(maxlen=_MAX_PER_AREA)
 )
 
+# Process-start timestamp. Stamped into the lazy-seeded "restart" marker
+# (see record()) so users can visually anchor the bottom of each area's
+# log to "this is when the addon last started; anything before this is
+# gone." History is in-memory only — restart wipes the buffer.
+_PROCESS_START_TS = time.time()
+
 
 # ---------------------------------------------------------------------------
 # Source normalization
@@ -141,6 +147,17 @@ def record(
     source_kind, source_entity = _classify_source(source)
     buf = _history[area_id]
     now = time.time()
+
+    # Lazy seed: first real event for this area auto-prepends a "restart"
+    # marker stamped with the process start time. Anchors the bottom of
+    # the visible log so users can tell when history began.
+    if not buf:
+        buf.append(HistoryEntry(
+            ts=_PROCESS_START_TS,
+            action="restart",
+            source_kind="system",
+            source_entity=None,
+        ))
 
     if (
         action in _COALESCEABLE_ACTIONS

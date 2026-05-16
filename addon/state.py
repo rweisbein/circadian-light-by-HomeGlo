@@ -791,6 +791,27 @@ def get_auto_off_at(area_id: str) -> Optional[str]:
     return get_area(area_id).get("auto_off_at")
 
 
+# ----------------------------------------------------------------------------
+# Transient 2-step marker — set by main.py:send_light when it fires the
+# pre-color 2-step path, read+cleared by the calling primitive when it
+# records its turn_on history entry. Purely in-memory; no disk persistence.
+# Race-free in practice because each send_light call sets the flag and the
+# caller awaits the same send_light before reading.
+# ----------------------------------------------------------------------------
+
+_last_2step: Dict[str, bool] = {}
+
+
+def mark_last_2step(area_id: str, was_2step: bool) -> None:
+    """Stamp whether the most recent send_light for this area used 2-step."""
+    _last_2step[area_id] = bool(was_2step)
+
+
+def pop_last_2step(area_id: str) -> bool:
+    """Read+clear the 2-step marker. Returns False when unset."""
+    return _last_2step.pop(area_id, False)
+
+
 def get_expired_auto_off() -> List[str]:
     """Return area_ids whose auto_off_at has passed (excludes "forever")."""
     from datetime import datetime

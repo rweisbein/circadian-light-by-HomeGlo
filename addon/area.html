@@ -7096,6 +7096,7 @@
 
     // Map raw action enum to a short user-facing label.
     const HIST_ACTION_LABEL = {
+      'restart': 'Addon started',
       'turn_on': 'Turn on',
       'turn_off': 'Turn off',
       'brightness': 'Brightness',
@@ -7130,12 +7131,30 @@
       'system': 'System',
     };
 
+    // Build a {control_identifier: friendly_name} map from the already-
+    // loaded areaControls list. Keys by BOTH `id` and `device_id` so the
+    // lookup works whether the entry stored an HA entity_id (motion /
+    // contact) or an IEEE address (switch) — backend chose whichever it
+    // had available when recording.
+    function _buildControlNameLookup() {
+      const map = {};
+      for (const c of (areaControls || [])) {
+        if (c.id) map[c.id] = c.name || c.id;
+        if (c.device_id) map[c.device_id] = c.name || c.device_id;
+      }
+      return map;
+    }
+
     function formatHistorySource(entry) {
       const word = HIST_SOURCE_LABEL[entry.source_kind] || entry.source_kind;
-      if (entry.source_entity) {
-        return word + ': ' + entry.source_entity;
-      }
-      return word;
+      if (!entry.source_entity) return word;
+      const map = _buildControlNameLookup();
+      const name = map[entry.source_entity];
+      if (name) return word + ': ' + name;
+      // Lookup miss — control was re-paired (new IEEE), removed from HA,
+      // or renamed. Either way, we can't show a friendly name. Match HA's
+      // own "unavailable" semantic; covers all three causes neutrally.
+      return word + ' (unavailable)';
     }
 
     // Build the Details cell. Empty for binary actions; populated for

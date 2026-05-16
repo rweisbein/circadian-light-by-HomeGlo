@@ -766,10 +766,12 @@ class HomeAssistantWebSocketClient:
             )
 
             if new_state == "on":
-                # Cancel any active warning first (restores brightness)
-                await self.primitives.cancel_motion_warning(
-                    area_id, source="motion_sensor"
-                )
+                # Cancel any active warning first (restores brightness).
+                # Entity-tagged source (motion:<entity_id>) lets the history
+                # log attribute actions to the specific sensor — frontend
+                # looks up the friendly name via the areaControls cache.
+                src = f"motion:{entity_id}"
+                await self.primitives.cancel_motion_warning(area_id, source=src)
 
                 # Get boost params if enabled
                 boost_brightness = (
@@ -787,7 +789,7 @@ class HomeAssistantWebSocketClient:
                     await self.primitives.motion_on_off(
                         area_id,
                         duration,
-                        source="motion_sensor",
+                        source=src,
                         boost_brightness=boost_brightness,
                         boost_duration=boost_duration,
                         send_command=send,
@@ -795,7 +797,7 @@ class HomeAssistantWebSocketClient:
                 elif mode == "on_only":
                     await self.primitives.motion_on_only(
                         area_id,
-                        source="motion_sensor",
+                        source=src,
                         boost_brightness=boost_brightness,
                         boost_duration=boost_duration,
                         send_command=send,
@@ -835,7 +837,7 @@ class HomeAssistantWebSocketClient:
                         area_id,
                         intensity=alert_config.alert_intensity,
                         count=alert_config.alert_count,
-                        source="motion_sensor",
+                        source=f"motion:{entity_id}",
                     )
                 )
             if alert_tasks:
@@ -999,8 +1001,11 @@ class HomeAssistantWebSocketClient:
                 f"[ZHA Motion] Area {area_id}: mode={mode}, boost={merged['boost_enabled']}, duration={duration}"
             )
 
-            # Cancel any active warning first (restores brightness)
-            await self.primitives.cancel_motion_warning(area_id, source="motion_sensor")
+            # Cancel any active warning first (restores brightness).
+            # ZHA motion path has device_id but no direct entity_id —
+            # frontend lookup map indexes by both, so either matches.
+            src = f"motion:{device_id}"
+            await self.primitives.cancel_motion_warning(area_id, source=src)
 
             boost_brightness = (
                 merged["boost_brightness"] if merged["boost_enabled"] else None
@@ -1015,7 +1020,7 @@ class HomeAssistantWebSocketClient:
                 await self.primitives.motion_on_off(
                     area_id,
                     duration,
-                    source="motion_sensor",
+                    source=src,
                     boost_brightness=boost_brightness,
                     boost_duration=boost_duration,
                     send_command=send,
@@ -1023,7 +1028,7 @@ class HomeAssistantWebSocketClient:
             elif mode == "on_only":
                 await self.primitives.motion_on_only(
                     area_id,
-                    source="motion_sensor",
+                    source=src,
                     boost_brightness=boost_brightness,
                     boost_duration=boost_duration,
                     send_command=send,
@@ -1129,11 +1134,10 @@ class HomeAssistantWebSocketClient:
                 f"[Contact] Area {area_id}: mode={mode}, boost={area_config.boost_enabled}, duration={duration}"
             )
 
+            src = f"contact:{entity_id}"
             if new_state == "on":
                 # Cancel any active warning first (restores brightness)
-                await self.primitives.cancel_motion_warning(
-                    area_id, source="contact_sensor"
-                )
+                await self.primitives.cancel_motion_warning(area_id, source=src)
 
                 # Get boost params if enabled (passed to motion_on_off for combined turn-on)
                 boost_brightness = (
@@ -1149,7 +1153,7 @@ class HomeAssistantWebSocketClient:
                     await self.primitives.motion_on_off(
                         area_id,
                         duration,
-                        source="contact_sensor",
+                        source=src,
                         boost_brightness=boost_brightness,
                         boost_duration=boost_duration,
                         send_command=send,
@@ -1157,7 +1161,7 @@ class HomeAssistantWebSocketClient:
                 elif mode == "on_only":
                     await self.primitives.motion_on_only(
                         area_id,
-                        source="contact_sensor",
+                        source=src,
                         boost_brightness=boost_brightness,
                         boost_duration=boost_duration,
                         send_command=send,
@@ -1179,7 +1183,7 @@ class HomeAssistantWebSocketClient:
                 boost_turned_off = False
                 if area_config.boost_enabled:
                     boost_turned_off = await self.primitives.end_boost(
-                        area_id, source="contact_sensor"
+                        area_id, source=src
                     )
                     logger.info(
                         f"[Contact] Closed: ended boost for area {area_id} (turned_off={boost_turned_off})"
@@ -1197,9 +1201,7 @@ class HomeAssistantWebSocketClient:
                         )
                     else:
                         # Turn off lights and disable circadian
-                        await self.primitives.contact_off(
-                            area_id, source="contact_sensor"
-                        )
+                        await self.primitives.contact_off(area_id, source=src)
                 # on_only: ignore close event (lights stay on until manually turned off)
 
         # Batch dispatch light commands for multi-area contact
@@ -2012,14 +2014,14 @@ class HomeAssistantWebSocketClient:
 
         elif main_action == "circadian_on":
             for area in areas:
-                await self.primitives.lights_on(area, "switch")
+                await self.primitives.lights_on(area, f"switch:{switch_id}")
 
         elif main_action == "circadian_off":
             for area in areas:
-                await self.primitives.circadian_off(area, "switch")
+                await self.primitives.circadian_off(area, f"switch:{switch_id}")
 
         elif main_action in ("toggle", "circadian_toggle"):
-            await self.primitives.lights_toggle_multiple(areas, "switch")
+            await self.primitives.lights_toggle_multiple(areas, f"switch:{switch_id}")
 
         elif main_action in ("step_up", "step_up_2", "step_up_3"):
             # Step up only if lights are on AND in circadian mode
@@ -2034,7 +2036,7 @@ class HomeAssistantWebSocketClient:
                     results = await asyncio.gather(
                         *[
                             self.primitives.step_up(
-                                a, "switch", steps=step_count, send_command=False
+                                a, f"switch:{switch_id}", steps=step_count, send_command=False
                             )
                             for a in areas
                         ]
@@ -2046,7 +2048,7 @@ class HomeAssistantWebSocketClient:
                     results = await asyncio.gather(
                         *[
                             self.primitives.step_up(
-                                area, "switch", steps=step_count, skip_bounce=True
+                                area, f"switch:{switch_id}", steps=step_count, skip_bounce=True
                             )
                             for area in areas
                         ]
@@ -2091,7 +2093,7 @@ class HomeAssistantWebSocketClient:
                     results = await asyncio.gather(
                         *[
                             self.primitives.step_down(
-                                a, "switch", steps=step_count, send_command=False
+                                a, f"switch:{switch_id}", steps=step_count, send_command=False
                             )
                             for a in areas
                         ]
@@ -2103,7 +2105,7 @@ class HomeAssistantWebSocketClient:
                     results = await asyncio.gather(
                         *[
                             self.primitives.step_down(
-                                area, "switch", steps=step_count, skip_bounce=True
+                                area, f"switch:{switch_id}", steps=step_count, skip_bounce=True
                             )
                             for area in areas
                         ]
@@ -2145,7 +2147,7 @@ class HomeAssistantWebSocketClient:
                     results = await asyncio.gather(
                         *[
                             self.primitives.brightness_up(
-                                a, "switch", steps=step_count, send_command=False
+                                a, f"switch:{switch_id}", steps=step_count, send_command=False
                             )
                             for a in areas
                         ]
@@ -2162,7 +2164,7 @@ class HomeAssistantWebSocketClient:
                     results = await asyncio.gather(
                         *[
                             self.primitives.brightness_up(
-                                area, "switch", steps=step_count, skip_bounce=True
+                                area, f"switch:{switch_id}", steps=step_count, skip_bounce=True
                             )
                             for area in areas
                         ]
@@ -2204,7 +2206,7 @@ class HomeAssistantWebSocketClient:
                     results = await asyncio.gather(
                         *[
                             self.primitives.brightness_down(
-                                a, "switch", steps=step_count, send_command=False
+                                a, f"switch:{switch_id}", steps=step_count, send_command=False
                             )
                             for a in areas
                         ]
@@ -2221,7 +2223,7 @@ class HomeAssistantWebSocketClient:
                     results = await asyncio.gather(
                         *[
                             self.primitives.brightness_down(
-                                area, "switch", steps=step_count, skip_bounce=True
+                                area, f"switch:{switch_id}", steps=step_count, skip_bounce=True
                             )
                             for area in areas
                         ]
@@ -2255,7 +2257,7 @@ class HomeAssistantWebSocketClient:
                     await asyncio.gather(
                         *[
                             self.primitives.color_up(
-                                a, "switch", steps=color_steps, send_command=False
+                                a, f"switch:{switch_id}", steps=color_steps, send_command=False
                             )
                             for a in areas
                         ]
@@ -2266,7 +2268,7 @@ class HomeAssistantWebSocketClient:
                     results = await asyncio.gather(
                         *[
                             self.primitives.color_up(
-                                area, "switch", steps=color_steps, skip_bounce=multi
+                                area, f"switch:{switch_id}", steps=color_steps, skip_bounce=multi
                             )
                             for area in areas
                         ]
@@ -2299,7 +2301,7 @@ class HomeAssistantWebSocketClient:
                     await asyncio.gather(
                         *[
                             self.primitives.color_down(
-                                a, "switch", steps=color_steps, send_command=False
+                                a, f"switch:{switch_id}", steps=color_steps, send_command=False
                             )
                             for a in areas
                         ]
@@ -2310,7 +2312,7 @@ class HomeAssistantWebSocketClient:
                     results = await asyncio.gather(
                         *[
                             self.primitives.color_down(
-                                area, "switch", steps=color_steps, skip_bounce=multi
+                                area, f"switch:{switch_id}", steps=color_steps, skip_bounce=multi
                             )
                             for area in areas
                         ]
@@ -2337,18 +2339,18 @@ class HomeAssistantWebSocketClient:
             if self._can_use_batch(areas):
                 await asyncio.gather(
                     *[
-                        self.primitives.glo_reset(a, "switch", send_command=False)
+                        self.primitives.glo_reset(a, f"switch:{switch_id}", send_command=False)
                         for a in areas
                     ]
                 )
                 await self._send_via_batch_or_fallback(areas, [True for _ in areas])
             else:
                 await asyncio.gather(
-                    *[self.primitives.glo_reset(area, "switch") for area in areas]
+                    *[self.primitives.glo_reset(area, f"switch:{switch_id}") for area in areas]
                 )
 
         elif main_action == "freeze_toggle":
-            await self.primitives.freeze_toggle_multiple(areas, "switch")
+            await self.primitives.freeze_toggle_multiple(areas, f"switch:{switch_id}")
             # Post-toggle state determines which feedback variant to play.
             # All areas in a reach toggle together, so the first area's state is representative.
             freeze_on = bool(areas) and state.is_frozen(areas[0])
@@ -2357,7 +2359,7 @@ class HomeAssistantWebSocketClient:
         elif main_action == "glo_up":
             # Push area settings to GloZone (atomic - zone only, not to other areas)
             await asyncio.gather(
-                *[self.primitives.glo_up(area, "switch") for area in areas]
+                *[self.primitives.glo_up(area, f"switch:{switch_id}") for area in areas]
             )
 
         elif main_action == "glo_down":
@@ -2365,14 +2367,14 @@ class HomeAssistantWebSocketClient:
             if self._can_use_batch(areas):
                 await asyncio.gather(
                     *[
-                        self.primitives.glo_down(a, "switch", send_command=False)
+                        self.primitives.glo_down(a, f"switch:{switch_id}", send_command=False)
                         for a in areas
                     ]
                 )
                 await self._send_via_batch_or_fallback(areas, [True for _ in areas])
             else:
                 await asyncio.gather(
-                    *[self.primitives.glo_down(area, "switch") for area in areas]
+                    *[self.primitives.glo_down(area, f"switch:{switch_id}") for area in areas]
                 )
 
         elif main_action == "glozone_reset":
@@ -2383,7 +2385,7 @@ class HomeAssistantWebSocketClient:
             for area in areas:
                 zone_name = glozone.get_zone_for_area(area)
                 if zone_name and zone_name not in zones_done:
-                    await self.primitives.glozone_reset(zone_name, "switch")
+                    await self.primitives.glozone_reset(zone_name, f"switch:{switch_id}")
                     zones_done.add(zone_name)
 
         elif main_action == "glozone_down":
@@ -2395,7 +2397,7 @@ class HomeAssistantWebSocketClient:
                 zone_name = glozone.get_zone_for_area(area)
                 if zone_name and zone_name not in zones_done:
                     affected = await self.primitives.glozone_down(
-                        zone_name, "switch", send_command=False
+                        zone_name, f"switch:{switch_id}", send_command=False
                     )
                     all_affected.extend(affected)
                     zones_done.add(zone_name)
@@ -2412,9 +2414,9 @@ class HomeAssistantWebSocketClient:
             for area in areas:
                 zone_name = glozone.get_zone_for_area(area)
                 if zone_name and zone_name not in zones_done:
-                    await self.primitives.glo_up(area, "switch")
+                    await self.primitives.glo_up(area, f"switch:{switch_id}")
                     affected = await self.primitives.glozone_down(
-                        zone_name, "switch", send_command=False
+                        zone_name, f"switch:{switch_id}", send_command=False
                     )
                     all_affected.extend(affected)
                     zones_done.add(zone_name)
@@ -2431,9 +2433,9 @@ class HomeAssistantWebSocketClient:
             for area in areas:
                 zone_name = glozone.get_zone_for_area(area)
                 if zone_name and zone_name not in zones_done:
-                    await self.primitives.glozone_reset(zone_name, "switch")
+                    await self.primitives.glozone_reset(zone_name, f"switch:{switch_id}")
                     affected = await self.primitives.glozone_down(
-                        zone_name, "switch", send_command=False
+                        zone_name, f"switch:{switch_id}", send_command=False
                     )
                     all_affected.extend(affected)
                     zones_done.add(zone_name)
@@ -2449,7 +2451,7 @@ class HomeAssistantWebSocketClient:
                 for area in areas:
                     await self.primitives.set(
                         area,
-                        "switch",
+                        f"switch:{switch_id}",
                         preset="britelite",
                         is_on=True,
                         send_command=False,
@@ -2458,7 +2460,7 @@ class HomeAssistantWebSocketClient:
             else:
                 for area in areas:
                     await self.primitives.set(
-                        area, "switch", preset="britelite", is_on=True
+                        area, f"switch:{switch_id}", preset="britelite", is_on=True
                     )
 
         elif main_action == "set_nitelite":
@@ -2468,7 +2470,7 @@ class HomeAssistantWebSocketClient:
                 for area in areas:
                     await self.primitives.set(
                         area,
-                        "switch",
+                        f"switch:{switch_id}",
                         preset="nitelite",
                         is_on=True,
                         send_command=False,
@@ -2477,7 +2479,7 @@ class HomeAssistantWebSocketClient:
             else:
                 for area in areas:
                     await self.primitives.set(
-                        area, "switch", preset="nitelite", is_on=True
+                        area, f"switch:{switch_id}", preset="nitelite", is_on=True
                     )
 
         elif main_action in (
@@ -2489,12 +2491,12 @@ class HomeAssistantWebSocketClient:
             if self._can_use_batch(areas):
                 for area in areas:
                     await self.primitives.set(
-                        area, "switch", preset="wake_or_bed", send_command=False
+                        area, f"switch:{switch_id}", preset="wake_or_bed", send_command=False
                     )
                 await self._send_via_batch_or_fallback(areas, [True for _ in areas])
             else:
                 for area in areas:
-                    await self.primitives.set(area, "switch", preset="wake_or_bed")
+                    await self.primitives.set(area, f"switch:{switch_id}", preset="wake_or_bed")
 
         elif main_action and main_action.startswith("set_"):
             # Check if it's a moment action (set_sleep, set_exit, etc.)
@@ -2503,7 +2505,7 @@ class HomeAssistantWebSocketClient:
             if moment_id in moments:
                 logger.info(f"[switch] Applying moment '{moment_id}'")
                 # Moments apply to all areas per their config, not switch areas
-                await self.primitives.set(None, "switch", preset=moment_id)
+                await self.primitives.set(None, f"switch:{switch_id}", preset=moment_id)
             else:
                 logger.warning(f"Unknown set action: {main_action}")
 
@@ -3260,7 +3262,7 @@ class HomeAssistantWebSocketClient:
                 f"[Dial] {switch_config.name}: delta={delta_pct:+.1f}% -> set_position({position}, {mode})"
             )
             for area in areas:
-                await self.primitives.set_position(area, position, mode, "switch")
+                await self.primitives.set_position(area, position, mode, f"switch:{device_ieee}")
         except asyncio.CancelledError:
             pass
         except Exception as e:
@@ -4528,6 +4530,12 @@ class HomeAssistantWebSocketClient:
                         )
             except Exception as e:
                 logger.error(f"2-step phase2 error for {area_id}: {e}")
+        # Stamp the 2-step decision so the upstream primitive (lights_on /
+        # lights_toggle_multiple turn-on branch) can record it on the
+        # history turn_on entry it's about to write. pop_last_2step()
+        # consumes the flag, so periodic-tick send_light calls don't
+        # leak a stale flag to a later user-initiated turn_on.
+        state.mark_last_2step(area_id, bool(two_step_filters))
 
     async def turn_off_lights(
         self,

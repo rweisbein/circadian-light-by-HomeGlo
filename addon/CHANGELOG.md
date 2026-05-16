@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.323
+- **History — control source attribution**: switch / motion / contact entries now identify the specific control that fired. Backend (`main.py`) plumbs entity_id (or device_id for ZHA-event motion sensors, IEEE for switches) through every primitive call as `source=f"<kind>:<identifier>"`. `history.py:_classify_source` was already entity-aware; only the upstream changes were needed. Frontend builds a `{id|device_id: name}` lookup from the already-cached `areaControls` list and renders `Switch: Living Hue Dimmer`, `Motion: Master Motion`, `Contact: Front Door`. Lookup miss (re-paired device new IEEE, removed from HA, or renamed) renders as `Switch (unavailable)` / `Motion (unavailable)` etc. — neutral about cause.
+- **History fixes since v1.2.322**:
+  - `lights_toggle_multiple` (the power-button toggle path) had inline batch code that bypassed `lights_on`/`lights_off`; added direct `history.record()` calls in both branches so the power button now logs turn_on/turn_off correctly.
+  - Lazy-seeded `restart` marker: when the first real event lands for an area post-restart, an `Addon started` entry is auto-prepended with `_PROCESS_START_TS` so the user can see "history begins here" rather than wondering where old entries went (in-memory log, lost on restart).
+  - `is_2step` field now populated: `main.py:send_light` stamps `state.mark_last_2step(area_id, bool)` at the end of its 2-step decision path; `lights_on` and `lights_toggle_multiple` read+consume it via `state.pop_last_2step()` and pass to `history.record(..., is_2step=...)`. The frontend already renders "2-step" in the Details cell when set.
+
 ## 1.2.322
 - **Area-detail History card** — new collapsible card at the bottom of the area-detail stack, populated from a fresh in-memory event log per area. Filtered to user-facing actions only (periodic-tick recomputes + motion-extend-timer pings are dropped). Stable schema:
   - **Actions tracked**: `turn_on`, `turn_off`, `brightness`, `color`, `phase`, `freeze`, `unfreeze`, `boost`, `boost_end`, `circadian_on`, `circadian_off`, `auto_off_set`, `auto_off_cleared`, `glo_down`, `glo_up`, `glo_reset`, `full_send`, `reset_brightness_override`, `reset_color_override`, `reset_phase`.
