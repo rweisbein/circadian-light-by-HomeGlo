@@ -2810,7 +2810,8 @@
         const phase = getHomePhase();
         return rowAction(areaId, phase === 'wake' ? 'step_down' : 'step_up');
       }
-      if (homePillMode === 'sun') return tuneStep(areaId, 'sun', +1);
+      // Sun-dimming: up arrow = more light = LESS dimming = lower step.
+      if (homePillMode === 'sun') return tuneStep(areaId, 'sun', -1);
       if (homePillMode === 'balance') return tuneStep(areaId, 'balance', +1);
       return rowAction(areaId, 'bright_up');
     }
@@ -2821,7 +2822,8 @@
         const phase = getHomePhase();
         return rowAction(areaId, phase === 'wake' ? 'step_up' : 'step_down');
       }
-      if (homePillMode === 'sun') return tuneStep(areaId, 'sun', -1);
+      // Sun-dimming: down arrow = less light = MORE dimming = higher step.
+      if (homePillMode === 'sun') return tuneStep(areaId, 'sun', +1);
       if (homePillMode === 'balance') return tuneStep(areaId, 'balance', -1);
       return rowAction(areaId, 'bright_down');
     }
@@ -3515,7 +3517,7 @@
 
       // Sort areas within each zone group
       // Phase 3: in Tune mode + Setting sort, reorder within-zone by raw setting value.
-      // Sun: descending (highest exposure first — see which rooms are most sun-tuned).
+      // Sun dimming: descending (highest dimming first — see which rooms pull back most).
       // Balance: ascending (lowest first — Min, Very Dim, Dim … so dim rooms surface).
       const sortAreas = (list) => {
         if (!isTuneMode(homePillMode) || homeTuneSort !== 'setting') return list;
@@ -4162,7 +4164,10 @@
         if (prev != null) {
           const steps = homePillMode === 'sun' ? SOLAR_STEPS : LUMEN_STEPS;
           const prevIdx = nearestStepIndex(steps, prev, homePillMode === 'sun' ? 'exposure' : 'factor');
-          tickPct = (prevIdx / (steps.length - 1)) * 100;
+          // Sun slider is inverted (see buildSliderTrackGradient / getModeSliderPct).
+          tickPct = (homePillMode === 'sun'
+            ? ((steps.length - 1 - prevIdx) / (steps.length - 1))
+            : (prevIdx / (steps.length - 1))) * 100;
           tickVisible = true;
         }
       }
@@ -4635,7 +4640,8 @@
       if (homePillMode === 'sun') {
         const t = getAreaTune(area.area_id);
         const idx = nearestStepIndex(SOLAR_STEPS, t.natural_light_exposure, 'exposure');
-        return (idx / (SOLAR_STEPS.length - 1)) * 100;
+        // Inverted: leftmost = max dimming (high idx), rightmost = no dimming (idx 0).
+        return ((SOLAR_STEPS.length - 1 - idx) / (SOLAR_STEPS.length - 1)) * 100;
       }
       if (homePillMode === 'balance') {
         const t = getAreaTune(area.area_id);
@@ -4786,16 +4792,18 @@
         return 'linear-gradient(90deg, ' + stops.join(', ') + ')';
       }
       if (mode === 'sun') {
-        // Blue at left (exposure 0), darkening to black at exposure=1.0
-        // and staying flat past that. Encodes "more exposure = more sun
-        // absorbed by the room". Peak position computed from SOLAR_STEPS.
+        // Sun-dimming slider is INVERTED on this page too — leftmost step =
+        // max dimming (Sun room 2.00x), rightmost = no dimming (None 0.00x).
+        // Gradient: flat black on the left (heavy-dimming zone past
+        // exposure==1.0) → black-to-blue transition past that boundary →
+        // blue on the right. Mirrors area.html's buildTrackGradient sun branch.
         let peakIdx = SOLAR_STEPS.length - 1;
         for (let i = 0; i < SOLAR_STEPS.length; i++) {
           if (SOLAR_STEPS[i].exposure >= 1.0) { peakIdx = i; break; }
         }
-        const peakPct = (peakIdx / (SOLAR_STEPS.length - 1)) * 100;
+        const peakPct = ((SOLAR_STEPS.length - 1 - peakIdx) / (SOLAR_STEPS.length - 1)) * 100;
         const blue = 'rgba(120,170,230,0.85)';
-        return `linear-gradient(90deg, ${blue} 0%, rgba(0,0,0,0.40) ${peakPct.toFixed(1)}%, rgba(0,0,0,0.40) 100%)`;
+        return `linear-gradient(90deg, rgba(0,0,0,0.40) 0%, rgba(0,0,0,0.40) ${peakPct.toFixed(1)}%, ${blue} 100%)`;
       }
       if (mode === 'balance') {
         // Divergent hue: amber-on-left (dim) → neutral-middle → blue-on-right (lift).
@@ -5208,7 +5216,9 @@ function updateSliderFill(el) {
             if (target != null && valueEl) valueEl.textContent = formatDecimalHour(target);
             // No color preview for bed mode — the row's current tint is correct.
           } else if (homePillMode === 'sun') {
-            const idx = Math.round(pct / 100 * (SOLAR_STEPS.length - 1));
+            // Inverted: position 0% (left) maps to highest step, position 100% to step 0.
+            const n = SOLAR_STEPS.length - 1;
+            const idx = n - Math.round(pct / 100 * n);
             const s = SOLAR_STEPS[idx];
             if (valueEl) valueEl.innerHTML = `${s.label} <span class="tune-mult">${s.exposure.toFixed(2)}x</span>`;
             updateTunePreview(areaId, s.exposure);
@@ -5253,7 +5263,9 @@ function updateSliderFill(el) {
               if (target != null) setPhaseTime(areaId, target);
               else sliderDragging = false;
             } else if (homePillMode === 'sun') {
-              const idx = Math.round(pct / 100 * (SOLAR_STEPS.length - 1));
+              // Inverted (see drag-preview branch).
+              const n = SOLAR_STEPS.length - 1;
+              const idx = n - Math.round(pct / 100 * n);
               saveAreaTune(areaId, { natural_light_exposure: SOLAR_STEPS[idx].exposure });
               setHomeRecentTune(areaId);
             } else if (homePillMode === 'balance') {
