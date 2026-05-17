@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.326
+- **Area details — Math + Activity cards now honor the freshness reset** — when the page goes stale (no toggle within the HomeGlo Lab `cardFreshnessMs` window), all non-Adjust cards collapse to the canonical layout. Math and Activity were previously excluded from that reset and kept whatever the user last set indefinitely; they now match the Schedule/Tune/Lights/Controls behavior so the page looks predictable on a fresh visit.
+- **Area details — dead-code cleanup** — removed two orphaned toggle functions (`toggleAdjustmentDetails`, `toggleIndividualSection`) that referenced DOM ids deleted in an earlier refactor, their stale localStorage keys (`tune_adj_open`, `tune_individual_open`), the unused `_AREA_CARD_KEYS` doc array, and four orphaned CSS classes. No user-visible behavior change; -47 lines.
+
 ## 1.2.325
 - **Pause expiry sweep wired to the right tick** — the periodic "auto-unpause controls whose timer has passed" sweep now runs on `GET /api/outdoor-status` (the endpoint the sun-intensity chip on home/area/settings actually polls every `outdoor_refresh_interval` seconds), matching the HomeGlo Lab info-chip spec. Was previously attached to `POST /api/refresh-outdoor`, which is only triggered by tune.html's manual refresh button — and Tune was absorbed into Home in v1.2.309, so in practice the sweep almost never fired. Manual refresh still sweeps too; both paths are idempotent.
 - **Cheap controls-refresh poll honors effective pause state** — `switches.get_all_pause_states()` now filters through `is_effectively_inactive`, so expired pauses are omitted from the lightweight `/api/controls/refresh` response. Switches PAUSE view flips a control from "paused · expired" to active within ~1s of timer expiry, even before the server-side sweep clears disk. `/api/controls` already did this masking; the two endpoints are now consistent.

@@ -1259,14 +1259,6 @@
     }
     .tune-hero-breadcrumb:hover { background: rgba(255,255,255,0.05); color: var(--text); }
     .tune-hero-breadcrumb .tune-hero-dot { margin: 0 5px; color: var(--muted2); }
-    .tune-adj-target { display: inline-flex; align-items: center; gap: 4px; }
-    .tune-adj-chevron-inline {
-      display: inline-block; margin-left: auto; padding-left: 8px;
-      transform: rotate(0deg);
-      transition: transform 0.25s;
-      font-size: 1.1em; line-height: 1; color: var(--muted2);
-    }
-
     /* ── Tune waterfall (math-equation layout) ── */
     .tune-wf { padding: 4px 0 6px; }
     .tune-wf-row {
@@ -1362,15 +1354,6 @@
       display: inline;
     }
 
-    /* Individual section: peer header to "Adjustments" with leading chevron */
-    .tune-individual-toggle {
-      display: flex; align-items: center; gap: 6px;
-      padding: 9px 14px; cursor: pointer; user-select: none;
-      font-size: var(--font-value); color: var(--muted);
-      border-top: 1px solid var(--line); margin-top: 4px;
-    }
-    .tune-individual-toggle:hover { color: var(--text); }
-    .tune-individual-chevron-el { transform: rotate(0deg); transition: transform 0.25s; display: inline-block; font-size: 0.95em; }
   </style>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
   <script src="./shared.js"></script>
@@ -1853,11 +1836,6 @@
     // TTL is read at module init via the HomeGlo Lab freshness setting
     // (cardFreshnessMs in shared.js, backed by localStorage).
     const _AREA_CARDS_TTL_MS = cardFreshnessMs();
-    const _AREA_CARD_KEYS = [
-      'adjust_collapsed', 'schedule_collapsed', 'tune_collapsed',
-      'tune_adj_open', 'tune_individual_open', 'tune_controls_expanded',
-      'lights_collapsed', 'math_collapsed', 'history_collapsed',
-    ];
 
     // One-time rename. Run BEFORE the freshness check so a user upgrading
     // mid-session doesn't get nuked by a stale-but-still-valid old key.
@@ -1874,8 +1852,7 @@
     }
 
     // If the timestamp is missing or older than TTL, reset to defaults
-    // (Adjust open, others collapsed). Sub-group expanders inside Tune are
-    // cleared too so they fall back to their per-card default.
+    // (Adjust open, every other card collapsed).
     function _resetAreaCardsIfStale() {
       if (!_persistCards) return;
       const tsRaw = localStorage.getItem(_AREA_CARDS_TS_KEY);
@@ -1884,13 +1861,16 @@
       if (ts && (now - ts) <= _AREA_CARDS_TTL_MS) return;
       // Stale (or first visit) — write the default layout explicitly so
       // the per-card init reads consistent values regardless of prior state.
+      // Opt-out cards (read `!== 'true'` → default open) get 'true' to collapse.
+      // Opt-in cards (read `=== 'false'` / `=== 'true'` → default collapsed)
+      // get the key removed so they fall back to their collapsed default.
       localStorage.setItem('adjust_collapsed', 'false');
       localStorage.setItem('schedule_collapsed', 'true');
       localStorage.setItem('tune_collapsed', 'true');
       localStorage.setItem('lights_collapsed', 'true');
-      localStorage.removeItem('tune_adj_open');
-      localStorage.removeItem('tune_individual_open');
       localStorage.removeItem('tune_controls_expanded');
+      localStorage.removeItem('math_collapsed');
+      localStorage.removeItem('history_collapsed');
       localStorage.setItem(_AREA_CARDS_TS_KEY, String(now));
     }
 
@@ -7020,28 +7000,6 @@
       if (!card) return;
       const isOpen = card.classList.toggle('is-open');
       _setAreaCard('tune_collapsed', isOpen ? 'false' : 'true');
-    }
-
-    function toggleAdjustmentDetails(event) {
-      if (event) event.stopPropagation();
-      const details = document.getElementById('tune-adj-details');
-      const chevron = document.getElementById('tune-adj-chevron');
-      if (!details) return;
-      const isHidden = details.style.display === 'none';
-      details.style.display = isHidden ? '' : 'none';
-      if (chevron) chevron.style.transform = isHidden ? 'rotate(90deg)' : '';
-      _setAreaCard('tune_adj_open', isHidden ? 'true' : 'false');
-    }
-
-    function toggleIndividualSection(event) {
-      if (event) event.stopPropagation();
-      const body = document.getElementById('tune-individual-body');
-      const chevron = document.getElementById('tune-individual-chevron');
-      if (!body) return;
-      const isHidden = body.style.display === 'none';
-      body.style.display = isHidden ? '' : 'none';
-      if (chevron) chevron.style.transform = isHidden ? 'rotate(90deg)' : '';
-      _setAreaCard('tune_individual_open', isHidden ? 'true' : 'false');
     }
 
     function updateActivityVisibility(_vals) {
