@@ -1115,7 +1115,7 @@
        Bright green when just-triggered, fades down to dim green over 1h,
        disappears after that. */
     .ctrl-fresh-dot-slot { display: inline-flex; align-items: center; justify-content: center; width: 12px; height: 12px; flex-shrink: 0; }
-    .tune-brightness-val { margin-left: auto; font-size: var(--font-display); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; transition: opacity 0.25s; }
+    .tune-brightness-val { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; font-size: var(--font-card-title); font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; transition: opacity 0.25s; }
     .tune-brightness-card.is-open .tune-brightness-val { opacity: 0; }
     .tune-brightness-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; padding-bottom: 0; }
     .tune-brightness-card.is-open .tune-brightness-body { max-height: 2000px; opacity: 1; padding-bottom: 8px; }
@@ -1766,7 +1766,7 @@
         <div class="tune-brightness-header" onclick="toggleMathBody()">
           <span class="tune-brightness-chevron" id="tune-math-chevron">&#x203A;</span>
           <span class="tune-brightness-title">Math</span>
-          <span class="tune-brightness-val" id="tune-math-header-val" style="color:var(--muted2);font-weight:500;">nerds only</span>
+          <span class="tune-brightness-val" id="tune-math-header-val" style="font-size:var(--font-value);font-weight:500;color:var(--muted);">nerds only</span>
         </div>
         <div class="tune-brightness-body" id="tune-math-body"></div>
       </div>
@@ -1779,7 +1779,7 @@
         <div class="tune-brightness-header" onclick="toggleHistoryBody()">
           <span class="tune-brightness-chevron" id="tune-history-chevron">&#x203A;</span>
           <span class="tune-brightness-title">Activity</span>
-          <span class="tune-brightness-val" id="tune-history-header-val" style="color:var(--muted2);font-weight:500;"></span>
+          <span class="tune-brightness-val" id="tune-history-header-val" style="font-size:var(--font-value);font-weight:500;color:var(--muted);"></span>
         </div>
         <div class="tune-brightness-body" id="tune-history-body"></div>
       </div>
@@ -3368,11 +3368,17 @@
           // Tune sliders: position derived from tuneState step index. Thumb
           // gets neutral white treatment (applyOneSlider doesn't set
           // background/border for these modes anymore — see the function).
+          // NOTE: the Sun-dimming slider is INVERTED — leftmost position
+          // (pct=0) maps to the highest step index (max dimming, Sun room
+          // 2.0x); rightmost (pct=100) maps to step 0 (no dimming). This
+          // keeps "drag right = brighter room" consistent with Balance and
+          // the other sliders, while preserving the multiplier semantics of
+          // the underlying exposure values.
           if (!tuneState || !tuneState.initialized) return;
           const steps = mode === 'sun' ? SOLAR_STEPS : LUMEN_STEPS;
           const idx = mode === 'sun' ? tuneState.solarStep : tuneState.lumenStep;
           const n = steps.length - 1;
-          pct = n > 0 ? (idx / n) * 100 : 0;
+          pct = n > 0 ? (mode === 'sun' ? ((n - idx) / n) : (idx / n)) * 100 : 0;
           thumbBri = currentBri;
           thumbCCT = currentCCT;
         } else {
@@ -3421,7 +3427,8 @@
               const snap = mode === 'sun' ? _tuneSessionSnapshot.solarStep : _tuneSessionSnapshot.lumenStep;
               if (cur !== snap) {
                 const n = steps.length - 1;
-                defaultPct = n > 0 ? (snap / n) * 100 : 0;
+                // Sun-dimming slider is inverted (see updateAllSliders note).
+                defaultPct = n > 0 ? (mode === 'sun' ? ((n - snap) / n) : (snap / n)) * 100 : 0;
               }
             }
           }
@@ -3787,11 +3794,10 @@
       if (mode === 'brightness') {
         return 'linear-gradient(90deg, rgba(0,0,0,0.55) 0%, rgba(255,255,255,0.55) 100%)';
       }
-      // Sun-exposure slider: blue at left → black at the SOLAR_STEPS index
-      // where exposure==1 → flat black to the right. Direction encodes
-      // "as exposure grows, sun absorbs more of the room — the slider
-      // darkens toward 'absorbed by the sun' at peak and stays flat past
-      // that point".
+      // Sun-dimming slider (INVERTED): flat black on the left (heavy-dimming
+      // zone, exposure ≥ 1.0) → black-to-blue transition past the exposure==1
+      // boundary → blue at the right (no dimming). Direction encodes "drag
+      // right to reduce sun dimming — the slider lightens toward open sky".
       if (mode === 'sun') {
         const nSteps = (typeof SOLAR_STEPS !== 'undefined') ? SOLAR_STEPS.length : 10;
         let peakIdx = nSteps - 1;
@@ -3800,10 +3806,11 @@
             if (SOLAR_STEPS[i].exposure >= 1.0) { peakIdx = i; break; }
           }
         }
-        const peakPct = (peakIdx / (nSteps - 1)) * 100;
+        // Mirror the peak boundary to the right side of the track.
+        const peakPct = ((nSteps - 1 - peakIdx) / (nSteps - 1)) * 100;
         const blue = 'rgba(120,170,230,0.85)';
         const black = 'rgba(0,0,0,0.55)';
-        return `linear-gradient(90deg, ${blue} 0%, ${black} ${peakPct.toFixed(1)}%, ${black} 100%)`;
+        return `linear-gradient(90deg, ${black} 0%, ${black} ${peakPct.toFixed(1)}%, ${blue} 100%)`;
       }
       // Room-balance slider: divergent — amber-left (dim) → neutral-mid
       // → blue-right (lift). Matches the home page balance gradient.
@@ -4150,8 +4157,11 @@
       if (dragMode === 'sun' || dragMode === 'balance') {
         const steps = dragMode === 'sun' ? SOLAR_STEPS : LUMEN_STEPS;
         const n = steps.length - 1;
-        const stepIdx = Math.max(0, Math.min(n, Math.round((position / 100) * n)));
-        const snapPct = (stepIdx / n) * 100;
+        // Sun-dimming slider is inverted: position 0% (left) → step n (max
+        // dimming), position 100% (right) → step 0 (no dimming).
+        const rawIdx = Math.round((position / 100) * n);
+        const stepIdx = Math.max(0, Math.min(n, dragMode === 'sun' ? (n - rawIdx) : rawIdx));
+        const snapPct = (dragMode === 'sun' ? ((n - stepIdx) / n) : (stepIdx / n)) * 100;
         // Update tuneState
         if (dragMode === 'sun') {
           tuneState.solarStep = stepIdx;
@@ -6267,7 +6277,12 @@
       });
 
       const elBriHeader = document.getElementById('tune-brightness-header-val');
-      if (elBriHeader) elBriHeader.textContent = areaBri + '%';
+      if (elBriHeader) {
+        const sunLabel = SOLAR_STEPS[ts.solarStep]?.label || '—';
+        const balanceLabel = LUMEN_STEPS[ts.lumenStep]?.label || '—';
+        elBriHeader.innerHTML = '<div><span style="color:var(--muted);">Sun dimming:</span> ' + sunLabel + '</div>'
+          + '<div><span style="color:var(--muted);">Balance:</span> ' + balanceLabel + '</div>';
+      }
 
       const elFinalVal = document.getElementById('tune-det-final-val');
       if (elFinalVal) elFinalVal.textContent = areaBri + '%';
@@ -6464,14 +6479,14 @@
       // branches). data-mode routes them through initSliderHandlers and
       // previewSlider. Save-on-release model: no Save/Cancel action bar
       // — every drop persists.
-      const solarPctInit = (SOLAR_STEPS.length - 1) > 0 ? Math.round((solarStep / (SOLAR_STEPS.length - 1)) * 100) : 0;
+      const solarPctInit = (SOLAR_STEPS.length - 1) > 0 ? Math.round(((SOLAR_STEPS.length - 1 - solarStep) / (SOLAR_STEPS.length - 1)) * 100) : 0;
       const lumenPctInit = (LUMEN_STEPS.length - 1) > 0 ? Math.round((lumenStep / (LUMEN_STEPS.length - 1)) * 100) : 0;
       bhtml += '<div class="tune-srow">'
         + '<div class="hslider-header">'
-        +   '<span class="hslider-label">Sun exposure</span>'
+        +   '<span class="hslider-label">Sun dimming</span>'
         +   '<span class="hslider-right">'
         +     '<span class="hslider-value" id="tune-solar-word" onclick="onValueReset(\'sun\')" title="Tap to revert">' + SOLAR_STEPS[solarStep].label + solarWordSuffix + '</span>'
-        +     '<button class="hslider-reset hidden" id="tune-reset-solar" title="Reset sun exposure">&#x21BA;</button>'
+        +     '<button class="hslider-reset hidden" id="tune-reset-solar" title="Reset sun dimming">&#x21BA;</button>'
         +   '</span>'
         + '</div>'
         + '<div class="slider-track tune-slider-track" id="tune-slider-solar" data-mode="sun">'
@@ -6519,7 +6534,7 @@
         + '</div>';
       mhtml += '<div class="tune-wf-row">'
         + '<span class="tune-wf-op">+</span>'
-        + '<span class="tune-wf-label">Sun exposure</span>'
+        + '<span class="tune-wf-label">Sun dimming</span>'
         + '<span class="tune-wf-reset"></span>'
         + '<span class="tune-wf-val" id="tune-det-solar-val">0%</span>'
         + '</div>';
@@ -7658,7 +7673,7 @@
       const text = daySuffix ? core + ' ' + daySuffix : core;
       return {
         enabled: true,
-        html: `<a href="#" data-auto-hit="${type}" onclick="event.preventDefault(); event.stopPropagation(); focusAutoSub('${type}');">${label} @ ${text}</a>`
+        html: `<a href="#" data-auto-hit="${type}" onclick="event.preventDefault(); event.stopPropagation(); focusAutoSub('${type}');"><span style="color:var(--muted);">${label}:</span> ${text}</a>`
       };
     }
 

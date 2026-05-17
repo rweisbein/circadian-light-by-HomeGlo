@@ -3592,9 +3592,9 @@
         { value: 'onoff',    label: 'On/Off' },
         { value: 'home',     label: 'Zone' },
       ];
-      // Phase 3: in Tune modes, segmented bar becomes Area / <Sun exposure | Balance> sort.
+      // Phase 3: in Tune modes, segmented bar becomes Area / <Sun dimming | Balance> sort.
       const inTune = isTuneMode(homePillMode);
-      const settingSortLabel = homePillMode === 'sun' ? 'Sun exposure' : 'Balance';
+      const settingSortLabel = homePillMode === 'sun' ? 'Sun dimming' : 'Balance';
       // Manage mode: the segmented bar is suppressed entirely (rendered as
       // empty below). On/Off vs Zone isn't a meaningful axis when you're
       // arranging zones + areas — the manage view is its own thing.
@@ -3614,7 +3614,7 @@
       // Bed is phase-aware (Bed if descending, Wake if ascending).
       const homePhase = getHomePhase();  // 'wake' | 'bed' | null
       const bedLabel = homePhase === 'wake' ? 'Wake time' : 'Bed time';
-      const modeLabels = { brightness: 'Brightness', color: 'Color', bed: bedLabel, sun: 'Sun exposure', balance: 'Balance' };
+      const modeLabels = { brightness: 'Brightness', color: 'Color', bed: bedLabel, sun: 'Sun dimming', balance: 'Balance' };
       // In Manage mode the pill reflects that, so the user has a way back out
       // (clicking any other option exits Manage via the click handler).
       // Mode prefix: "Adjusting" for Brightness/Color/Bed, "Tuning" for Sun/Balance.
@@ -3653,7 +3653,7 @@
             ${modeOption('bed', bedLabel)}
             <div class="action-popover-divider"></div>
             <div class="action-popover-section-label">Tune</div>
-            ${modeOption('sun', 'Sun exposure')}
+            ${modeOption('sun', 'Sun dimming')}
             ${modeOption('balance', 'Balance')}
             <div class="action-popover-divider"></div>
             <div class="action-popover-option ${currentMode === 'manage' ? 'active' : ''}" data-pill-mode="manage">Manage</div>
@@ -4312,13 +4312,13 @@
     // Right-aligned drag preview uses the same shape, sans labels:
     //         X% - Y% → Z%
     // Static and drag-preview share one format — numbers only. The mode
-    // pill ("Tuning: Sun exposure") already names the axis, so repeating
+    // pill ("Tuning: Sun dimming") already names the axis, so repeating
     // "Sun" / "Balance" / "Baseline" per row was just noise.
     // Right-slot "current" formula:
     //   current: 99% − 1% → 98%      (sun or balance dim)
     //   current: 79% + 5% → 84%      (balance lift)
     // Signed impact (sign + value) is bolded. Axis name is dropped — the
-    // page-level "Tuning: Sun exposure / Balance" pill already names what
+    // page-level "Tuning: Sun dimming / Balance" pill already names what
     // the slider controls, no need to repeat per row.
     function formatBreakdownNowHtml(b) {
       // Current readout: just the signed impact ("current: ↓ 17%"). The

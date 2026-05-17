@@ -531,7 +531,7 @@
   <button data-mode="brightness" class="active">Brightness</button>
   <button data-mode="color">Color</button>
   <button data-mode="bed">Bed</button>
-  <button data-mode="sun">Sun exposure</button>
+  <button data-mode="sun">Sun dimming</button>
   <button data-mode="balance">Balance</button>
   <span style="flex:1"></span>
   <span class="label">View</span>
@@ -576,7 +576,7 @@
           <div class="mode-section-label">
             Tune <span class="mode-section-sub">saved per area</span>
           </div>
-          <div class="mode-option" data-mode-opt="sun" onclick="pickMode('sun')">Sun exposure</div>
+          <div class="mode-option" data-mode-opt="sun" onclick="pickMode('sun')">Sun dimming</div>
           <div class="mode-option" data-mode-opt="balance" onclick="pickMode('balance')">Balance</div>
         </div>
       </div>
@@ -683,7 +683,7 @@
     render();
   }
   function labelForMode(m) {
-    return { brightness: 'Brightness', color: 'Color', bed: 'Bed', sun: 'Sun exposure', balance: 'Balance' }[m];
+    return { brightness: 'Brightness', color: 'Color', bed: 'Bed', sun: 'Sun dimming', balance: 'Balance' }[m];
   }
 
   // ---- View toggle ----
