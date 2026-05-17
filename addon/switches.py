@@ -82,24 +82,29 @@ def get_all_last_actions() -> Dict[str, Any]:
 
 
 def get_all_pause_states() -> Dict[str, Dict[str, Any]]:
-    """Return pause state for all paused controls (no disk I/O)."""
+    """Return pause state for all *effectively* paused controls (no disk
+    I/O). Filters through is_effectively_inactive so an expired pause is
+    omitted — the lightweight /api/controls/refresh poll never surfaces
+    "paused · expired" to the UI, even before the sweeper has cleared
+    disk state.
+    """
     result = {}
     for switch_id, switch in _switches.items():
-        if switch.inactive or switch.inactive_until:
+        if is_effectively_inactive(switch.inactive, switch.inactive_until):
             result[switch_id] = {
                 "inactive": switch.inactive,
                 "inactive_until": switch.inactive_until,
             }
     for sensor_id, sensor in _motion_sensors.items():
         key = sensor.device_id or sensor_id
-        if sensor.inactive or sensor.inactive_until:
+        if is_effectively_inactive(sensor.inactive, sensor.inactive_until):
             result[key] = {
                 "inactive": sensor.inactive,
                 "inactive_until": sensor.inactive_until,
             }
     for sensor_id, sensor in _contact_sensors.items():
         key = sensor.device_id or sensor_id
-        if sensor.inactive or sensor.inactive_until:
+        if is_effectively_inactive(sensor.inactive, sensor.inactive_until):
             result[key] = {
                 "inactive": sensor.inactive,
                 "inactive_until": sensor.inactive_until,

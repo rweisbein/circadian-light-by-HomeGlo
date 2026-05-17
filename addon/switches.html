@@ -1343,7 +1343,8 @@
             signature: sig,
             orderedIds: initialOrder.map(c => c.id),
             ids: new Set(initialOrder.map(c => c.id)),
-            expectInactive: pauseSubView === 'paused',
+            // null = 'all' subview: no expected state, so nothing reads as "flipped".
+            expectInactive: pauseSubView === 'all' ? null : (pauseSubView === 'paused'),
           };
           stickyList = initialOrder;
         } else {
@@ -1600,8 +1601,9 @@
       // visual pattern of the area + type filters on the same row.
       const stateFilterHtml = (currentView === 'paused')
         ? '<select class="ctrl-tb-select is-active" id="ctrl-state-filter" title="Pause state">'
-          + '<option value="active"' + (pauseSubView === 'active' ? ' selected' : '') + '>Active</option>'
           + '<option value="paused"' + (pauseSubView === 'paused' ? ' selected' : '') + '>Paused</option>'
+          + '<option value="active"' + (pauseSubView === 'active' ? ' selected' : '') + '>Unpaused</option>'
+          + '<option value="all"' + (pauseSubView === 'all' ? ' selected' : '') + '>All</option>'
           + '</select>'
         : '';
       const toolbarHtml = '<div class="ctrl-toolbar">'
@@ -1951,6 +1953,8 @@
     // flipped-card detection (vs sticky snapshot).
     function _pauseFlipped(c) {
       if (!_pauseModeSnapshot || !_pauseModeSnapshot.ids.has(c.id)) return false;
+      // 'all' subview has no expected state — nothing is ever flipped.
+      if (_pauseModeSnapshot.expectInactive == null) return false;
       return !!c.inactive !== _pauseModeSnapshot.expectInactive;
     }
 

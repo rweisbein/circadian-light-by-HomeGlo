@@ -6126,7 +6126,28 @@ class LightDesignerServer:
             return web.json_response({"error": str(e)}, status=500)
 
     async def get_outdoor_status(self, request: Request) -> Response:
-        """Get current outdoor brightness state for settings page."""
+        """Get current outdoor brightness state for settings page.
+
+        Also runs the expired-pause sweep. The sun-intensity chip on
+        home / area-details / settings polls this endpoint on the
+        user-configured cadence (HomeGlo Lab → outdoor_refresh_interval),
+        which is the natural tick for lightweight periodic maintenance.
+        The POST /api/refresh-outdoor manual button also sweeps; both
+        paths are idempotent.
+        """
+        # Sweep expired control pauses on every poll. Cheap (in-memory
+        # scan of configured controls; one disk write only if something
+        # expired). Independent of the rest of the response so a bad
+        # config / I/O hiccup can't break the chip refresh.
+        try:
+            cleaned = switches.sweep_expired_pauses()
+            if cleaned:
+                logger.info(
+                    f"[PauseSweep] Auto-unpaused {cleaned} expired control(s)"
+                )
+        except Exception as e:
+            logger.error(f"[PauseSweep] Error: {e}", exc_info=True)
+
         config = await self.load_config()
         # Build illuminance sensor list from client cache
         illuminance_sensors = []

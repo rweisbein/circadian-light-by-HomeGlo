@@ -2257,6 +2257,18 @@
         window.location.href = './tune';
         return;
       }
+      // ?mode=manage → land in Manage mode (used by the Activity page's
+      // mode-pill router when the user picks Manage). Needs to await
+      // the data load first because enterManageMode() renders areas.
+      // Event listeners are wired BEFORE entering Manage so the mode
+      // pill (and everything else) is clickable on arrival — otherwise
+      // the pill renders but does nothing until a page reload.
+      if (requestedMode === 'manage') {
+        await loadData();
+        setupEventListeners();
+        enterManageMode();
+        return;
+      }
       loadData();
       setupEventListeners();
     });
@@ -3583,15 +3595,20 @@
       // Phase 3: in Tune modes, segmented bar becomes Area / <Sun exposure | Balance> sort.
       const inTune = isTuneMode(homePillMode);
       const settingSortLabel = homePillMode === 'sun' ? 'Sun exposure' : 'Balance';
-      const segmentsHtml = inTune
-        ? `
-          <button class="view-segment ${homeTuneSort === 'custom' ? 'active' : ''}" data-tune-sort="custom">Area</button>
-          <button class="view-segment ${homeTuneSort === 'setting' ? 'active' : ''}" data-tune-sort="setting">${settingSortLabel}</button>
-        `
-        : VIEWS.map(v => {
-            const cls = v.value === viewValue ? 'view-segment active' : 'view-segment';
-            return `<button class="${cls}" data-view="${v.value}">${v.label}</button>`;
-          }).join('');
+      // Manage mode: the segmented bar is suppressed entirely (rendered as
+      // empty below). On/Off vs Zone isn't a meaningful axis when you're
+      // arranging zones + areas — the manage view is its own thing.
+      const segmentsHtml = currentMode === 'manage'
+        ? ''
+        : inTune
+          ? `
+            <button class="view-segment ${homeTuneSort === 'custom' ? 'active' : ''}" data-tune-sort="custom">Area</button>
+            <button class="view-segment ${homeTuneSort === 'setting' ? 'active' : ''}" data-tune-sort="setting">${settingSortLabel}</button>
+          `
+          : VIEWS.map(v => {
+              const cls = v.value === viewValue ? 'view-segment active' : 'view-segment';
+              return `<button class="${cls}" data-view="${v.value}">${v.label}</button>`;
+            }).join('');
 
       // Phase 2: action mode pill (top-right) — picks knob for slider + chevrons.
       // Bed is phase-aware (Bed if descending, Wake if ascending).
@@ -3669,11 +3686,16 @@
           </div>
           <!-- Row 2: list controls (L) · sun pill (R) — content scope + environment -->
           <!-- Area count only shown in Manage mode (matches the zone-header counts). -->
+          <!-- Segments + label suppressed entirely in Manage mode (the
+               On/Off vs Zone choice isn't meaningful there); row 2 then
+               carries just the rooms-on count on the right. -->
           <div class="home-row home-row-3">
-            <span class="seg-label">${inTune ? 'sort' : 'view'}</span>
-            <div class="view-segments-bar" id="home-view-segments" role="tablist" title="Page mode">
-              ${segmentsHtml}
-            </div>
+            ${currentMode === 'manage' ? '' : `
+              <span class="seg-label">${inTune ? 'sort' : 'view'}</span>
+              <div class="view-segments-bar" id="home-view-segments" role="tablist" title="Page mode">
+                ${segmentsHtml}
+              </div>
+            `}
             <span class="home-row-spacer"></span>
             ${sunPillHtml}
             ${currentMode === 'manage' ? `<span class="rooms-on-count" id="rooms-on-count">${computeRoomsOnText()}</span>` : ''}
@@ -4911,9 +4933,16 @@ function updateSliderFill(el) {
           _modePopoverOpen = false;
           // Activity is a separate page — navigate, don't try to swap mode.
           if (newMode === 'activity') {
-            // basePath isn't stable in areas.html; use a relative path so
-            // HA ingress routing works either way.
-            window.location.href = './activity';
+            // Compute addon root explicitly. Relative `./activity` was
+            // sometimes resolving against odd-shaped paths (HA ingress +
+            // historical /zone/... URLs) and matching the
+            // `/{path:.*}/zone/{zone_name}` wildcard, landing the user on
+            // a phantom zone-detail page named "activity". Strip any
+            // trailing /areas (the home-page route) to find the addon root
+            // and append /activity from there.
+            let root = window.location.pathname.replace(/\/$/, '');
+            root = root.replace(/\/areas$/, '');
+            window.location.href = (root || '') + '/activity';
             return;
           }
           // Manage is special — it's a page mode, not a slider/chevron knob.
@@ -5191,7 +5220,11 @@ function updateSliderFill(el) {
           } else {
             // Brightness mode: drag preview is brightness only — keep current
             // row color (kelvin from areaStatus), update brightness inline.
-            const brightness = bMin + (bMax - bMin) * pct / 100;
+            // Slider spans the full 0-100 bulb range (override surface), not
+            // the [bMin, bMax] curve bounds — otherwise a zone with max=40
+            // shows 40% during full-right drag even though the backend
+            // correctly drives the bulb to 100% via an override on release.
+            const brightness = pct;
             if (valueEl) valueEl.textContent = Math.round(brightness) + '%';
             const kelvin = areaStatus[areaId]?.kelvin || 4000;
             previewRowColor(row, brightness, kelvin);

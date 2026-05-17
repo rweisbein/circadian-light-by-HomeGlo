@@ -4197,7 +4197,12 @@
 
       let previewBri, previewCCT;
       if (dragMode === 'brightness') {
-        previewBri = bMin + (bMax - bMin) * position / 100;
+        // Slider spans the full 0-100 bulb range — it's an override surface,
+        // not a curve walker. Mapping to [bMin, bMax] (the curve bounds)
+        // would clamp the preview to 40% on a zone with max=40, even though
+        // the release-time backend correctly drives the bulb to 100% via
+        // an override. Direct 1:1 keeps the displayed value honest.
+        previewBri = position;
         previewCCT = currentCCT;
       } else if (dragMode === 'color') {
         previewBri = currentBri;
@@ -4206,7 +4211,13 @@
         return;
       }
 
-      const briFrac = bMax > bMin ? Math.max(0, Math.min(100, (previewBri - bMin) / (bMax - bMin) * 100)) : 50;
+      // briFrac drives the slider's color-track gradient position. For
+      // brightness drag, slider position IS the value (0-100), so use it
+      // directly; for color drag, project the current curve brightness
+      // back onto the [bMin, bMax] curve range.
+      const briFrac = (dragMode === 'brightness')
+        ? Math.max(0, Math.min(100, previewBri))
+        : (bMax > bMin ? Math.max(0, Math.min(100, (previewBri - bMin) / (bMax - bMin) * 100)) : 50);
       const cctFrac = cMax > cMin ? Math.max(0, Math.min(100, (previewCCT - cMin) / (cMax - cMin) * 100)) : 50;
       const pct = dragMode === 'brightness' ? briFrac : cctFrac;
       (track.querySelector('.slider-track-bg') || track).style.background = buildTrackGradient(dragMode, cfg, previewBri, previewCCT, effRange, phaseCtx);
