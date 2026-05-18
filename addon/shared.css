@@ -712,3 +712,73 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
   background: rgba(255,255,255,0.10);
   font-weight: 700;
 }
+
+/* ==========================================================================
+   Activity history — list rendering (replaces the previous table layout).
+   Each entry is a two-row card with a fixed icon column on the left.
+     Row 1: optional [area · ] action  ............................  time
+     Row 2 (omitted when empty): device · details · joined
+   Used by both area-details (Activity card body) and the home Activity page;
+   page-specific font-size / padding overrides are in those files' <style>. */
+.hist-list { display: flex; flex-direction: column; }
+.hist-row {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  column-gap: 10px;
+  row-gap: 2px;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  align-items: start;
+}
+.hist-row:last-child { border-bottom: none; }
+.hist-icon {
+  grid-row: 1 / span 2;
+  display: flex;
+  align-items: flex-start;
+  padding-top: 2px;
+  color: var(--muted2);
+}
+.hist-icon svg { width: 18px; height: 18px; display: block; }
+.hist-top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.hist-headline {
+  flex: 1;
+  min-width: 0;
+  color: var(--text);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  /* Wrap long action/area names rather than overflow the row. */
+  overflow-wrap: anywhere;
+}
+.hist-headline .hist-area {
+  color: var(--muted);
+  font-weight: 500;
+}
+.hist-headline .hist-sep {
+  color: var(--muted2);
+  margin: 0 4px;
+}
+.hist-time {
+  color: var(--muted2);
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.86em;
+}
+.hist-sub {
+  color: var(--muted);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.hist-sub:empty { display: none; }
+.tune-history-empty {
+  padding: 16px 14px;
+  color: var(--muted2);
+  font-size: 0.82rem;
+  text-align: center;
+}

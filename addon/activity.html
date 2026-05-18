@@ -137,36 +137,11 @@
     .activity-body {
       padding: 12px 14px 32px;
     }
-    .activity-body .tune-history-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.82rem;
-      color: var(--text);
-      font-variant-numeric: tabular-nums;
-    }
-    .activity-body .tune-history-table th {
-      text-align: left;
-      font-weight: 500;
-      color: var(--muted2);
-      padding: 6px 10px;
-      border-bottom: 1px solid var(--line);
-      font-size: 0.72rem;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      background: var(--bg);
-      position: sticky;
-      top: 0;
-    }
-    .activity-body .tune-history-table td {
-      padding: 6px 10px;
-      border-bottom: 1px solid rgba(255,255,255,0.04);
-      vertical-align: top;
-      white-space: nowrap;
-    }
-    .activity-body .tune-history-table td.th-details {
-      white-space: normal;
-      color: var(--muted);
-    }
+    /* Page-level activity feed: a bit more breathing room than the in-card
+       version on area details (more horizontal space available here).
+       Shared .hist-list CSS (shared.css) owns the layout baselines; this
+       just bumps font + padding for the full-page view. */
+    .activity-body .hist-row { padding: 10px 14px; font-size: 0.85rem; }
     .activity-body .tune-history-empty {
       padding: 32px 14px;
       color: var(--muted2);

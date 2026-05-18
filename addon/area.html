@@ -1139,25 +1139,10 @@
     .tune-history-card.is-open .tune-brightness-body {
       max-height: 4000px; opacity: 1; padding-bottom: 8px; overflow-x: auto;
     }
-    .tune-history-table {
-      width: 100%; border-collapse: collapse; font-size: 0.78rem;
-      color: var(--text); font-variant-numeric: tabular-nums;
-    }
-    .tune-history-table th {
-      text-align: left; font-weight: 500; color: var(--muted2);
-      padding: 4px 8px; border-bottom: 1px solid var(--line);
-      font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em;
-    }
-    .tune-history-table td {
-      padding: 4px 8px; border-bottom: 1px solid rgba(255,255,255,0.04);
-      vertical-align: top; white-space: nowrap;
-    }
-    .tune-history-table td.th-details { white-space: normal; color: var(--muted); }
-    .tune-history-table tr:last-child td { border-bottom: none; }
-    .tune-history-empty {
-      padding: 16px 14px; color: var(--muted2); font-size: 0.82rem;
-      text-align: center;
-    }
+    /* Activity card body: tighter padding + smaller font than the shared
+       defaults so the in-card list reads compactly. Shared .hist-list CSS
+       (shared.css) owns the row layout / icon column / typography baselines. */
+    #tune-history-body .hist-row { padding: 6px 12px; font-size: 0.78rem; }
     .tune-detail-sub { padding: 0 22px 2px 52px; font-size: var(--font-muted); color: var(--muted2); }
     .tune-col-headers { display: grid; grid-template-columns: 1fr auto; padding: 0 14px 2px; gap: 0 12px; }
     .tune-col-header { font-size: 11px; color: var(--muted2); text-align: right; white-space: nowrap; }

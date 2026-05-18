@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.342
+- **Activity feed: table → card list.** Replaces the previous 4–5-column HTML table (which exceeded viewport width and forced horizontal scroll on phones) with a stacked card layout. Each entry is now a two-row card with a fixed icon column on the left:
+  - Top row: optional `[area] · [action]` (action only on area-details; area-prefix on the home Activity page) with right-aligned timestamp.
+  - Bottom row: `[device] · [details ...]` joined by middot. Omitted entirely when both are empty (e.g. the lazy-seeded "Addon started" marker — just the icon + headline).
+  - No horizontal scroll possible; long content wraps via `overflow-wrap: anywhere`.
+- **Source-kind icon column** replaces the prior text prefix ("Switch:" / "Motion:" / "App"). 9-icon vocabulary in `getSourceKindIcon`: switch, motion, contact, camera (matched to the Controls page outlines) + new app, timer, auto_schedule, service_call, system. Hover title surfaces the kind name ("Switch", "Motion", etc.) for new users on desktop; on mobile the icon stands on its own.
+- **`renderHistoryTable` → `renderHistoryList`** in shared.js. Old name retained as an alias for the existing call sites (area.html, activity.html), no caller changes needed. Layout CSS moved to shared.css (`.hist-list`, `.hist-row`, `.hist-icon`, etc.); page-specific styles in area.html / activity.html shrink to font-size + padding overrides.
+
 ## 1.2.341
 - **Fix: activity log motion + contact sources rendered as "(unavailable)".** Motion/contact event handlers in `main.py` tagged history entries with the binary_sensor *entity_id* (e.g. `binary_sensor.master_motion`) as the `source_entity`. But the frontend's `controlNames` lookup map (built by `buildControlNameLookup`) keys controls by **`id` (IEEE/unique_id)** and **`device_id`** — *not* by entity_id. So every motion or contact attribution lookup missed, and `formatHistorySource` rendered "Motion (unavailable)" / "Contact (unavailable)" instead of "Motion: Master Motion" / "Contact: Front Door". Switched all three motion/contact source-tagging sites in main.py (`_handle_motion_event`'s on-state branch and alert-bounce path, plus the contact handler) to use `device_id`, which IS a key in `controlNames`. The motion handler at line 1007 was already using `device_id` (the pattern that worked). History is in-memory only, so existing "(unavailable)" entries clear naturally on next addon restart; new events render with their friendly name.
 

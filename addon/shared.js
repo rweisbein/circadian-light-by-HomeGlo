@@ -1837,12 +1837,51 @@ function buildControlNameLookup(controls) {
 // "Switch: Living Hue Dimmer" / "Motion: Master Motion" / "Timer".
 // Lookup miss (re-paired device, removed entity, renamed) renders as
 // "<word> (unavailable)" — covers all three causes neutrally.
+// Kept for any external caller; the new list renderer uses
+// formatHistoryDevice + getSourceKindIcon instead.
 function formatHistorySource(entry, controlNames) {
   const word = HIST_SOURCE_LABEL[entry.source_kind] || entry.source_kind;
   if (!entry.source_entity) return word;
   const name = controlNames && controlNames[entry.source_entity];
   if (name) return word + ': ' + name;
   return word + ' (unavailable)';
+}
+
+// Just the device name (e.g. "Master Motion") — no "Motion:" prefix.
+// Empty string when the entry has no source_entity (App, Timer, System).
+// "(unavailable)" when the entity exists but isn't in the controls map
+// (re-paired, removed, renamed). The icon column carries the source-kind
+// semantics so we no longer prefix the device with the kind word.
+function formatHistoryDevice(entry, controlNames) {
+  if (!entry.source_entity) return '';
+  const name = controlNames && controlNames[entry.source_entity];
+  if (name) return name;
+  return '(unavailable)';
+}
+
+// Source-kind icon vocabulary. Switch/motion/contact/camera are visually
+// consistent with the Controls page icons (switches.html getControlIcon).
+// App / timer / auto_schedule / service_call / system are new for the
+// activity-list rendering.
+const _HIST_ICON_SVG = {
+  switch: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="8" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="13" r="1.5" fill="currentColor" stroke="none"/><line x1="10" y1="18" x2="14" y2="18"/></svg>',
+  motion: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 18 A8 8 0 0 1 8 6"/><path d="M5 20 A12 12 0 0 1 5 4"/><circle cx="14" cy="12" r="3" fill="currentColor" stroke="none" opacity="0.6"/><path d="M17 9 A5 5 0 0 1 17 15"/><path d="M20 7 A8 8 0 0 1 20 17"/></svg>',
+  contact: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="8" height="12" rx="2"/><rect x="14" y="6" width="8" height="12" rx="2"/><line x1="10" y1="11" x2="14" y2="11" stroke-dasharray="2 2"/><line x1="10" y1="13" x2="14" y2="13" stroke-dasharray="2 2"/></svg>',
+  camera: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+  // App: phone/tap — a smartphone outline with a tap dot.
+  app: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2.5"/><circle cx="12" cy="18" r="1" fill="currentColor" stroke="none"/></svg>',
+  // Timer: clock with hands.
+  timer: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><polyline points="12 9 12 13 15 15"/><line x1="9" y1="2" x2="15" y2="2"/></svg>',
+  // Auto schedule: calendar with header tabs.
+  auto_schedule: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>',
+  // Service call: API/server rack with status dots.
+  service_call: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/><line x1="7" y1="7" x2="7.01" y2="7"/><line x1="7" y1="17" x2="7.01" y2="17"/></svg>',
+  // System: simple gear/sun — center circle + 8 spokes.
+  system: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M22 12h-3M5 12H2M19.07 4.93l-2.12 2.12M7.05 16.95l-2.12 2.12M19.07 19.07l-2.12-2.12M7.05 7.05L4.93 4.93"/></svg>',
+};
+
+function getSourceKindIcon(kind) {
+  return _HIST_ICON_SVG[kind] || _HIST_ICON_SVG.system;
 }
 
 // Details cell content. Empty for binary actions; populated for value-bearing
@@ -1897,16 +1936,24 @@ function formatHistoryDetails(entry) {
   return parts.join(' · ');
 }
 
-// Render a list of history entries as an HTML table.
+// Render a list of history entries as stacked card-style rows.
+//
+// Layout per row:
+//   [source-kind icon] [optional: area · ] [action]      [time]
+//                      [device · details · ...]            <- omitted when empty
+//
+// The icon column carries the source-kind semantics (Switch/Motion/App/
+// Timer/etc.) — we no longer prefix the device with a "Kind: " label.
+// Title attribute on the icon surfaces the kind name on hover (desktop).
 //
 // opts:
-//   showArea     — prepend an "Area" column (Activity page; default false)
+//   showArea     — include the area name on the top row (Activity page; default false)
 //   areaNames    — { area_id: friendly_name } map (required when showArea)
-//   controlNames — { id|device_id: name } map for source attribution
-//   scrollable   — wrap the table in a fixed-height scroll container
+//   controlNames — { id|device_id: name } map for device attribution
+//   scrollable   — wrap the list in a fixed-height scroll container
 //   maxHeight    — CSS height for the scroll container (e.g. "70vh", "400px")
 //   emptyMessage — text shown when entries is empty
-function renderHistoryTable(entries, opts) {
+function renderHistoryList(entries, opts) {
   opts = opts || {};
   if (!entries || !entries.length) {
     const msg = opts.emptyMessage || 'No activity yet — recording starts when the addon last restarts.';
@@ -1920,31 +1967,49 @@ function renderHistoryTable(entries, opts) {
   const rows = entries.map(e => {
     const ts = formatHistoryTs(e.ts);
     const action = HIST_ACTION_LABEL[e.action] || e.action;
-    const source = formatHistorySource(e, controlNames);
+    const device = formatHistoryDevice(e, controlNames);
     const details = formatHistoryDetails(e);
-    let row = '<tr>';
+    const kindLabel = HIST_SOURCE_LABEL[e.source_kind] || e.source_kind;
+    const icon = getSourceKindIcon(e.source_kind);
+
+    // Top row: optional [area · ] action + right-aligned time
+    let headline = '';
     if (showArea) {
       const aName = e.area_id ? (areaNames[e.area_id] || e.area_id) : '';
-      row += '<td>' + esc(aName) + '</td>';
+      if (aName) {
+        headline += '<span class="hist-area">' + esc(aName) + '</span>'
+                  + '<span class="hist-sep">·</span>';
+      }
     }
-    row += '<td>' + esc(ts) + '</td>'
-      + '<td>' + esc(action) + '</td>'
-      + '<td>' + esc(source) + '</td>'
-      + '<td class="th-details">' + esc(details) + '</td>'
-      + '</tr>';
-    return row;
+    headline += esc(action);
+
+    // Bottom row: device · details, separated by middot; omitted entirely
+    // when both are empty (e.g. a System "restart" marker).
+    const subParts = [];
+    if (device) subParts.push(esc(device));
+    if (details) subParts.push(esc(details));
+    const subLine = subParts.join(' <span class="hist-sep">·</span> ');
+
+    return '<div class="hist-row">'
+      + '<div class="hist-icon" title="' + esc(kindLabel) + '">' + icon + '</div>'
+      + '<div class="hist-top">'
+        + '<span class="hist-headline">' + headline + '</span>'
+        + '<span class="hist-time">' + esc(ts) + '</span>'
+      + '</div>'
+      + (subLine ? '<div class="hist-sub">' + subLine + '</div>' : '')
+      + '</div>';
   }).join('');
 
-  const headerCells = (showArea ? '<th>Area</th>' : '')
-    + '<th>When</th><th>Action</th><th>Source</th><th>Details</th>';
-  const table = '<table class="tune-history-table">'
-    + '<thead><tr>' + headerCells + '</tr></thead>'
-    + '<tbody>' + rows + '</tbody>'
-    + '</table>';
+  const list = '<div class="hist-list">' + rows + '</div>';
 
   if (opts.scrollable) {
     const h = opts.maxHeight || '60vh';
-    return '<div class="tune-history-scroll" style="max-height:' + h + ';overflow-y:auto;">' + table + '</div>';
+    return '<div class="tune-history-scroll" style="max-height:' + h + ';overflow-y:auto;">' + list + '</div>';
   }
-  return table;
+  return list;
 }
+
+// Backward-compat alias — `renderHistoryTable` is now a misnomer (we render
+// a list of cards, not a table) but the old name was used by two call sites.
+// Keep it pointing at the new implementation.
+const renderHistoryTable = renderHistoryList;
