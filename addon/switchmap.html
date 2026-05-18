@@ -576,10 +576,11 @@
   <!-- Main Content -->
   <main class="main">
     <div class="page-header">
-      <!-- Section pill — top-level navigation within the Controls section
-           (Controls / Activity / Cheatsheet). Cheatsheet is the active
-           section here. Returning to Controls preserves the user's last
-           active view (persisted in switches.html localStorage). -->
+      <!-- Row 1 (matches home Row 1): unsaved indicator on the left,
+           section pill (mode) on the right. Right-anchored so the dropdown
+           expands inward, not off the left edge. -->
+      <span class="unsaved-indicator" id="unsaved-indicator"></span>
+      <span style="flex: 1;"></span>
       <div class="action-pill" id="section-mode-pill" title="Switch section">
         <span id="section-mode-label">Cheatsheet</span>
         <span class="action-pill-caret"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 5 6 8 9 5"/></svg></span>
@@ -589,8 +590,6 @@
           <div class="action-popover-option active" data-section="cheatsheet">Cheatsheet</div>
         </div>
       </div>
-      <span style="flex: 1;"></span>
-      <span class="unsaved-indicator" id="unsaved-indicator"></span>
     </div>
 
     <div class="type-selector">

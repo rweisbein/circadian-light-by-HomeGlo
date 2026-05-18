@@ -871,11 +871,13 @@
   <!-- Main Content -->
   <main class="main">
     <div class="page-header">
+      <!-- Row 1 (matches home Row 1): result count on the left, section
+           pill (mode) on the right. Mode = which page of the Controls
+           section: Controls / Activity / Cheatsheet. Right-anchored so the
+           dropdown expands inward, not off the left edge. -->
       <div style="display: flex; align-items: center; gap: 8px;">
-        <!-- Section pill — switches between the three control-section
-             pages: Controls (this page), Activity, Cheatsheet. Section is
-             the highest-level navigation within the Controls top-nav item;
-             the view pill on the right narrows further within Controls. -->
+        <span class="ctrl-result-count" id="ctrl-count"></span>
+        <span style="flex: 1;"></span>
         <div class="action-pill" id="section-mode-pill" title="Switch section">
           <span id="section-mode-label">Controls</span>
           <span class="action-pill-caret"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 5 6 8 9 5"/></svg></span>
@@ -885,11 +887,12 @@
             <div class="action-popover-option" data-section="cheatsheet">Cheatsheet</div>
           </div>
         </div>
-        <span class="ctrl-result-count" id="ctrl-count"></span>
-        <span style="flex: 1;"></span>
-        <!-- View pill: caret-button dropdown — same component as the home
-             page's mode pill (.action-pill in shared.css). Each option is
-             a curated lens (filter + sort + emphasis preset). -->
+      </div>
+      <!-- Row 2 (matches home Row 2 pattern): "view" label + view pill on
+           the left. View = a curated lens within Controls mode (filter +
+           sort preset). -->
+      <div class="seg-row" style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+        <span class="seg-label">view</span>
         <div class="action-pill" id="controls-mode-pill" title="Page view">
           <span id="controls-mode-label">Browse</span>
           <span class="action-pill-caret"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 5 6 8 9 5"/></svg></span>

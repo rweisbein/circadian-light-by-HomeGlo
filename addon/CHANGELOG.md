@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.347
+- **Controls + Cheatsheet page headers re-laid out to match the home page convention.** Home's pattern is Row 1 = identity-LEFT + mode-RIGHT, Row 2 = view-LEFT. After 1.2.346 the new section pill landed on the LEFT of Controls + Cheatsheet, opposite of home, and the dropdown (which uses `right: 0` to anchor and extend leftward) clipped off the left page edge. Restructured:
+  - **Controls (switches.html):** Row 1 now has result count on the left + section pill on the right (mirrors home). Row 2 — new — has the "view" label + view pill on the left (mirrors home Row 2). Filter + sort rows continue below in the existing `.ctrl-toolbar`.
+  - **Cheatsheet (switchmap.html):** Section pill moved to the right of the page-header; unsaved-changes indicator stays on the left.
+  - **Activity (activity.html):** already had section pill on the right per the existing header layout — no change.
+- **Vertical hierarchy on Controls now reads top→bottom:** mode → view → filter → sort. Each row's primary control is left-aligned with the matching home page convention; mode lives on the right to mirror home and to keep its dropdown inside the viewport.
+
 ## 1.2.346
 - **IA refactor: Activity moves out of home's mode pill into a new Controls section.** The home mode pill stays area-centric (Adjust / Tune / Manage); the Controls top-nav item now hosts three sibling pages connected by a shared section pill: **Controls / Activity / Cheatsheet**.
   - **Home (areas.html):** dropped the "Activity" option from the mode pill. The handler that navigates to /activity stays as a defense for any `?mode=activity` URLs still floating around.
