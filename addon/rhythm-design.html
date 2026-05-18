@@ -1823,38 +1823,6 @@ input[type=range]::-moz-range-thumb {
 }
 .section-save-btn:hover { opacity: 0.9; }
 
-/* Sticky "unsaved changes" banner — shown above the cards whenever any section
-   is dirty. Card-level orange dots tell the user *which* card is dirty; the
-   banner's job is just to surface the global commit/revert affordance. */
-.dirty-banner {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  display: none;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  margin-bottom: 12px;
-  background: rgba(254, 172, 96, 0.12);
-  border-bottom: 1px solid rgba(254, 172, 96, 0.4);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  font-size: var(--font-body);
-}
-.dirty-banner.is-active { display: flex; }
-.dirty-banner-label { color: var(--muted); font-weight: 500; flex: 1; }
-.dirty-banner-actions { display: flex; gap: 8px; flex-shrink: 0; }
-.dirty-banner-cancel {
-  padding: 4px 12px; border-radius: 6px; border: 1px solid var(--line);
-  background: transparent; color: var(--muted); font-size: var(--font-body); cursor: pointer;
-}
-.dirty-banner-cancel:hover { background: rgba(255,255,255,0.05); color: var(--text); }
-.dirty-banner-save {
-  padding: 4px 14px; border-radius: 6px; border: 1px solid var(--accent);
-  background: var(--accent); color: #000; font-size: var(--font-body); font-weight: 600; cursor: pointer;
-}
-.dirty-banner-save:hover { opacity: 0.9; }
-
 /* Header-placement Save/Cancel button group. Sits inside card headers (for
    card-level saves like Brightness) or sub-section headers (color-rule-stack-
    label for Color sub-sections). Hidden by default, shown when the
@@ -1944,6 +1912,112 @@ input[type=range]::-moz-range-thumb {
 select.readout-dirty {
   color: var(--changed) !important;
 }
+
+/* Page-level dirty indicator — small blue dot in the page header next to
+   the rhythm name when anything on the page is dirty. Pairs with the tab-
+   title prefix (set via document.title) for visibility when the page isn't
+   focused. Both replace the global "Save all / Cancel all" dirty banner. */
+.page-dirty-dot {
+  display: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--changed);
+  margin-right: 8px;
+  flex-shrink: 0;
+  /* Soft outline so the dot stays legible against the dynamic CCT-tinted
+     page-header background regardless of warm/cool tint. */
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.20);
+}
+.page-header.is-dirty .page-dirty-dot { display: inline-block; }
+
+/* Nav-guard modal — surfaces when user tries to navigate away (in-app)
+   with unsaved changes. Lists dirty section names. "Discard & leave"
+   reverts all and proceeds. "Stay & review" closes the modal AND flashes
+   the dirty cards/sub-sections in orange for ~1.8s so the user can see
+   what's pending. Browser-level navigation (close tab, refresh) still
+   uses the basic beforeunload handler — can't custom-style that. */
+.nav-guard-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+}
+.nav-guard-modal.is-open { display: flex; }
+.nav-guard-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+}
+.nav-guard-dialog {
+  position: relative;
+  background: var(--card, #1c2532);
+  border: 1px solid var(--line, rgba(255,255,255,0.08));
+  border-radius: 12px;
+  padding: 20px 22px 16px;
+  min-width: 280px;
+  max-width: 92vw;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  color: var(--text);
+}
+.nav-guard-title {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.nav-guard-body {
+  margin: 0 0 18px;
+  font-size: var(--font-body);
+  color: var(--muted);
+  line-height: 1.4;
+}
+.nav-guard-body .nav-guard-section-name {
+  color: var(--text);
+  font-weight: 600;
+}
+.nav-guard-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.nav-guard-actions button {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: var(--font-body);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.nav-guard-discard {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+}
+.nav-guard-discard:hover {
+  background: rgba(255,255,255,0.05);
+  color: var(--text);
+  border-color: var(--muted);
+}
+.nav-guard-stay {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #000;
+  font-weight: 600;
+}
+.nav-guard-stay:hover { opacity: 0.9; }
+
+/* Focus-flash — transient orange highlight ~1.8s. Used by the nav-guard
+   "Stay & review" action to point at dirty sections (cards + sub-sections).
+   Mirrors the existing area.html focus-flash treatment (deep-link target). */
+.rhythm-card.focus-flash,
+.color-rule-stack.focus-flash,
+.sub-section.focus-flash {
+  background: rgba(254, 172, 96, 0.12);
+  box-shadow: inset 0 0 0 2px rgba(254, 172, 96, 0.85);
+  transition: background 0.4s, box-shadow 0.4s;
+  border-radius: 10px;
+}
 /* When blocked (Path A guard — Pattern dirty), the button uses the native
    `disabled` attribute so the title tooltip still shows on hover. Visually
    greyed via opacity. */
@@ -2002,6 +2076,7 @@ select.readout-dirty {
     </svg>
   </button>
   <div class="rhythm-name-group">
+    <span class="page-dirty-dot" id="page-dirty-dot" title="Unsaved changes" aria-hidden="true"></span>
     <input type="text" class="rhythm-name-input" id="rhythm-name" value="Daily Rhythm 1" placeholder="Zone name">
   </div>
   <div class="cct-banner-readout-cluster">
@@ -2032,13 +2107,6 @@ select.readout-dirty {
 
 <div class="container">
   <div id="save-status"></div>
-  <div class="dirty-banner" id="dirty-banner" role="region" aria-label="Unsaved changes">
-    <span class="dirty-banner-label">Unsaved</span>
-    <div class="dirty-banner-actions">
-      <button type="button" class="dirty-banner-cancel" onclick="cancelAllChanges()">Cancel all</button>
-      <button type="button" class="dirty-banner-save" onclick="saveZoneSettings()">Save all</button>
-    </div>
-  </div>
 
   <!-- Chart -->
   <div class="section-block" id="chart-section">
@@ -2482,6 +2550,21 @@ select.readout-dirty {
     </div>
   </div>
 
+</div>
+
+<!-- Nav-guard modal — appears when user tries to navigate away (in-app)
+     with unsaved changes. Browser-level navigation (close tab, refresh)
+     still uses the basic beforeunload handler. -->
+<div class="nav-guard-modal" id="nav-guard-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="nav-guard-title">
+  <div class="nav-guard-backdrop" onclick="navGuardStay()"></div>
+  <div class="nav-guard-dialog">
+    <h3 class="nav-guard-title" id="nav-guard-title">Unsaved changes</h3>
+    <p class="nav-guard-body">You have changes in <span id="nav-guard-sections"></span>.</p>
+    <div class="nav-guard-actions">
+      <button type="button" class="nav-guard-discard" onclick="navGuardDiscard()">Discard &amp; leave</button>
+      <button type="button" class="nav-guard-stay" onclick="navGuardStay()">Stay &amp; review</button>
+    </div>
+  </div>
 </div>
 
 <script src="./shared.js"></script>
@@ -7264,9 +7347,6 @@ const SLEEP_SUB_SECTIONS = [
 ];
 
 function updateSectionDirtyState() {
-  const banner = document.getElementById('dirty-banner');
-  if (!banner) return;
-
   let anyDirty = false;
   for (const sec of RHYTHM_SECTIONS) {
     const dirty = isSectionDirty(sec.fields());
@@ -7310,10 +7390,23 @@ function updateSectionDirtyState() {
   // Save/Cancel actions for the actual commit/discard path.
   updateReadoutDirtyState();
 
-  // Banner: visible only when at least one section is dirty. The per-card
-  // dot + header Reset tell the user *which* card; the banner's job is the
-  // global action.
-  banner.classList.toggle('is-active', anyDirty);
+  // Page-level dirty signal — the small blue dot in the page-header and the
+  // browser tab title prefix. Replaces the global "Save all / Cancel all"
+  // dirty banner (removed in 1.2.338). The nav-guard modal handles the
+  // "leaving with unsaved changes" concern; per-section Save/Cancel handles
+  // the commit/revert affordances.
+  const headerEl = document.getElementById('page-header');
+  if (headerEl) headerEl.classList.toggle('is-dirty', anyDirty);
+  updatePageTitleDirty(anyDirty);
+}
+
+// Browser tab title prefix — a leading "• " when anything on the page is
+// dirty so the unsaved state is visible even when the tab isn't focused.
+// _baseTitle captured once at page load.
+let _baseTitle = null;
+function updatePageTitleDirty(isDirty) {
+  if (_baseTitle == null) _baseTitle = document.title.replace(/^•\s+/, '');
+  document.title = isDirty ? `• ${_baseTitle}` : _baseTitle;
 }
 
 function updateReadoutDirtyState() {
@@ -7447,13 +7540,126 @@ function stopLiveDesign() {
 }
 
 function goBack() {
-  if (isAnyDirty() && !confirm('You have unsaved changes. Leave anyway?')) return;
+  if (isAnyDirty()) {
+    navGuardOpen(() => {
+      stopLiveDesign();
+      _navGoBack();
+    });
+    return;
+  }
   stopLiveDesign();
+  _navGoBack();
+}
+
+function _navGoBack() {
   if (window.history.length > 1 && document.referrer) {
     window.history.back();
   } else {
     window.location.href = _backUrl;
   }
+}
+
+// ============================================================
+// Nav-guard modal — replaces the global "Save all / Cancel all" banner
+// for the "leaving with unsaved changes" concern. Surfaces when the user
+// triggers in-app nav (goBack) with dirty fields. Buttons:
+//   - "Discard & leave" → revert all + proceed
+//   - "Stay & review"   → close modal + scroll to first dirty section,
+//                         expand if collapsed, flash all dirty sections
+//                         in orange (~1.8s) so the user sees the scope.
+// Browser-level nav (close tab, refresh) still uses the basic beforeunload
+// dialog — can't custom-style that.
+// ============================================================
+let _navGuardOnConfirm = null;
+
+function navGuardOpen(onConfirm) {
+  // Build the dirty section list. Card-level granularity is enough — the
+  // flash treatment on "Stay & review" shows the user the exact scope.
+  const dirty = [];
+  for (const sec of RHYTHM_SECTIONS) {
+    if (isSectionDirty(sec.fields())) dirty.push(sec.name);
+  }
+  if (dirty.length === 0) { onConfirm(); return; }
+  const sectionsEl = document.getElementById('nav-guard-sections');
+  if (sectionsEl) {
+    // Format: "A", "A and B", "A, B, and C" — natural English list.
+    const wrapped = dirty.map(n => `<span class="nav-guard-section-name">${n}</span>`);
+    let phrase;
+    if (wrapped.length === 1) phrase = wrapped[0];
+    else if (wrapped.length === 2) phrase = wrapped.join(' and ');
+    else phrase = wrapped.slice(0, -1).join(', ') + ', and ' + wrapped[wrapped.length - 1];
+    sectionsEl.innerHTML = phrase;
+  }
+  _navGuardOnConfirm = onConfirm;
+  const modal = document.getElementById('nav-guard-modal');
+  if (modal) { modal.classList.add('is-open'); modal.setAttribute('aria-hidden', 'false'); }
+}
+
+function navGuardClose() {
+  const modal = document.getElementById('nav-guard-modal');
+  if (modal) { modal.classList.remove('is-open'); modal.setAttribute('aria-hidden', 'true'); }
+  _navGuardOnConfirm = null;
+}
+
+function navGuardStay() {
+  navGuardClose();
+  flashDirtySections();
+}
+
+function navGuardDiscard() {
+  const fn = _navGuardOnConfirm;
+  navGuardClose();
+  cancelAllChanges();
+  if (fn) fn();
+}
+
+// Escape closes the modal as "Stay" (no destructive default).
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const modal = document.getElementById('nav-guard-modal');
+  if (modal && modal.classList.contains('is-open')) {
+    e.stopPropagation();
+    navGuardStay();
+  }
+});
+
+// Flash all currently-dirty cards + sub-sections in orange for ~1.8s.
+// Expands parent cards if collapsed and scrolls the first dirty section
+// into view. Orange flash is the "transient attention" use of accent (the
+// blue convention is reserved for persistent "value differs from saved").
+function flashDirtySections() {
+  const targets = [];
+  for (const sec of RHYTHM_SECTIONS) {
+    if (isSectionDirty(sec.fields())) {
+      const el = document.getElementById(sec.cardId);
+      if (el) targets.push(el);
+    }
+  }
+  for (const sub of RHYTHM_SUB_SECTIONS) {
+    if (isSectionDirty(sub.fields())) {
+      const el = document.getElementById(sub.stackId);
+      if (el) targets.push(el);
+    }
+  }
+  for (const sub of SLEEP_SUB_SECTIONS) {
+    if (isSectionDirty(sub.fields())) {
+      const el = document.getElementById(sub.subSectionId);
+      if (el) targets.push(el);
+    }
+  }
+  if (targets.length === 0) return;
+  // Ensure parent cards are expanded so flashed sub-sections are visible.
+  for (const t of targets) {
+    const card = t.closest('.rhythm-card');
+    if (card && !card.classList.contains('is-open')) card.classList.add('is-open');
+  }
+  // Scroll to the first dirty target.
+  targets[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+  // Flash all.
+  targets.forEach(t => t.classList.add('focus-flash'));
+  setTimeout(() => {
+    targets.forEach(t => t.classList.remove('focus-flash'));
+  }, 1800);
 }
 
 // Also stop Live Design + warn on unsaved if user navigates away via browser back/close

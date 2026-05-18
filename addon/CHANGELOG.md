@@ -1,5 +1,15 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.338
+- **Removed the global "Save all / Cancel all" dirty banner** on rhythm-design. Replaced by three lighter-weight indicators + a proper modal:
+  - **Page-header dirty dot** — a small blue dot beside the rhythm name in the page header whenever any field is dirty. Visible regardless of scroll position; replaces the banner's "you have unsaved work somewhere" function.
+  - **Browser tab title prefix** — leading `• ` on `document.title` whenever the page is dirty, so the unsaved state is visible in the tab bar even when the page isn't focused.
+  - **Nav-guard modal** (replacing `goBack()`'s prior browser `confirm()` prompt) — when user clicks Back with dirty changes, surfaces a modal listing the dirty sections by name ("You have changes in Sleep and Color temperature."). Two actions:
+    - **Discard & leave** — reverts all dirty fields then proceeds with the back navigation.
+    - **Stay & review** — closes the modal, scrolls to the first dirty section (expanding its card if collapsed), and **flashes all dirty cards + sub-sections in orange for ~1.8s** so the user can see the full scope of pending changes. Mirrors the existing `focus-flash` deep-link treatment.
+  - Browser-level navigation (close tab, refresh) still uses the basic `beforeunload` browser dialog — can't custom-style that.
+- **Per-section Save/Cancel + per-card dirty dots + per-readout blue + page-header dot + nav-guard** together cover what the banner did, with finer granularity. `cancelAllChanges()` retained (now only called by the modal's Discard action). Orange is fully reserved for primary CTAs, hover/active selection, and transient attention flashes (this new use); blue is exclusively "value differs from saved."
+
 ## 1.2.337
 - **Fix: Pattern change now clears alt wake/bed times.** Previously, switching Pattern (e.g. Adult → Dusk Bat) updated `wake_time` and `bed_time` to the preset values but left `wake_alt_time` / `bed_alt_time` (and their day arrays) untouched — so a 9a wake-alt would persist into Dusk Bat's 12p-8p range, ending up outside the valid bounds and surfacing as visually broken / validation-error-triggering UI. Pattern change now clears `wake_alt_time`, `wake_alt_days`, `bed_alt_time`, `bed_alt_days`. The `_last` cached values are preserved so the alt sliders are still pre-populated if the user re-adds an alt-day after the Pattern change.
 
