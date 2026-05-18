@@ -1,5 +1,12 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.358
+- **area.html Schedule + Lights save bars migrated to header placement.** Adopts the rhythm-design pattern: Save/Cancel buttons live inside the section header (auto-on / auto-off sub-section headers and the Lights card header), hidden by default, revealed by `.is-dirty` on the parent card. Bottom-of-body `.section-action-bar` elements are gone. Net effect: save controls stay visible whenever you can see the section's header, even if the body is scrolled past or the card is closed. No more scrolling down to the bottom of a long Schedule body to find Save.
+- **New shared CSS class `.section-header-actions`.** Mirrors `.rhythm-section-actions` from rhythm-design but lives in area.html. Schedule sub-sections additionally hide the right-side next-fire time when dirty so the header doesn't get cluttered (same precedent rhythm-design sets for card-header dirty state).
+- **`updateAutoButtons(type)` and `updateTuneButtons()` now toggle `.is-dirty` on the card** instead of flipping `display` on the bar. CSS owns visibility; JS owns dirty-state.
+- **areas.html Manage mode: audited — nothing to migrate.** Manage operations (rename, reorder, drag-to-zone, toggle Circadian, delete) each fire their own API call on commit. No batch save bar exists.
+- **switchmap.html: deferred.** Its save bar already sits adjacent to the page-header (moved there in 1.2.348). Literal-inside-`.page-header` migration would either cram a fourth element next to the mode pill (tight on mobile) or restructure the header from flex-row to flex-column — neither is a clear win over the current layout. Tabled pending a discussion on whether the visual unification is worth that.
+
 ## 1.2.357
 - **Standardized "Sort → Group" pattern across Controls + Activity.** Picking a sort dimension now auto-groups the list under collapsible headers with counts. Each group's open/closed state persists with the existing card-freshness window (stale → reset to all-expanded).
 - **Controls / Pause view: new "Pause" sort.** Appears only in Pause view, alongside Recent / Area / Name. Groups into `Paused (n)` / `Unpaused (n)` so the user can scan paused things, collapse them, and see what's still active underneath. Previously Pause view's sort segmenter mirrored Browse and didn't expose a pause-status grouping at all.

@@ -1013,6 +1013,48 @@
     }
     .section-save-btn:hover { opacity: 0.9; }
 
+    /* Header-placement Save/Cancel button group — modeled on rhythm-design's
+       .rhythm-section-actions. Lives inside a section/card header. Hidden by
+       default, shown when the containing section has `.is-dirty`. Compact
+       sizing keeps the header readable. */
+    .section-header-actions {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .section-header-actions .section-cancel-btn,
+    .section-header-actions .section-save-btn {
+      padding: 3px 10px;
+      font-size: var(--font-body);
+      border-radius: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    /* Schedule sub-sections (auto-on / auto-off): when dirty, reveal the
+       header buttons and hide the next-fire info on the right so the header
+       stays uncluttered. Pattern matches rhythm-design Color sub-sections. */
+    .auto-sched-card--sub.is-dirty .sub-section-header .section-header-actions {
+      display: inline-flex;
+      margin-left: auto;
+    }
+    .auto-sched-card--sub.is-dirty .sub-section-header .auto-sched-next,
+    .auto-sched-card--sub.is-dirty .sub-section-header #auto-on-override-link,
+    .auto-sched-card--sub.is-dirty .sub-section-header #auto-off-override-link {
+      display: none !important;
+    }
+    /* Lights card: same idea, surfacing inside the tune-lights-header. The
+       count chip already hides when the card is open; the buttons take its
+       slot when dirty. */
+    .tune-lights-card.is-dirty .tune-lights-header .section-header-actions {
+      display: inline-flex;
+      margin-left: auto;
+    }
+    .tune-lights-card.is-dirty .tune-lights-header .tune-lights-count {
+      display: none;
+    }
+
     /* Sliders — custom minimal styling */
     input[type=range] {
       -webkit-appearance: none; appearance: none;
@@ -1566,6 +1608,10 @@
             <span class="auto-sched-next" id="auto-on-next"></span>
             <a id="auto-on-override-link" href="#" style="display:none; font-size:var(--font-caps); color:var(--muted2); text-decoration:underline; line-height:1;">set override</a>
           </span>
+          <span class="section-header-actions" id="auto-on-header-actions">
+            <button type="button" class="section-cancel-btn" onclick="cancelAutoChanges('on')">Cancel</button>
+            <button type="button" class="section-save-btn" onclick="saveAutoChanges('on')">Save</button>
+          </span>
         </div>
         <div class="auto-sched-body sub-section-body" id="auto-on-body">
          <div class="auto-sched-body-inner">
@@ -1646,10 +1692,6 @@
               <input type="hidden" id="auto-on-trigger-mode" value="always">
             </div>
           </div>
-          <div class="section-action-bar" id="auto-on-action-bar" style="display:none;">
-            <button class="section-cancel-btn" onclick="cancelAutoChanges('on')">Cancel</button>
-            <button class="section-save-btn" onclick="saveAutoChanges('on')">Save</button>
-          </div>
          </div>
         </div>
       </div>
@@ -1664,6 +1706,10 @@
           <span style="margin-left:auto; display:flex; flex-direction:column; align-items:flex-end;">
             <span class="auto-sched-next" id="auto-off-next"></span>
             <a id="auto-off-override-link" href="#" style="display:none; font-size:var(--font-caps); color:var(--muted2); text-decoration:underline; line-height:1;">set override</a>
+          </span>
+          <span class="section-header-actions" id="auto-off-header-actions">
+            <button type="button" class="section-cancel-btn" onclick="cancelAutoChanges('off')">Cancel</button>
+            <button type="button" class="section-save-btn" onclick="saveAutoChanges('off')">Save</button>
           </span>
         </div>
         <div class="auto-sched-body sub-section-body" id="auto-off-body">
@@ -1730,10 +1776,6 @@
               <input type="checkbox" id="auto-off-untouched" onchange="onAutoFieldChanged('off')" style="accent-color:var(--muted); margin:0; cursor:pointer;">
               <span>lights not touched since Auto On</span>
             </label>
-          </div>
-          <div class="section-action-bar" id="auto-off-action-bar" style="display:none;">
-            <button class="section-cancel-btn" onclick="cancelAutoChanges('off')">Cancel</button>
-            <button class="section-save-btn" onclick="saveAutoChanges('off')">Save</button>
           </div>
          </div>
         </div>
@@ -5706,9 +5748,10 @@
     function updateTuneButtons() {
       // Tune action bar (Save/Cancel) was removed in Ship 2 refactor —
       // sun + balance now save on drag-release. Lights card still has its
-      // staged save (preset edits), so keep that bar wired.
-      const lightsBar = document.getElementById('lights-action-bar');
-      if (lightsBar) lightsBar.style.display = isLightsDirty() ? 'flex' : 'none';
+      // staged save (preset edits); 1.2.358 moved its buttons into the
+      // card header, gated by `.is-dirty` on .tune-lights-card.
+      const lightsCard = document.querySelector('.tune-lights-card');
+      if (lightsCard) lightsCard.classList.toggle('is-dirty', isLightsDirty());
       // Tune dirty state vs page-load snapshot (NOT tuneSnapshot which
       // updates on every save). value text gets orange + tappable to
       // revert when current step differs from the session snapshot.
@@ -5723,8 +5766,12 @@
     }
 
     function updateAutoButtons(type) {
-      const bar = document.getElementById('auto-' + type + '-action-bar');
-      if (bar) bar.style.display = isAutoDirty(type) ? 'flex' : 'none';
+      // Header-placement pattern (1.2.358): Save/Cancel buttons live inside
+      // the sub-section header (sub-section-header > .section-header-actions)
+      // and are revealed by `.is-dirty` on the parent card via CSS. Match
+      // rhythm-design.html's rhythm-section-actions pattern.
+      const card = document.getElementById('auto-' + type + '-card');
+      if (card) card.classList.toggle('is-dirty', isAutoDirty(type));
     }
 
     async function saveBrightnessChanges() {
@@ -6619,6 +6666,10 @@
         + '<span class="tune-lights-chevron">&#x203A;</span>'
         + '<span class="tune-lights-title">Lights</span>'
         + '<span class="tune-lights-count" id="tune-lights-count">' + (sortedLights.length || '') + '</span>'
+        + '<span class="section-header-actions" onclick="event.stopPropagation()">'
+        +   '<button type="button" class="section-cancel-btn" onclick="cancelLightsChanges()">Cancel</button>'
+        +   '<button type="button" class="section-save-btn" onclick="saveLightsChanges()">Save</button>'
+        + '</span>'
         + '</div>';
       lhtml += '<div class="tune-lights-body">';
 
@@ -6684,10 +6735,6 @@
       }
       lhtml += '</div>';
       lhtml += '<div id="tune-lights-legend" style="display:none; padding:4px 14px 6px; font-size:var(--font-caps); color:var(--muted2);"></div>';
-      lhtml += '<div class="section-action-bar" id="lights-action-bar" style="display:none;">';
-      lhtml += '<button class="section-cancel-btn" onclick="cancelLightsChanges()">Cancel</button>';
-      lhtml += '<button class="section-save-btn" onclick="saveLightsChanges()">Save</button>';
-      lhtml += '</div>';
       lhtml += '</div>'; // end .tune-lights-body
       lightsCard.innerHTML = lhtml;
       lightsCard.style.display = '';
