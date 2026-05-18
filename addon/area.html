@@ -1044,9 +1044,40 @@
     .auto-sched-card--sub.is-dirty .sub-section-header #auto-off-override-link {
       display: none !important;
     }
+    /* Outer Schedule card — when any sub is dirty: a blue dot appears on
+       the title, and (when the outer is COLLAPSED) the Save/Cancel buttons
+       surface in the outer header in place of the next-fire summary. When
+       the outer is OPEN, the sub-sections show their own Save/Cancel
+       instead, so the outer header stays decongested. */
+    .auto-sched-card--auto.is-dirty .auto-sched-title::before {
+      content: '';
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--changed);
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    .auto-sched-card--auto:not(.is-open).is-dirty .auto-sched-header > .section-header-actions {
+      display: inline-flex;
+      margin-left: auto;
+    }
+    .auto-sched-card--auto:not(.is-open).is-dirty .auto-sched-header .auto-outer-next {
+      display: none;
+    }
     /* Lights card: same idea, surfacing inside the tune-lights-header. The
        count chip already hides when the card is open; the buttons take its
-       slot when dirty. */
+       slot when dirty. Plus a dirty dot on the title regardless of open/
+       collapsed state. */
+    .tune-lights-card.is-dirty .tune-lights-title::before {
+      content: '';
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--changed);
+      margin-right: 6px;
+      vertical-align: middle;
+    }
     .tune-lights-card.is-dirty .tune-lights-header .section-header-actions {
       display: inline-flex;
       margin-left: auto;
@@ -1595,6 +1626,10 @@
         <span class="auto-sched-chevron" id="auto-outer-chevron">&#x203A;</span>
         <span class="auto-sched-title">Schedule</span>
         <span class="auto-outer-next" id="auto-outer-next"></span>
+        <span class="section-header-actions" onclick="event.stopPropagation()">
+          <button type="button" class="section-cancel-btn" onclick="cancelAllAutoChanges()">Cancel</button>
+          <button type="button" class="section-save-btn" onclick="saveAllAutoChanges()">Save</button>
+        </span>
       </div>
       <div class="auto-sched-body" id="auto-outer-body">
     <div class="auto-sched-card auto-sched-card--sub sub-section" id="auto-on-card">
@@ -4643,8 +4678,16 @@
     // Navigation
     // ============================================================
     function goBack() {
-      if (isTuneDirty() || isAutoSchedDirty()) {
-        if (!confirm('You have unsaved changes. Discard and leave?')) return;
+      // Enumerate which sections are dirty so the confirm tells the user
+      // exactly what they'd discard, not just "you have unsaved changes".
+      const dirty = [];
+      if (isAutoDirty('on')) dirty.push('Schedule: On');
+      if (isAutoDirty('off')) dirty.push('Schedule: Off');
+      if (isLightsDirty()) dirty.push('Lights');
+      if (isBrightnessDirty()) dirty.push('Brightness');
+      if (dirty.length) {
+        const msg = 'You have unsaved changes in: ' + dirty.join(', ') + '. Discard and leave?';
+        if (!confirm(msg)) return;
       }
       stopRefresh();
       const params = new URLSearchParams(window.location.search);
@@ -5772,6 +5815,26 @@
       // rhythm-design.html's rhythm-section-actions pattern.
       const card = document.getElementById('auto-' + type + '-card');
       if (card) card.classList.toggle('is-dirty', isAutoDirty(type));
+      // Outer Schedule card mirrors any-sub-dirty so it can show its own
+      // dirty dot + (when collapsed) Save/Cancel buttons — gives the user a
+      // visible "you have unsaved changes inside" cue even with the body
+      // hidden, and lets them save/cancel without re-expanding.
+      const outer = document.getElementById('schedule-card');
+      if (outer) outer.classList.toggle('is-dirty', isAutoSchedDirty());
+    }
+
+    // Save / Cancel for both sub-sections at once. Wired to the outer
+    // Schedule header buttons (visible only when the outer is collapsed
+    // AND at least one sub is dirty).
+    async function saveAllAutoChanges() {
+      for (const t of ['on', 'off']) {
+        if (isAutoDirty(t)) await saveAutoChanges(t);
+      }
+    }
+    function cancelAllAutoChanges() {
+      for (const t of ['on', 'off']) {
+        if (isAutoDirty(t)) cancelAutoChanges(t);
+      }
     }
 
     async function saveBrightnessChanges() {
@@ -7221,18 +7284,15 @@
       }, 500);
     }
 
-    async function toggleSchedule(event) {
+    function toggleSchedule(event) {
       // Don't toggle when click originated on a hit-zone anchor inside the merged header.
       if (event && event.target && event.target.closest('a[data-auto-hit]')) return;
       const card = document.getElementById('schedule-card');
       if (!card) return;
-      const wasOpen = card.classList.contains('is-open');
-      // Auto-save on collapse if either sub is dirty.
-      if (wasOpen) {
-        for (const t of ['on', 'off']) {
-          if (isAutoDirty(t)) await saveAutoChanges(t);
-        }
-      }
+      // Collapsing with dirty subs no longer auto-saves silently — the
+      // outer header keeps its dirty dot + Save/Cancel visible when
+      // collapsed, so the user can save explicitly from there. (Was a
+      // surprise auto-save before 1.2.359.)
       card.classList.toggle('is-open');
       const isOpen = card.classList.contains('is-open');
       _setAreaCard('schedule_collapsed', isOpen ? 'false' : 'true');
