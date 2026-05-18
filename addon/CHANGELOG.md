@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.335
+- **Sleep card — disabled Revert tooltip now actually surfaces.** 1.2.334 used `pointer-events: none` to make the Wake/Bed Revert buttons non-clickable when Pattern was dirty, but that ALSO blocked the native title tooltip on hover — so the "Revert Pattern first to undo all sleep changes" explanation never appeared. Switched to the native `disabled` attribute on the button (set in JS) + CSS styling for the disabled state. Disabled buttons still receive hover events in modern browsers, so the tooltip surfaces. The `revertWakeChanges` / `revertBedChanges` functions also have an internal guard that short-circuits when Pattern is dirty, so the click path remains safe even if the `disabled` attribute is bypassed.
+
 ## 1.2.334
 - **Sleep card — Path A save model.** Sleep is one save unit at the card level (Pattern's range constrains Wake/Bed validity, so partial commits aren't safe), but supports three revert scopes for surgical undo:
   - **Sleep card header → Save + Cancel** (replacing the prior Reset button), commits/reverts all SLEEP_FIELDS. Mirrors Brightness + Color header pattern.

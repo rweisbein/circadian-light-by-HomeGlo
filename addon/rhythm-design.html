@@ -1933,10 +1933,19 @@ input[type=range]::-moz-range-thumb {
   border-color: var(--changed);
 }
 .sub-section.is-dirty .sub-section-revert { display: inline-flex; align-items: center; }
-.sub-section.is-revert-blocked .sub-section-revert {
+/* When blocked (Path A guard — Pattern dirty), the button uses the native
+   `disabled` attribute so the title tooltip still shows on hover. Visually
+   greyed via opacity. */
+.sub-section-revert[disabled],
+.sub-section-revert:disabled {
   opacity: 0.35;
-  pointer-events: none;
   cursor: not-allowed;
+  background: rgba(120, 170, 230, 0.04);
+}
+.sub-section-revert[disabled]:hover,
+.sub-section-revert:disabled:hover {
+  background: rgba(120, 170, 230, 0.04);
+  border-color: rgba(120, 170, 230, 0.50);
 }
 
 /* Card-level dirty marker — small blue dot before the card title */
@@ -7254,12 +7263,12 @@ function updateSectionDirtyState() {
     if (!el) continue;
     el.classList.toggle('is-dirty', isSectionDirty(sub.fields()));
     // Path A guard — Wake/Bed Reverts disabled while Pattern is dirty.
+    // Uses the native `disabled` attribute (not pointer-events: none) so the
+    // title tooltip still surfaces on hover to explain the blocked state.
     if (sub.subSectionId === 'wake-sub-section' || sub.subSectionId === 'bed-sub-section') {
-      el.classList.toggle('is-revert-blocked', patternDirty);
-      // Update tooltip on the Revert button so the disabled state explains
-      // itself on hover (when interactive again) and via assistive tech.
       const btn = el.querySelector('.sub-section-revert');
       if (btn) {
+        btn.disabled = patternDirty;
         const kind = sub.subSectionId === 'wake-sub-section' ? 'Wake' : 'Bed';
         btn.title = patternDirty
           ? 'Revert Pattern first to undo all sleep changes'
