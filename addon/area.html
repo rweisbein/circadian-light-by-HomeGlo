@@ -52,9 +52,10 @@
     /* Area header — 3-row CCT-tinted layout (Ship 2 redesign per
        addon/area-detail-mock.html). updateHeaderTint() sets background +
        readable text color per-frame so the header reads the room's CCT.
-       Row 1: ← · name · bri% · CT ·  (spacer) · Circadian toggle
-       Row 2: "in {zone} →" · transient chips · (spacer) · sun pill
-       Row 3: Power · Freeze · Boost · Reset(when dirty) — each w/ sub-line */
+       Row 1: ← · name · bri% · CT ·  (spacer) · sun pill
+       Row 2: "in {zone} →" · transient chips
+       Row 3: Power · Freeze · Boost · Reset(when dirty) · (auto) · Circadian
+              — actions w/ sub-lines; pulled flush-left, Circadian anchors right */
     .area-header {
       position: sticky;
       top: 0;
@@ -83,7 +84,6 @@
       min-height: 28px;
     }
     .ah-row1 .back-btn { flex-shrink: 0; align-self: center; }
-    .ah-row1 #toggle-circadian { align-self: center; }
     .ah-name {
       font-size: 1.35rem;
       font-weight: 700;
@@ -110,22 +110,17 @@
     .ah-breadcrumb:empty { display: none; }
     .ah-row1-spacer { flex: 1 1 auto; min-width: 8px; }
     .ah-sun {
-      /* 1.2.367: floats ABOVE the chart's black area (top: -22px) so it
-         doesn't read as a "time of day with high sun" marker on the
-         curve itself. Sits in the empty right edge of Row 3 / the
-         margin between Row 3 and the chart, taking no vertical space of
-         its own. */
+      /* 1.2.371: lives inline in Row 1's right edge (was an absolute
+         overlay above the chart). Sits next to the spacer + back-btn /
+         identity cluster, vertically centered. */
       display: none;  /* shown by .visible class once updateChartSunInfo finds daylight */
-      position: absolute;
-      top: -22px;
-      right: 0;
-      z-index: 4;
+      align-self: center;
       align-items: center;
       gap: 5px;
-      padding: 2px 9px;
+      padding: 3px 10px;
       border-radius: 12px;
       background: rgba(0,0,0,0.20);
-      font-size: 0.78rem;
+      font-size: 0.82rem;
       font-weight: 600;
       cursor: pointer;
       color: inherit;
@@ -198,27 +193,59 @@
     }
 
     /* ─── Row 3: actions ─── Power · Freeze · Boost · Reset(when dirty)
-       Left padding matches Row 2 so the first action button lines up
-       with the area name on Row 1. */
+       · ←auto→ · Circadian toggle
+       1.2.371: action cluster pulled further left than the area name
+       (padding-left: 36 → 0). Circadian toggle moved here from Row 1
+       and pinned to the right via margin-left: auto on its wrapper. */
     .ah-row3 {
       display: flex;
       justify-content: flex-start;
       align-items: flex-start;
       gap: 18px;
       margin-top: 4px;
-      padding-left: 36px;
+      padding-left: 0;
+    }
+    .ah-row3 #toggle-circadian {
+      margin-left: auto;
+      /* align to flex-start (default from parent's align-items) so the
+         circadian button sits on the same horizontal as the other action
+         buttons — those are inside .ah-action columns whose button sits
+         at the top of the column. align-self: center pulled circadian
+         down to the row's vertical middle. */
     }
     /* Conditional 4th action: the master Reset button. Lives inline with
        the action cluster (just right of Boost) — not pinned to the far
        right edge. Hidden by default; shown when isAreaDirtyVsZone toggles
        `.is-dirty` on this wrapper. */
-    .ah-action-reset {
+    /* Double-class selectors here so they beat the later-defined
+       `.ah-action { display: flex }` rule. Without this, the reset
+       wrapper had both `.ah-action` and `.ah-action-reset` classes; the
+       single-class `display: none` lost the cascade tie-breaker to
+       `.ah-action`'s `display: flex`, so the reset stayed visible even
+       when not dirty. */
+    .ah-action.ah-action-reset {
       display: none;
     }
-    .ah-action-reset.is-dirty { display: flex; }
+    .ah-action.ah-action-reset.is-dirty { display: flex; }
     .ah-action-reset #ah-reset-btn {
       font-size: 1.1rem;
       line-height: 1;
+    }
+    /* Blue solid-fill treatment when dirty — reset reads as a clear CTA
+       (analogous to .section-save-btn's solid accent fill), not a quiet
+       outline. Same `--changed` blue as `.hslider-delta.is-dirty` chips
+       and the unsaved-indicator dot, but at full saturation so it pops
+       against the CCT-tinted header. */
+    .ah-action-reset.is-dirty #ah-reset-btn {
+      border-color: var(--changed);
+      background: var(--changed);
+      color: #0c1626;
+      opacity: 1;
+      font-weight: 700;
+    }
+    .ah-action-reset.is-dirty #ah-reset-btn:hover {
+      background: var(--changed-hover, #5a8fd4);
+      border-color: var(--changed-hover, #5a8fd4);
     }
 
     .ah-action {
@@ -238,7 +265,13 @@
       height: 42px;
       border-radius: 21px;
       border: 1.5px solid rgba(0,0,0,0.18);
-      background: transparent;
+      /* 1.2.371: semi-transparent dark fill for OFF state. Previously
+         transparent — buttons washed out on very-light CCT tints (near-
+         white headers around midday). The dark fill gives every button
+         a consistent "well/recessed" affordance against any tint,
+         while still clearly contrasting with the white-filled .is-on
+         state. */
+      background: rgba(0,0,0,0.18);
       color: inherit;
       display: inline-flex;
       align-items: center;
@@ -249,7 +282,7 @@
       transition: background 0.15s, color 0.15s, opacity 0.15s, border-color 0.15s, filter 0.15s;
       -webkit-tap-highlight-color: transparent;
     }
-    .ah-btn:hover { background: rgba(0,0,0,0.12); opacity: 1; }
+    .ah-btn:hover { background: rgba(0,0,0,0.30); opacity: 1; }
     .ah-btn svg { width: 20px; height: 20px; }
     .ah-btn.is-on {
       background: #fff;
@@ -258,27 +291,46 @@
       opacity: 1;
     }
     .ah-btn.is-on:hover { background: rgba(255,255,255,0.92); }
-    .area-header.is-neutral .ah-btn { border-color: rgba(255,255,255,0.18); }
-    .area-header.is-neutral .ah-btn:hover { background: rgba(255,255,255,0.06); }
+    /* Neutral (dark) header — invert the OFF fill from dark-on-light to
+       light-on-dark so the buttons still read as a subtle "well" against
+       the dark panel. */
+    .area-header.is-neutral .ah-btn {
+      border-color: rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.06);
+    }
+    .area-header.is-neutral .ah-btn:hover { background: rgba(255,255,255,0.16); }
     /* Circadian button hosts the Circadian Light logo as its indicator.
        ON = full color logo, button stays transparent (no white fill, no
        borders fighting the logo). OFF = grayscale + reduced opacity.
        Drop the outline entirely on this one so the logo is the whole
        visual story. */
     #toggle-circadian {
-      width: 28px;
-      height: 28px;
-      border-color: transparent;
-      background: transparent;
+      /* 1.2.372: CL toggle now has full chrome at both states for visual
+         parity with the other action buttons. ON = white fill (like
+         power-on); OFF = dark fill (like freeze/boost off). The brand
+         logo's color (ON) vs grayscale + 0.55 opacity (OFF) carries the
+         state signal alongside the chrome flip. */
+      background: #fff;
+      border-color: rgba(0,0,0,0.25);
+      opacity: 1;
     }
-    #toggle-circadian:hover { background: rgba(0,0,0,0.10); }
-    .area-header.is-neutral #toggle-circadian:hover { background: rgba(255,255,255,0.06); }
-    /* Match the home page nav-logo size (24px) — the area-detail CL logo
-       was 38px which read as oversized next to the .ah-btn cluster on
-       Row 3. */
+    #toggle-circadian:hover { background: rgba(255,255,255,0.92); }
+    #toggle-circadian.is-off {
+      background: rgba(0,0,0,0.18);
+      border-color: rgba(0,0,0,0.18);
+      opacity: 0.85;
+    }
+    #toggle-circadian.is-off:hover { background: rgba(0,0,0,0.30); }
+    .area-header.is-neutral #toggle-circadian.is-off {
+      background: rgba(255,255,255,0.06);
+      border-color: rgba(255,255,255,0.18);
+    }
+    .area-header.is-neutral #toggle-circadian.is-off:hover {
+      background: rgba(255,255,255,0.16);
+    }
     #toggle-circadian .ah-btn-logo {
-      width: 24px;
-      height: 24px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
       display: block;
       transition: filter 0.15s, opacity 0.15s;
@@ -1588,9 +1640,10 @@
       <span class="ah-state-sep">&middot;</span>
       <span class="ah-state-ct" id="ah-state-ct">----K</span>
       <span class="ah-row1-spacer"></span>
-      <button type="button" class="ah-btn ah-btn--top" id="toggle-circadian"
-              onclick="toggleCircadian()" title="Circadian Light">
-        <img class="ah-btn-logo" src="./icon-indicator.png" alt="Circadian">
+      <button type="button" class="ah-sun" id="chart-sun-info"
+              aria-expanded="false" title="Sun intensity">
+        <span class="ah-sun-icon" id="chart-sun-info-icon" data-sun-icon>&#x2600;</span>
+        <span id="chart-sun-info-pct" data-sun-pct>&mdash;</span>
       </button>
     </div>
 
@@ -1647,20 +1700,20 @@
                 onclick="onResetArea()" title="Reset overrides">&#x21BA;</button>
         <span class="ah-subline is-blank">&nbsp;</span>
       </div>
+      <!-- Circadian toggle — full-size action button at the right of the
+           cluster (1.2.371). Anchors the row visually opposite the
+           power/freeze/boost trio on the left. -->
+      <button type="button" class="ah-btn ah-btn--top" id="toggle-circadian"
+              onclick="toggleCircadian()" title="Circadian Light">
+        <img class="ah-btn-logo" src="./icon-indicator.png" alt="Circadian">
+      </button>
     </div>
 
     <!-- Chart lives INSIDE the header (1.2.363). 1.2.364: moved below
          Row 3 (action buttons) per user preference — chart is the last
-         element in the header, sitting above main content. 1.2.366: sun
-         chip absorbed as an absolute overlay at the chart's top-right
-         corner so it doesn't eat its own row's vertical space. -->
+         element in the header, sitting above main content. -->
     <div id="chart-shell">
       <div id="mini-chart"></div>
-      <button type="button" class="ah-sun" id="chart-sun-info"
-              aria-expanded="false" title="Sun intensity">
-        <span class="ah-sun-icon" id="chart-sun-info-icon" data-sun-icon>&#x2600;</span>
-        <span id="chart-sun-info-pct" data-sun-pct>&mdash;</span>
-      </button>
       <div class="area-solar-label" id="area-sunrise-label" data-time="">sunrise</div>
       <div class="area-solar-label" id="area-sunset-label" data-time="">sunset</div>
       <div class="area-phase-label" id="area-phase-label" data-time="">wake</div>
@@ -5304,14 +5357,34 @@
     // single-tap action; user can re-adjust if it was a misfire.
     async function onResetArea() {
       if (!selectedArea) return;
-      try { await executeAction('glo_down'); } catch (e) { console.error('reset failed', e); }
+      // Stamp the cooldown FIRST so even if the action takes a moment,
+      // any concurrent updateContent() suppresses the dirty flag.
+      _justResetAt = Date.now();
+      const wrap = document.getElementById('ah-action-reset');
+      if (wrap) wrap.classList.remove('is-dirty');
+      try {
+        await executeAction('glo_down');
+      } catch (e) {
+        console.error('reset failed', e);
+      }
     }
 
     // Mirrors the home page's isAreaDirty: returns true when this area's
     // runtime state diverges from its zone defaults across any dimension
     // that glo_down would clear (midpoints, frozen_at, color/brightness
     // overrides). Used to gate the Row 2 ↺ button visibility.
+    // Tracks the timestamp of the most recent onResetArea() call so
+    // isAreaDirtyVsZone can suppress the reset button for a brief
+    // window. Necessary because glo_down COPIES zone state into the
+    // area, but the next /api/area-status snapshot can lag the write by
+    // up to a few seconds — without the cooldown, the reset button
+    // flickers back on after the user clicks it.
+    let _justResetAt = 0;
+
     function isAreaDirtyVsZone() {
+      // Manual-reset cooldown: hide dirty for 2.5s after onResetArea so
+      // the button stays gone while the server state propagates.
+      if (Date.now() - _justResetAt < 2500) return false;
       if (!selectedArea) return false;
       const zoneName = selectedArea.zone_name;
       if (!zoneName || !zoneStates[zoneName]) return false;
@@ -5322,17 +5395,16 @@
         if (a == null || b == null) return true;
         return Math.abs(a - b) >= tol;
       };
-      // 1.2.365: only count override_set_at mismatch if the corresponding
-      // override VALUE is also off. Otherwise a stale _set_at timestamp
-      // left over after glo_down would keep the reset button stuck on
-      // even though the actual override has been cleared.
+      // Only count override_set_at mismatch if the corresponding override
+      // VALUE is also off — stale _set_at timestamps would otherwise keep
+      // the button stuck (the 1.2.365 fix).
       const briValDirty = differs(status.brightness_override, rs.brightness_override, 1);
       const colValDirty = differs(status.color_override, rs.color_override, 10);
       return (differs(status.brightness_mid, rs.brightness_mid, 0.05) ||
               differs(status.color_mid, rs.color_mid, 0.05) ||
               differs(status.frozen_at, rs.frozen_at, 0.05) ||
-              colValDirty ||
               briValDirty ||
+              colValDirty ||
               (briValDirty && differs(status.brightness_override_set_at, rs.brightness_override_set_at, 0.1)) ||
               (colValDirty && differs(status.color_override_set_at, rs.color_override_set_at, 0.1)));
     }

@@ -1,5 +1,27 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.371
+Batched header polish + bug fixes from local iteration.
+
+**Layout reshuffle:**
+- Sun chip moved from "absolute overlay above chart" back into Row 1's right edge (inline-flex), next to the bri/CT readout.
+- Circadian toggle moved from Row 1's top-right to the right end of Row 3, restored to full 42×42 action-button size (logo 24 → 32px inside) so the action row reads as 5 equal-weight buttons. Anchored right via `margin-left: auto`.
+- Action cluster pulled flush-left: `.ah-row3 { padding-left: 36 → 0 }`. Power/freeze/boost/reset now sit further left than the area name.
+- Header bottom corners rounded (12px from 1.2.368) carries through.
+
+**Visual rhythm — action buttons:**
+- **OFF state:** `.ah-btn` base bg `transparent → rgba(0,0,0,0.18)`. Action buttons no longer wash out on near-white CCT-tinted headers; they read as a consistent "well/recessed" affordance against any tint. Hover bumps to `0.30`. Neutral (dark) headers get the inverse: `rgba(255,255,255,0.06)` base, `0.16` hover.
+- **Circadian button chrome** now matches the convention: ON = white fill (like power-on); OFF = dark fill (like freeze/boost off). Brand logo's color (ON) vs grayscale + 0.55 opacity (OFF) reinforces the state signal alongside the chrome flip.
+- **Reset button** when dirty: solid `--changed` blue fill with dark text + bold weight (was a subtle blue-tinted outline). Reads as a clear CTA, analogous to how Save buttons use solid `--accent` elsewhere.
+
+**Bug fixes:**
+- **Reset button stays stuck after clicking it.** Two compounding causes — fixed both:
+  1. `executeAction` triggers a state refresh 500ms after the call. The refresh re-evaluates `isAreaDirtyVsZone()` and re-applies `.is-dirty`. But `glo_down` copies zone state into the area asynchronously; the `/api/area-status` snapshot can lag by 500ms–3s. Added a 2.5s manual-reset cooldown via `_justResetAt` — `isAreaDirtyVsZone()` short-circuits to `false` for that window after `onResetArea()` fires, giving the server state time to propagate without the button flickering back on.
+  2. CSS specificity: `.ah-action { display: flex }` was defined AFTER `.ah-action-reset { display: none }` at the same specificity, so it won the cascade tie. The reset wrapper has both classes, so `display: flex` always applied — the button was always rendered, only its dirty/clean styling toggled. Bumped both rules to `.ah-action.ah-action-reset` (two classes) to beat the single-class `.ah-action`.
+
+**Misc:**
+- Circadian button in Row 3: dropped `align-self: center` override; now aligns to flex-start matching the other action buttons' top edge.
+
 ## 1.2.370
 - **Real fix for the Schedule gulf.** 1.2.369's padding tweak wasn't enough because `.sub-section` from `shared.css` adds `margin-top: 16px + padding-top: 14px + border-top` — that's 30px of mandatory space above any element with `sub-section` class. The Schedule's first sub-section (auto-on-card) was carrying all of it. Zeroed those out for the FIRST sub-section inside `#schedule-card` only; the 2nd sub (Off) keeps the baseline since it benefits from a visible separator. "Schedule" → "On" gap goes from ~38px to ~8px.
 - **Adjust card slider rows breathe.** `.hslider-row { gap: 4 → 9px }` so the label + value + step buttons sit ~5px higher above the slider track (they were visually bumping into it). The `.hslider-right` cluster (+/- buttons + value) is then translated down 3px so the label sits a hair higher than the buttons — small hierarchy, net effect: label raised 5px relative to slider, buttons raised 2px.
