@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.368
+- **Header bottom corners rounded** (12px). Top corners stay square because the header is sticky to the viewport top and rounded tops would look disconnected from the edge. Bottom rounding ties the header visually to the rounded cards below — reads as the top panel in a stack.
+
 ## 1.2.367
 - **Sun chip floated up off the chart's black area** (`top: 6 → -22px`) so it doesn't read as a time-of-day-with-high-sun marker on the curve itself. Sits in the empty right edge above the chart, takes no vertical space of its own. Reverted to the lighter CCT-tinted bg styling (matches header chrome again, not chart chrome).
 - **Header row spacing tuned:** `.ah-name` gains 8px right margin so "Kitchen" / "Twin Closet" gets breathing room before the `30% · 3000K` readout. `.ah-state-sep` margin `0 6px → 0 -4px` to pull the bri/CT values in close around the small · separator (was leaving too much air around the dot via the row's 8px flex gap).

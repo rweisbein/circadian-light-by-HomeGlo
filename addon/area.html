@@ -65,6 +65,12 @@
       margin: 0 auto;
       background: var(--panel);
       border-bottom: 1px solid var(--line);
+      /* Bottom corners rounded (1.2.368) so the header reads as the top
+         panel in the stack of panels below (cards are all rounded). Top
+         corners stay square because the header is sticky to the viewport
+         top — rounded tops would look disconnected from the edge. */
+      border-bottom-left-radius: 12px;
+      border-bottom-right-radius: 12px;
       padding: 10px 14px 10px;
       transition: background 0.12s, color 0.12s;
     }
