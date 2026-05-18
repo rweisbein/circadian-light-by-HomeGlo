@@ -928,7 +928,6 @@ class LightDesignerServer:
         self.app.router.add_route(
             "GET", "/{path:.*}/zone/{zone_name}", self.serve_zone_detail
         )
-        self.app.router.add_route("GET", "/{path:.*}/tune", self.serve_tune)
         self.app.router.add_route("GET", "/{path:.*}/settings", self.serve_settings)
         self.app.router.add_route(
             "GET", "/{path:.*}/moment/{moment_id}", self.serve_moment_detail
@@ -948,7 +947,6 @@ class LightDesignerServer:
         self.app.router.add_get("/glo", self.redirect_rhythm_to_home)
         self.app.router.add_get("/area/{area_id}", self.serve_area_detail)
         self.app.router.add_get("/zone/{zone_name}", self.serve_zone_detail)
-        self.app.router.add_get("/tune", self.serve_tune)
         self.app.router.add_get("/settings", self.serve_settings)
         self.app.router.add_get("/activity", self.serve_activity)
         self.app.router.add_route("GET", "/{path:.*}/activity", self.serve_activity)
@@ -1113,10 +1111,6 @@ class LightDesignerServer:
         """Serve the Zone detail page (unified with rhythm-design)."""
         zone_name = request.match_info.get("zone_name")
         return await self.serve_page("rhythm-design", {"selectedZoneName": zone_name})
-
-    async def serve_tune(self, request: Request) -> Response:
-        """Serve the Tune page."""
-        return await self.serve_page("tune")
 
     async def serve_settings(self, request: Request) -> Response:
         """Serve the Settings page."""

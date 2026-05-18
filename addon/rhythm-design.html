@@ -20,6 +20,10 @@
   --grid: #202020;
   --accent: #feac60;
   --accent-hover: #ffc078;
+  /* "value has been changed from saved/default" — modified-state indicator.
+     See area.html for rationale. Blue per productivity-software convention. */
+  --changed: #78AAE6;
+  --changed-hover: #9DC2EE;
   --ascend: rgba(120, 190, 255, 0.32);
   --ascend-border: rgba(120, 185, 245, 0.5);
   --descend: rgba(255, 220, 100, 0.12);
@@ -105,7 +109,7 @@ h2 { margin: 0 0 12px; font-size: var(--font-display); font-weight: 600; }
 .sleep-dirty-bar-label { color: var(--muted); text-transform: uppercase; font-size: 10px; letter-spacing: 0.06em; }
 .sleep-dirty-bar-from { color: var(--muted2); text-decoration: line-through; }
 .sleep-dirty-bar-arrow { color: var(--muted2); font-size: 11px; }
-.sleep-dirty-bar-to { color: var(--accent); font-weight: 700; }
+.sleep-dirty-bar-to { color: var(--changed); font-weight: 700; }
 .sleep-dirty-bar-spacer { flex: 1; }
 .sleep-dirty-bar button {
   background: transparent;
@@ -1130,7 +1134,7 @@ input[type=range]::-moz-range-thumb {
 }
 .month-popover input[type=range] { width: 100%; }
 
-/* Interactive color gradient (ported from tune.html + handle additions) */
+/* Interactive color gradient */
 /* Color gradient layout: cursor above, gradient, ticks, labels+K below */
 .ct-gradient-wrap { margin-top: 8px; position: relative; }
 /* Inset variant: narrower than the parent container (used for sub-section sliders
@@ -1851,34 +1855,34 @@ input[type=range]::-moz-range-thumb {
 }
 .dirty-banner-save:hover { opacity: 0.9; }
 
-/* Card-level dirty marker — small accent dot before the card title */
+/* Card-level dirty marker — small blue dot before the card title */
 .rhythm-card.is-dirty .rhythm-card-title::before {
   content: '';
   display: inline-block;
   width: 6px; height: 6px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--changed);
   margin-right: 6px;
   vertical-align: middle;
 }
-/* Header Reset button — orange-tinted to tie visually to the dot + the
-   banner's accent treatment. Sits between the title and the summary value:
+/* Header Reset button — blue-tinted to tie visually to the dirty dot. Sits
+   between the title and the summary value:
    layout becomes chevron · dot+title · Reset · ←auto gap→ · val. */
 .rhythm-card-reset {
   display: none;
   margin-left: 8px;
   padding: 3px 10px;
   border-radius: 6px;
-  border: 1px solid rgba(254, 172, 96, 0.5);
-  background: rgba(254, 172, 96, 0.12);
-  color: var(--accent);
+  border: 1px solid rgba(120, 170, 230, 0.5);
+  background: rgba(120, 170, 230, 0.12);
+  color: var(--changed);
   font-size: var(--font-body);
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
 }
-.rhythm-card-reset:hover { background: rgba(254, 172, 96, 0.22); border-color: var(--accent); }
+.rhythm-card-reset:hover { background: rgba(120, 170, 230, 0.22); border-color: var(--changed); }
 .rhythm-card.is-dirty .rhythm-card-reset { display: inline-flex; align-items: center; }
 </style>
 </head>

@@ -18,6 +18,10 @@
       --card: #1a1a1a;
       --accent: #feac60;
       --accent-hover: #ffc078;
+      /* "value has been changed from saved/default" — modified-state indicator.
+         See area.html for rationale. Blue per productivity-software convention. */
+      --changed: #78AAE6;
+      --changed-hover: #9DC2EE;
       --text: #e2e8f0;
       --muted: #94a3b8;
       --muted2: #64748b;
@@ -1768,15 +1772,15 @@
       padding-right: 8px;
       transition: color 0.15s, opacity 0.15s;
     }
-    /* Dirty row-readout: orange + tappable. Doubles as the per-row reset
+    /* Dirty row-readout: blue + tappable. Doubles as the per-row reset
        button — Adjust modes tap to glo_down (revert to zone), Tune modes
        tap to restoreTunePrev (undo last change). */
     .row-readout--dirty {
-      color: var(--accent);
+      color: var(--changed);
       opacity: 1;
       cursor: pointer;
     }
-    .row-readout--dirty:hover { color: var(--accent-hover); }
+    .row-readout--dirty:hover { color: var(--changed-hover); }
     /* Tune-mode multiplier suffix (e.g., "0.95x") next to the descriptor.
        Muted so the named step ("Subtle") reads as the primary value. Used
        in both the static readout and the live drag preview. */
@@ -1899,7 +1903,7 @@
       return cachedAreaTune[areaId] || { brightness_factor: 1.0, natural_light_exposure: 0.0 };
     }
 
-    // Phase 3: per-area sun_exposure / balance discrete steps (matches tune.html).
+    // Phase 3: per-area sun_exposure / balance discrete steps.
     const SOLAR_STEPS = [
       // Migrated to match area-detail's descriptors (single source of
       // truth). Old labels: Medium @ 0.60, Strong @ 0.90 → renamed to
@@ -2252,11 +2256,6 @@
     document.addEventListener('DOMContentLoaded', async () => {
       await loadPreferences();
       const urlParams = new URLSearchParams(window.location.search);
-      const requestedMode = urlParams.get('mode');
-      if (requestedMode === 'tune') {
-        window.location.href = './tune';
-        return;
-      }
       // ?mode=manage → land in Manage mode (used by the Activity page's
       // mode-pill router when the user picks Manage). Needs to await
       // the data load first because enterManageMode() renders areas.
@@ -4256,7 +4255,7 @@
 
     // Phase 3: compute "sun dims X% · final Y%" or "balance dims/lifts X% · final Y%"
     // for the row's status line in Tune modes. Ports computeNlFactor /
-    // computeNowBrightness / impact functions from tune.html.
+    // computeNowBrightness / impact functions.
     function computeNlFactor(exposure, outdoorNorm, sensitivity) {
       if (exposure <= 0 || outdoorNorm <= 0) return 1.0;
       return Math.max(0, 1 - exposure * outdoorNorm * sensitivity);
