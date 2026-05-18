@@ -1552,7 +1552,8 @@
         // Browse + Pause: same Recent | Location | Name segmented bar
         // (Pause no longer hijacks this row — its state filter lives on
         // the filter row instead, alongside area + type).
-        const sortVal = (sortColumn === 'name') ? 'name'
+        const sortVal = (sortColumn === 'fourth' && fourthField === 'pause') ? 'pause'
+          : (sortColumn === 'name') ? 'name'
           : (sortColumn === 'area') ? 'area' : 'recent';
         const segOpt = (v, lbl) => `<button class="view-segment${v === sortVal ? ' active' : ''}" data-ctrl-sort="${v}">${lbl}</button>`;
         sortHtml = '<div class="seg-row">'
@@ -1561,6 +1562,7 @@
           + segOpt('recent', 'Recent')
           + segOpt('area', 'Area')
           + segOpt('name', 'Name')
+          + (currentView === 'paused' ? segOpt('pause', 'Pause') : '')
           + '</div>'
           + '</div>';
       }
@@ -1594,11 +1596,15 @@
         : '';
       // State filter — only in Pause mode. Native <select> matches the
       // visual pattern of the area + type filters on the same row.
+      // "Any state" leads the list as the default (mirrors the "Areas /
+      // Sources / Actions" pattern — default option doubles as the field
+      // label, telling the user at-rest which dimension this filters).
       const stateFilterHtml = (currentView === 'paused')
-        ? '<select class="ctrl-tb-select is-active" id="ctrl-state-filter" title="Pause state">'
+        ? '<select class="ctrl-tb-select' + (pauseSubView !== 'all' ? ' is-active' : '') + '" id="ctrl-state-filter" title="Pause state">'
+          + '<option value="all"' + (pauseSubView === 'all' ? ' selected' : '') + '>Any state</option>'
+          + '<option disabled>──────</option>'
           + '<option value="paused"' + (pauseSubView === 'paused' ? ' selected' : '') + '>Paused</option>'
           + '<option value="active"' + (pauseSubView === 'active' ? ' selected' : '') + '>Unpaused</option>'
-          + '<option value="all"' + (pauseSubView === 'all' ? ' selected' : '') + '>All</option>'
           + '</select>'
         : '';
       const toolbarHtml = '<div class="ctrl-toolbar">'
@@ -1660,16 +1666,46 @@
         }
         cardListHtml = '<div class="ctrl-card-list">' + inner + '</div>';
       } else if (currentView === 'paused'
-                 && (areaFilter === 'all' || areaFilter === 'unassigned' || areaFilter.startsWith('zone:'))) {
-        // PAUSE mode (no area filter) — single flat list in snapshot order.
-        // We intentionally don't group by Scheduled/Forever (or sort by
-        // inactive_until) because both would cause cards to jump as soon
-        // as the user flips one. The snapshot's order — captured at view
-        // entry, alpha-sorted — gives stable, predictable positioning.
-        // Area-filtered variant falls through to the reach-bucket branch.
+                 && (areaFilter === 'all' || areaFilter === 'unassigned' || areaFilter.startsWith('zone:'))
+                 && sortColumn === 'name') {
+        // PAUSE mode (no area filter) + Sort: Name → flat list in snapshot
+        // order. Snapshot captured at view entry (alpha-sorted) gives
+        // stable, predictable positioning even as the user flips pause
+        // states. Other Pause sorts (Recent / Area / Pause) fall through
+        // to their respective grouping branches below.
         cardListHtml = '<div class="ctrl-card-list">'
           + sorted.map(c => renderControlCard(c, 'paused')).join('')
           + '</div>';
+      } else if (currentView === 'paused'
+                 && (areaFilter === 'all' || areaFilter === 'unassigned' || areaFilter.startsWith('zone:'))
+                 && sortColumn === 'fourth' && fourthField === 'pause') {
+        // PAUSE mode (no area filter) + Sort: Pause status → group by
+        // paused / unpaused. Order: paused first (it's why they're here),
+        // then unpaused. Within each group the sort that came in (snapshot
+        // alpha) is preserved.
+        _maybeResetBucketStateIfStale();
+        const pausedItems = [];
+        const activeItems = [];
+        for (const c of sorted) {
+          if (c.inactive) pausedItems.push(c);
+          else activeItems.push(c);
+        }
+        let inner = '';
+        const groups = [
+          { key: 'pause:paused', label: 'Paused', items: pausedItems },
+          { key: 'pause:active', label: 'Unpaused', items: activeItems },
+        ];
+        for (const g of groups) {
+          if (!g.items.length) continue;
+          const collapsed = _bucketCollapsed(g.key);
+          inner += buildGroupDivider(g.label, g.items.length, undefined, {
+            bucketKey: g.key, collapsed: collapsed,
+          });
+          inner += '<div class="ctrl-bucket-body' + (collapsed ? ' is-collapsed' : '') + '" data-bucket-key="' + g.key + '">'
+            + g.items.map(c => renderControlCard(c, 'paused')).join('')
+            + '</div>';
+        }
+        cardListHtml = '<div class="ctrl-card-list">' + inner + '</div>';
       } else if ((currentView === 'all' || currentView === 'paused') && areaFilter !== 'all' && areaFilter !== 'unassigned' && !areaFilter.startsWith('zone:')) {
         // Single-area filter — 5 reach buckets (always; reach semantics
         // are the dominant structure here regardless of sort). Works in
@@ -1701,13 +1737,15 @@
           inner += buckets.doesntReach.map(c => renderControlCard(c, cardView, { doesntReach: true })).join('');
         }
         cardListHtml = '<div class="ctrl-card-list">' + inner + '</div>';
-      } else if (currentView === 'all' && (areaFilter === 'all' || areaFilter.startsWith('zone:')) && sortColumn === 'fourth' && fourthField === 'lastAction') {
-        // Browse view (no area filter OR zone filter) + Sort: Recent →
-        // group by recency time bucket. Each bucket header is collapsible.
+      } else if ((currentView === 'all' || currentView === 'paused') && (areaFilter === 'all' || areaFilter.startsWith('zone:')) && sortColumn === 'fourth' && fourthField === 'lastAction') {
+        // Browse OR Pause view (no area filter OR zone filter) + Sort:
+        // Recent → group by recency time bucket. Each bucket header is
+        // collapsible.
         // Today is sub-divided into Last hour / Earlier today (only when
         // both populated). Bucket state persists in localStorage with the
         // card-freshness window (stale → reset to all-expanded).
         _maybeResetBucketStateIfStale();
+        const cardView = currentView === 'paused' ? 'paused' : 'all';
         const groupMap = new Map();
         for (const c of sorted) {
           const ts = c.last_action && c.last_action.timestamp;
@@ -1741,25 +1779,26 @@
             }
             if (lastHour.length && earlier.length) {
               bodyHtml += '<div class="group-subdivider">Last hour <span class="group-subdivider-count">(' + lastHour.length + ')</span></div>';
-              bodyHtml += lastHour.map(c => renderControlCard(c, 'all')).join('');
+              bodyHtml += lastHour.map(c => renderControlCard(c, cardView)).join('');
               bodyHtml += '<div class="group-subdivider">Earlier today <span class="group-subdivider-count">(' + earlier.length + ')</span></div>';
-              bodyHtml += earlier.map(c => renderControlCard(c, 'all')).join('');
+              bodyHtml += earlier.map(c => renderControlCard(c, cardView)).join('');
             } else {
-              bodyHtml += list.map(c => renderControlCard(c, 'all')).join('');
+              bodyHtml += list.map(c => renderControlCard(c, cardView)).join('');
             }
           } else {
-            bodyHtml += list.map(c => renderControlCard(c, 'all')).join('');
+            bodyHtml += list.map(c => renderControlCard(c, cardView)).join('');
           }
           inner += '<div class="ctrl-bucket-body' + (collapsed ? ' is-collapsed' : '') + '" data-bucket-key="' + bucket.key + '">' + bodyHtml + '</div>';
         }
         cardListHtml = '<div class="ctrl-card-list">' + inner + '</div>';
-      } else if (currentView === 'all' && (areaFilter === 'all' || areaFilter.startsWith('zone:')) && sortColumn === 'area') {
-        // Browse view (no area filter OR zone filter) + Sort: Area →
-        // group by home area in canonical home-area-sort. Each divider is
-        // collapsible (same pattern as Recent buckets). Bucket state shares
-        // _BUCKET_TS_KEY freshness with the time-bucket version; key
-        // prefixed with "loc:" so it doesn't collide with recency keys.
+      } else if ((currentView === 'all' || currentView === 'paused') && (areaFilter === 'all' || areaFilter.startsWith('zone:')) && sortColumn === 'area') {
+        // Browse OR Pause view (no area filter OR zone filter) + Sort:
+        // Area → group by home area in canonical home-area-sort. Each
+        // divider is collapsible (same pattern as Recent buckets). Bucket
+        // state shares freshness with the time-bucket version; key prefixed
+        // with "loc:" so it doesn't collide with recency keys.
         _maybeResetBucketStateIfStale();
+        const cardView = currentView === 'paused' ? 'paused' : 'all';
         const groupMap = new Map();
         for (const c of sorted) {
           const k = c.area_name || '— Unassigned —';
@@ -1782,7 +1821,7 @@
             collapsed: collapsed,
           });
           inner += '<div class="ctrl-bucket-body' + (collapsed ? ' is-collapsed' : '') + '" data-bucket-key="' + bucketKey + '">'
-            + list.map(c => renderControlCard(c, 'all')).join('')
+            + list.map(c => renderControlCard(c, cardView)).join('')
             + '</div>';
         }
         cardListHtml = '<div class="ctrl-card-list">' + inner + '</div>';
@@ -2040,27 +2079,14 @@
     // across types — convention: time-buckets use plain keys
     // ('today', 'yesterday'); other bucket types use a type prefix
     // ('battery_critical', 'battery_low').
-    const _BUCKET_TS_KEY = 'ctrl_bucket_ts';
-    function _maybeResetBucketStateIfStale() {
-      const ts = parseInt(localStorage.getItem(_BUCKET_TS_KEY) || '0', 10);
-      if (!ts || Date.now() - ts > cardFreshnessMs()) {
-        Object.keys(localStorage).forEach(k => {
-          if (k.startsWith('ctrl_bucket_') && k !== _BUCKET_TS_KEY) {
-            localStorage.removeItem(k);
-          }
-        });
-        localStorage.setItem(_BUCKET_TS_KEY, String(Date.now()));
-      }
-    }
-    function _bucketCollapsed(key) {
-      return localStorage.getItem('ctrl_bucket_' + key + '_collapsed') === 'true';
-    }
-    function _toggleBucket(key) {
-      const cur = _bucketCollapsed(key);
-      if (cur) localStorage.removeItem('ctrl_bucket_' + key + '_collapsed');
-      else localStorage.setItem('ctrl_bucket_' + key + '_collapsed', 'true');
-      localStorage.setItem(_BUCKET_TS_KEY, String(Date.now()));
-    }
+    // Bucket state — promoted to shared.js as createBucketState. Page uses
+    // 'ctrl_bucket' prefix (other pages use their own prefix to avoid
+    // localStorage key collisions). Old helper names retained as thin
+    // shims so existing call sites don't need touching.
+    const _bucketState = createBucketState('ctrl_bucket');
+    function _maybeResetBucketStateIfStale() { _bucketState.maybeResetIfStale(); }
+    function _bucketCollapsed(key) { return _bucketState.isCollapsed(key); }
+    function _toggleBucket(key) { _bucketState.toggle(key); }
 
     // Count phrase reflects active filters. Reads as a single English
     // sentence: "<n> <type-noun> [in <area> | without an area] [<verb>]".
@@ -2431,6 +2457,11 @@
             sortAsc = true;
           } else if (v === 'area') {
             sortColumn = 'area';
+            sortAsc = true;
+          } else if (v === 'pause') {
+            // Pause-view-only: group by Paused / Unpaused.
+            sortColumn = 'fourth';
+            fourthField = 'pause';
             sortAsc = true;
           }
           // PAUSE mode: invalidate the sticky-order snapshot so the new

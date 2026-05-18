@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.357
+- **Standardized "Sort → Group" pattern across Controls + Activity.** Picking a sort dimension now auto-groups the list under collapsible headers with counts. Each group's open/closed state persists with the existing card-freshness window (stale → reset to all-expanded).
+- **Controls / Pause view: new "Pause" sort.** Appears only in Pause view, alongside Recent / Area / Name. Groups into `Paused (n)` / `Unpaused (n)` so the user can scan paused things, collapse them, and see what's still active underneath. Previously Pause view's sort segmenter mirrored Browse and didn't expose a pause-status grouping at all.
+- **Controls / Pause view: "All" filter renamed to "Any state"** and pinned to the top of the dropdown with a separator below it. Matches the area + type filter pattern (default-label-on-top) and reads better when the dropdown is closed — the chip showing "Any state" is clearer than "All" in the context of a Pause-state filter.
+- **Controls / Pause view now honors Recent + Area grouping.** The grouping gates previously only fired in Browse (`currentView === 'all'`); lifted to `'all' || 'paused'` so Pause-view users get the same Today / Yesterday / Past week buckets (or per-area buckets) the Browse view gets, with cards rendered in the Pause variant (pause-state pill + pause-until line).
+- **Activity page: Sort now groups too.** Recent → time bucket (reuses `CONTROLS_TIME_BUCKETS` — Today / Yesterday / Past week / Past month / Past year / Prior). Area → per-area. Source → per source-kind (Switch / Motion / Contact / Camera / System / …). Action → per action label (turn on / turn off / pause / …). Each group is collapsible with the same chevron header used on Controls.
+- **Bucket-state factory extracted to `shared.js` (`createBucketState('<prefix>')`).** Both Controls and Activity instantiate isolated keyspaces (`ctrl_bucket_*` and `activity_bucket_*`) so the two pages' bucket states can't collide. The factory bundles the freshness reset, the `isCollapsed(key)` check, and the `toggle(key)` write — the page-side code just calls those methods.
+
 ## 1.2.356
 - **Drop the redundant divider below the activity sort row.** `.activity-sticky-top` had a `border-bottom: 1px solid var(--line)`, but 1.2.355 added a matching top border to the rounded `.hist-list` panel right below it — they sat back-to-back as a double-line. Removed the sticky-top border; the list panel's own border is the visual separator now.
 

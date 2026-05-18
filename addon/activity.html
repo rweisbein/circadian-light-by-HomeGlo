@@ -275,6 +275,11 @@
     let activeActionFilter = localStorage.getItem(_ACTION_FILTER_KEY) || '';
     let activeSortMode = localStorage.getItem(_SORT_KEY) || 'recent';
 
+    // Group-collapse state — same factory used by switches.html, but with
+    // an isolated 'activity_bucket' keyspace so the two pages can't
+    // accidentally collide on a bucket like 'today'.
+    const _bucketState = createBucketState('activity_bucket');
+
     // --- Path / base detection (HA ingress aware) ---
     let basePath = '';
     function _resolveBasePath() {
@@ -455,14 +460,114 @@
       entries = sortActivityEntries(entries);
 
       const anyFilterActive = activeAreaFilter || activeSourceFilter || activeActionFilter;
-      body.innerHTML = renderHistoryList(entries, {
+      const baseOpts = {
         showArea: true,
         areaNames: areaNameMap,
         controlNames: controlNameMap,
         emptyMessage: anyFilterActive
           ? 'No activity matches the current filters since the addon last restarted.'
           : 'No activity yet — recording starts when the addon last restarts.',
-      });
+      };
+
+      // Recent → time bucket (Today / Yesterday / …) using the same
+      // CONTROLS_TIME_BUCKETS taxonomy as the Controls list. Area /
+      // Source / Action → group by that dimension. Each group renders
+      // with a collapsible divider; state persists with the freshness
+      // window via the shared bucket-state factory.
+      if (!entries.length) {
+        body.innerHTML = renderHistoryList(entries, baseOpts);
+        return;
+      }
+
+      _bucketState.maybeResetIfStale();
+      const groups = _buildActivityGroups(entries);
+      if (!groups) {
+        // No grouping for this sort (currently never returns null, but
+        // gives us a safe fallback if we add a future "flat" sort).
+        body.innerHTML = renderHistoryList(entries, baseOpts);
+        return;
+      }
+
+      let html = '';
+      for (const g of groups) {
+        if (!g.items.length) continue;
+        const collapsed = _bucketState.isCollapsed(g.key);
+        html += buildGroupDivider(g.label, g.items.length, g.descriptor || undefined, {
+          bucketKey: g.key,
+          collapsed: collapsed,
+        });
+        html += '<div class="ctrl-bucket-body' + (collapsed ? ' is-collapsed' : '') + '" data-bucket-key="' + g.key + '">'
+          + renderHistoryList(g.items, baseOpts)
+          + '</div>';
+      }
+      body.innerHTML = html;
+    }
+
+    // Build the group list for the current sort. Bucket keys are
+    // namespaced by sort mode ("recent:today", "area:Master Bedroom",
+    // "source:zha_switch", "action:turn_on") so collapsing one mode's
+    // group doesn't carry over to another mode's same-label group.
+    function _buildActivityGroups(entries) {
+      if (activeSortMode === 'recent') {
+        const byBucket = new Map();
+        for (const e of entries) {
+          // controlsTimeBucket accepts anything `new Date()` parses;
+          // pass the ms timestamp directly (entries store seconds).
+          const k = controlsTimeBucket(e.ts ? e.ts * 1000 : null);
+          if (!byBucket.has(k)) byBucket.set(k, []);
+          byBucket.get(k).push(e);
+        }
+        return CONTROLS_TIME_BUCKETS
+          .filter(b => byBucket.has(b.key))
+          .map(b => ({
+            key: 'recent:' + b.key,
+            label: b.label,
+            descriptor: b.descriptor,
+            items: byBucket.get(b.key),
+          }));
+      }
+      if (activeSortMode === 'area') {
+        const byArea = new Map();
+        for (const e of entries) {
+          const name = e.area_id ? (areaNameMap[e.area_id] || e.area_id) : '— Unassigned —';
+          if (!byArea.has(name)) byArea.set(name, []);
+          byArea.get(name).push(e);
+        }
+        // sortActivityEntries already alphabetized by area name, so
+        // iterating the Map in insertion order preserves that order.
+        return [...byArea.entries()].map(([name, items]) => ({
+          key: 'area:' + name,
+          label: name,
+          items,
+        }));
+      }
+      if (activeSortMode === 'source') {
+        const bySource = new Map();
+        for (const e of entries) {
+          const k = e.source_kind || 'unknown';
+          if (!bySource.has(k)) bySource.set(k, []);
+          bySource.get(k).push(e);
+        }
+        return [...bySource.entries()].map(([k, items]) => ({
+          key: 'source:' + k,
+          label: HIST_SOURCE_LABEL[k] || k,
+          items,
+        }));
+      }
+      if (activeSortMode === 'action') {
+        const byAction = new Map();
+        for (const e of entries) {
+          const k = e.action || 'unknown';
+          if (!byAction.has(k)) byAction.set(k, []);
+          byAction.get(k).push(e);
+        }
+        return [...byAction.entries()].map(([k, items]) => ({
+          key: 'action:' + k,
+          label: HIST_ACTION_LABEL[k] || k,
+          items,
+        }));
+      }
+      return null;
     }
 
     // Section pill — top-level navigation within the Controls section
@@ -565,6 +670,23 @@
           activeSortMode = btn.dataset.sort;
           localStorage.setItem(_SORT_KEY, activeSortMode);
           renderActivity();
+        });
+      }
+
+      // Collapsible group dividers — same pattern as switches.html.
+      // Toggle the chevron + matching body, persist state via the
+      // shared bucket-state factory.
+      const activityBody = document.getElementById('activity-body');
+      if (activityBody) {
+        activityBody.addEventListener('click', (e) => {
+          const bucketDiv = e.target.closest('.group-divider.is-collapsible');
+          if (!bucketDiv) return;
+          const key = bucketDiv.dataset.bucketKey;
+          if (!key) return;
+          const bodyEl = activityBody.querySelector('.ctrl-bucket-body[data-bucket-key="' + key.replace(/"/g, '\\"') + '"]');
+          bucketDiv.classList.toggle('is-collapsed');
+          if (bodyEl) bodyEl.classList.toggle('is-collapsed');
+          _bucketState.toggle(key);
         });
       }
     }

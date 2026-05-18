@@ -1036,6 +1036,37 @@ const CONTROLS_TIME_BUCKETS = [
   { key: 'never',     label: 'Never used', descriptor: null },
 ];
 
+// Group-collapse state factory — pages (switches, activity, etc.) call
+// `createBucketState('<page>_bucket')` to get a shared API for tracking
+// collapsed group dividers in localStorage. Includes a freshness reset so
+// the next visit after `cardFreshnessMs()` of inactivity returns to the
+// default (all expanded). Different pages use different prefixes to avoid
+// key collisions (e.g. 'ctrl_bucket' vs 'activity_bucket').
+function createBucketState(keyPrefix) {
+  const tsKey = keyPrefix + '_ts';
+  const itemKey = (k) => keyPrefix + '_' + k + '_collapsed';
+  return {
+    maybeResetIfStale() {
+      const ts = parseInt(localStorage.getItem(tsKey) || '0', 10);
+      if (!ts || Date.now() - ts > (typeof cardFreshnessMs === 'function' ? cardFreshnessMs() : 15 * 60 * 1000)) {
+        Object.keys(localStorage).forEach(k => {
+          if (k.startsWith(keyPrefix + '_') && k !== tsKey) localStorage.removeItem(k);
+        });
+        localStorage.setItem(tsKey, String(Date.now()));
+      }
+    },
+    isCollapsed(key) {
+      return localStorage.getItem(itemKey(key)) === 'true';
+    },
+    toggle(key) {
+      const cur = this.isCollapsed(key);
+      if (cur) localStorage.removeItem(itemKey(key));
+      else localStorage.setItem(itemKey(key), 'true');
+      localStorage.setItem(tsKey, String(Date.now()));
+    },
+  };
+}
+
 // Battery percentage bucketing for the BATTERY view on the controls
 // list. Critical / Low / Medium / Good — answers "how many devices
 // need new batteries?" at a glance. Within-bucket sort matches the
