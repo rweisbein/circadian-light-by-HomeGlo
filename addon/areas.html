@@ -2256,6 +2256,7 @@
     document.addEventListener('DOMContentLoaded', async () => {
       await loadPreferences();
       const urlParams = new URLSearchParams(window.location.search);
+      const requestedMode = urlParams.get('mode');
       // ?mode=manage → land in Manage mode (used by the Activity page's
       // mode-pill router when the user picks Manage). Needs to await
       // the data load first because enterManageMode() renders areas.
