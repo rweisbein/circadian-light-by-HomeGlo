@@ -1034,16 +1034,19 @@
           e.stopPropagation();
           const sec = opt.dataset.section;
           if (sec === 'controls') { _sectionPopoverOpen = false; pop.classList.remove('open'); return; }
-          // Compute addon root explicitly (strip our own /switches trailing
-          // segment). Relative ./activity was sometimes resolving against
-          // weird-shaped HA ingress paths and matching the wildcard
-          // /{path:.*}/zone/{zone_name} route — landing the user on a
-          // phantom rhythm page for a zone named "activity". Same pattern
-          // as areas.html's home pill activity navigation.
-          let root = window.location.pathname.replace(/\/$/, '');
-          root = root.replace(/\/switches$/, '');
-          if (sec === 'activity') { window.location.href = (root || '') + '/activity'; return; }
-          if (sec === 'cheatsheet') { window.location.href = (root || '') + '/switchmap'; return; }
+          // Build the target URL from the addon root (nav-brand's resolved
+          // href) instead of stripping segments from window.location.
+          // Path-stripping breaks when the current URL is unexpectedly
+          // routed through the wildcard `/{path:.*}/zone/{zone_name}` route
+          // (e.g. arriving here via "./switches" from rhythm-design ends up
+          // at `/zone-design/switches`, not `/switches`) — appending
+          // `/activity` to a stripped `/zone-design` then matches
+          // `/zone-design/{zone_name=activity}` and lands on rhythm-design.
+          // .href is always absolute so this is route-shape independent.
+          const brand = document.querySelector('a.nav-brand');
+          const base = brand ? brand.href.replace(/\/+$/, '') : window.location.origin;
+          if (sec === 'activity') { window.location.href = base + '/activity'; return; }
+          if (sec === 'cheatsheet') { window.location.href = base + '/switchmap'; return; }
         }
         if (e.target.closest('#section-mode-pill')) {
           e.stopPropagation();

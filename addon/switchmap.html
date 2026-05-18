@@ -663,12 +663,14 @@
           if (hasUnsavedChanges && !confirm('You have unsaved cheatsheet changes. Leave anyway?')) {
             return;
           }
-          // Compute addon root from our own pathname so relative URLs don't
-          // accidentally match HA-ingress wildcard routes (e.g. /zone/<name>).
-          let root = window.location.pathname.replace(/\/$/, '');
-          root = root.replace(/\/switchmap$/, '');
-          if (sec === 'controls') { window.location.href = (root || '') + '/switches'; return; }
-          if (sec === 'activity') { window.location.href = (root || '') + '/activity'; return; }
+          // Build from the nav-brand's resolved (absolute) href — that's the
+          // addon root regardless of how we arrived here. See switches.html
+          // for the reasoning (path-stripping breaks when the current URL is
+          // routed through `/{path:.*}/zone/{zone_name}`).
+          const brand = document.querySelector('a.nav-brand');
+          const base = brand ? brand.href.replace(/\/+$/, '') : window.location.origin;
+          if (sec === 'controls') { window.location.href = base + '/switches'; return; }
+          if (sec === 'activity') { window.location.href = base + '/activity'; return; }
           return;
         }
         if (e.target.closest('#section-mode-pill')) {
