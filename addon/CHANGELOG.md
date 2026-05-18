@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.332
+- **Divergence chip contrast fix on warm-tinted rows.** In 1.2.331 the `.delta-chip` family used a pale-blue background (`rgba(120,170,230,0.14)`) that washed out against gold/amber CCT-tinted zone rows — the chip was readable but lacked visual weight. Switched to a dark backdrop (`rgba(0,0,0,0.30)`) with a stronger blue border (`0.50` from `0.28`), keeping `--changed` text. The dark container reads against any row tint (warm or cool); the blue border + text carry the modified-state semantic. Hover state and zone-header variant follow the same pattern; untinted/off rows keep a lighter blue-tinted background since the page backdrop is already dark.
+
 ## 1.2.331
 - **Blue convention extended to all "value differs" cues.** Three additional sites now use `--changed`:
   - **Slider default-position ticks** (area-details Adjust/Tune/Phase + home-page Tune-mode row slider) — the small vertical mark that shows where a slider would land on reset. White → soft blue at the same opacity (`rgba(120,170,230,0.55)` / `0.6`). The tick only renders when dirty, so it's part of the dirty cluster and now visually unifies with the blue value.
