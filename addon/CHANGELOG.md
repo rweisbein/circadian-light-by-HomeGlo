@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.352
+- **Activity card on the Control detail page.** New ctrl-card at the bottom of `/control/<id>` shows events emitted by THIS specific control, filtered out of the all-areas `/api/history` feed by matching `source_entity` against the control's IEEE `id` (switches) or `device_id` (motion / contact / camera). Reuses the shared `renderHistoryList` from shared.js (same component the Activity page + area-details Activity card use). 3-second poll (matching the rest of the app). Card hides entirely when there are zero matching entries — control detail is dense enough without an empty section.
+- **`setupControlPage()` sets `editingControl` before the `!supported` branch** so the Activity card has the control data it needs on the unsupported-info code path too.
+
 ## 1.2.351
 - **Server-injected page name for section-pill navigation.** Previous attempts at fixing the "Activity opens rhythm zone 'activity'" bug (1.2.348 path-stripping; 1.2.349 nav-brand.href) both still relied on the client guessing the addon's mount base from `window.location` patterns. User reported the bug persisted (browser URL `http://100.90.172.25:8099/zone/activity` after clicking Activity). New approach: server emits `window.circadianData.pageName` (e.g. `"switches"`, `"activity"`, `"switchmap"`) from `serve_page`; a new shared helper `getAddonBase()` reads it and strips that page name from `window.location.pathname` to find the addon mount base. `navToAddonPage(seg)` builds `base + '/' + seg` and navigates. Used on all three section-pill handlers (switches.html, activity.html, switchmap.html). Even if the current URL is `/zone/X`, the new code falls back gracefully to building `/zone/X/activity` which the wildcard `/{path:.*}/activity` route catches as activity.
 

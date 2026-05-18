@@ -1016,6 +1016,24 @@
       </div>
     </div>
 
+    <!-- Activity card: events emitted by THIS control, filtered out of the
+         all-areas history feed. Reuses the shared renderHistoryList from
+         shared.js (same component as the Activity page + the area-details
+         Activity card). Hidden when there are no matching entries. -->
+    <div class="ctrl-card is-open" id="control-activity-section">
+      <div class="ctrl-card-header" onclick="toggleCard('control-activity-section')">
+        <span class="ctrl-card-chevron">&#x203A;</span>
+        <span class="ctrl-card-title">Activity</span>
+        <span class="ctrl-card-right">
+          <span id="control-activity-count" style="font-size: var(--font-value); color: var(--muted);"></span>
+        </span>
+      </div>
+      <div class="ctrl-card-body">
+        <div class="ctrl-card-body-inner" id="control-activity-body" style="padding: 0;">
+          <div class="tune-history-empty">Loading…</div>
+        </div>
+      </div>
+    </div>
 
   </main>
   <div class="save-status" id="save-status">Saved</div>
@@ -1224,6 +1242,9 @@
       editingControlId = selectedControlId;
       await loadData();
       setupControlPage();
+      // Start the Activity card poll (3s) — fetches all history then filters
+      // to entries from this control. Card hides when zero matches.
+      startControlActivityPolling();
 
       // Wire up add-scope buttons
       document.getElementById('add-scope-btn').addEventListener('click', addScope);
@@ -1348,6 +1369,64 @@
         btn.textContent = 'Failed';
       }
       document.body.removeChild(ta);
+    }
+
+    // ============================================================
+    // Activity card — events emitted by THIS control, filtered out of
+    // the all-areas /api/history feed. History tags motion/contact
+    // entries by device_id and switch entries by IEEE id; we match either
+    // to cover both cases. Card hides entirely when zero matching entries.
+    // ============================================================
+    let _controlActivityTimer = null;
+    let _controlActivityLastTs = null;
+
+    async function loadControlActivity() {
+      const body = document.getElementById('control-activity-body');
+      const countEl = document.getElementById('control-activity-count');
+      const card = document.getElementById('control-activity-section');
+      if (!body || !editingControl) return;
+      try {
+        const res = await fetch(basePath + '/api/history?limit=300');
+        if (!res.ok) return;
+        const data = await res.json();
+        const all = data.entries || [];
+        const ctrl = editingControl;
+        const entries = all.filter(e =>
+          e.source_entity && (e.source_entity === ctrl.id || e.source_entity === ctrl.device_id)
+        );
+        // No-op when nothing has changed since last fetch (avoids re-rendering
+        // and stomping any user interaction inside the list).
+        const topTs = entries.length ? entries[0].ts : null;
+        if (topTs === _controlActivityLastTs) return;
+        _controlActivityLastTs = topTs;
+
+        // Hide the card entirely when zero entries — control detail is busy
+        // enough without an empty section. Re-shows when entries arrive.
+        if (card) card.style.display = entries.length ? '' : 'none';
+        if (countEl) countEl.textContent = entries.length || '';
+
+        if (!entries.length) { body.innerHTML = ''; return; }
+
+        const areaNames = {};
+        for (const a of (allAreas || [])) {
+          if (a.area_id) areaNames[a.area_id] = a.name || a.area_id;
+        }
+        const controlNames = buildControlNameLookup(controls || []);
+        body.innerHTML = renderHistoryList(entries, {
+          showArea: true,
+          areaNames: areaNames,
+          controlNames: controlNames,
+          emptyMessage: 'No activity yet for this control.',
+        });
+      } catch (e) {
+        console.error('loadControlActivity failed', e);
+      }
+    }
+
+    function startControlActivityPolling() {
+      if (_controlActivityTimer) clearInterval(_controlActivityTimer);
+      loadControlActivity();
+      _controlActivityTimer = setInterval(loadControlActivity, 3000);
     }
 
     // ============================================================
@@ -2663,14 +2742,16 @@
         return;
       }
 
+      // Set editingControl up front so the Activity card has the data it
+      // needs even on the unsupported-info code path below.
+      editingControl = ctrl;
+      editingDeviceId = ctrl.device_id || null;
+
       // Unsupported devices get a simplified info display
       if (!ctrl.supported) {
         showUnsupportedInfo(ctrl);
         return;
       }
-
-      editingDeviceId = ctrl.device_id || null;
-      editingControl = ctrl;
 
       const isSensorType = ctrl.category === 'motion_sensor' || ctrl.category === 'camera' || ctrl.category === 'contact_sensor';
       const isConfigured = ctrl.status === 'active';
