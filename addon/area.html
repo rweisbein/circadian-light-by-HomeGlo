@@ -1143,6 +1143,15 @@
        defaults so the in-card list reads compactly. Shared .hist-list CSS
        (shared.css) owns the row layout / icon column / typography baselines. */
     #tune-history-body .hist-row { padding: 6px 12px; font-size: 0.78rem; }
+    /* In-card variant: the wrapping tune-history-card already provides the
+       rounded panel + border, so suppress the .hist-list panel styling
+       inside it (otherwise we get a double border). */
+    #tune-history-body .hist-list {
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      margin: 0;
+    }
     .tune-detail-sub { padding: 0 22px 2px 52px; font-size: var(--font-muted); color: var(--muted2); }
     .tune-col-headers { display: grid; grid-template-columns: 1fr auto; padding: 0 14px 2px; gap: 0 12px; }
     .tune-col-header { font-size: 11px; color: var(--muted2); text-align: right; white-space: nowrap; }

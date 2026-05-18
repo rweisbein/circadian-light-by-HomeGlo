@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.355
+- **Activity page width 1100 → 750px** to match the Controls page. The wider layout was disconnecting the action verb on the left from the area chip on the right on desktop. Same list content; same target width.
+- **`.hist-list` is now a rounded panel** (subtle background + 1px `--line` border + 10px radius + `overflow: hidden`), matching the Controls page's `.ctrl-card-list` pattern. Looks like one cohesive panel of rows rather than a flat sequence.
+- **Between-row dividers use `--line`** (was the much-fainter `rgba(255,255,255,0.04)`), via `.hist-row + .hist-row { border-top: 1px solid var(--line); }`. Crisp dividers like the Controls list.
+- **In-card variants suppress the panel border** — on area-details Activity card and the new control-detail Activity card, the wrapping card already provides the rounded panel, so the inner `.hist-list` border/background is reset to avoid double-borders. Scoped overrides in each page's `<style>`.
+
 ## 1.2.354
 - **Activity list layout refactored to mirror the Controls list.** Grid columns are now `40px / 22px / 1fr` (time / source-kind icon / content). Time + icon each span both rows so they read as anchors next to a self-contained content block. Matches the Controls page card pattern exactly.
 - **Compact date stack** — activity list now uses the same `formatCompactDateHtml` the Controls list uses: today = `5:32p`, 1–9 days ago = `3d` / `5:32p` (two-line stack), 10–99d = `23d`, 100+d = `5/15`. Tooltip on the time cell surfaces the verbose form ("Yesterday 5:32p", "Mon 5/15 5:32p") on hover. The narrow column width (40px vs the previous 70px) was the goal — tighter, more "list-like" feel.

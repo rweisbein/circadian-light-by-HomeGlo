@@ -78,9 +78,13 @@
     .nav-overflow-item.active { color: var(--text); }
 
     .main {
-      max-width: 1100px;
+      /* Match the Controls page width — same target audience, same kind of
+         list-of-rows content. Wider felt disconnected (the action verb on
+         the left and the area on the right drifted too far apart on
+         desktop). */
+      max-width: 750px;
       margin: 0 auto;
-      padding: 10px;
+      padding: 12px 12px 24px;
     }
 
     /* Mirror home-page chrome (home-name-heading + sticky-top container).
@@ -155,13 +159,16 @@
     }
 
     .activity-body {
-      padding: 12px 14px 32px;
+      /* No horizontal padding — the .hist-list inside has its own rounded
+         border, and we want it flush with the main's 12px page padding.
+         Top/bottom give vertical breathing room from filters above + nav. */
+      padding: 12px 0 32px;
     }
     /* Page-level activity feed: a bit more breathing room than the in-card
        version on area details (more horizontal space available here).
        Shared .hist-list CSS (shared.css) owns the layout baselines; this
-       just bumps font + padding for the full-page view. */
-    .activity-body .hist-row { padding: 10px 14px; font-size: 0.85rem; }
+       just bumps font for the full-page view. */
+    .activity-body .hist-row { font-size: 0.85rem; }
     .activity-body .tune-history-empty {
       padding: 32px 14px;
       color: var(--muted2);

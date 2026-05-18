@@ -720,7 +720,19 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
      Row 2 (omitted when empty): device · details · joined
    Used by both area-details (Activity card body) and the home Activity page;
    page-specific font-size / padding overrides are in those files' <style>. */
-.hist-list { display: flex; flex-direction: column; }
+.hist-list {
+  display: flex;
+  flex-direction: column;
+  /* Rounded card-list container matching the Controls list pattern
+     (.ctrl-card-list in switches.html). Subtle inner background + 1px
+     border + rounded corners; overflow:hidden clips the row dividers
+     against the rounded edges so the list reads as one rounded panel. */
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
 /* 3-column grid (matches Controls list pattern: when | type | content):
    col 1 — time (left-aligned, spans both rows so it stays anchored)
    col 2 — source-kind icon (also spans both rows)
@@ -735,11 +747,13 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
   grid-template-columns: 40px 22px 1fr;
   column-gap: 10px;
   row-gap: 2px;
-  padding: 8px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 10px 14px;
   align-items: start;
 }
-.hist-row:last-child { border-bottom: none; }
+/* Between-row dividers using --line, matching the Controls list. Adjacent-
+   sibling selector avoids a divider above the first row, and the rounded
+   container's overflow:hidden clips ends cleanly. */
+.hist-row + .hist-row { border-top: 1px solid var(--line); }
 .hist-time {
   grid-row: 1 / span 2;
   /* Same vertical-stack container as Controls' .ctrl-card-date — when
