@@ -736,7 +736,9 @@
       transform: translate(-50%, -50%);
       width: 2px;
       height: 16px;
-      background: rgba(255,255,255,0.6);
+      /* --changed (#78AAE6) — tick only appears when dirty, so it's part of
+         the dirty cluster and shares the blue convention. */
+      background: rgba(120, 170, 230, 0.6);
       border-radius: 1px;
       pointer-events: none;
       display: none;
@@ -1707,56 +1709,56 @@
       color: var(--text);
     }
 
-    /* Phase 2: divergence chips on status row */
+    /* Phase 2: divergence chips on status row.
+       Each chip signals "this dimension differs from zone state" — same semantic
+       as the row-readout-dirty (which is also blue). Chips use --changed (blue)
+       to thread the modified-state convention through every "value differs"
+       cue in the app. */
     .delta-chip {
       font-size: 0.72rem;
       font-weight: 600;
       padding: 2px 7px;
       border-radius: 6px;
-      background: rgba(0,0,0,0.10);
-      color: inherit;
-      opacity: 0.55;
+      background: rgba(120, 170, 230, 0.14);
+      color: var(--changed);
+      opacity: 0.85;
       white-space: nowrap;
-      border: 1px solid transparent;
-      /* Spacing is governed by the parent flex `gap` (status-row, zone-subrow),
-         so chip-to-chip and chip-to-icon read identically. Removed redundant
-         margin-right that was stacking on top of the parent gap. */
+      border: 1px solid rgba(120, 170, 230, 0.28);
+      /* Spacing is governed by the parent flex `gap` (status-row, zone-subrow). */
     }
     /* Area-row chips are tappable to clear divergence per-dimension —
-       avoids needing to switch to the right mode first. Muted treatment
-       (no orange) so the chip doesn't shout for attention; hover gives
-       the tappability cue. */
+       avoids needing to switch to the right mode first. */
     .delta-chip.delta-chip-action {
       cursor: pointer;
-      transition: background 0.12s, border-color 0.12s, opacity 0.12s;
+      transition: background 0.12s, border-color 0.12s, opacity 0.12s, color 0.12s;
     }
     .delta-chip.delta-chip-action:hover {
-      background: rgba(255,255,255,0.10);
-      border-color: rgba(255,255,255,0.20);
+      background: rgba(120, 170, 230, 0.26);
+      border-color: rgba(120, 170, 230, 0.48);
+      color: var(--changed-hover);
       opacity: 1;
     }
     .area-row:not([style*="--row-bg"]) .delta-chip,
     .area-row-off .delta-chip {
-      background: transparent;
-      color: var(--muted);
-      opacity: 0.6;
-      border-color: rgba(255,255,255,0.06);
+      background: rgba(120, 170, 230, 0.08);
+      border-color: rgba(120, 170, 230, 0.18);
+      opacity: 0.75;
     }
-    /* Zone-header divergence chips: sit inside .zone-phase-label and inherit
-       the header's foreground color (set inline by readableTextColor) so
-       they're legible on the tinted bg. Bump weight slightly so the deltas
-       read clearly next to "Bed 10p". */
+    /* Zone-header divergence chips: sit inside .zone-phase-label on a CCT-tinted
+       background. Stronger blue treatment (higher opacity bg + border) so the
+       chips read clearly against any tint. Weight bumped so deltas register
+       clearly next to "Bed 10p". */
     .zone-delta-chip {
-      background: rgba(0,0,0,0.18);
-      color: inherit;
-      opacity: 0.85;
+      background: rgba(120, 170, 230, 0.22);
+      color: var(--changed);
+      opacity: 1;
       font-weight: 700;
-      border-color: rgba(0,0,0,0.12);
+      border-color: rgba(120, 170, 230, 0.40);
     }
     .zone-header.tune .zone-delta-chip,
     .zone-header.no-tint .zone-delta-chip {
-      background: rgba(255,255,255,0.06);
-      border-color: rgba(255,255,255,0.08);
+      background: rgba(120, 170, 230, 0.14);
+      border-color: rgba(120, 170, 230, 0.28);
     }
     /* Active-mode chip emphasis removed — all chips uniform muted style.
        The chip's presence is sufficient signal; pulling the eye to the

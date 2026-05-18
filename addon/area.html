@@ -503,18 +503,19 @@
       cursor: pointer;
     }
     .hslider-value.is-dirty:hover { color: var(--changed-hover); }
-    /* Muted treatment when dirty — chip is tappable to clear, but doesn't
-       shout for attention. Orange is reserved for the value itself. */
+    /* Blue treatment when dirty — chip is tappable to clear. Pairs with the
+       blue value next to it; same convention as the home-page divergence chips. */
     .hslider-delta.is-dirty {
       cursor: pointer;
-      background: rgba(255,255,255,0.06);
-      border-color: rgba(255,255,255,0.10);
-      color: var(--muted);
+      background: rgba(120, 170, 230, 0.14);
+      border-color: rgba(120, 170, 230, 0.28);
+      color: var(--changed);
       opacity: 0.85;
     }
     .hslider-delta.is-dirty:hover {
-      background: rgba(255,255,255,0.12);
-      color: var(--text);
+      background: rgba(120, 170, 230, 0.26);
+      border-color: rgba(120, 170, 230, 0.48);
+      color: var(--changed-hover);
       opacity: 1;
     }
     /* Right-side cluster (step buttons + value + reset). Margin-left auto
@@ -616,7 +617,9 @@
       top: -3px;
       bottom: -3px;
       width: 2px;
-      background: rgba(255,255,255,0.55);
+      /* --changed (#78AAE6) — tick only appears when dirty, so it's part of
+         the dirty cluster and shares the blue convention. */
+      background: rgba(120, 170, 230, 0.55);
       transform: translateX(-50%);
       pointer-events: none;
       border-radius: 1px;

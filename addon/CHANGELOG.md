@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.331
+- **Blue convention extended to all "value differs" cues.** Three additional sites now use `--changed`:
+  - **Slider default-position ticks** (area-details Adjust/Tune/Phase + home-page Tune-mode row slider) — the small vertical mark that shows where a slider would land on reset. White → soft blue at the same opacity (`rgba(120,170,230,0.55)` / `0.6`). The tick only renders when dirty, so it's part of the dirty cluster and now visually unifies with the blue value.
+  - **Home-page divergence chips** (`.delta-chip` family on area rows + zone headers) — each chip signals "this dimension diverges from zone state," semantically identical to the row-readout-dirty cue. Full blue treatment: text in `--changed`, blue-tinted bg + border, with brightened hover state. Replaces the previous "muted, no orange" design — the new design threads the modified-state convention through every "differs from default" signal in the app. Zone-header variant uses a slightly stronger blue (higher bg/border opacity) to read clearly against CCT-tinted header backgrounds.
+  - **Area-details `.hslider-delta` chip** (the floating `+5%` / `−1K` delta pill on Adjust sliders) — was previously muted-when-dirty under the rationale "orange is reserved for the value itself." With blue now meaning "modified state," the chip joins the convention: blue text + blue-tinted bg/border when dirty, brightened on hover.
+
 ## 1.2.330
 - **Home page stuck on "Loading areas" — regression fix from 1.2.329.** The tune.html removal in 1.2.329 deleted the `?mode=tune` redirect block, but also inadvertently deleted the `const requestedMode = urlParams.get('mode');` line that the `?mode=manage` branch immediately below depended on. Result: `ReferenceError: requestedMode is not defined` at the top of `DOMContentLoaded`, which silently broke the initial render path so `loadData()` never ran. Restored the line.
 
