@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.366
+- **Sun chip absorbed as a chart overlay** at the top-right corner of the plot's black background (was its own row above the chart). Frees ~26px of vertical header space. Restyled darker (rgba(0,0,0,0.45) bg, white text, thin white border) so it reads cleanly on the chart's black background regardless of header CCT tint.
+- **NOW cursor time label now has real clearance even at 100% brightness.** Plotly top margin 20 → 30; chart height 108 → 116px to absorb the extra margin without shrinking the curve area. The `4:40p` label sits inside the chart's black plot region rather than overflowing into the header band above.
+
 ## 1.2.365
 - **Fix: master reset button stuck on after clear-all.** `isAreaDirtyVsZone` was counting a stale `brightness_override_set_at` / `color_override_set_at` timestamp as dirty even when the corresponding override VALUE had been cleared to null. Now the `_set_at` mismatch only registers when the override VALUE is also dirty — so glo_down properly hides the reset.
 - **Circadian Light logo shrunk to match the home-page nav-logo (24px).** Button was 42×42 with a 38px logo on top right — read as oversized next to the `.ah-btn` cluster. Now 28×28 with a 24px logo.

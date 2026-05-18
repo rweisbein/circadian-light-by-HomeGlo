@@ -103,25 +103,30 @@
     .ah-breadcrumb:empty { display: none; }
     .ah-row1-spacer { flex: 1 1 auto; min-width: 8px; }
     .ah-sun {
+      /* 1.2.366: positioned as an absolute overlay at the chart's top-
+         right corner (inside #chart-shell, above the plot's black bg).
+         Was a flex child of its own row before. */
       display: none;  /* shown by .visible class once updateChartSunInfo finds daylight */
+      position: absolute;
+      top: 6px;
+      right: 8px;
+      z-index: 4;
       align-items: center;
       gap: 5px;
-      padding: 4px 10px;
-      border-radius: 14px;
-      background: rgba(0,0,0,0.20);
-      font-size: 0.82rem;
+      padding: 2px 9px;
+      border-radius: 12px;
+      background: rgba(0,0,0,0.45);
+      font-size: 0.78rem;
       font-weight: 600;
       cursor: pointer;
-      color: inherit;
-      border: none;
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.10);
       font-family: inherit;
       -webkit-tap-highlight-color: transparent;
       white-space: nowrap;
     }
     .ah-sun.visible { display: inline-flex; }
-    .ah-sun:hover { background: rgba(0,0,0,0.32); }
-    .area-header.is-neutral .ah-sun { background: rgba(255,255,255,0.08); }
-    .area-header.is-neutral .ah-sun:hover { background: rgba(255,255,255,0.14); }
+    .ah-sun:hover { background: rgba(0,0,0,0.65); }
     /* Yellow sun glyph with a thin dark "stroke" via text-shadow so it
        stays legible on warm-amber headers (where same-yellow-on-yellow
        was blending). The % does the value encoding; the icon is just
@@ -202,16 +207,6 @@
       line-height: 1;
     }
 
-    /* ─── Sun-chip row ─── Sits between Row 3 and the chart, right-aligned
-       so the chip lines up with the chart's right edge. Just a slim
-       container; chip is the only child. */
-    .ah-sun-row {
-      display: flex;
-      justify-content: flex-end;
-      align-items: center;
-      margin-top: 4px;
-      min-height: 22px;
-    }
     .ah-action {
       display: flex;
       flex-direction: column;
@@ -742,7 +737,7 @@
       -webkit-user-select: none;
       user-select: none;
     }
-    #chart-shell #mini-chart { height: 108px; margin-top: 0; }
+    #chart-shell #mini-chart { height: 116px; margin-top: 0; }
     /* (Legacy .chart-sun-info* rules removed — the sun chip moved from
        chart-shell to header Row 1 as .ah-sun in Ship 2.) */
     /* Below-axis labels — sunrise/sunset (yellow) + wake/bed (blue), ported
@@ -1612,22 +1607,18 @@
       </div>
     </div>
 
-    <!-- Sun-chip row — right-aligned strip between Row 3 and the chart,
-         so the chip sits flush with the chart's right edge. -->
-    <div class="ah-sun-row">
+    <!-- Chart lives INSIDE the header (1.2.363). 1.2.364: moved below
+         Row 3 (action buttons) per user preference — chart is the last
+         element in the header, sitting above main content. 1.2.366: sun
+         chip absorbed as an absolute overlay at the chart's top-right
+         corner so it doesn't eat its own row's vertical space. -->
+    <div id="chart-shell">
+      <div id="mini-chart"></div>
       <button type="button" class="ah-sun" id="chart-sun-info"
               aria-expanded="false" title="Sun intensity">
         <span class="ah-sun-icon" id="chart-sun-info-icon" data-sun-icon>&#x2600;</span>
         <span id="chart-sun-info-pct" data-sun-pct>&mdash;</span>
       </button>
-    </div>
-
-    <!-- Chart lives INSIDE the header (1.2.363). 1.2.364: moved below
-         Row 3 (action buttons) per user preference — chart is the last
-         element in the header, sitting above main content. The header's
-         own `position: sticky` keeps it (and the chart) pinned. -->
-    <div id="chart-shell">
-      <div id="mini-chart"></div>
       <div class="area-solar-label" id="area-sunrise-label" data-time="">sunrise</div>
       <div class="area-solar-label" id="area-sunset-label" data-time="">sunset</div>
       <div class="area-phase-label" id="area-phase-label" data-time="">wake</div>
@@ -3298,11 +3289,11 @@
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        // Margins tightened across Ship 2 + 1.2.362. 1.2.363 bumps top
-        // back up to 20 so the NOW cursor's time label ("2:41p") has room
-        // above the dot — the layout annotation sits 14px above the dot
-        // and at high brightness (~100%) was clipping.
-        margin: { t: 20, r: 12, l: 36, b: 22 },
+        // Margins tightened across Ship 2 + 1.2.362. 1.2.366: bumped to
+        // t: 30 so the NOW cursor's time label has clear room above the
+        // dot even when the dot sits at 100% brightness — annotation
+        // yshift=16 + ~14px text height needs ~30 to clear.
+        margin: { t: 30, r: 12, l: 36, b: 22 },
         hovermode: 'closest',
         xaxis: (() => {
           const tickvals = [];
