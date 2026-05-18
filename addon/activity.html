@@ -106,7 +106,9 @@
       z-index: 50;
       background: var(--bg);
       padding: 12px 14px 8px;
-      border-bottom: 1px solid var(--line);
+      /* No border-bottom — the rounded .hist-list panel below already
+         provides its own crisp top border, so a divider here would be a
+         redundant double-line. */
     }
     .activity-header-row {
       display: flex;

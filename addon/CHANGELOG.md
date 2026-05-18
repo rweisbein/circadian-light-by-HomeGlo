@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.356
+- **Drop the redundant divider below the activity sort row.** `.activity-sticky-top` had a `border-bottom: 1px solid var(--line)`, but 1.2.355 added a matching top border to the rounded `.hist-list` panel right below it — they sat back-to-back as a double-line. Removed the sticky-top border; the list panel's own border is the visual separator now.
+
 ## 1.2.355
 - **Activity page width 1100 → 750px** to match the Controls page. The wider layout was disconnecting the action verb on the left from the area chip on the right on desktop. Same list content; same target width.
 - **`.hist-list` is now a rounded panel** (subtle background + 1px `--line` border + 10px radius + `overflow: hidden`), matching the Controls page's `.ctrl-card-list` pattern. Looks like one cohesive panel of rows rather than a flat sequence.
