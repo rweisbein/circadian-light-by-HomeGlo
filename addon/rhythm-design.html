@@ -7623,30 +7623,49 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// Flash all currently-dirty cards + sub-sections in orange for ~1.8s.
-// Expands parent cards if collapsed and scrolls the first dirty section
-// into view. Orange flash is the "transient attention" use of accent (the
-// blue convention is reserved for persistent "value differs from saved").
+// Flash the smallest dirty units in orange for ~1.8s. Card-level flash is
+// only used when the card has dirty fields NOT covered by any sub-section
+// (so we don't double-flash a card AND its sub-sections — visually
+// redundant since the card flash wraps the sub-section flash). Expands
+// parent cards if collapsed and scrolls the first dirty target into view.
+// Orange flash is the "transient attention" use of accent (blue is
+// reserved for persistent "value differs from saved").
 function flashDirtySections() {
   const targets = [];
-  for (const sec of RHYTHM_SECTIONS) {
-    if (isSectionDirty(sec.fields())) {
-      const el = document.getElementById(sec.cardId);
-      if (el) targets.push(el);
-    }
+
+  // Brightness card: no sub-section split — flash card if dirty.
+  if (isSectionDirty(BRIGHTNESS_FIELDS)) {
+    const el = document.getElementById('rhythm-brightness-card');
+    if (el) targets.push(el);
   }
-  for (const sub of RHYTHM_SUB_SECTIONS) {
-    if (isSectionDirty(sub.fields())) {
-      const el = document.getElementById(sub.stackId);
-      if (el) targets.push(el);
-    }
-  }
+
+  // Sleep card: every Sleep field belongs to a sub-section (Pattern, Wake,
+  // Bed). Always flash sub-sections; never the card itself (would be
+  // redundant since sub-sections cover every dirty field).
   for (const sub of SLEEP_SUB_SECTIONS) {
     if (isSectionDirty(sub.fields())) {
       const el = document.getElementById(sub.subSectionId);
       if (el) targets.push(el);
     }
   }
+
+  // Color card: has sub-sections (Night warming, Sun cooling) AND residual
+  // fields (min/max_color_temp) that aren't in any sub-section. If
+  // residuals are dirty, flash the whole card (encompasses sub-sections
+  // visually). Otherwise flash only the dirty sub-sections.
+  const colorResiduals = ['min_color_temp', 'max_color_temp'];
+  if (isSectionDirty(colorResiduals)) {
+    const el = document.getElementById('rhythm-color-card');
+    if (el) targets.push(el);
+  } else {
+    for (const sub of RHYTHM_SUB_SECTIONS) {
+      if (isSectionDirty(sub.fields())) {
+        const el = document.getElementById(sub.stackId);
+        if (el) targets.push(el);
+      }
+    }
+  }
+
   if (targets.length === 0) return;
   // Ensure parent cards are expanded so flashed sub-sections are visible.
   for (const t of targets) {

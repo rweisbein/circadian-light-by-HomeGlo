@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.339
+- **Nav-guard flash now targets the smallest dirty unit.** 1.2.338's `flashDirtySections()` flashed both card-level AND sub-section-level when both were dirty — but a single wake-time change dirties WAKE_FIELDS (sub-section) AND SLEEP_FIELDS (parent card, since WAKE_FIELDS ⊂ SLEEP_FIELDS), producing two flashes that visually wrapped each other (the Sleep card flash encompasses the Wake sub-section flash). Refactored to pick the smallest unit per card:
+  - **Brightness card** — no sub-section split, flash card if dirty.
+  - **Sleep card** — every Sleep field is in a sub-section (Pattern, Wake, Bed); never flash the card itself, only dirty sub-sections.
+  - **Color card** — has both sub-sections (Night warming, Sun cooling) and residual fields (`min_color_temp` / `max_color_temp`) that aren't in any sub-section. If residuals are dirty, flash the whole card (encompasses sub-sections visually); otherwise flash only the dirty sub-sections.
+
 ## 1.2.338
 - **Removed the global "Save all / Cancel all" dirty banner** on rhythm-design. Replaced by three lighter-weight indicators + a proper modal:
   - **Page-header dirty dot** — a small blue dot beside the rhythm name in the page header whenever any field is dirty. Visible regardless of scroll position; replaces the banner's "you have unsaved work somewhere" function.
