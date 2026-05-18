@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.350
+- **Cheatsheet save bar — vertical breathing room.** The save bar (moved to the top of the page in 1.2.348) had `margin-top: 16px` but no bottom margin, so it visually touched the switch-type selector dropdown below it. Added `margin-bottom: 16px` and trimmed top margin to 12px — same total vertical space, just balanced top vs bottom.
+
 ## 1.2.349
 - **Real fix for the "Activity opens rhythm zone 'activity'" bug.** 1.2.348's path-stripping fix was insufficient — the user can arrive on a non-`/switches` URL that *renders* the Controls page (e.g. by clicking the top-nav `./switches` link from a rhythm-design page like `/zone-design/MyZone`, which resolves to `/zone-design/switches` and gets served as rhythm-design with zone_name="switches"). Stripping `/switches` from `/zone-design/switches` leaves `/zone-design`, and appending `/activity` lands at `/zone-design/activity` → which the wildcard `/zone-design/{zone_name}` route serves as a rhythm-design page for a phantom zone named "activity". Switched to building target URLs from the resolved `.href` of the page-nav brand `<a>` (always absolute, route-shape independent). Applied to switches.html, switchmap.html, activity.html section-pill navigation.
 
