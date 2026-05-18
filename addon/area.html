@@ -59,6 +59,10 @@
       position: sticky;
       top: 0;
       z-index: 100;
+      /* Match the .main width so the header doesn't span edge-to-edge
+         on wide screens (was stretching the in-header chart in 1.2.363). */
+      max-width: 600px;
+      margin: 0 auto;
       background: var(--panel);
       border-bottom: 1px solid var(--line);
       padding: 10px 14px 10px;
@@ -1548,19 +1552,6 @@
       </button>
     </div>
 
-    <!-- Chart lives INSIDE the header (1.2.363). Black plot background
-         sits between the lighter CCT-tinted header rows; the header's
-         own 14px horizontal padding becomes the "enveloping" colored
-         strip on each side. The chart was previously sticky on its own
-         (#chart-shell { position: sticky }) — now the sticky behavior
-         comes from the header itself. -->
-    <div id="chart-shell">
-      <div id="mini-chart"></div>
-      <div class="area-solar-label" id="area-sunrise-label" data-time="">sunrise</div>
-      <div class="area-solar-label" id="area-sunset-label" data-time="">sunset</div>
-      <div class="area-phase-label" id="area-phase-label" data-time="">wake</div>
-    </div>
-
     <!-- Row 3: action buttons. Master reset (↺) is a conditional 4th
          button, visible only when ANY override differs from the zone
          (was inline in old Row 2 as #ah-row2-reset). -->
@@ -1607,6 +1598,17 @@
                 onclick="onResetArea()" title="Reset overrides">&#x21BA;</button>
         <span class="ah-subline is-blank">&nbsp;</span>
       </div>
+    </div>
+
+    <!-- Chart lives INSIDE the header (1.2.363). 1.2.364: moved below
+         Row 3 (action buttons) per user preference — chart is the last
+         element in the header, sitting above main content. The header's
+         own `position: sticky` keeps it (and the chart) pinned. -->
+    <div id="chart-shell">
+      <div id="mini-chart"></div>
+      <div class="area-solar-label" id="area-sunrise-label" data-time="">sunrise</div>
+      <div class="area-solar-label" id="area-sunset-label" data-time="">sunset</div>
+      <div class="area-phase-label" id="area-phase-label" data-time="">wake</div>
     </div>
   </header>
 

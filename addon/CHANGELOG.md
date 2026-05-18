@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.364
+- **Header now matches body width on wide screens.** 1.2.363's full-width sticky header stretched the in-header chart edge-to-edge on desktop — visually disconnected from the centered 600px body content. Added `max-width: 600px; margin: 0 auto` to `.area-header` so the CCT-tinted panel and the chart inside it line up with `.main` below.
+- **Chart moved BELOW Row 3** (action buttons) per user preference. New header order: Row 1 (identity + readout) → Row 2 (zone/sun) → Row 3 (actions) → Chart. Chart is now the last visual element in the header before page content begins.
+
 ## 1.2.363
 - **Chart moved INTO the area-header.** Previously sticky on its own (scoped to `#chart-context-wrap`, un-sticking after the Tune card). Now it lives between Row 2 (zone/sun) and Row 3 (action buttons) inside `.area-header`, and the header's own `position: sticky` keeps it pinned across the entire page scroll. The header's 14px horizontal padding gives the "enveloping" CCT-tinted strip around the chart's black plot rectangle that the user asked for; 4px corner-radius softens the join.
 - **NOW cursor dot bumped 16 → 22.** Cursor is the focal point of the chart — should read as "you are here" at a glance, not blend with the curve.
