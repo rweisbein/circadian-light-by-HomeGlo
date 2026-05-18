@@ -1034,8 +1034,16 @@
           e.stopPropagation();
           const sec = opt.dataset.section;
           if (sec === 'controls') { _sectionPopoverOpen = false; pop.classList.remove('open'); return; }
-          if (sec === 'activity') { window.location.href = './activity'; return; }
-          if (sec === 'cheatsheet') { window.location.href = './switchmap'; return; }
+          // Compute addon root explicitly (strip our own /switches trailing
+          // segment). Relative ./activity was sometimes resolving against
+          // weird-shaped HA ingress paths and matching the wildcard
+          // /{path:.*}/zone/{zone_name} route — landing the user on a
+          // phantom rhythm page for a zone named "activity". Same pattern
+          // as areas.html's home pill activity navigation.
+          let root = window.location.pathname.replace(/\/$/, '');
+          root = root.replace(/\/switches$/, '');
+          if (sec === 'activity') { window.location.href = (root || '') + '/activity'; return; }
+          if (sec === 'cheatsheet') { window.location.href = (root || '') + '/switchmap'; return; }
         }
         if (e.target.closest('#section-mode-pill')) {
           e.stopPropagation();

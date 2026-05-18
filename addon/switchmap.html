@@ -12,6 +12,10 @@
       --card: #1a1a1a;
       --accent: #feac60;
       --accent-hover: #ffc078;
+      /* "value differs from saved" — modified-state indicator. See area.html
+         for rationale. Blue per productivity-software convention. */
+      --changed: #78AAE6;
+      --changed-hover: #9DC2EE;
       --text: #e2e8f0;
       --muted: #94a3b8;
       --muted2: #64748b;
@@ -235,12 +239,15 @@
       flex-shrink: 0;
     }
 
-    /* Unsaved indicator */
+    /* Unsaved indicator — blue dot per the app-wide "value differs from
+       saved" color convention (--changed, established with the rhythm-
+       design save model). Previously was orange (--warning) but orange is
+       reserved for primary CTAs + transient attention only. */
     .unsaved-indicator {
       display: inline-block;
       width: 8px;
       height: 8px;
-      background: var(--warning);
+      background: var(--changed);
       border-radius: 50%;
       margin-left: 4px;
       opacity: 0;
@@ -592,6 +599,15 @@
       </div>
     </div>
 
+    <!-- Save bar — moved to the top of the page (just below page-header)
+         so the Save/Cancel actions are reachable without scrolling. Visible
+         only in Edit mode. -->
+    <div class="save-bar" id="save-bar" style="display:none;">
+      <a href="#" style="font-size:0.75rem;color:var(--muted2);text-decoration:none;margin-right:auto;" onclick="event.preventDefault();resetToDefaults()">Reset to defaults</a>
+      <button class="btn btn-secondary" id="cancel-btn" onclick="cancelChanges()">Cancel</button>
+      <button class="btn btn-primary" id="save-btn" onclick="saveMappings()" disabled>Save</button>
+    </div>
+
     <div class="type-selector">
       <select id="switch-type-select">
         <!-- Populated by JS -->
@@ -605,12 +621,6 @@
 
     <div id="cards-container">
       <div class="loading">Loading mappings...</div>
-    </div>
-
-    <div class="save-bar" id="save-bar" style="display:none;">
-      <a href="#" style="font-size:0.75rem;color:var(--muted2);text-decoration:none;margin-right:auto;" onclick="event.preventDefault();resetToDefaults()">Reset to defaults</a>
-      <button class="btn btn-secondary" id="cancel-btn" onclick="cancelChanges()">Cancel</button>
-      <button class="btn btn-primary" id="save-btn" onclick="saveMappings()" disabled>Save</button>
     </div>
   </main>
 
@@ -653,8 +663,12 @@
           if (hasUnsavedChanges && !confirm('You have unsaved cheatsheet changes. Leave anyway?')) {
             return;
           }
-          if (sec === 'controls') { window.location.href = './switches'; return; }
-          if (sec === 'activity') { window.location.href = './activity'; return; }
+          // Compute addon root from our own pathname so relative URLs don't
+          // accidentally match HA-ingress wildcard routes (e.g. /zone/<name>).
+          let root = window.location.pathname.replace(/\/$/, '');
+          root = root.replace(/\/switchmap$/, '');
+          if (sec === 'controls') { window.location.href = (root || '') + '/switches'; return; }
+          if (sec === 'activity') { window.location.href = (root || '') + '/activity'; return; }
           return;
         }
         if (e.target.closest('#section-mode-pill')) {

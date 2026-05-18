@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.348
+- **Fix: clicking "Activity" in the Controls section pill landed on a phantom rhythm page.** The relative URL `./activity` was matching the wildcard `/{path:.*}/zone/{zone_name}` route under some HA-ingress path shapes, opening a non-existent zone named "activity". Same root-stripping pattern as areas.html's home-pill fix: strip our own page segment (`/switches` or `/switchmap`) from `window.location.pathname` and append the target. Applied to switches.html and switchmap.html section-pill nav handlers.
+- **Cheatsheet unsaved indicator → blue.** Was using `--warning` (orange) — but orange is reserved for primary CTAs + transient attention per the 1.2.331 color convention. Switched to `--changed` (the app-wide "value differs from saved" blue). Added `--changed` / `--changed-hover` CSS vars to switchmap.html's `:root` to match the other pages.
+- **Cheatsheet save bar moved to the top of the page.** Was below the cards-container (bottom of page); now sits right beneath the page-header so Save / Cancel / Reset to defaults are reachable without scrolling. Visible only in Edit mode.
+
 ## 1.2.347
 - **Controls + Cheatsheet page headers re-laid out to match the home page convention.** Home's pattern is Row 1 = identity-LEFT + mode-RIGHT, Row 2 = view-LEFT. After 1.2.346 the new section pill landed on the LEFT of Controls + Cheatsheet, opposite of home, and the dropdown (which uses `right: 0` to anchor and extend leftward) clipped off the left page edge. Restructured:
   - **Controls (switches.html):** Row 1 now has result count on the left + section pill on the right (mirrors home). Row 2 — new — has the "view" label + view pill on the left (mirrors home Row 2). Filter + sort rows continue below in the existing `.ctrl-toolbar`.
