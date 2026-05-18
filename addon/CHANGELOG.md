@@ -1,5 +1,11 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.363
+- **Chart moved INTO the area-header.** Previously sticky on its own (scoped to `#chart-context-wrap`, un-sticking after the Tune card). Now it lives between Row 2 (zone/sun) and Row 3 (action buttons) inside `.area-header`, and the header's own `position: sticky` keeps it pinned across the entire page scroll. The header's 14px horizontal padding gives the "enveloping" CCT-tinted strip around the chart's black plot rectangle that the user asked for; 4px corner-radius softens the join.
+- **NOW cursor dot bumped 16 → 22.** Cursor is the focal point of the chart — should read as "you are here" at a glance, not blend with the curve.
+- **NOW time label clearance restored.** 1.2.362's Plotly top margin (`t: 10`) was clipping the cursor's time annotation (`2:41p`) when the dot sat near 100% brightness. Bumped back to `t: 20`; annotation `yshift` 14 → 16 to clear the bigger dot.
+- **Stale `#chart-context-wrap` kept as an empty no-op wrapper** for backward-compat — its only job (providing sticky scope) is no longer needed.
+
 ## 1.2.362
 - **Area-details header restructured (mobile-first).** Three rows now:
   - **Row 1:** `← Kitchen 57% · 5500K [........] [Circadian toggle]`. The bri/CT readout moved up from the old Row 2 so the chart can come up too. Readout font dropped 1.3 → 1.15rem so it fits inline with the area name.

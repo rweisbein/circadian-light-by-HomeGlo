@@ -699,25 +699,24 @@
       pointer-events: none;
       text-shadow: 0 1px 2px rgba(0,0,0,0.6);
     }
-    /* Chart shell pinned at top of #chart-context-wrap (which spans Adjust
-       + Schedule + Tune cards), so the chart stays visible as the user
-       scrolls through any of those cards. Un-sticks once all three are
-       scrolled past (i.e. when Controls section comes into view).
-       Opaque bg + z-index above the cards so the sticky chart obscures
-       card content scrolling underneath. user-select: none — chart +
+    /* Chart shell lives INSIDE the area-header as of 1.2.363 (was a
+       sticky element scoped to chart-context-wrap before). Sticky comes
+       from the header itself now; chart-shell is just a black-background
+       container with relative positioning so the absolute sunrise/sunset
+       + wake/bed labels can anchor below it. user-select: none — chart +
        labels aren't text content; without this every tap-and-drag starts
        a text selection. */
     #chart-context-wrap { position: relative; }
     #chart-shell {
-      position: sticky;
-      top: 80px;  /* below the 3-row page-header */
-      z-index: 5;
-      background: var(--bg);
-      /* Tight padding: 0 above (chart-internal margin handles axis labels),
-         28px below to make room for the two sunrise/sunset + wake/bed
-         label rows. Was 6/32 before the 1.2.362 compression pass. */
+      position: relative;
+      background: #000;
+      /* Bottom padding reserves space for the absolute-positioned
+         sunrise/sunset (bottom: 16) + wake/bed (bottom: 2) labels. */
       padding: 0 0 28px;
-      margin: 0 0 6px;
+      margin: 4px 0 4px;
+      border-radius: 4px;  /* soft corners so the black plot rectangle
+                              feels enveloped by the CCT-tinted header
+                              padding around it, rather than abutting */
       -webkit-user-select: none;
       user-select: none;
     }
@@ -1549,6 +1548,19 @@
       </button>
     </div>
 
+    <!-- Chart lives INSIDE the header (1.2.363). Black plot background
+         sits between the lighter CCT-tinted header rows; the header's
+         own 14px horizontal padding becomes the "enveloping" colored
+         strip on each side. The chart was previously sticky on its own
+         (#chart-shell { position: sticky }) — now the sticky behavior
+         comes from the header itself. -->
+    <div id="chart-shell">
+      <div id="mini-chart"></div>
+      <div class="area-solar-label" id="area-sunrise-label" data-time="">sunrise</div>
+      <div class="area-solar-label" id="area-sunset-label" data-time="">sunset</div>
+      <div class="area-phase-label" id="area-phase-label" data-time="">wake</div>
+    </div>
+
     <!-- Row 3: action buttons. Master reset (↺) is a conditional 4th
          button, visible only when ANY override differs from the zone
          (was inline in old Row 2 as #ah-row2-reset). -->
@@ -1601,19 +1613,11 @@
   <main class="main">
 
     <!-- Cards Section (curve + auto schedule) -->
-    <!-- Chart-context wrapper: chart-shell pins sticky inside this wrapper,
-         so it stays visible as the user scrolls through Adjust → Schedule
-         → Tune. Wrapper closes after the Tune section so chart un-sticks
-         once those cards are scrolled past. -->
+    <!-- Chart-context wrapper: kept as a no-op container for backward-
+         compatibility with JS that may target it. The chart itself moved
+         into the page header in 1.2.363; the wrapper no longer provides
+         sticky scope. -->
     <div id="chart-context-wrap">
-    <!-- Sticky chart pulled out of the Adjust card body so its sticky scope
-         spans Adjust + Schedule + Tune cards (its direct parent here). -->
-    <div id="chart-shell">
-      <div id="mini-chart"></div>
-      <div class="area-solar-label" id="area-sunrise-label" data-time="">sunrise</div>
-      <div class="area-solar-label" id="area-sunset-label" data-time="">sunset</div>
-      <div class="area-phase-label" id="area-phase-label" data-time="">wake</div>
-    </div>
     <div id="auto-sched-section" class="auto-sched-section" style="display:none;">
     <div class="auto-sched-card auto-sched-card--headline is-open" id="adjust-card">
       <div class="auto-sched-header" onclick="toggleAdjustCard()">
@@ -1623,9 +1627,8 @@
       </div>
       <div class="auto-sched-body" id="chart-body">
         <div id="circadian-content-wrap" class="curve-controls-wrap">
-          <!-- Chart-shell moved up to #chart-context-wrap so it can stay
-               sticky across Adjust + Schedule + Tune cards. Adjust card
-               body now starts directly with the sliders. -->
+          <!-- Chart-shell lives in the area-header (1.2.363); Adjust card
+               body opens directly to the sliders. -->
           <div class="adjust-section">
             <div class="hslider-row">
               <div class="hslider-header">
@@ -3232,7 +3235,10 @@
       traces.push({
         type: 'scatter', mode: 'markers',
         x: [cursorHour], y: [cursorBulbY],
-        marker: { size: 16, color: nowDotFill, symbol: 'circle', line: { width: 2, color: nowDotBorder } },
+        // 1.2.363: dot size bumped 16 → 22. Cursor is the focal point of
+        // the chart; the white-filled circle should read as "you are here"
+        // at a glance, not blend with the curve.
+        marker: { size: 22, color: nowDotFill, symbol: 'circle', line: { width: 2, color: nowDotBorder } },
         cliponaxis: false,
         hoverinfo: 'skip',
         showlegend: false,
@@ -3243,7 +3249,7 @@
         text: nowTimeLabel,
         showarrow: false,
         yanchor: 'bottom',  // explicit so the text BOTTOM sits at (y + yshift)
-        yshift: 14,         // pixels above the dot's center — clears the 8px radius + a few px of breathing room
+        yshift: 16,         // pixels above the dot's center — clears the 11px radius + breathing room
         font: { size: 11, color: nowLabelColor, family: '-apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif' },
       });
 
@@ -3268,12 +3274,11 @@
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        // Margins tightened in Ship 2 (50→22 top, 86→28 bottom). 1.2.362
-        // shaves another ~12px off top (sun chip lives in header now, no
-        // need for chart-internal reservation) and 6px off bottom — the
-        // outside labels (sunrise/sunset, wake/bed) sit at bottom: 16/2
-        // after the same pass, so the chart-shell padding tightened too.
-        margin: { t: 10, r: 12, l: 36, b: 22 },
+        // Margins tightened across Ship 2 + 1.2.362. 1.2.363 bumps top
+        // back up to 20 so the NOW cursor's time label ("2:41p") has room
+        // above the dot — the layout annotation sits 14px above the dot
+        // and at high brightness (~100%) was clipping.
+        margin: { t: 20, r: 12, l: 36, b: 22 },
         hovermode: 'closest',
         xaxis: (() => {
           const tickvals = [];
