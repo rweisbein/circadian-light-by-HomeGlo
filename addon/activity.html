@@ -129,12 +129,25 @@
       font-family: inherit;
     }
     /* Non-default filter value → highlight border + text so the active
-       filters are visually distinct from the "All …" defaults. Mirrors the
+       filters are visually distinct from the default labels. Mirrors the
        Controls page filter pattern. */
     .activity-filter-select.is-active {
       border-color: var(--accent);
       color: var(--accent);
     }
+    /* × clear button next to each active filter — mirrors Controls page's
+       .ctrl-area-clear pattern. Visible only when the filter has a value. */
+    .activity-filter-clear {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 0 4px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .activity-filter-clear:hover { color: var(--text); }
     /* Sort segmenter row — uses shared .view-segments-bar / .view-segment
        styling from shared.css. */
     .activity-sort-row {
@@ -209,12 +222,15 @@
         <select class="activity-filter-select" id="activity-area-filter" title="Filter by area">
           <option value="">Areas</option>
         </select>
+        <button class="activity-filter-clear" id="activity-area-clear" title="Clear area filter" style="display:none;">&times;</button>
         <select class="activity-filter-select" id="activity-source-filter" title="Filter by source kind">
           <option value="">Sources</option>
         </select>
+        <button class="activity-filter-clear" id="activity-source-clear" title="Clear source filter" style="display:none;">&times;</button>
         <select class="activity-filter-select" id="activity-action-filter" title="Filter by action">
           <option value="">Actions</option>
         </select>
+        <button class="activity-filter-clear" id="activity-action-clear" title="Clear action filter" style="display:none;">&times;</button>
       </div>
       <div class="seg-row activity-sort-row">
         <span class="seg-label">sort</span>
@@ -303,11 +319,17 @@
       const sel = document.getElementById('activity-area-filter');
       if (!sel) return;
       const sorted = [...allAreas].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-      const opts = ['<option value="">Areas</option>']
-        .concat(sorted.map(a => `<option value="${a.area_id}">${a.name || a.area_id}</option>`));
+      const opts = [
+        '<option value="">Areas</option>',
+        // Disabled separator between the default option (which doubles as
+        // the closed-state field label) and the actual area values.
+        '<option disabled>──────</option>',
+      ].concat(sorted.map(a => `<option value="${a.area_id}">${a.name || a.area_id}</option>`));
       sel.innerHTML = opts.join('');
       sel.value = activeAreaFilter;
       sel.classList.toggle('is-active', !!activeAreaFilter);
+      const clr = document.getElementById('activity-area-clear');
+      if (clr) clr.style.display = activeAreaFilter ? 'inline-block' : 'none';
     }
 
     // Build source-type + action filter options from the current entry set.
@@ -329,25 +351,33 @@
       const sourceList = [...presentSources].sort((a, b) =>
         (HIST_SOURCE_LABEL[a] || a).localeCompare(HIST_SOURCE_LABEL[b] || b)
       );
-      sourceSel.innerHTML = ['<option value="">Sources</option>']
-        .concat(sourceList.map(k => {
+      sourceSel.innerHTML = [
+        '<option value="">Sources</option>',
+        '<option disabled>──────</option>',
+      ].concat(sourceList.map(k => {
           const label = HIST_SOURCE_LABEL[k] || k;
           return `<option value="${k}">${label}</option>`;
         })).join('');
       sourceSel.value = activeSourceFilter;
       sourceSel.classList.toggle('is-active', !!activeSourceFilter);
+      const sourceClr = document.getElementById('activity-source-clear');
+      if (sourceClr) sourceClr.style.display = activeSourceFilter ? 'inline-block' : 'none';
 
       // Action options sorted by display label.
       const actionList = [...presentActions].sort((a, b) =>
         (HIST_ACTION_LABEL[a] || a).localeCompare(HIST_ACTION_LABEL[b] || b)
       );
-      actionSel.innerHTML = ['<option value="">Actions</option>']
-        .concat(actionList.map(a => {
+      actionSel.innerHTML = [
+        '<option value="">Actions</option>',
+        '<option disabled>──────</option>',
+      ].concat(actionList.map(a => {
           const label = HIST_ACTION_LABEL[a] || a;
           return `<option value="${a}">${label}</option>`;
         })).join('');
       actionSel.value = activeActionFilter;
       actionSel.classList.toggle('is-active', !!activeActionFilter);
+      const actionClr = document.getElementById('activity-action-clear');
+      if (actionClr) actionClr.style.display = activeActionFilter ? 'inline-block' : 'none';
     }
 
     function renderSortSeg() {
@@ -494,6 +524,33 @@
           activeActionFilter = actionSel.value;
           localStorage.setItem(_ACTION_FILTER_KEY, activeActionFilter);
           actionSel.classList.toggle('is-active', !!activeActionFilter);
+          renderActivity();
+        });
+      }
+
+      // × clear buttons for each filter — reset to default + re-render.
+      const areaClr = document.getElementById('activity-area-clear');
+      if (areaClr) {
+        areaClr.addEventListener('click', () => {
+          activeAreaFilter = '';
+          localStorage.setItem(_AREA_FILTER_KEY, '');
+          renderAreaFilterOptions();
+          renderActivity();
+        });
+      }
+      const sourceClr = document.getElementById('activity-source-clear');
+      if (sourceClr) {
+        sourceClr.addEventListener('click', () => {
+          activeSourceFilter = '';
+          localStorage.setItem(_SOURCE_FILTER_KEY, '');
+          renderActivity();
+        });
+      }
+      const actionClr = document.getElementById('activity-action-clear');
+      if (actionClr) {
+        actionClr.addEventListener('click', () => {
+          activeActionFilter = '';
+          localStorage.setItem(_ACTION_FILTER_KEY, '');
           renderActivity();
         });
       }

@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.345
+- **Filter dropdowns: visual separator between the field-name option and the actual values.** Adds a non-selectable `<option disabled>──────</option>` row right after the default ("Areas" / "Types" / "Sources" / "Actions"). Renders as a greyed separator line when the dropdown is open across all browsers; doesn't affect the closed state. Applied to all 5 filter dropdowns (Controls: Area + Type; Activity: Area + Source + Action).
+- **Activity filters now have × clear buttons** matching the Controls pattern. The × appears next to the select whenever the filter has a value, hides when at default. Click resets the filter to default + persists to localStorage + re-renders.
+
 ## 1.2.344
 - **Filter dropdown label cleanup — "All X" → "X"** on both Controls and Activity pages. Native `<select>` shows the same option text whether closed or open, so the default option doubles as the closed-state label. Renames: "All areas" → **Areas**, "All types" → **Types**, "All sources" → **Sources**, "All actions" → **Actions**. Saves ~30px per filter on mobile.
 - **Controls sort label: "Location" → "Area"** so the term matches Activity's sort segmenter. Same underlying field (`area_id`) on both pages; one word now.

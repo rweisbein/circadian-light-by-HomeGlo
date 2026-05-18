@@ -1467,7 +1467,13 @@
       const sel = (val) => areaFilter === val ? ' selected' : '';
       const seenAreaNames = new Set();
       const indent = '  ';
-      const optionParts = ['<option value="all">Areas</option>'];
+      const optionParts = [
+        '<option value="all">Areas</option>',
+        // Visual separator between the field-name default option and the
+        // actual filter values. Disabled so it can't be picked; renders as
+        // a non-selectable greyed row in the open dropdown.
+        '<option disabled>──────</option>',
+      ];
       if (viewHasUnassigned) optionParts.push(`<option value="unassigned"${sel('unassigned')}>— Unassigned —</option>`);
       for (const z of viewZones) {
         const zVal = 'zone:' + z.id;
@@ -1532,6 +1538,7 @@
       const typeOrder = ['switch', 'motion_sensor', 'contact_sensor', 'camera', 'unknown'];
       const presentTypes = typeOrder.filter(t => categories.includes(t));
       const typeOptions = '<option value="all">Types</option>'
+        + '<option disabled>──────</option>'
         + presentTypes.map(t =>
             '<option value="' + t + '"' + (categoryFilter === t ? ' selected' : '') + '>'
               + (TYPE_LABELS[t] || t)
