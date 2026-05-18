@@ -1933,6 +1933,17 @@ input[type=range]::-moz-range-thumb {
   border-color: var(--changed);
 }
 .sub-section.is-dirty .sub-section-revert { display: inline-flex; align-items: center; }
+
+/* Per-readout dirty signal — applied via JS to any element with a
+   data-config-field attribute whose current config value differs from the
+   loaded snapshot. Informational only — tapping the value opens an editor
+   or its slider (no tap-to-revert here, unlike area-details slider values).
+   Cascaded values (e.g. wake_time updated by a Pattern preset change) light
+   up naturally because config differs from snapshot. */
+.readout-dirty,
+select.readout-dirty {
+  color: var(--changed) !important;
+}
 /* When blocked (Path A guard — Pattern dirty), the button uses the native
    `disabled` attribute so the title tooltip still shows on hover. Visually
    greyed via opacity. */
@@ -2121,7 +2132,7 @@ input[type=range]::-moz-range-thumb {
       <div class="sub-section" id="pattern-sub-section">
         <div class="sub-section-header">
           <span class="sub-section-title">Pattern</span>
-          <select id="activity-preset" class="rhythm-pattern-inline-select" onclick="event.stopPropagation()" style="margin-left:8px;">
+          <select id="activity-preset" class="rhythm-pattern-inline-select" data-config-field="activity_preset" onclick="event.stopPropagation()" style="margin-left:8px;">
             <option value="young">Young Child</option>
             <option value="adult" selected>Adult</option>
             <option value="nightowl">Night Owl</option>
@@ -2154,7 +2165,7 @@ input[type=range]::-moz-range-thumb {
                 <span class="tune-control-left">
                   <div class="day-indicators" id="wake-primary-days"></div>
                 </span>
-                <span class="tune-control-impact" id="wake-time-display">7:00a</span>
+                <span class="tune-control-impact" id="wake-time-display" data-config-field="wake_time">7:00a</span>
               </div>
               <div class="tune-slider-row">
                 <input type="range" id="wake-time" min="0" max="24" step="0.25" value="7">
@@ -2165,7 +2176,7 @@ input[type=range]::-moz-range-thumb {
                 <span class="tune-control-left">
                   <div class="day-indicators" id="wake-alt-days"></div>
                 </span>
-                <span class="tune-control-impact" id="wake-alt-time-display">9:00a</span>
+                <span class="tune-control-impact" id="wake-alt-time-display" data-config-field="wake_alt_time">9:00a</span>
               </div>
               <div class="tune-slider-row">
                 <input type="range" id="wake-alt-time" min="0" max="24" step="0.25" value="9">
@@ -2178,7 +2189,7 @@ input[type=range]::-moz-range-thumb {
                 <span class="tune-control-label">Brightness</span>
                 <span class="tune-control-reset" id="reset-wake-brightness" data-default="25">reset</span>
               </span>
-              <span class="tune-control-impact" id="wake-brightness-display">50%</span>
+              <span class="tune-control-impact" id="wake-brightness-display" data-config-field="wake_brightness">50%</span>
             </div>
             <div class="tune-slider-row">
               <input type="range" id="wake-brightness" min="10" max="90" step="5" value="50">
@@ -2190,7 +2201,7 @@ input[type=range]::-moz-range-thumb {
                 <span class="tune-control-label">Speed</span>
                 <span class="tune-control-reset" id="reset-wake-speed" data-default="6">reset</span>
               </span>
-              <span class="tune-control-impact" id="wake-speed-display">Crisp · ~3.5 hr</span>
+              <span class="tune-control-impact" id="wake-speed-display" data-config-field="wake_speed">Crisp · ~3.5 hr</span>
             </div>
             <div class="tune-slider-row">
               <input type="range" id="wake-speed" min="1" max="12" step="1" value="6">
@@ -2221,7 +2232,7 @@ input[type=range]::-moz-range-thumb {
                 <span class="tune-control-left">
                   <div class="day-indicators" id="bed-primary-days"></div>
                 </span>
-                <span class="tune-control-impact" id="bed-time-display">9:00p</span>
+                <span class="tune-control-impact" id="bed-time-display" data-config-field="bed_time">9:00p</span>
               </div>
               <div class="tune-slider-row">
                 <input type="range" id="bed-time" min="0" max="36" step="0.25" value="21">
@@ -2232,7 +2243,7 @@ input[type=range]::-moz-range-thumb {
                 <span class="tune-control-left">
                   <div class="day-indicators" id="bed-alt-days"></div>
                 </span>
-                <span class="tune-control-impact" id="bed-alt-time-display">11:00p</span>
+                <span class="tune-control-impact" id="bed-alt-time-display" data-config-field="bed_alt_time">11:00p</span>
               </div>
               <div class="tune-slider-row">
                 <input type="range" id="bed-alt-time" min="0" max="36" step="0.25" value="23">
@@ -2245,7 +2256,7 @@ input[type=range]::-moz-range-thumb {
                 <span class="tune-control-label">Brightness</span>
                 <span class="tune-control-reset" id="reset-bed-brightness" data-default="25">reset</span>
               </span>
-              <span class="tune-control-impact" id="bed-brightness-display">50%</span>
+              <span class="tune-control-impact" id="bed-brightness-display" data-config-field="bed_brightness">50%</span>
             </div>
             <div class="tune-slider-row">
               <input type="range" id="bed-brightness" min="10" max="90" step="5" value="50">
@@ -2257,7 +2268,7 @@ input[type=range]::-moz-range-thumb {
                 <span class="tune-control-label">Speed</span>
                 <span class="tune-control-reset" id="reset-bed-speed" data-default="6">reset</span>
               </span>
-              <span class="tune-control-impact" id="bed-speed-display">Smooth · ~5.9 hr</span>
+              <span class="tune-control-impact" id="bed-speed-display" data-config-field="bed_speed">Smooth · ~5.9 hr</span>
             </div>
             <div class="tune-slider-row">
               <input type="range" id="bed-speed" min="1" max="12" step="1" value="4">
@@ -2303,7 +2314,7 @@ input[type=range]::-moz-range-thumb {
                   <span class="tune-control-label">Strength</span>
                   <span class="tune-control-reset" id="reset-brightness-sensitivity" data-default="5">reset</span>
                 </span>
-                <span class="tune-control-impact" id="brightness-sensitivity-text">1.00: standard</span>
+                <span class="tune-control-impact" id="brightness-sensitivity-text" data-config-field="brightness_sensitivity">1.00: standard</span>
               </div>
               <div class="tune-slider-row">
                 <input type="range" id="brightness-sensitivity" min="0" max="8" step="1" value="5">
@@ -2357,11 +2368,11 @@ input[type=range]::-moz-range-thumb {
                   <span class="tune-control-label">Start</span>
                   <span class="tune-control-reset" id="reset-warm-night-start" data-default="-60">reset</span>
                 </span>
-                <span class="tune-control-impact" id="warm-night-start-impact"></span>
+                <span class="tune-control-impact" id="warm-night-start-impact" data-config-field="warm_night_start"></span>
               </div>
               <div class="tune-slider-row">
                 <input type="range" id="warm-night-start" min="-180" max="180" step="30" value="-60">
-                <div class="tune-slider-word" id="warm-night-start-text">1 hr before sunset</div>
+                <div class="tune-slider-word" id="warm-night-start-text" data-config-field="warm_night_start">1 hr before sunset</div>
               </div>
             </div>
             <div class="reveal-group">
@@ -2370,11 +2381,11 @@ input[type=range]::-moz-range-thumb {
                   <span class="tune-control-label">End</span>
                   <span class="tune-control-reset" id="reset-warm-night-end" data-default="60">reset</span>
                 </span>
-                <span class="tune-control-impact" id="warm-night-end-impact"></span>
+                <span class="tune-control-impact" id="warm-night-end-impact" data-config-field="warm_night_end"></span>
               </div>
               <div class="tune-slider-row">
                 <input type="range" id="warm-night-end" min="-180" max="180" step="30" value="60">
-                <div class="tune-slider-word" id="warm-night-end-text">1 hr after sunrise</div>
+                <div class="tune-slider-word" id="warm-night-end-text" data-config-field="warm_night_end">1 hr after sunrise</div>
               </div>
             </div>
             <div class="reveal-group">
@@ -2383,7 +2394,7 @@ input[type=range]::-moz-range-thumb {
                   <span class="tune-control-label">Fade</span>
                   <span class="tune-control-reset" id="reset-warm-night-fade" data-default="60">reset</span>
                 </span>
-                <span class="tune-control-impact" id="warm-night-fade-text">1 hr</span>
+                <span class="tune-control-impact" id="warm-night-fade-text" data-config-field="warm_night_fade">1 hr</span>
               </div>
               <div class="tune-slider-row">
                 <input type="range" id="warm-night-fade" min="0" max="300" step="30" value="60">
@@ -2420,7 +2431,7 @@ input[type=range]::-moz-range-thumb {
                   <span class="tune-control-label">Strength</span>
                   <span class="tune-control-reset" id="reset-color-sensitivity" data-default="5">reset</span>
                 </span>
-                <span class="tune-control-impact" id="color-sensitivity-text">1.00: standard</span>
+                <span class="tune-control-impact" id="color-sensitivity-text" data-config-field="color_sensitivity">1.00: standard</span>
               </div>
               <div class="tune-slider-row">
                 <input type="range" id="color-sensitivity" min="0" max="8" step="1" value="5">
@@ -2432,11 +2443,11 @@ input[type=range]::-moz-range-thumb {
                   <span class="tune-control-label">Start</span>
                   <span class="tune-control-reset" id="reset-daylight-start" data-default="60">reset</span>
                 </span>
-                <span class="tune-control-impact" id="daylight-start-impact"></span>
+                <span class="tune-control-impact" id="daylight-start-impact" data-config-field="daylight_start"></span>
               </div>
               <div class="tune-slider-row">
                 <input type="range" id="daylight-start" min="-180" max="180" step="30" value="60">
-                <div class="tune-slider-word" id="daylight-start-text">1 hr after sunrise</div>
+                <div class="tune-slider-word" id="daylight-start-text" data-config-field="daylight_start">1 hr after sunrise</div>
               </div>
             </div>
             <div class="reveal-group">
@@ -2445,11 +2456,11 @@ input[type=range]::-moz-range-thumb {
                   <span class="tune-control-label">End</span>
                   <span class="tune-control-reset" id="reset-daylight-end" data-default="-60">reset</span>
                 </span>
-                <span class="tune-control-impact" id="daylight-end-impact"></span>
+                <span class="tune-control-impact" id="daylight-end-impact" data-config-field="daylight_end"></span>
               </div>
               <div class="tune-slider-row">
                 <input type="range" id="daylight-end" min="-180" max="180" step="30" value="-60">
-                <div class="tune-slider-word" id="daylight-end-text">1 hr before sunset</div>
+                <div class="tune-slider-word" id="daylight-end-text" data-config-field="daylight_end">1 hr before sunset</div>
               </div>
             </div>
             <div class="reveal-group">
@@ -2458,7 +2469,7 @@ input[type=range]::-moz-range-thumb {
                   <span class="tune-control-label">Fade</span>
                   <span class="tune-control-reset" id="reset-daylight-fade" data-default="60">reset</span>
                 </span>
-                <span class="tune-control-impact" id="daylight-fade-text">1 hr</span>
+                <span class="tune-control-impact" id="daylight-fade-text" data-config-field="daylight_fade">1 hr</span>
               </div>
               <div class="tune-slider-row">
                 <input type="range" id="daylight-fade" min="0" max="300" step="30" value="60">
@@ -6032,6 +6043,13 @@ function setupEventListeners() {
         config.descend_start = preset.descend_start;
       }
 
+      // Pattern is a wholesale rhythm change — recompute the chart frame
+      // anchor so getPhaseBoundsInFrame (used by the click-to-edit time-input
+      // validator) doesn't see stale `chartState.ascendStart` against the
+      // new `config.ascend_start` / `config.descend_start`. Otherwise editing
+      // wake/bed after Pattern change can surface bounds errors with
+      // nonsensical limits.
+      recomputeAscendStart();
       syncUIFromConfig();
       renderChart();
     }
@@ -7277,10 +7295,26 @@ function updateSectionDirtyState() {
     }
   }
 
+  // Per-readout dirty signal: every element with data-config-field gets
+  // .readout-dirty when its mapped config field differs from snapshot.
+  // Informational only (no tap-to-revert); pairs with the section-level
+  // Save/Cancel actions for the actual commit/discard path.
+  updateReadoutDirtyState();
+
   // Banner: visible only when at least one section is dirty. The per-card
   // dot + header Reset tell the user *which* card; the banner's job is the
   // global action.
   banner.classList.toggle('is-active', anyDirty);
+}
+
+function updateReadoutDirtyState() {
+  if (!configSnapshot || Object.keys(configSnapshot).length === 0) return;
+  document.querySelectorAll('[data-config-field]').forEach(el => {
+    const field = el.dataset.configField;
+    const cur = JSON.stringify(config[field]);
+    const snap = JSON.stringify(configSnapshot[field]);
+    el.classList.toggle('readout-dirty', cur !== snap);
+  });
 }
 
 function updateSliderFill(el) {
