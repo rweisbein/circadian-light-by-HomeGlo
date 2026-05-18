@@ -460,7 +460,9 @@
     .hslider-row {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      /* 1.2.370: gap 4 → 9px so labels + values + buttons sit further
+         above the slider track (felt like they were bumping into it). */
+      gap: 9px;
     }
     .hslider-header {
       display: flex;
@@ -468,6 +470,11 @@
                                alignment; baseline put text above buttons */
       gap: 8px;
     }
+    /* 1.2.370: nudge the right cluster (+/- buttons + value) 3px DOWN
+       within the header line so the label sits a hair higher than the
+       buttons. Net: label raised 5px above slider, buttons raised 2px —
+       creates a small visual hierarchy and lets the slider breathe. */
+    .hslider-header .hslider-right { transform: translateY(3px); }
     /* Divergence chip next to the slider value — same visual treatment
        as the home-page .delta-chip. Hidden when empty (no override). */
     .hslider-delta {
@@ -857,10 +864,20 @@
     #schedule-card .sub-section-body { padding-left: 0; }
     .auto-sched-card--sub { background: transparent; border: none; border-radius: 0; transition: background 0.3s; }
     .auto-sched-card--sub + .auto-sched-card--sub { border-top: 1px solid var(--line); }
-    /* 1.2.369: tighten the gap between the outer Schedule header ("Schedule")
-       and the first sub-section header ("On"). Default 12px+12px stack
-       reads as a gulf since nothing visually lives between them. */
+    /* 1.2.369-1.2.370: tighten the gap between the outer Schedule header
+       ("Schedule") and the first sub-section ("On"). 1.2.369 trimmed the
+       header paddings to 4px; 1.2.370 zeros out the `.sub-section`'s
+       baseline `margin-top: 16px + padding-top: 14px + border-top` from
+       shared.css for the FIRST sub-section inside Schedule — those were
+       designed for sub-sections with content above them, and the first
+       sub directly follows the outer header. The 2nd sub (Off) keeps the
+       baseline since it benefits from a visible separator from the 1st. */
     #schedule-card > .auto-sched-header { padding-bottom: 4px; }
+    #schedule-card .auto-sched-body > .auto-sched-card--sub:first-child {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: none;
+    }
     #schedule-card .auto-sched-body > .auto-sched-card--sub:first-child > .auto-sched-header { padding-top: 4px; }
     /* Sub-card bodies are always visible (outer Auto controls collapse) */
     .auto-sched-card--sub > .auto-sched-body { max-height: none; opacity: 1; overflow: visible; transition: opacity 0.2s; }

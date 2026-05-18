@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.370
+- **Real fix for the Schedule gulf.** 1.2.369's padding tweak wasn't enough because `.sub-section` from `shared.css` adds `margin-top: 16px + padding-top: 14px + border-top` — that's 30px of mandatory space above any element with `sub-section` class. The Schedule's first sub-section (auto-on-card) was carrying all of it. Zeroed those out for the FIRST sub-section inside `#schedule-card` only; the 2nd sub (Off) keeps the baseline since it benefits from a visible separator. "Schedule" → "On" gap goes from ~38px to ~8px.
+- **Adjust card slider rows breathe.** `.hslider-row { gap: 4 → 9px }` so the label + value + step buttons sit ~5px higher above the slider track (they were visually bumping into it). The `.hslider-right` cluster (+/- buttons + value) is then translated down 3px so the label sits a hair higher than the buttons — small hierarchy, net effect: label raised 5px relative to slider, buttons raised 2px.
+
 ## 1.2.369
 - **Tune card label aligns with Adjust label vertically.** The `.tune-brightness-val` is a 2-line flex column ("Sun dimming: None / Balance: Normal"); with `align-items: center` the header's flex line grew to ~30px and the title got pushed ~8px down to vertically center inside it — visibly lower than Adjust's title (whose right-side `adjust-outer-next` is empty when clean). Changed `.tune-brightness-header` to `align-items: flex-start` so the title pins to the top of the header regardless of val height. Adjust + Tune labels now sit at the same y-offset from the card top.
 - **Tightened the Schedule outer↔first-sub gap.** Outer Schedule header's padding-bottom and first sub-section header's padding-top went 12px → 4px each, collapsing the ~24px "gulf" between "Schedule" and "On" down to ~8px. Other auto-sched cards untouched (rule scoped to `#schedule-card`).
