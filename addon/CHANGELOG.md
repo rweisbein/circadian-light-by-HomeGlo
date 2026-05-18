@@ -1,5 +1,15 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.343
+- **Activity page — filter row + sort segmenter.** Mirrors the Controls page pattern. Filter row has three independent `<select>` dropdowns: Area, Source kind, Action. Each filter highlights its border + text in accent when set to a non-default value. Below the filter row, a sort segmenter offers four modes:
+  - **Recent** (default) — newest first, as it was.
+  - **Area** — groups by area name (A→Z), with newest-first ordering *within* each area.
+  - **Source** — groups by source-kind label (App, Motion, Switch, etc.), newest-first within.
+  - **Action** — groups by action label (Brightness, Color, Freeze, etc.), newest-first within.
+- **Filter option lists are derived from the present entries.** Only source kinds and actions that actually appear in the current data show up as dropdown options, so you never pick a filter that produces an empty list (modulo entries that scrolled off the 100-per-area ring buffer).
+- **All four settings persist to localStorage** (`activity_area_filter`, `activity_source_filter`, `activity_action_filter`, `activity_sort_mode`) so they survive page reloads, like the existing area filter did.
+- **Empty-state message adapts** — "No activity matches the current filters …" when any filter is active, vs the original "No activity yet …" baseline.
+
 ## 1.2.342
 - **Activity feed: table → card list.** Replaces the previous 4–5-column HTML table (which exceeded viewport width and forced horizontal scroll on phones) with a stacked card layout. Each entry is now a two-row card with a fixed icon column on the left:
   - Top row: optional `[area] · [action]` (action only on area-details; area-prefix on the home Activity page) with right-aligned timestamp.

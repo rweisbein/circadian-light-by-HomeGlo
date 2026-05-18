@@ -116,12 +116,7 @@
       align-items: center;
       gap: 8px;
       margin-top: 10px;
-    }
-    .activity-filter-label {
-      font-size: 0.78rem;
-      color: var(--muted2);
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
+      flex-wrap: wrap;
     }
     .activity-filter-select {
       font-size: 0.85rem;
@@ -132,6 +127,18 @@
       color: var(--text);
       cursor: pointer;
       font-family: inherit;
+    }
+    /* Non-default filter value → highlight border + text so the active
+       filters are visually distinct from the "All …" defaults. Mirrors the
+       Controls page filter pattern. */
+    .activity-filter-select.is-active {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    /* Sort segmenter row — uses shared .view-segments-bar / .view-segment
+       styling from shared.css. */
+    .activity-sort-row {
+      margin-top: 8px;
     }
 
     .activity-body {
@@ -199,10 +206,24 @@
         </div>
       </div>
       <div class="activity-filter-row">
-        <span class="activity-filter-label">Area:</span>
-        <select class="activity-filter-select" id="activity-area-filter">
-          <option value="">All</option>
+        <select class="activity-filter-select" id="activity-area-filter" title="Filter by area">
+          <option value="">All areas</option>
         </select>
+        <select class="activity-filter-select" id="activity-source-filter" title="Filter by source kind">
+          <option value="">All sources</option>
+        </select>
+        <select class="activity-filter-select" id="activity-action-filter" title="Filter by action">
+          <option value="">All actions</option>
+        </select>
+      </div>
+      <div class="seg-row activity-sort-row">
+        <span class="seg-label">sort</span>
+        <div class="view-segments-bar" id="activity-sort-seg" role="tablist">
+          <button class="view-segment" data-sort="recent" role="tab">Recent</button>
+          <button class="view-segment" data-sort="area" role="tab">Area</button>
+          <button class="view-segment" data-sort="source" role="tab">Source</button>
+          <button class="view-segment" data-sort="action" role="tab">Action</button>
+        </div>
       </div>
     </div>
 
@@ -222,10 +243,17 @@
     let _refreshTimer = null;
     let _lastTopTs = null;       // for change-detection
 
-    // Persisted area filter — survives reloads, like the per-area card
-    // open/closed state on area-details.
+    // Persisted filter + sort state — survives reloads, like the per-area
+    // card open/closed state on area-details. Each filter is independent so
+    // the user can stack "in Master Bedroom, motion-only, turn_on events" etc.
     const _AREA_FILTER_KEY = 'activity_area_filter';
+    const _SOURCE_FILTER_KEY = 'activity_source_filter';
+    const _ACTION_FILTER_KEY = 'activity_action_filter';
+    const _SORT_KEY = 'activity_sort_mode';
     let activeAreaFilter = localStorage.getItem(_AREA_FILTER_KEY) || '';
+    let activeSourceFilter = localStorage.getItem(_SOURCE_FILTER_KEY) || '';
+    let activeActionFilter = localStorage.getItem(_ACTION_FILTER_KEY) || '';
+    let activeSortMode = localStorage.getItem(_SORT_KEY) || 'recent';
 
     // --- Path / base detection (HA ingress aware) ---
     let basePath = '';
@@ -274,12 +302,95 @@
     function renderAreaFilterOptions() {
       const sel = document.getElementById('activity-area-filter');
       if (!sel) return;
-      const current = activeAreaFilter;
       const sorted = [...allAreas].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-      const opts = ['<option value="">All</option>']
+      const opts = ['<option value="">All areas</option>']
         .concat(sorted.map(a => `<option value="${a.area_id}">${a.name || a.area_id}</option>`));
       sel.innerHTML = opts.join('');
-      sel.value = current;
+      sel.value = activeAreaFilter;
+      sel.classList.toggle('is-active', !!activeAreaFilter);
+    }
+
+    // Build source-type + action filter options from the current entry set.
+    // Only kinds/actions actually present in the data appear in the dropdowns
+    // (avoids a long list of options that produce empty results).
+    function renderSourceAndActionOptions() {
+      const sourceSel = document.getElementById('activity-source-filter');
+      const actionSel = document.getElementById('activity-action-filter');
+      if (!sourceSel || !actionSel) return;
+
+      const presentSources = new Set();
+      const presentActions = new Set();
+      for (const e of allEntries) {
+        if (e.source_kind) presentSources.add(e.source_kind);
+        if (e.action) presentActions.add(e.action);
+      }
+
+      // Source-kind options sorted by display label.
+      const sourceList = [...presentSources].sort((a, b) =>
+        (HIST_SOURCE_LABEL[a] || a).localeCompare(HIST_SOURCE_LABEL[b] || b)
+      );
+      sourceSel.innerHTML = ['<option value="">All sources</option>']
+        .concat(sourceList.map(k => {
+          const label = HIST_SOURCE_LABEL[k] || k;
+          return `<option value="${k}">${label}</option>`;
+        })).join('');
+      sourceSel.value = activeSourceFilter;
+      sourceSel.classList.toggle('is-active', !!activeSourceFilter);
+
+      // Action options sorted by display label.
+      const actionList = [...presentActions].sort((a, b) =>
+        (HIST_ACTION_LABEL[a] || a).localeCompare(HIST_ACTION_LABEL[b] || b)
+      );
+      actionSel.innerHTML = ['<option value="">All actions</option>']
+        .concat(actionList.map(a => {
+          const label = HIST_ACTION_LABEL[a] || a;
+          return `<option value="${a}">${label}</option>`;
+        })).join('');
+      actionSel.value = activeActionFilter;
+      actionSel.classList.toggle('is-active', !!activeActionFilter);
+    }
+
+    function renderSortSeg() {
+      const seg = document.getElementById('activity-sort-seg');
+      if (!seg) return;
+      seg.querySelectorAll('.view-segment').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.sort === activeSortMode);
+      });
+    }
+
+    // Apply current sort to a filtered entry list. Sort modes other than
+    // 'recent' use a secondary by-recent ordering within each group so
+    // recently-active areas/sources/actions still surface at the top of
+    // their cluster.
+    function sortActivityEntries(entries) {
+      if (activeSortMode === 'recent') return entries;
+      const tsDesc = (a, b) => (b.ts || 0) - (a.ts || 0);
+      const cmpStr = (a, b) => a.localeCompare(b);
+      if (activeSortMode === 'area') {
+        return [...entries].sort((a, b) => {
+          const an = areaNameMap[a.area_id] || a.area_id || '';
+          const bn = areaNameMap[b.area_id] || b.area_id || '';
+          const c = cmpStr(an, bn);
+          return c !== 0 ? c : tsDesc(a, b);
+        });
+      }
+      if (activeSortMode === 'source') {
+        return [...entries].sort((a, b) => {
+          const al = HIST_SOURCE_LABEL[a.source_kind] || a.source_kind || '';
+          const bl = HIST_SOURCE_LABEL[b.source_kind] || b.source_kind || '';
+          const c = cmpStr(al, bl);
+          return c !== 0 ? c : tsDesc(a, b);
+        });
+      }
+      if (activeSortMode === 'action') {
+        return [...entries].sort((a, b) => {
+          const al = HIST_ACTION_LABEL[a.action] || a.action || '';
+          const bl = HIST_ACTION_LABEL[b.action] || b.action || '';
+          const c = cmpStr(al, bl);
+          return c !== 0 ? c : tsDesc(a, b);
+        });
+      }
+      return entries;
     }
 
     async function loadActivity() {
@@ -298,16 +409,24 @@
     function renderActivity() {
       const body = document.getElementById('activity-body');
       if (!body) return;
+      // Refresh filter option sets on every render — the available
+      // source/action values can change as new entries arrive.
+      renderSourceAndActionOptions();
+      renderSortSeg();
+
       let entries = allEntries;
-      if (activeAreaFilter) {
-        entries = entries.filter(e => e.area_id === activeAreaFilter);
-      }
-      body.innerHTML = renderHistoryTable(entries, {
+      if (activeAreaFilter) entries = entries.filter(e => e.area_id === activeAreaFilter);
+      if (activeSourceFilter) entries = entries.filter(e => e.source_kind === activeSourceFilter);
+      if (activeActionFilter) entries = entries.filter(e => e.action === activeActionFilter);
+      entries = sortActivityEntries(entries);
+
+      const anyFilterActive = activeAreaFilter || activeSourceFilter || activeActionFilter;
+      body.innerHTML = renderHistoryList(entries, {
         showArea: true,
         areaNames: areaNameMap,
         controlNames: controlNameMap,
-        emptyMessage: activeAreaFilter
-          ? 'No activity for this area since the addon last restarted.'
+        emptyMessage: anyFilterActive
+          ? 'No activity matches the current filters since the addon last restarted.'
           : 'No activity yet — recording starts when the addon last restarts.',
       });
     }
@@ -351,13 +470,45 @@
     }
 
     function _wireFilter() {
-      const sel = document.getElementById('activity-area-filter');
-      if (!sel) return;
-      sel.addEventListener('change', () => {
-        activeAreaFilter = sel.value;
-        localStorage.setItem(_AREA_FILTER_KEY, activeAreaFilter);
-        renderActivity();
-      });
+      const areaSel = document.getElementById('activity-area-filter');
+      const sourceSel = document.getElementById('activity-source-filter');
+      const actionSel = document.getElementById('activity-action-filter');
+      if (areaSel) {
+        areaSel.addEventListener('change', () => {
+          activeAreaFilter = areaSel.value;
+          localStorage.setItem(_AREA_FILTER_KEY, activeAreaFilter);
+          areaSel.classList.toggle('is-active', !!activeAreaFilter);
+          renderActivity();
+        });
+      }
+      if (sourceSel) {
+        sourceSel.addEventListener('change', () => {
+          activeSourceFilter = sourceSel.value;
+          localStorage.setItem(_SOURCE_FILTER_KEY, activeSourceFilter);
+          sourceSel.classList.toggle('is-active', !!activeSourceFilter);
+          renderActivity();
+        });
+      }
+      if (actionSel) {
+        actionSel.addEventListener('change', () => {
+          activeActionFilter = actionSel.value;
+          localStorage.setItem(_ACTION_FILTER_KEY, activeActionFilter);
+          actionSel.classList.toggle('is-active', !!activeActionFilter);
+          renderActivity();
+        });
+      }
+
+      // Sort segmenter — clicking a segment switches the sort mode.
+      const seg = document.getElementById('activity-sort-seg');
+      if (seg) {
+        seg.addEventListener('click', (e) => {
+          const btn = e.target.closest('.view-segment');
+          if (!btn || !btn.dataset.sort) return;
+          activeSortMode = btn.dataset.sort;
+          localStorage.setItem(_SORT_KEY, activeSortMode);
+          renderActivity();
+        });
+      }
     }
 
     async function init() {
