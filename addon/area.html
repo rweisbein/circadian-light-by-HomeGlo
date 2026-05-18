@@ -1424,6 +1424,81 @@
       display: inline;
     }
 
+    /* Nav-guard modal — surfaces when user triggers in-app nav (Back btn)
+       with unsaved changes. Lists the dirty sections. "Discard & leave"
+       reverts all and proceeds. "Stay & review" closes the modal and
+       flashes the dirty cards in orange so the user can see the scope.
+       Mirrors rhythm-design.html's nav-guard pattern. */
+    .nav-guard-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    .nav-guard-modal.is-open { display: flex; }
+    .nav-guard-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+    }
+    .nav-guard-dialog {
+      position: relative;
+      background: var(--card, #1c2532);
+      border: 1px solid var(--line, rgba(255,255,255,0.08));
+      border-radius: 12px;
+      padding: 20px 22px 16px;
+      min-width: 280px;
+      max-width: 92vw;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+      color: var(--text);
+    }
+    .nav-guard-title {
+      margin: 0 0 8px;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+    .nav-guard-body {
+      margin: 0 0 18px;
+      font-size: var(--font-body);
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .nav-guard-body .nav-guard-section-name {
+      color: var(--text);
+      font-weight: 600;
+    }
+    .nav-guard-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .nav-guard-actions button {
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: var(--font-body);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .nav-guard-discard {
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--muted);
+    }
+    .nav-guard-discard:hover {
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+      border-color: var(--muted);
+    }
+    .nav-guard-stay {
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #000;
+      font-weight: 600;
+    }
+    .nav-guard-stay:hover { opacity: 0.9; }
+
   </style>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
   <script src="./shared.js"></script>
@@ -4678,17 +4753,12 @@
     // Navigation
     // ============================================================
     function goBack() {
-      // Enumerate which sections are dirty so the confirm tells the user
-      // exactly what they'd discard, not just "you have unsaved changes".
-      const dirty = [];
-      if (isAutoDirty('on')) dirty.push('Schedule: On');
-      if (isAutoDirty('off')) dirty.push('Schedule: Off');
-      if (isLightsDirty()) dirty.push('Lights');
-      if (isBrightnessDirty()) dirty.push('Brightness');
-      if (dirty.length) {
-        const msg = 'You have unsaved changes in: ' + dirty.join(', ') + '. Discard and leave?';
-        if (!confirm(msg)) return;
-      }
+      // Surface the nav-guard modal (rhythm-design pattern) if anything's
+      // dirty. Stay & review flashes the dirty cards; Discard & leave
+      // reverts and proceeds.
+      navGuardIfDirty(_doGoBack);
+    }
+    function _doGoBack() {
       stopRefresh();
       const params = new URLSearchParams(window.location.search);
       // ?back=<path> — explicit return target set by upstream pages
@@ -4701,6 +4771,130 @@
       }
       window.location.href = basePath + '/';
     }
+
+    // ============================================================
+    // Nav-guard modal — replaces the generic confirm() for the
+    // "leaving with unsaved changes" concern. Lists dirty sections by
+    // name and offers Stay & review (flashes them) or Discard & leave
+    // (cancels them all + proceeds). Mirrors rhythm-design.html.
+    // Browser-level nav (close tab, refresh) still uses the basic
+    // beforeunload dialog — can't custom-style that.
+    // ============================================================
+    let _navGuardOnConfirm = null;
+
+    // Enumerate dirty sections. Each entry: { name, flashId } where
+    // flashId is the element to add .focus-flash to on Stay & review.
+    // Card vs sub-section granularity: prefer the smallest dirty unit
+    // (auto-on / auto-off sub-sections rather than the outer Schedule
+    // card) so flash precisely shows the user what's pending.
+    function _dirtyAreaSections() {
+      const out = [];
+      if (isAutoDirty('on'))     out.push({ name: 'Schedule: On',  flashId: 'auto-on-card',         openId: 'schedule-card' });
+      if (isAutoDirty('off'))    out.push({ name: 'Schedule: Off', flashId: 'auto-off-card',        openId: 'schedule-card' });
+      if (isLightsDirty())       out.push({ name: 'Lights',        flashId: 'tune-lights-card' });
+      if (isBrightnessDirty())   out.push({ name: 'Brightness',    flashId: 'tune-brightness-card' });
+      return out;
+    }
+
+    function navGuardIfDirty(onConfirm) {
+      const dirty = _dirtyAreaSections();
+      if (dirty.length === 0) { onConfirm(); return; }
+      const sectionsEl = document.getElementById('nav-guard-sections');
+      if (sectionsEl) {
+        // Format: "A", "A and B", "A, B, and C" — natural English list.
+        const wrapped = dirty.map(d => `<span class="nav-guard-section-name">${d.name}</span>`);
+        let phrase;
+        if (wrapped.length === 1) phrase = wrapped[0];
+        else if (wrapped.length === 2) phrase = wrapped.join(' and ');
+        else phrase = wrapped.slice(0, -1).join(', ') + ', and ' + wrapped[wrapped.length - 1];
+        sectionsEl.innerHTML = phrase;
+      }
+      _navGuardOnConfirm = onConfirm;
+      const modal = document.getElementById('nav-guard-modal');
+      if (modal) { modal.classList.add('is-open'); modal.setAttribute('aria-hidden', 'false'); }
+    }
+
+    function navGuardClose() {
+      const modal = document.getElementById('nav-guard-modal');
+      if (modal) { modal.classList.remove('is-open'); modal.setAttribute('aria-hidden', 'true'); }
+      _navGuardOnConfirm = null;
+    }
+
+    function navGuardStay() {
+      navGuardClose();
+      flashDirtyAreaSections();
+    }
+
+    function navGuardDiscard() {
+      const fn = _navGuardOnConfirm;
+      navGuardClose();
+      // Cancel every dirty section before proceeding.
+      if (isAutoDirty('on')) cancelAutoChanges('on');
+      if (isAutoDirty('off')) cancelAutoChanges('off');
+      if (isLightsDirty()) cancelLightsChanges();
+      if (isBrightnessDirty()) cancelBrightnessChanges();
+      if (fn) fn();
+    }
+
+    // Flash the dirty cards/sub-sections in orange for ~1.8s. Expands the
+    // outer Schedule if a sub is being flashed; scrolls the first target
+    // into view.
+    function flashDirtyAreaSections() {
+      const dirty = _dirtyAreaSections();
+      if (!dirty.length) return;
+      const targets = [];
+      for (const d of dirty) {
+        const el = document.getElementById(d.flashId);
+        if (el) targets.push(el);
+        // Make sure parent containers are expanded so the flash is visible.
+        if (d.openId) {
+          const outer = document.getElementById(d.openId);
+          if (outer && !outer.classList.contains('is-open')) {
+            outer.classList.add('is-open');
+            _setAreaCard('schedule_collapsed', 'false');
+          }
+        }
+        if (d.flashId === 'tune-lights-card') {
+          const el2 = document.querySelector('.tune-lights-card');
+          if (el2 && !el2.classList.contains('is-open')) {
+            el2.classList.add('is-open');
+            _setAreaCard('lights_collapsed', 'false');
+          }
+        }
+        if (d.flashId === 'tune-brightness-card') {
+          const el2 = document.querySelector('.tune-brightness-card');
+          if (el2 && !el2.classList.contains('is-open')) {
+            el2.classList.add('is-open');
+          }
+        }
+      }
+      if (!targets.length) return;
+      targets[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      targets.forEach(t => t.classList.add('focus-flash'));
+      setTimeout(() => {
+        targets.forEach(t => t.classList.remove('focus-flash'));
+      }, 1800);
+    }
+
+    // Escape closes the modal as "Stay" (no destructive default).
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      const modal = document.getElementById('nav-guard-modal');
+      if (modal && modal.classList.contains('is-open')) {
+        e.stopPropagation();
+        navGuardStay();
+      }
+    });
+
+    // Browser-level navigation (tab close, refresh, URL change) — fall
+    // back to the basic beforeunload prompt. Can't custom-style; can't
+    // intercept to show the nicer modal.
+    window.addEventListener('beforeunload', (e) => {
+      if (_dirtyAreaSections().length) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    });
 
     // ============================================================
     // Content Updates
@@ -7977,5 +8171,20 @@
     }
 
     </script>
+
+  <!-- Nav-guard modal — surfaces when user hits Back with unsaved changes.
+       Browser-level navigation (tab close, refresh) still uses the basic
+       beforeunload prompt — can't custom-style that. -->
+  <div class="nav-guard-modal" id="nav-guard-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="nav-guard-title">
+    <div class="nav-guard-backdrop" onclick="navGuardStay()"></div>
+    <div class="nav-guard-dialog">
+      <h3 class="nav-guard-title" id="nav-guard-title">Unsaved changes</h3>
+      <p class="nav-guard-body">You have changes in <span id="nav-guard-sections"></span>.</p>
+      <div class="nav-guard-actions">
+        <button type="button" class="nav-guard-discard" onclick="navGuardDiscard()">Discard &amp; leave</button>
+        <button type="button" class="nav-guard-stay" onclick="navGuardStay()">Stay &amp; review</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

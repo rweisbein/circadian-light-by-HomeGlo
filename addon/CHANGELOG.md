@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.360
+- **area.html now uses the rhythm-design nav-guard modal** when the user hits Back with unsaved changes — replaces the generic browser `confirm()`. Lists dirty sections by name ("changes in Schedule: On and Lights") with proper English-list formatting. Two actions:
+  - **Discard & leave** → reverts every dirty section (Schedule On/Off, Lights, Brightness) and proceeds with the navigation.
+  - **Stay & review** → closes the modal and flashes the dirty cards in orange for ~1.8s, expanding parent containers if collapsed and scrolling the first dirty card into view. Same focus-flash CSS that already powered deep-link target highlighting.
+- **Escape and backdrop click both behave as Stay** — no destructive default if the user dismisses by accident.
+- **`beforeunload` handler added** so browser-level navigation (tab close, refresh) at least surfaces the standard browser warning. Can't custom-style that one — the nicer modal is in-app only.
+- **Granular dirty-section tracking via `_dirtyAreaSections()`** returns the smallest dirty unit so flash precisely targets what's pending (auto-on / auto-off sub-section cards rather than the outer Schedule wrapper).
+
 ## 1.2.359
 - **Outer Schedule card now propagates sub-section dirty state.** When auto-on or auto-off has unsaved edits, the outer Schedule title gets a blue dot indicator (matches rhythm-design's `.rhythm-card.is-dirty .rhythm-card-title::before` pattern). When the user collapses the outer card while dirty, the outer header surfaces its own Save/Cancel buttons in place of the next-fire summary — so the user can save or discard without re-expanding. When the outer is open, the sub-section headers continue to show their own per-section Save/Cancel; the outer's stay hidden to avoid duplicate controls.
 - **Removed the silent auto-save on Schedule collapse.** Previously, collapsing the outer Schedule with dirty subs would invisibly save them on the way out. That was surprising (the dirty indicators just vanished). Now the dirty state survives collapse and is visible on the outer header; the user explicitly Saves or Cancels.
