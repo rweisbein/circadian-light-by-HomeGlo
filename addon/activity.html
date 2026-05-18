@@ -207,13 +207,13 @@
       </div>
       <div class="activity-filter-row">
         <select class="activity-filter-select" id="activity-area-filter" title="Filter by area">
-          <option value="">All areas</option>
+          <option value="">Areas</option>
         </select>
         <select class="activity-filter-select" id="activity-source-filter" title="Filter by source kind">
-          <option value="">All sources</option>
+          <option value="">Sources</option>
         </select>
         <select class="activity-filter-select" id="activity-action-filter" title="Filter by action">
-          <option value="">All actions</option>
+          <option value="">Actions</option>
         </select>
       </div>
       <div class="seg-row activity-sort-row">
@@ -303,7 +303,7 @@
       const sel = document.getElementById('activity-area-filter');
       if (!sel) return;
       const sorted = [...allAreas].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-      const opts = ['<option value="">All areas</option>']
+      const opts = ['<option value="">Areas</option>']
         .concat(sorted.map(a => `<option value="${a.area_id}">${a.name || a.area_id}</option>`));
       sel.innerHTML = opts.join('');
       sel.value = activeAreaFilter;
@@ -329,7 +329,7 @@
       const sourceList = [...presentSources].sort((a, b) =>
         (HIST_SOURCE_LABEL[a] || a).localeCompare(HIST_SOURCE_LABEL[b] || b)
       );
-      sourceSel.innerHTML = ['<option value="">All sources</option>']
+      sourceSel.innerHTML = ['<option value="">Sources</option>']
         .concat(sourceList.map(k => {
           const label = HIST_SOURCE_LABEL[k] || k;
           return `<option value="${k}">${label}</option>`;
@@ -341,7 +341,7 @@
       const actionList = [...presentActions].sort((a, b) =>
         (HIST_ACTION_LABEL[a] || a).localeCompare(HIST_ACTION_LABEL[b] || b)
       );
-      actionSel.innerHTML = ['<option value="">All actions</option>']
+      actionSel.innerHTML = ['<option value="">Actions</option>']
         .concat(actionList.map(a => {
           const label = HIST_ACTION_LABEL[a] || a;
           return `<option value="${a}">${label}</option>`;

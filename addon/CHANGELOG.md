@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.344
+- **Filter dropdown label cleanup — "All X" → "X"** on both Controls and Activity pages. Native `<select>` shows the same option text whether closed or open, so the default option doubles as the closed-state label. Renames: "All areas" → **Areas**, "All types" → **Types**, "All sources" → **Sources**, "All actions" → **Actions**. Saves ~30px per filter on mobile.
+- **Controls sort label: "Location" → "Area"** so the term matches Activity's sort segmenter. Same underlying field (`area_id`) on both pages; one word now.
+- **Removed the search bar from the Controls page.** The Area / Type / Status filters + sort modes cover the use cases the search was helping with. Full cleanup: removed the search input + toggle button rendering, the `searchFilter` / `_searchExpanded` state variables, the preference save/load, the filter-list filtering logic, the `searchGlyphIcon()` helper, the CSS for `.ctrl-search-wrap` / `.ctrl-search-clear`, and the search-related event listeners on the controls-container. Net `-~80` lines.
+
 ## 1.2.343
 - **Activity page — filter row + sort segmenter.** Mirrors the Controls page pattern. Filter row has three independent `<select>` dropdowns: Area, Source kind, Action. Each filter highlights its border + text in accent when set to a non-default value. Below the filter row, a sort segmenter offers four modes:
   - **Recent** (default) — newest first, as it was.
