@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.365
+- **Fix: master reset button stuck on after clear-all.** `isAreaDirtyVsZone` was counting a stale `brightness_override_set_at` / `color_override_set_at` timestamp as dirty even when the corresponding override VALUE had been cleared to null. Now the `_set_at` mismatch only registers when the override VALUE is also dirty — so glo_down properly hides the reset.
+- **Circadian Light logo shrunk to match the home-page nav-logo (24px).** Button was 42×42 with a 38px logo on top right — read as oversized next to the `.ah-btn` cluster. Now 28×28 with a 24px logo.
+- **Header rows tightened vertically.** Row 2 `margin-top` 2 → 0 so "in Main →" reads as part of the area's identity block; Row 2 `min-height` 22 → 18; Row 3 `margin-top` 6 → 4. Net: buttons move up.
+- **Reset button now sits inline with the action cluster** (right of Boost, gap of 18px) instead of being pinned to the far right with `margin-left: auto`.
+- **Sun-intensity chip moved out of Row 2** into its own slim right-aligned row between Row 3 and the chart, so the chip is flush with the chart's right edge.
+- **Chart height bumped 100 → 108px** to give the NOW cursor time label room when the dot sits at 100% brightness.
+
 ## 1.2.364
 - **Header now matches body width on wide screens.** 1.2.363's full-width sticky header stretched the in-header chart edge-to-edge on desktop — visually disconnected from the centered 600px body content. Added `max-width: 600px; margin: 0 auto` to `.area-header` so the CCT-tinted panel and the chart inside it line up with `.main` below.
 - **Chart moved BELOW Row 3** (action buttons) per user preference. New header order: Row 1 (identity + readout) → Row 2 (zone/sun) → Row 3 (actions) → Chart. Chart is now the last visual element in the header before page content begins.

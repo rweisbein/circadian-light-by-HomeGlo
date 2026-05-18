@@ -158,14 +158,16 @@
       line-height: 1.1;
     }
 
-    /* ─── Row 2: thin sub-row — "in {zone} →" · fade chip · sun pill ─── */
+    /* ─── Row 2: thin sub-row — "in {zone} →" · fade chip ───
+       Sun chip moved out to its own row above the chart in 1.2.365 so
+       it sits aligned with the chart's right edge. */
     .ah-row2 {
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-top: 2px;
+      margin-top: 0;   /* tight against Row 1 — breadcrumb should read as part of identity */
       padding-left: 36px;   /* align under the area name */
-      min-height: 22px;
+      min-height: 18px;
     }
     .ah-row2-spacer { flex: 1 1 auto; min-width: 8px; }
     /* Fade chip + future transient indicators flow on the left, next to
@@ -176,7 +178,7 @@
       align-items: center;
     }
 
-    /* ─── Row 3: actions ─── Power · Freeze · Boost · (Reset when dirty)
+    /* ─── Row 3: actions ─── Power · Freeze · Boost · Reset(when dirty)
        Left padding matches Row 2 so the first action button lines up
        with the area name on Row 1. */
     .ah-row3 {
@@ -184,20 +186,31 @@
       justify-content: flex-start;
       align-items: flex-start;
       gap: 18px;
-      margin-top: 6px;
+      margin-top: 4px;
       padding-left: 36px;
     }
-    /* Conditional 4th action: the master Reset button. Single tap →
-       glo_down, no confirm. Hidden by default; shown when isAreaDirtyVsZone
-       toggles `.is-dirty` on this wrapper. */
+    /* Conditional 4th action: the master Reset button. Lives inline with
+       the action cluster (just right of Boost) — not pinned to the far
+       right edge. Hidden by default; shown when isAreaDirtyVsZone toggles
+       `.is-dirty` on this wrapper. */
     .ah-action-reset {
       display: none;
-      margin-left: auto;
     }
     .ah-action-reset.is-dirty { display: flex; }
     .ah-action-reset #ah-reset-btn {
       font-size: 1.1rem;
       line-height: 1;
+    }
+
+    /* ─── Sun-chip row ─── Sits between Row 3 and the chart, right-aligned
+       so the chip lines up with the chart's right edge. Just a slim
+       container; chip is the only child. */
+    .ah-sun-row {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      margin-top: 4px;
+      min-height: 22px;
     }
     .ah-action {
       display: flex;
@@ -244,14 +257,19 @@
        Drop the outline entirely on this one so the logo is the whole
        visual story. */
     #toggle-circadian {
+      width: 28px;
+      height: 28px;
       border-color: transparent;
       background: transparent;
     }
     #toggle-circadian:hover { background: rgba(0,0,0,0.10); }
     .area-header.is-neutral #toggle-circadian:hover { background: rgba(255,255,255,0.06); }
+    /* Match the home page nav-logo size (24px) — the area-detail CL logo
+       was 38px which read as oversized next to the .ah-btn cluster on
+       Row 3. */
     #toggle-circadian .ah-btn-logo {
-      width: 38px;
-      height: 38px;
+      width: 24px;
+      height: 24px;
       border-radius: 50%;
       display: block;
       transition: filter 0.15s, opacity 0.15s;
@@ -724,7 +742,7 @@
       -webkit-user-select: none;
       user-select: none;
     }
-    #chart-shell #mini-chart { height: 100px; margin-top: 0; }
+    #chart-shell #mini-chart { height: 108px; margin-top: 0; }
     /* (Legacy .chart-sun-info* rules removed — the sun chip moved from
        chart-shell to header Row 1 as .ah-sun in Ship 2.) */
     /* Below-axis labels — sunrise/sunset (yellow) + wake/bed (blue), ported
@@ -1539,17 +1557,11 @@
       </button>
     </div>
 
-    <!-- Row 2 (thin sub-row): zone breadcrumb + transient chips (fade)
-         + sun-intensity chip. Smaller font, less vertical weight. -->
+    <!-- Row 2 (thin sub-row): zone breadcrumb + transient chips (fade).
+         Sun chip moved to its own row (below Row 3) in 1.2.365. -->
     <div class="ah-row2">
       <a class="ah-breadcrumb" id="header-meta-rhythm" href="#"></a>
       <span class="ah-state-chips page-header-chips" id="page-header-chips"></span>
-      <span class="ah-row2-spacer"></span>
-      <button type="button" class="ah-sun" id="chart-sun-info"
-              aria-expanded="false" title="Sun intensity">
-        <span class="ah-sun-icon" id="chart-sun-info-icon" data-sun-icon>&#x2600;</span>
-        <span id="chart-sun-info-pct" data-sun-pct>&mdash;</span>
-      </button>
     </div>
 
     <!-- Row 3: action buttons. Master reset (↺) is a conditional 4th
@@ -1598,6 +1610,16 @@
                 onclick="onResetArea()" title="Reset overrides">&#x21BA;</button>
         <span class="ah-subline is-blank">&nbsp;</span>
       </div>
+    </div>
+
+    <!-- Sun-chip row — right-aligned strip between Row 3 and the chart,
+         so the chip sits flush with the chart's right edge. -->
+    <div class="ah-sun-row">
+      <button type="button" class="ah-sun" id="chart-sun-info"
+              aria-expanded="false" title="Sun intensity">
+        <span class="ah-sun-icon" id="chart-sun-info-icon" data-sun-icon>&#x2600;</span>
+        <span id="chart-sun-info-pct" data-sun-pct>&mdash;</span>
+      </button>
     </div>
 
     <!-- Chart lives INSIDE the header (1.2.363). 1.2.364: moved below
@@ -5267,13 +5289,19 @@
         if (a == null || b == null) return true;
         return Math.abs(a - b) >= tol;
       };
+      // 1.2.365: only count override_set_at mismatch if the corresponding
+      // override VALUE is also off. Otherwise a stale _set_at timestamp
+      // left over after glo_down would keep the reset button stuck on
+      // even though the actual override has been cleared.
+      const briValDirty = differs(status.brightness_override, rs.brightness_override, 1);
+      const colValDirty = differs(status.color_override, rs.color_override, 10);
       return (differs(status.brightness_mid, rs.brightness_mid, 0.05) ||
               differs(status.color_mid, rs.color_mid, 0.05) ||
               differs(status.frozen_at, rs.frozen_at, 0.05) ||
-              differs(status.color_override, rs.color_override, 10) ||
-              differs(status.brightness_override, rs.brightness_override, 1) ||
-              differs(status.brightness_override_set_at, rs.brightness_override_set_at, 0.1) ||
-              differs(status.color_override_set_at, rs.color_override_set_at, 0.1));
+              colValDirty ||
+              briValDirty ||
+              (briValDirty && differs(status.brightness_override_set_at, rs.brightness_override_set_at, 0.1)) ||
+              (colValDirty && differs(status.color_override_set_at, rs.color_override_set_at, 0.1)));
     }
 
     // --------------------------------------------------------------------
