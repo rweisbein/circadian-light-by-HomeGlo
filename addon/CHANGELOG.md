@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.346
+- **IA refactor: Activity moves out of home's mode pill into a new Controls section.** The home mode pill stays area-centric (Adjust / Tune / Manage); the Controls top-nav item now hosts three sibling pages connected by a shared section pill: **Controls / Activity / Cheatsheet**.
+  - **Home (areas.html):** dropped the "Activity" option from the mode pill. The handler that navigates to /activity stays as a defense for any `?mode=activity` URLs still floating around.
+  - **Controls (switches.html):** new section pill added to the page header on the left. Active = Controls. The existing view pill (Browse / Setup / Battery / Pause) stays as a narrower sub-navigation within the Controls section; "Cheatsheet" removed from that view pill since it's promoted to a section-level mode.
+  - **Activity (activity.html):** replaces its old home-mirroring mode pill (which listed Adjust/Tune/Manage modes for navigation back to home) with the new section pill. Active = Activity.
+  - **Cheatsheet (switchmap.html):** replaces the previous `view-segments` bar (which mixed view-level Controls views with the Cheatsheet entry) with the same section pill. Active = Cheatsheet. Switching to Controls or Activity confirms first if there are unsaved cheatsheet edits.
+- Conceptual model: Home is area-centric; the Controls section is device-centric (the controls themselves, events from controls, and how buttons map to actions). Activity stays unified (all event sources — Motion / Switch / Contact / App / Timer / System — not narrowed to just controls-emitted events).
+
 ## 1.2.345
 - **Filter dropdowns: visual separator between the field-name option and the actual values.** Adds a non-selectable `<option disabled>──────</option>` row right after the default ("Areas" / "Types" / "Sources" / "Actions"). Renders as a greyed separator line when the dropdown is open across all browsers; doesn't affect the closed state. Applied to all 5 filter dropdowns (Controls: Area + Type; Activity: Area + Source + Action).
 - **Activity filters now have × clear buttons** matching the Controls pattern. The × appears next to the select whenever the filter has a value, hides when at default. Click resets the filter to default + persists to localStorage + re-renders.

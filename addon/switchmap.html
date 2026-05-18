@@ -576,15 +576,21 @@
   <!-- Main Content -->
   <main class="main">
     <div class="page-header">
+      <!-- Section pill — top-level navigation within the Controls section
+           (Controls / Activity / Cheatsheet). Cheatsheet is the active
+           section here. Returning to Controls preserves the user's last
+           active view (persisted in switches.html localStorage). -->
+      <div class="action-pill" id="section-mode-pill" title="Switch section">
+        <span id="section-mode-label">Cheatsheet</span>
+        <span class="action-pill-caret"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 5 6 8 9 5"/></svg></span>
+        <div class="action-popover" id="section-mode-popover">
+          <div class="action-popover-option" data-section="controls">Controls</div>
+          <div class="action-popover-option" data-section="activity">Activity</div>
+          <div class="action-popover-option active" data-section="cheatsheet">Cheatsheet</div>
+        </div>
+      </div>
       <span style="flex: 1;"></span>
       <span class="unsaved-indicator" id="unsaved-indicator"></span>
-      <!-- Same task-view pill bar as the controls list so the chrome
-           feels unified across pages. CHEATSHEET is active here (the
-           active pill is the page label); clicking any other pill
-           navigates to /switches?view=<value>. Component lives in
-           shared.js (see setupViewSegments). The old back-arrow + title
-           were redundant once this pill bar took over both jobs. -->
-      <div class="view-segments" id="cheatsheet-view-segments" role="tablist" title="Page mode"></div>
     </div>
 
     <div class="type-selector">
@@ -625,6 +631,45 @@
     let currentMode = 'cheatsheet';
     let allSwitches = [];
     let allMoments = {};
+    let _sectionPopoverOpen = false;
+
+    // Section pill — top-level navigation within the Controls section
+    // (Controls / Activity / Cheatsheet). Cheatsheet is the active section.
+    // Returning to Controls or Activity confirms first if there are
+    // unsaved cheatsheet edits.
+    function _wireSectionPill() {
+      const pill = document.getElementById('section-mode-pill');
+      const pop = document.getElementById('section-mode-popover');
+      if (!pill || !pop) return;
+      document.addEventListener('click', (e) => {
+        const opt = e.target.closest('#section-mode-popover [data-section]');
+        if (opt) {
+          e.stopPropagation();
+          const sec = opt.dataset.section;
+          if (sec === 'cheatsheet') {
+            _sectionPopoverOpen = false;
+            pop.classList.remove('open');
+            return;
+          }
+          if (hasUnsavedChanges && !confirm('You have unsaved cheatsheet changes. Leave anyway?')) {
+            return;
+          }
+          if (sec === 'controls') { window.location.href = './switches'; return; }
+          if (sec === 'activity') { window.location.href = './activity'; return; }
+          return;
+        }
+        if (e.target.closest('#section-mode-pill')) {
+          e.stopPropagation();
+          _sectionPopoverOpen = !_sectionPopoverOpen;
+          pop.classList.toggle('open', _sectionPopoverOpen);
+          return;
+        }
+        if (_sectionPopoverOpen) {
+          _sectionPopoverOpen = false;
+          pop.classList.remove('open');
+        }
+      });
+    }
 
     // Button labels for display
     const buttonLabels = {
@@ -675,25 +720,9 @@
       // Mount the shared task-view pill bar in the page header. CHEATSHEET
       // is the active pill; selecting any other pill navigates to
       // /switches?view=<value> so that page lands on the right view.
+      // Section pill — navigates between Controls / Activity / Cheatsheet.
       // If the user has unsaved cheatsheet edits, confirm before leaving.
-      setupViewSegments({
-        containerId: 'cheatsheet-view-segments',
-        views: [
-          { value: 'all',        label: 'Browse' },
-          { value: 'setup',      label: 'Setup' },
-          { value: 'batteries',  label: 'Battery' },
-          { value: 'paused',     label: 'Paused' },
-          { value: 'cheatsheet', label: 'Cheatsheet' },
-        ],
-        active: 'cheatsheet',
-        onSelect: (v) => {
-          if (v === 'cheatsheet') return;
-          if (hasUnsavedChanges && !confirm('You have unsaved cheatsheet changes. Leave anyway?')) {
-            return;
-          }
-          window.location.href = './switches?view=' + encodeURIComponent(v);
-        },
-      });
+      _wireSectionPill();
 
       await loadData();
       renderSwitchTypeSelect();

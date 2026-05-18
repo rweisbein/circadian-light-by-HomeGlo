@@ -872,8 +872,19 @@
   <main class="main">
     <div class="page-header">
       <div style="display: flex; align-items: center; gap: 8px;">
-        <!-- Row 1 left: count of currently-visible controls. Populated
-             by renderControls() on each render. -->
+        <!-- Section pill — switches between the three control-section
+             pages: Controls (this page), Activity, Cheatsheet. Section is
+             the highest-level navigation within the Controls top-nav item;
+             the view pill on the right narrows further within Controls. -->
+        <div class="action-pill" id="section-mode-pill" title="Switch section">
+          <span id="section-mode-label">Controls</span>
+          <span class="action-pill-caret"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 5 6 8 9 5"/></svg></span>
+          <div class="action-popover" id="section-mode-popover">
+            <div class="action-popover-option active" data-section="controls">Controls</div>
+            <div class="action-popover-option" data-section="activity">Activity</div>
+            <div class="action-popover-option" data-section="cheatsheet">Cheatsheet</div>
+          </div>
+        </div>
         <span class="ctrl-result-count" id="ctrl-count"></span>
         <span style="flex: 1;"></span>
         <!-- View pill: caret-button dropdown — same component as the home
@@ -935,18 +946,9 @@
       { value: 'setup',      label: 'Setup' },
       { value: 'batteries',  label: 'Battery' },
       { value: 'paused',     label: 'Pause' },
-      { value: 'cheatsheet', label: 'Cheatsheet' },
     ];
 
     function selectView(v) {
-      // CHEATSHEET — separate page, but the pill bar there mounts the
-      // same component so the visual chrome looks unified. We carry no
-      // state across — the cheatsheet page has its own self-contained
-      // edit flow.
-      if (v === 'cheatsheet') {
-        window.location.href = './switchmap';
-        return;
-      }
       currentView = v;
       // Apply view preset: which column to show + which sort. Each view
       // is a curated lens (filter + sort + emphasis) for a specific job.
@@ -1012,6 +1014,35 @@
         if (_modePopoverOpen) {
           _modePopoverOpen = false;
           renderControlsModePill();
+        }
+      });
+    }
+
+    // Section-level mode pill — navigates between the three pages in the
+    // Controls top-nav section (Controls / Activity / Cheatsheet).
+    let _sectionPopoverOpen = false;
+    function initSectionModePill() {
+      const pill = document.getElementById('section-mode-pill');
+      const pop = document.getElementById('section-mode-popover');
+      if (!pill || !pop) return;
+      document.addEventListener('click', (e) => {
+        const opt = e.target.closest('#section-mode-popover [data-section]');
+        if (opt) {
+          e.stopPropagation();
+          const sec = opt.dataset.section;
+          if (sec === 'controls') { _sectionPopoverOpen = false; pop.classList.remove('open'); return; }
+          if (sec === 'activity') { window.location.href = './activity'; return; }
+          if (sec === 'cheatsheet') { window.location.href = './switchmap'; return; }
+        }
+        if (e.target.closest('#section-mode-pill')) {
+          e.stopPropagation();
+          _sectionPopoverOpen = !_sectionPopoverOpen;
+          pop.classList.toggle('open', _sectionPopoverOpen);
+          return;
+        }
+        if (_sectionPopoverOpen) {
+          _sectionPopoverOpen = false;
+          pop.classList.remove('open');
         }
       });
     }
@@ -2353,6 +2384,8 @@
     function setupEventListeners() {
       // Wire the action-pill (mode dropdown). State was loaded earlier.
       initControlsModePill();
+      // Section pill — top-level navigation between Controls/Activity/Cheatsheet.
+      initSectionModePill();
 
       // Toolbar (search + area + sort) and search-clear button — wired
       // via event delegation since the toolbar is re-rendered each

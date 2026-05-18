@@ -196,25 +196,20 @@
       <div class="activity-header-row">
         <span class="home-name-heading" id="home-name-heading">Loading…</span>
         <span class="activity-spacer"></span>
-        <div class="action-pill" id="activity-mode-pill" title="Switch mode">
-          <span class="action-pill-prefix"></span><span id="activity-mode-label">View: Activity</span>
+        <!-- Section pill — switches between the three Controls-section
+             pages (Controls / Activity / Cheatsheet). Activity is the
+             active section here. -->
+        <div class="action-pill" id="section-mode-pill" title="Switch section">
+          <span id="section-mode-label">Activity</span>
           <span class="action-pill-caret">
             <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="3 5 6 8 9 5"/>
             </svg>
           </span>
-          <div class="action-popover" id="activity-mode-popover">
-            <div class="action-popover-section-label">Adjust</div>
-            <div class="action-popover-option" data-pill-mode="brightness">Brightness</div>
-            <div class="action-popover-option" data-pill-mode="color">Color</div>
-            <div class="action-popover-option" data-pill-mode="bed">Bed time</div>
-            <div class="action-popover-divider"></div>
-            <div class="action-popover-section-label">Tune</div>
-            <div class="action-popover-option" data-pill-mode="sun">Sun dimming</div>
-            <div class="action-popover-option" data-pill-mode="balance">Balance</div>
-            <div class="action-popover-divider"></div>
-            <div class="action-popover-option" data-pill-mode="manage">Manage</div>
-            <div class="action-popover-option active" data-pill-mode="activity">Activity</div>
+          <div class="action-popover" id="section-mode-popover">
+            <div class="action-popover-option" data-section="controls">Controls</div>
+            <div class="action-popover-option active" data-section="activity">Activity</div>
+            <div class="action-popover-option" data-section="cheatsheet">Cheatsheet</div>
           </div>
         </div>
       </div>
@@ -461,30 +456,30 @@
       });
     }
 
-    // Mode pill open/close + option routing. Options that aren't "activity"
-    // navigate back to home with the picked mode preselected.
-    function _wireModePill() {
-      const pill = document.getElementById('activity-mode-pill');
-      const pop = document.getElementById('activity-mode-popover');
+    // Section pill — top-level navigation within the Controls section
+    // (Controls / Activity / Cheatsheet). Activity is the active section
+    // here. Clicking Controls or Cheatsheet navigates to that page; the
+    // active option (Activity) just closes the popover.
+    function _wireSectionPill() {
+      const pill = document.getElementById('section-mode-pill');
+      const pop = document.getElementById('section-mode-popover');
       if (!pill || !pop) return;
       pill.addEventListener('click', (e) => {
-        // Did the user click an option? Route accordingly.
-        const opt = e.target.closest('[data-pill-mode]');
+        const opt = e.target.closest('[data-section]');
         if (opt) {
-          const val = opt.dataset.pillMode;
-          if (val === 'activity') {
+          const sec = opt.dataset.section;
+          if (sec === 'activity') {
             _modePopoverOpen = false;
             pop.classList.remove('open');
             return;
           }
-          // All other options navigate back to home with mode query param.
           // Build absolute URL from the addon root (strip trailing /activity
           // off our own pathname) to avoid relative-URL pitfalls under HA
-          // ingress prefixes. areas.html honors ?mode=X on load.
+          // ingress prefixes.
           let root = window.location.pathname.replace(/\/$/, '');
           root = root.replace(/\/activity$/, '');
-          const qs = val ? `?mode=${encodeURIComponent(val)}` : '';
-          window.location.href = (root || '') + '/areas' + qs;
+          if (sec === 'controls') { window.location.href = (root || '') + '/switches'; return; }
+          if (sec === 'cheatsheet') { window.location.href = (root || '') + '/switchmap'; return; }
           return;
         }
         _modePopoverOpen = !_modePopoverOpen;
@@ -573,7 +568,7 @@
       await loadStaticData();
       renderHomeName();
       renderAreaFilterOptions();
-      _wireModePill();
+      _wireSectionPill();
       _wireFilter();
       await loadActivity();
       // Poll every 3s for new entries (same cadence as the home page).
