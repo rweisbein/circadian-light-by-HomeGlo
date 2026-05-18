@@ -87,7 +87,8 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      margin: 0;
+      margin: 0 8px 0 0;   /* extra right margin so the area name has
+                              breathing room before the bri/CT readout */
     }
     .ah-breadcrumb {
       font-size: 0.78rem;
@@ -103,30 +104,34 @@
     .ah-breadcrumb:empty { display: none; }
     .ah-row1-spacer { flex: 1 1 auto; min-width: 8px; }
     .ah-sun {
-      /* 1.2.366: positioned as an absolute overlay at the chart's top-
-         right corner (inside #chart-shell, above the plot's black bg).
-         Was a flex child of its own row before. */
+      /* 1.2.367: floats ABOVE the chart's black area (top: -22px) so it
+         doesn't read as a "time of day with high sun" marker on the
+         curve itself. Sits in the empty right edge of Row 3 / the
+         margin between Row 3 and the chart, taking no vertical space of
+         its own. */
       display: none;  /* shown by .visible class once updateChartSunInfo finds daylight */
       position: absolute;
-      top: 6px;
-      right: 8px;
+      top: -22px;
+      right: 0;
       z-index: 4;
       align-items: center;
       gap: 5px;
       padding: 2px 9px;
       border-radius: 12px;
-      background: rgba(0,0,0,0.45);
+      background: rgba(0,0,0,0.20);
       font-size: 0.78rem;
       font-weight: 600;
       cursor: pointer;
-      color: #fff;
-      border: 1px solid rgba(255,255,255,0.10);
+      color: inherit;
+      border: none;
       font-family: inherit;
       -webkit-tap-highlight-color: transparent;
       white-space: nowrap;
     }
     .ah-sun.visible { display: inline-flex; }
-    .ah-sun:hover { background: rgba(0,0,0,0.65); }
+    .ah-sun:hover { background: rgba(0,0,0,0.32); }
+    .area-header.is-neutral .ah-sun { background: rgba(255,255,255,0.08); }
+    .area-header.is-neutral .ah-sun:hover { background: rgba(255,255,255,0.14); }
     /* Yellow sun glyph with a thin dark "stroke" via text-shadow so it
        stays legible on warm-amber headers (where same-yellow-on-yellow
        was blending). The % does the value encoding; the icon is just
@@ -153,7 +158,10 @@
     .ah-state-sep {
       opacity: 0.35;
       font-size: 0.85rem;
-      margin: 0 6px;
+      /* Negative horizontal margin pulls the bri/CT values close to the
+         bullet (1.2.367). Default flex gap of 8px would otherwise leave
+         too much breathing room around the small · separator. */
+      margin: 0 -4px;
       line-height: 1.1;
     }
     .ah-state-off {

@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.367
+- **Sun chip floated up off the chart's black area** (`top: 6 → -22px`) so it doesn't read as a time-of-day-with-high-sun marker on the curve itself. Sits in the empty right edge above the chart, takes no vertical space of its own. Reverted to the lighter CCT-tinted bg styling (matches header chrome again, not chart chrome).
+- **Header row spacing tuned:** `.ah-name` gains 8px right margin so "Kitchen" / "Twin Closet" gets breathing room before the `30% · 3000K` readout. `.ah-state-sep` margin `0 6px → 0 -4px` to pull the bri/CT values in close around the small · separator (was leaving too much air around the dot via the row's 8px flex gap).
+
 ## 1.2.366
 - **Sun chip absorbed as a chart overlay** at the top-right corner of the plot's black background (was its own row above the chart). Frees ~26px of vertical header space. Restyled darker (rgba(0,0,0,0.45) bg, white text, thin white border) so it reads cleanly on the chart's black background regardless of header CCT tint.
 - **NOW cursor time label now has real clearance even at 100% brightness.** Plotly top margin 20 → 30; chart height 108 → 116px to absorb the extra margin without shrinking the curve area. The `4:40p` label sits inside the chart's black plot region rather than overflowing into the header band above.
