@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.341
+- **Fix: activity log motion + contact sources rendered as "(unavailable)".** Motion/contact event handlers in `main.py` tagged history entries with the binary_sensor *entity_id* (e.g. `binary_sensor.master_motion`) as the `source_entity`. But the frontend's `controlNames` lookup map (built by `buildControlNameLookup`) keys controls by **`id` (IEEE/unique_id)** and **`device_id`** — *not* by entity_id. So every motion or contact attribution lookup missed, and `formatHistorySource` rendered "Motion (unavailable)" / "Contact (unavailable)" instead of "Motion: Master Motion" / "Contact: Front Door". Switched all three motion/contact source-tagging sites in main.py (`_handle_motion_event`'s on-state branch and alert-bounce path, plus the contact handler) to use `device_id`, which IS a key in `controlNames`. The motion handler at line 1007 was already using `device_id` (the pattern that worked). History is in-memory only, so existing "(unavailable)" entries clear naturally on next addon restart; new events render with their friendly name.
+
 ## 1.2.340
 - **Activity tracking — fill in the freeze gaps.** Audit confirmed boost-expiry records `boost_end` and auto-off-expiry (motion + user-set off pickers) records `turn_off` with source=Timer. Freeze was the outlier on both ends; now fixed:
   - **Freeze timer auto-expiry** (`check_expired_freezes` in primitives.py) now records an `unfreeze` event with source `timer_expired` → renders as "Unfreeze — Timer" in the activity feed, matching the existing boost/auto-off shape.

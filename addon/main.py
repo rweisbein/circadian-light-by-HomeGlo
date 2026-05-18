@@ -767,10 +767,13 @@ class HomeAssistantWebSocketClient:
 
             if new_state == "on":
                 # Cancel any active warning first (restores brightness).
-                # Entity-tagged source (motion:<entity_id>) lets the history
+                # Device-tagged source (motion:<device_id>) lets the history
                 # log attribute actions to the specific sensor — frontend
                 # looks up the friendly name via the areaControls cache.
-                src = f"motion:{entity_id}"
+                # Use device_id (not entity_id) — the controls API keys by
+                # `id` (IEEE) and `device_id`; entity_id is not a key, so
+                # entity_id-tagged sources render as "Motion (unavailable)".
+                src = f"motion:{device_id}"
                 await self.primitives.cancel_motion_warning(area_id, source=src)
 
                 # Get boost params if enabled
@@ -837,7 +840,8 @@ class HomeAssistantWebSocketClient:
                         area_id,
                         intensity=alert_config.alert_intensity,
                         count=alert_config.alert_count,
-                        source=f"motion:{entity_id}",
+                        # device_id (not entity_id) — see note at top of this handler.
+                        source=f"motion:{device_id}",
                     )
                 )
             if alert_tasks:
@@ -1134,7 +1138,10 @@ class HomeAssistantWebSocketClient:
                 f"[Contact] Area {area_id}: mode={mode}, boost={area_config.boost_enabled}, duration={duration}"
             )
 
-            src = f"contact:{entity_id}"
+            # device_id (not entity_id) — the controls API keys by `id` (IEEE)
+            # and `device_id`; entity_id is not a key, so entity_id-tagged
+            # sources would render as "Contact (unavailable)" in the activity log.
+            src = f"contact:{device_id}"
             if new_state == "on":
                 # Cancel any active warning first (restores brightness)
                 await self.primitives.cancel_motion_warning(area_id, source=src)
