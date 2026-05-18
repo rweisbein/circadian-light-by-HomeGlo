@@ -1,5 +1,9 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.369
+- **Tune card label aligns with Adjust label vertically.** The `.tune-brightness-val` is a 2-line flex column ("Sun dimming: None / Balance: Normal"); with `align-items: center` the header's flex line grew to ~30px and the title got pushed ~8px down to vertically center inside it — visibly lower than Adjust's title (whose right-side `adjust-outer-next` is empty when clean). Changed `.tune-brightness-header` to `align-items: flex-start` so the title pins to the top of the header regardless of val height. Adjust + Tune labels now sit at the same y-offset from the card top.
+- **Tightened the Schedule outer↔first-sub gap.** Outer Schedule header's padding-bottom and first sub-section header's padding-top went 12px → 4px each, collapsing the ~24px "gulf" between "Schedule" and "On" down to ~8px. Other auto-sched cards untouched (rule scoped to `#schedule-card`).
+
 ## 1.2.368
 - **Header bottom corners rounded** (12px). Top corners stay square because the header is sticky to the viewport top and rounded tops would look disconnected from the edge. Bottom rounding ties the header visually to the rounded cards below — reads as the top panel in a stack.
 
