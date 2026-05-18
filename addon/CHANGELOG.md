@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.340
+- **Activity tracking — fill in the freeze gaps.** Audit confirmed boost-expiry records `boost_end` and auto-off-expiry (motion + user-set off pickers) records `turn_off` with source=Timer. Freeze was the outlier on both ends; now fixed:
+  - **Freeze timer auto-expiry** (`check_expired_freezes` in primitives.py) now records an `unfreeze` event with source `timer_expired` → renders as "Unfreeze — Timer" in the activity feed, matching the existing boost/auto-off shape.
+  - **Mid-freeze duration changes** (`freeze_set_duration`) now record a `freeze_duration_changed` event. New rendering: "Freeze duration · 5 min" (or "indefinite" if the user cleared the auto-expire).
+- **Coalesce: freeze + immediate duration change → single entry.** Extended the existing rapid-fire coalesce logic (history.py, the same mechanism that collapses 4 brightness step presses into one row) to handle two freeze patterns:
+  - **Asymmetric**: a `freeze_duration_changed` arriving within the 5s window after a `freeze` from the same source folds INTO that freeze entry — updates its `duration_minutes` in place rather than appending. So tapping Freeze (1h default) and immediately changing to 5 min reads as a single "Freeze · 5 min" event.
+  - **Symmetric**: rapid-fire `freeze_duration_changed` events (user fiddling with the duration picker) coalesce to the latest value — no spam rows. After 5s of inactivity a further change becomes its own entry.
+
 ## 1.2.339
 - **Nav-guard flash now targets the smallest dirty unit.** 1.2.338's `flashDirtySections()` flashed both card-level AND sub-section-level when both were dirty — but a single wake-time change dirties WAKE_FIELDS (sub-section) AND SLEEP_FIELDS (parent card, since WAKE_FIELDS ⊂ SLEEP_FIELDS), producing two flashes that visually wrapped each other (the Sleep card flash encompasses the Wake sub-section flash). Refactored to pick the smallest unit per card:
   - **Brightness card** — no sub-section split, flash card if dirty.

@@ -28,7 +28,13 @@ logger = logging.getLogger(__name__)
 
 _MAX_PER_AREA = 100
 _COALESCE_WINDOW_SEC = 5.0
-_COALESCEABLE_ACTIONS = frozenset({"brightness", "color", "phase"})
+# Actions that coalesce with a same-action same-source predecessor inside
+# the window (rapid-fire repeats collapse to one entry whose latest-value
+# fields advance). `freeze_duration_changed` is here so user-fiddling with
+# the duration picker doesn't spam multiple rows.
+_COALESCEABLE_ACTIONS = frozenset({
+    "brightness", "color", "phase", "freeze_duration_changed",
+})
 # Sources to silently drop. These are produced by paths that run on the
 # periodic tick or other non-user-driven code — recording them would flood
 # the log with noise the user doesn't care about.
@@ -46,7 +52,8 @@ _IGNORE_SOURCES = frozenset({
 class HistoryEntry:
     ts: float
     action: str            # e.g. 'turn_on', 'turn_off', 'brightness', 'color', 'phase',
-                           # 'freeze', 'unfreeze', 'boost', 'boost_end',
+                           # 'freeze', 'unfreeze', 'freeze_duration_changed',
+                           # 'boost', 'boost_end',
                            # 'circadian_on', 'circadian_off',
                            # 'auto_off_set', 'auto_off_cleared',
                            # 'glo_down', 'glo_up', 'glo_reset', 'full_send',
@@ -174,6 +181,29 @@ def record(
             prev.brightness = brightness
         if kelvin is not None:
             prev.kelvin = kelvin
+        # For freeze_duration_changed coalesce, advance duration_minutes
+        # to the new latest (None is meaningful — user cleared to indefinite).
+        if action == "freeze_duration_changed":
+            prev.duration_minutes = duration_minutes
+        prev.ts = now
+        return
+
+    # Asymmetric coalesce: a `freeze_duration_changed` arriving shortly after
+    # the initial `freeze` from the same source folds into the freeze entry
+    # — updates its duration_minutes in place rather than appending a second
+    # row. Common flow: user taps Freeze (records 1h default), then within
+    # ~1s changes the duration to 5 min via the picker. Should read as a
+    # single "Freeze · 5 min" event, not two.
+    if (
+        action == "freeze_duration_changed"
+        and buf
+        and buf[-1].action == "freeze"
+        and buf[-1].source_kind == source_kind
+        and buf[-1].source_entity == source_entity
+        and (now - buf[-1].ts) <= _COALESCE_WINDOW_SEC
+    ):
+        prev = buf[-1]
+        prev.duration_minutes = duration_minutes  # May be None → indefinite
         prev.ts = now
         return
 

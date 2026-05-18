@@ -4019,10 +4019,21 @@ class CircadianLightPrimitives:
             logger.info(
                 f"[{source}] Freeze duration set for {area_id}: {duration_minutes}m (until {until_iso})"
             )
+            record_duration = duration_minutes
         else:
             state.set_frozen_until(area_id, None)
             logger.info(f"[{source}] Freeze duration cleared for {area_id} (indefinite)")
+            record_duration = None
         state.mark_user_action(area_id)
+        # Record the duration change in user-facing history so the activity log
+        # reflects mid-freeze edits (initial freeze logs separately; this
+        # complements it). None → "indefinite"; positive int → minutes.
+        history.record(
+            area_id, "freeze_duration_changed", source,
+            brightness=state.get_last_sent_brightness(area_id),
+            kelvin=state.get_last_sent_kelvin(area_id),
+            duration_minutes=record_duration,
+        )
 
     async def check_expired_freezes(self, log_periodic: bool = False):
         """Auto-unfreeze any area whose frozen_until has passed.
@@ -4032,6 +4043,15 @@ class CircadianLightPrimitives:
         expired = state.get_expired_freezes()
         for area_id in expired:
             self._unfreeze_internal(area_id, source="timer_expired")
+            # Record the auto-unfreeze in user-facing history so the activity
+            # log shows the full freeze lifecycle (initial freeze + duration
+            # changes + this expiry). source="timer_expired" maps to the
+            # "Timer" source-kind label per history._KIND_ALIAS.
+            history.record(
+                area_id, "unfreeze", "timer_expired",
+                brightness=state.get_last_sent_brightness(area_id),
+                kelvin=state.get_last_sent_kelvin(area_id),
+            )
             logger.info(f"[timer_expired] Freeze auto-expired for {area_id}")
 
     # -------------------------------------------------------------------------

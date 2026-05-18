@@ -1748,6 +1748,7 @@ const HIST_ACTION_LABEL = {
   'phase': 'Phase',
   'freeze': 'Freeze',
   'unfreeze': 'Unfreeze',
+  'freeze_duration_changed': 'Freeze duration',
   'boost': 'Boost',
   'boost_end': 'Boost ended',
   'circadian_on': 'Circadian on',
@@ -1870,6 +1871,13 @@ function formatHistoryDetails(entry) {
     }
     if (entry.action === 'boost' && entry.intensity != null) {
       parts.push('+' + entry.intensity + '%');
+    }
+  } else if (entry.action === 'freeze_duration_changed') {
+    // None duration → "indefinite" (user cleared the auto-expire).
+    if (entry.duration_minutes != null) {
+      parts.push(formatDurationRemaining(entry.duration_minutes, ''));
+    } else {
+      parts.push('indefinite');
     }
   } else if (entry.action === 'turn_on' || entry.action === 'turn_off') {
     const bri = entry.brightness, ke = entry.kelvin;
