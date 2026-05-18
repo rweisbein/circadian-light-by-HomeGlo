@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.354
+- **Activity list layout refactored to mirror the Controls list.** Grid columns are now `40px / 22px / 1fr` (time / source-kind icon / content). Time + icon each span both rows so they read as anchors next to a self-contained content block. Matches the Controls page card pattern exactly.
+- **Compact date stack** — activity list now uses the same `formatCompactDateHtml` the Controls list uses: today = `5:32p`, 1–9 days ago = `3d` / `5:32p` (two-line stack), 10–99d = `23d`, 100+d = `5/15`. Tooltip on the time cell surfaces the verbose form ("Yesterday 5:32p", "Mon 5/15 5:32p") on hover. The narrow column width (40px vs the previous 70px) was the goal — tighter, more "list-like" feel.
+- `formatHistoryTs` retained for the tooltip and any future single-line use.
+
 ## 1.2.353
 - **Fix: Control detail Activity card stuck on "Loading…" when the control has no history.** 1.2.352's no-op check (`if (topTs === _controlActivityLastTs) return`) used `null` as the initial sentinel, but `null` is also the legitimate `topTs` value for an empty entry list — so on first poll with zero matches, the early-return fired BEFORE the empty-state path could hide the card. Switched the unrendered sentinel to a `Symbol('unset')` that no real ts can equal, so the first render always runs.
 

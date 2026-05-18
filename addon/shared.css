@@ -721,9 +721,18 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
    Used by both area-details (Activity card body) and the home Activity page;
    page-specific font-size / padding overrides are in those files' <style>. */
 .hist-list { display: flex; flex-direction: column; }
+/* 3-column grid (matches Controls list pattern: when | type | content):
+   col 1 — time (left-aligned, spans both rows so it stays anchored)
+   col 2 — source-kind icon (also spans both rows)
+   col 3 — content (row 1: action / optional area; row 2: device · details)
+   Time is moved to its own column so action text in row 1 gets the full
+   content width without competing with the timestamp. */
 .hist-row {
+  /* 3-column grid mirroring Controls list: time | icon | content. Time
+     column is narrow (~40px) because formatCompactDateHtml stacks day-count
+     + time vertically — same trick the Controls list uses for last_action. */
   display: grid;
-  grid-template-columns: 22px 1fr;
+  grid-template-columns: 40px 22px 1fr;
   column-gap: 10px;
   row-gap: 2px;
   padding: 8px 14px;
@@ -731,22 +740,47 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
   align-items: start;
 }
 .hist-row:last-child { border-bottom: none; }
+.hist-time {
+  grid-row: 1 / span 2;
+  /* Same vertical-stack container as Controls' .ctrl-card-date — when
+     formatCompactDateHtml emits a 2-line "Xd" / "8:05p" stack, flex column
+     gives the lines proper spacing. Single-line today entries render as
+     one centered line. */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  color: var(--muted2);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.86em;
+  line-height: 1;
+  align-self: center;
+}
+/* Date stack lines inside .hist-time — mirrors switches.html's
+   .ctrl-card-date-line styling so the activity list shares the same
+   compact look. (switches.html keeps its local rules for the Controls
+   list; these only kick in on pages that DON'T also define them locally,
+   e.g. activity.html and area.html.) */
+.hist-time .ctrl-card-date-line {
+  font-size: 0.78em;
+  font-weight: 500;
+  white-space: nowrap;
+  line-height: 1;
+}
+.hist-time .ctrl-card-date-line.ctrl-card-date-sub {
+  font-size: 0.7em;
+  opacity: 0.75;
+}
 .hist-icon {
   grid-row: 1 / span 2;
   display: flex;
-  align-items: flex-start;
-  padding-top: 2px;
+  align-items: center;
   color: var(--muted2);
+  align-self: center;
 }
 .hist-icon svg { width: 18px; height: 18px; display: block; }
-.hist-top {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-}
 .hist-headline {
-  flex: 1;
   min-width: 0;
   color: var(--text);
   font-weight: 500;
@@ -761,13 +795,6 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
 .hist-headline .hist-sep {
   color: var(--muted2);
   margin: 0 4px;
-}
-.hist-time {
-  color: var(--muted2);
-  white-space: nowrap;
-  flex-shrink: 0;
-  font-variant-numeric: tabular-nums;
-  font-size: 0.86em;
 }
 .hist-sub {
   color: var(--muted);

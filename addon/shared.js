@@ -1781,6 +1781,10 @@ const HIST_SOURCE_LABEL = {
 //   Yesterday    → "Yesterday 3:42p"
 //   This year    → "Mon 5/12 3:42p"
 //   Older        → "5/12/26 3:42p"
+// Verbose timestamp formatter — kept for callers who want a single-line
+// human-readable string (e.g. tooltips). The history list renderer uses
+// formatCompactDateHtml instead to mirror the Controls list's compact
+// 2-line stack ("3d" / "8:05p").
 function formatHistoryTs(ts) {
   const d = new Date(ts * 1000);
   const now = new Date();
@@ -1994,14 +1998,18 @@ function renderHistoryList(entries, opts) {
   const esc = (s) => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 
   const rows = entries.map(e => {
-    const ts = formatHistoryTs(e.ts);
+    // Compact 2-line date/time stack (matches Controls list — today is
+    // single-line "8:05p"; 1-9d is "Xd" / "8:05p"; older is "Xd" alone or
+    // "M/D"). Hover title surfaces the verbose form for new users.
+    const tsHtml = formatCompactDateHtml(e.ts * 1000);
+    const tsTitle = formatHistoryTs(e.ts);
     const action = HIST_ACTION_LABEL[e.action] || e.action;
     const device = formatHistoryDevice(e, controlNames);
     const details = formatHistoryDetails(e);
     const kindLabel = HIST_SOURCE_LABEL[e.source_kind] || e.source_kind;
     const icon = getSourceKindIcon(e.source_kind);
 
-    // Top row: optional [area · ] action + right-aligned time
+    // Headline cell (row 1, col 3): optional [area · ] action.
     let headline = '';
     if (showArea) {
       const aName = e.area_id ? (areaNames[e.area_id] || e.area_id) : '';
@@ -2012,19 +2020,21 @@ function renderHistoryList(entries, opts) {
     }
     headline += esc(action);
 
-    // Bottom row: device · details, separated by middot; omitted entirely
-    // when both are empty (e.g. a System "restart" marker).
+    // Sub cell (row 2, col 3): device · details, joined by middot. Omitted
+    // entirely when both are empty (e.g. a System "restart" marker) so the
+    // row collapses to a single visual line.
     const subParts = [];
     if (device) subParts.push(esc(device));
     if (details) subParts.push(esc(details));
     const subLine = subParts.join(' <span class="hist-sep">·</span> ');
 
+    // 3-column grid: time | icon | content. Time + icon span both rows so
+    // they read as "when" / "what kind" anchors next to a self-contained
+    // content block. Matches the Controls list layout pattern.
     return '<div class="hist-row">'
+      + '<div class="hist-time" title="' + esc(tsTitle) + '">' + tsHtml + '</div>'
       + '<div class="hist-icon" title="' + esc(kindLabel) + '">' + icon + '</div>'
-      + '<div class="hist-top">'
-        + '<span class="hist-headline">' + headline + '</span>'
-        + '<span class="hist-time">' + esc(ts) + '</span>'
-      + '</div>'
+      + '<div class="hist-headline">' + headline + '</div>'
       + (subLine ? '<div class="hist-sub">' + subLine + '</div>' : '')
       + '</div>';
   }).join('');
