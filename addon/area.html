@@ -1048,8 +1048,11 @@
        the title, and (when the outer is COLLAPSED) the Save/Cancel buttons
        surface in the outer header in place of the next-fire summary. When
        the outer is OPEN, the sub-sections show their own Save/Cancel
-       instead, so the outer header stays decongested. */
-    .auto-sched-card--auto.is-dirty .auto-sched-title::before {
+       instead, so the outer header stays decongested.
+       Direct-child selector so the dot only attaches to the outer header's
+       own title, not to the "On"/"Off" sub-section titles (which share the
+       .auto-sched-title class). */
+    .auto-sched-card--auto.is-dirty > .auto-sched-header > .auto-sched-title::before {
       content: '';
       display: inline-block;
       width: 6px; height: 6px;

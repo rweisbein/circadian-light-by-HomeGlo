@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.361
+- **Fix: dirty dot in Schedule appeared on "On" AND "Off" sub-section titles** when only one was dirty. The 1.2.359 selector `.auto-sched-card--auto.is-dirty .auto-sched-title::before` matched every `.auto-sched-title` descendant — but the outer "Schedule" title and the "On"/"Off" sub-section titles all share that class. Scoped the rule to a direct child (`> .auto-sched-header > .auto-sched-title`) so the dot only lands on the outer header's own title. Sub-section dirty state is communicated by the per-section Save/Cancel buttons in the sub-headers (rhythm-design pattern).
+
 ## 1.2.360
 - **area.html now uses the rhythm-design nav-guard modal** when the user hits Back with unsaved changes — replaces the generic browser `confirm()`. Lists dirty sections by name ("changes in Schedule: On and Lights") with proper English-list formatting. Two actions:
   - **Discard & leave** → reverts every dirty section (Schedule On/Off, Lights, Brightness) and proceeds with the navigation.
