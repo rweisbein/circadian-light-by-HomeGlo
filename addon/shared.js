@@ -1822,6 +1822,35 @@ function formatRelativeAgo(ts) {
   return Math.floor(d / 7) + 'w ago';
 }
 
+// Compute the addon's mount base path from the current URL. Uses the
+// server-injected `window.circadianData.pageName` to know which segment to
+// strip off the end of `window.location.pathname`. Returns a path string
+// (no trailing slash) that can be prefixed with `/<page>` to navigate to
+// any sibling page on the same addon — works under HA ingress prefixes
+// and direct port access alike, and avoids the fragile "./<page>" relative
+// resolution that breaks on `/zone/X`-shaped URLs.
+//
+// Examples:
+//   pathname=/switches,                              page=switches  → ""
+//   pathname=/api/hassio_ingress/<tok>/switches,    page=switches  → "/api/hassio_ingress/<tok>"
+//   pathname=/zone/X (rhythm-design, page=rhythm-design)            → "/zone/X" (no match; safe fallback)
+function getAddonBase() {
+  const cd = (typeof window !== 'undefined' && window.circadianData) || {};
+  const pageName = cd.pageName || '';
+  const path = (window.location.pathname || '').replace(/\/+$/, '');
+  if (pageName) {
+    const re = new RegExp('/' + pageName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$');
+    if (re.test(path)) return path.replace(re, '');
+  }
+  return path;
+}
+
+// Navigate to a sibling page within the addon (e.g. navToAddonPage('activity')).
+function navToAddonPage(pageSegment) {
+  const base = getAddonBase();
+  window.location.href = base + '/' + pageSegment;
+}
+
 // Build a {control_identifier: friendly_name} map from a controls list.
 // Keys by BOTH `id` and `device_id` so the lookup works whether the entry
 // stored an HA entity_id (motion / contact) or an IEEE (switch).

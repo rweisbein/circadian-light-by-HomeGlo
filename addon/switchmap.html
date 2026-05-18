@@ -666,14 +666,10 @@
           if (hasUnsavedChanges && !confirm('You have unsaved cheatsheet changes. Leave anyway?')) {
             return;
           }
-          // Build from the nav-brand's resolved (absolute) href — that's the
-          // addon root regardless of how we arrived here. See switches.html
-          // for the reasoning (path-stripping breaks when the current URL is
-          // routed through `/{path:.*}/zone/{zone_name}`).
-          const brand = document.querySelector('a.nav-brand');
-          const base = brand ? brand.href.replace(/\/+$/, '') : window.location.origin;
-          if (sec === 'controls') { window.location.href = base + '/switches'; return; }
-          if (sec === 'activity') { window.location.href = base + '/activity'; return; }
+          // Use server-injected page name to compute addon mount base
+          // (see getAddonBase in shared.js).
+          if (sec === 'controls') { navToAddonPage('switches'); return; }
+          if (sec === 'activity') { navToAddonPage('activity'); return; }
           return;
         }
         if (e.target.closest('#section-mode-pill')) {

@@ -1047,6 +1047,13 @@ class LightDesignerServer:
 
             # Build injected data
             inject_data = {"config": config}
+            # Inject the page name (e.g. "switches", "activity", "switchmap")
+            # so client-side navigation can reliably compute the addon's
+            # mount base from window.location.pathname by stripping this
+            # page name from the end. Replaces fragile relative URLs (./X)
+            # that can resolve to wrong paths under HA ingress prefixes or
+            # if the user landed on a `/zone/X` URL.
+            inject_data["pageName"] = page_name
             if extra_data:
                 inject_data.update(extra_data)
 

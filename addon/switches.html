@@ -1034,19 +1034,12 @@
           e.stopPropagation();
           const sec = opt.dataset.section;
           if (sec === 'controls') { _sectionPopoverOpen = false; pop.classList.remove('open'); return; }
-          // Build the target URL from the addon root (nav-brand's resolved
-          // href) instead of stripping segments from window.location.
-          // Path-stripping breaks when the current URL is unexpectedly
-          // routed through the wildcard `/{path:.*}/zone/{zone_name}` route
-          // (e.g. arriving here via "./switches" from rhythm-design ends up
-          // at `/zone-design/switches`, not `/switches`) — appending
-          // `/activity` to a stripped `/zone-design` then matches
-          // `/zone-design/{zone_name=activity}` and lands on rhythm-design.
-          // .href is always absolute so this is route-shape independent.
-          const brand = document.querySelector('a.nav-brand');
-          const base = brand ? brand.href.replace(/\/+$/, '') : window.location.origin;
-          if (sec === 'activity') { window.location.href = base + '/activity'; return; }
-          if (sec === 'cheatsheet') { window.location.href = base + '/switchmap'; return; }
+          // Use the server-injected page name to compute the addon mount
+          // base (see getAddonBase in shared.js). Prior approaches —
+          // relative `./<page>` URLs and `nav-brand.href` resolution — both
+          // failed in different edge cases under HA ingress + zone routing.
+          if (sec === 'activity') { navToAddonPage('activity'); return; }
+          if (sec === 'cheatsheet') { navToAddonPage('switchmap'); return; }
         }
         if (e.target.closest('#section-mode-pill')) {
           e.stopPropagation();
