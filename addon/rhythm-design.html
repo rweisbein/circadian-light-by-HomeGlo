@@ -1905,7 +1905,39 @@ input[type=range]::-moz-range-thumb {
 /* When a card with header Save/Cancel is dirty, hide the right-side summary
    value to keep the header from getting cluttered. */
 #rhythm-brightness-card.is-dirty .rhythm-card-val,
-#rhythm-color-card.is-dirty .rhythm-card-val { display: none; }
+#rhythm-color-card.is-dirty .rhythm-card-val,
+#rhythm-sleep-card.is-dirty .rhythm-card-val,
+#rhythm-sleep-card.is-dirty .rhythm-sleep-summary { display: none; }
+
+/* Sleep card sub-section Revert buttons. Per-section surgical undo on top
+   of the card-level Save/Cancel pair. Pattern Revert is always available
+   when Pattern is dirty (it cascades to Wake+Bed). Wake/Bed Reverts are
+   disabled while Pattern is dirty (Path A guard — see revertWakeChanges /
+   revertBedChanges). Hidden unless their sub-section has changes. */
+.sub-section-revert {
+  display: none;
+  margin-left: auto;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(120, 170, 230, 0.50);
+  background: rgba(120, 170, 230, 0.10);
+  color: var(--changed);
+  font-size: var(--font-body);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.sub-section-revert:hover {
+  background: rgba(120, 170, 230, 0.22);
+  border-color: var(--changed);
+}
+.sub-section.is-dirty .sub-section-revert { display: inline-flex; align-items: center; }
+.sub-section.is-revert-blocked .sub-section-revert {
+  opacity: 0.35;
+  pointer-events: none;
+  cursor: not-allowed;
+}
 
 /* Card-level dirty marker — small blue dot before the card title */
 .rhythm-card.is-dirty .rhythm-card-title::before {
@@ -2047,7 +2079,10 @@ input[type=range]::-moz-range-thumb {
     <div class="rhythm-card-header" onclick="toggleRhythmCard('rhythm-sleep-card', 'rhythm_sleep_expanded')">
       <span class="rhythm-card-chevron" id="rhythm-sleep-chevron">&#x203A;</span>
       <span class="rhythm-card-title">Sleep</span>
-      <button type="button" class="rhythm-card-reset" onclick="event.stopPropagation(); cancelSleepChanges()">Reset</button>
+      <span class="rhythm-section-actions" onclick="event.stopPropagation()">
+        <button type="button" class="section-cancel-btn" onclick="cancelSleepChanges()">Cancel</button>
+        <button type="button" class="section-save-btn" onclick="saveSleepChangesSection()">Save</button>
+      </span>
       <span class="rhythm-card-val" id="rhythm-sleep-val">9:00p &ndash; 7:00a</span>
       <div class="rhythm-sleep-summary" id="rhythm-sleep-summary" style="display:none">
         <div class="rhythm-sleep-summary-row">
@@ -2085,11 +2120,13 @@ input[type=range]::-moz-range-thumb {
             <option value="shiftearly">Shift Early</option>
             <option value="shiftlate">Shift Late</option>
           </select>
+          <button type="button" class="sub-section-revert" onclick="revertPatternChanges()" title="Revert Pattern (also reverts Wake + Bed)">Revert</button>
         </div>
       </div>
       <div class="sub-section" id="wake-sub-section">
         <div class="sub-section-header">
           <span class="sub-section-title">Wake</span>
+          <button type="button" class="sub-section-revert" onclick="revertWakeChanges()" title="Revert Wake">Revert</button>
         </div>
         <div class="sub-section-body">
           <!-- Hidden day bubbles (data source) -->
@@ -2156,6 +2193,7 @@ input[type=range]::-moz-range-thumb {
       <div class="sub-section" id="bed-sub-section">
         <div class="sub-section-header">
           <span class="sub-section-title">Bed</span>
+          <button type="button" class="sub-section-revert" onclick="revertBedChanges()" title="Revert Bed">Revert</button>
         </div>
         <div class="sub-section-body">
           <!-- Hidden day bubbles (data source) -->
@@ -2572,9 +2610,19 @@ const BRIGHTNESS_FIELDS = ['min_brightness', 'max_brightness', 'brightness_sensi
 // Sub-section field groupings inside Color card. Each color-rule-stack has its
 // own Save/Cancel bar; saving a sub-section commits only its fields and leaves
 // the rest of Color (incl. min/max_color_temp) dirty until separately saved
-// via the global banner or card-level Reset.
+// via the card-level Save or the global banner.
 const NIGHT_WARMING_FIELDS = ['warm_night_enabled', 'warm_night_mode', 'warm_night_target', 'warm_night_start', 'warm_night_end', 'warm_night_fade'];
 const SUN_COOLING_FIELDS = ['daylight_enabled', 'daylight_cct', 'daylight_start', 'daylight_end', 'daylight_fade', 'color_sensitivity'];
+// Sub-section field groupings inside Sleep card (Path A). Sleep is ONE save
+// unit at the card level (Pattern's range constrains Wake/Bed validity, so
+// partial commits aren't safe), but supports THREE revert scopes for surgical
+// undo. Pattern Revert reverts everything in Sleep (master cascade). Wake/Bed
+// Reverts revert only their own fields, and are DISABLED when Pattern is
+// dirty (since reverting wake/bed alone might land outside Pattern's allowed
+// range — user must revert Pattern first to undo the whole branch).
+const PATTERN_FIELDS = ['activity_preset'];
+const WAKE_FIELDS = ['wake_time', 'wake_alt_time', 'wake_alt_days', '_wake_alt_time_last', 'wake_brightness', 'wake_speed', 'ascend_start'];
+const BED_FIELDS = ['bed_time', 'bed_alt_time', 'bed_alt_days', '_bed_alt_time_last', 'bed_brightness', 'bed_speed', 'descend_start'];
 
 function takeConfigSnapshot() {
   configSnapshot = JSON.parse(JSON.stringify(config));
@@ -5952,8 +6000,10 @@ function setupEventListeners() {
       config.activity_preset = e.target.value;
       config.wake_time = preset.wake_time;
       config.bed_time = preset.bed_time;
-      config.warm_night_enabled = preset.warm_night_enabled;
-      config.daylight_cct = preset.daylight_cct;
+      // Note: Pattern is decoupled from Color (1.2.334). Presets no longer
+      // cascade `warm_night_enabled` or `daylight_cct` — Pattern scope is
+      // sleep-timing only. Path A treats Sleep as one save unit cleanly;
+      // Pattern Revert reverts Pattern + Wake + Bed without touching Color.
 
       // Get current sun times for solar-based presets
       const { solarNoon, solarMid } = getSunTimes(config.latitude, config.longitude, getSelectedDateISO());
@@ -7128,6 +7178,26 @@ function saveNightWarmingChanges() { return saveSection(NIGHT_WARMING_FIELDS); }
 function saveSunCoolingChanges() { return saveSection(SUN_COOLING_FIELDS); }
 function saveBrightnessChangesSection() { return saveSection(BRIGHTNESS_FIELDS); }
 function saveColorChangesSection() { return saveSection(COLOR_FIELDS); }
+function saveSleepChangesSection() { return saveSection(SLEEP_FIELDS); }
+
+// Sleep sub-section reverts (Path A — see PATTERN_FIELDS / WAKE_FIELDS /
+// BED_FIELDS comment). Pattern Revert is the master nuke; Wake/Bed Reverts
+// are no-ops when Pattern is dirty (UI disables them).
+function revertPatternChanges() {
+  // Revert Pattern + cascaded Wake + Bed all the way back to loaded snapshot.
+  revertFields([...PATTERN_FIELDS, ...WAKE_FIELDS, ...BED_FIELDS]);
+}
+function revertWakeChanges() {
+  // Guard: if Pattern is dirty, reverting wake fields alone might land them
+  // outside the current (dirty) Pattern's allowed range. Force user to revert
+  // Pattern first.
+  if (isSectionDirty(PATTERN_FIELDS)) return;
+  revertFields(WAKE_FIELDS);
+}
+function revertBedChanges() {
+  if (isSectionDirty(PATTERN_FIELDS)) return;
+  revertFields(BED_FIELDS);
+}
 
 // Section metadata — each card's dirty-tracking field set + the rhythm-card
 // element that gets the `is-dirty` class (drives the dot + the header Reset
@@ -7147,6 +7217,16 @@ const RHYTHM_SUB_SECTIONS = [
   { fields: () => SUN_COOLING_FIELDS,   stackId: 'rhythm-sun-cooling-stack' },
 ];
 
+// Sleep card sub-sections — each has a Revert button in its sub-section header
+// that's shown when that sub-section's fields are dirty (.is-dirty on the
+// sub-section element). Pattern dirty additionally disables the Wake/Bed
+// Revert buttons (Path A guard — see revertWakeChanges / revertBedChanges).
+const SLEEP_SUB_SECTIONS = [
+  { fields: () => PATTERN_FIELDS, subSectionId: 'pattern-sub-section' },
+  { fields: () => WAKE_FIELDS,    subSectionId: 'wake-sub-section' },
+  { fields: () => BED_FIELDS,     subSectionId: 'bed-sub-section' },
+];
+
 function updateSectionDirtyState() {
   const banner = document.getElementById('dirty-banner');
   if (!banner) return;
@@ -7164,6 +7244,28 @@ function updateSectionDirtyState() {
   for (const sub of RHYTHM_SUB_SECTIONS) {
     const stack = document.getElementById(sub.stackId);
     if (stack) stack.classList.toggle('is-dirty', isSectionDirty(sub.fields()));
+  }
+
+  // Sleep sub-sections — drives Revert button visibility in each sub-section
+  // header (via CSS .sub-section.is-dirty .sub-section-revert).
+  const patternDirty = isSectionDirty(PATTERN_FIELDS);
+  for (const sub of SLEEP_SUB_SECTIONS) {
+    const el = document.getElementById(sub.subSectionId);
+    if (!el) continue;
+    el.classList.toggle('is-dirty', isSectionDirty(sub.fields()));
+    // Path A guard — Wake/Bed Reverts disabled while Pattern is dirty.
+    if (sub.subSectionId === 'wake-sub-section' || sub.subSectionId === 'bed-sub-section') {
+      el.classList.toggle('is-revert-blocked', patternDirty);
+      // Update tooltip on the Revert button so the disabled state explains
+      // itself on hover (when interactive again) and via assistive tech.
+      const btn = el.querySelector('.sub-section-revert');
+      if (btn) {
+        const kind = sub.subSectionId === 'wake-sub-section' ? 'Wake' : 'Bed';
+        btn.title = patternDirty
+          ? 'Revert Pattern first to undo all sleep changes'
+          : `Revert ${kind}`;
+      }
+    }
   }
 
   // Banner: visible only when at least one section is dirty. The per-card

@@ -1,5 +1,17 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.334
+- **Sleep card — Path A save model.** Sleep is one save unit at the card level (Pattern's range constrains Wake/Bed validity, so partial commits aren't safe), but supports three revert scopes for surgical undo:
+  - **Sleep card header → Save + Cancel** (replacing the prior Reset button), commits/reverts all SLEEP_FIELDS. Mirrors Brightness + Color header pattern.
+  - **Pattern sub-section header → Revert button**, reverts Pattern + cascaded Wake + Bed (the whole Sleep branch — Pattern is the master).
+  - **Wake sub-section header → Revert button**, reverts Wake fields only.
+  - **Bed sub-section header → Revert button**, reverts Bed fields only.
+  - Wake/Bed Reverts are **disabled while Pattern is dirty** (greyed + non-clickable + tooltip "Revert Pattern first to undo all sleep changes") — since reverting wake/bed alone could land outside the current Pattern's allowed range. Forces user to revert Pattern as a coherent branch operation.
+- **Decoupled Pattern from Color fields.** The activity-preset change handler previously cascaded `warm_night_enabled` and `daylight_cct` (Color fields) alongside the sleep timing, which broke the "Pattern is sleep-only" mental model and complicated Path A's save model — Sleep Save would leave the Color cascade dirty until separately saved, and a page refresh could lose it. Removed those two cascade lines. Pattern now sets only Sleep fields (wake_time, bed_time, ascend_start, descend_start) — scope matches the user-facing name.
+- **`.sub-section-revert` button** — new CSS class for the per-sub-section Revert (Pattern/Wake/Bed). Blue-tinted (`--changed`), right-aligned in the sub-section header via `margin-left: auto`. Hidden by default; shown via `.sub-section.is-dirty .sub-section-revert`. Disabled state via `.sub-section.is-revert-blocked` (opacity 0.35 + pointer-events: none + dynamic title attribute).
+- **Sleep card right-side val hides when dirty** (matches Brightness + Color behavior), including the `.rhythm-sleep-summary` variant.
+- **Existing sleep-dirty-bar untouched** — it surfaces chart pill drag preview (separate mechanism via `chartState.wakeDragVal` / `bedDragVal`) and doesn't conflict with the new sub-section reverts.
+
 ## 1.2.333
 - **Per-section Save/Cancel on rhythm-design, placed in section headers.** Replaces the bottom-of-body section-action-bar pattern with header-placement: Save/Cancel pairs sit in the natural header of whatever the save unit is. Brightness card → header (replacing Reset). Color card → header (replacing Reset) for "save everything in Color." Color > Night warming → `.color-rule-stack-label` next to enable toggle + info icon. Color > Sun cooling → same. Pairs are hidden by default, shown via CSS when their parent (`.rhythm-card.is-dirty` or `.color-rule-stack.is-dirty`) is dirty. Right-side summary value (`.rhythm-card-val`) hides on Brightness + Color cards when their headers are showing Save/Cancel, to keep the header readable.
 - **Snapshot-merge save logic.** New `saveSection(fields)` function: sends current values for the section's fields + snapshot values for every other field, so saving one section doesn't accidentally commit unsaved changes in other sections. On success, updates the snapshot for ONLY this section's fields — other dirty sections stay dirty until separately saved.
