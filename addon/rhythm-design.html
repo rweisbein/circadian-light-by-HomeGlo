@@ -6020,6 +6020,15 @@ function setupEventListeners() {
       config.activity_preset = e.target.value;
       config.wake_time = preset.wake_time;
       config.bed_time = preset.bed_time;
+      // Clear alt wake/bed times — presets don't define alts, and the prior
+      // pattern's alts can fall outside the new Pattern's bounds (e.g. a 9a
+      // wake-alt is outside Dusk Bat's 12p-8p range). Preserves the `_last`
+      // cached values so the alt sliders are still pre-populated if the user
+      // re-adds an alt-day after the Pattern change.
+      config.wake_alt_time = null;
+      config.wake_alt_days = [];
+      config.bed_alt_time = null;
+      config.bed_alt_days = [];
       // Note: Pattern is decoupled from Color (1.2.334). Presets no longer
       // cascade `warm_night_enabled` or `daylight_cct` — Pattern scope is
       // sleep-timing only. Path A treats Sleep as one save unit cleanly;
