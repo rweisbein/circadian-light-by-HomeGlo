@@ -1,5 +1,8 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.353
+- **Fix: Control detail Activity card stuck on "Loading…" when the control has no history.** 1.2.352's no-op check (`if (topTs === _controlActivityLastTs) return`) used `null` as the initial sentinel, but `null` is also the legitimate `topTs` value for an empty entry list — so on first poll with zero matches, the early-return fired BEFORE the empty-state path could hide the card. Switched the unrendered sentinel to a `Symbol('unset')` that no real ts can equal, so the first render always runs.
+
 ## 1.2.352
 - **Activity card on the Control detail page.** New ctrl-card at the bottom of `/control/<id>` shows events emitted by THIS specific control, filtered out of the all-areas `/api/history` feed by matching `source_entity` against the control's IEEE `id` (switches) or `device_id` (motion / contact / camera). Reuses the shared `renderHistoryList` from shared.js (same component the Activity page + area-details Activity card use). 3-second poll (matching the rest of the app). Card hides entirely when there are zero matching entries — control detail is dense enough without an empty section.
 - **`setupControlPage()` sets `editingControl` before the `!supported` branch** so the Activity card has the control data it needs on the unsupported-info code path too.

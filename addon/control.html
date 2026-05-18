@@ -1378,7 +1378,11 @@
     // to cover both cases. Card hides entirely when zero matching entries.
     // ============================================================
     let _controlActivityTimer = null;
-    let _controlActivityLastTs = null;
+    // Sentinel value so the first render always runs (real ts values are
+    // positive floats; null is a valid "no entries" state — so we can't use
+    // null as the unrendered marker without skipping the empty-state path).
+    const _CONTROL_ACTIVITY_UNSET = Symbol('unset');
+    let _controlActivityLastTs = _CONTROL_ACTIVITY_UNSET;
 
     async function loadControlActivity() {
       const body = document.getElementById('control-activity-body');
