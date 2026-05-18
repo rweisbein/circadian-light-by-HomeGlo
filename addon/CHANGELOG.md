@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.333
+- **Per-section Save/Cancel on rhythm-design, placed in section headers.** Replaces the bottom-of-body section-action-bar pattern with header-placement: Save/Cancel pairs sit in the natural header of whatever the save unit is. Brightness card → header (replacing Reset). Color card → header (replacing Reset) for "save everything in Color." Color > Night warming → `.color-rule-stack-label` next to enable toggle + info icon. Color > Sun cooling → same. Pairs are hidden by default, shown via CSS when their parent (`.rhythm-card.is-dirty` or `.color-rule-stack.is-dirty`) is dirty. Right-side summary value (`.rhythm-card-val`) hides on Brightness + Color cards when their headers are showing Save/Cancel, to keep the header readable.
+- **Snapshot-merge save logic.** New `saveSection(fields)` function: sends current values for the section's fields + snapshot values for every other field, so saving one section doesn't accidentally commit unsaved changes in other sections. On success, updates the snapshot for ONLY this section's fields — other dirty sections stay dirty until separately saved.
+- **Field sets:** `NIGHT_WARMING_FIELDS` and `SUN_COOLING_FIELDS` define each sub-section's commit scope. Color card-level Save covers all COLOR_FIELDS (including `min_color_temp` / `max_color_temp` residuals not in either sub-section). Brightness card-level Save covers all BRIGHTNESS_FIELDS.
+- **Hierarchy:** sub-section save = narrower scope (just that rule); card-level save = broader scope (everything in the card). Both can be visible simultaneously when sub-section is dirty — different commit scopes, user picks.
+- **Sleep card untouched in this ship** — Sleep gets its own treatment (Path A: 1 card-level Save + 3 sub-section Reverts) in a separate ship.
+- **Global "Save all" / "Cancel all" banner remains** until the navigation-guard / page-indicator ship lands; per-section saves and the banner coexist for now.
+
 ## 1.2.332
 - **Divergence chip contrast fix on warm-tinted rows.** In 1.2.331 the `.delta-chip` family used a pale-blue background (`rgba(120,170,230,0.14)`) that washed out against gold/amber CCT-tinted zone rows — the chip was readable but lacked visual weight. Switched to a dark backdrop (`rgba(0,0,0,0.30)`) with a stronger blue border (`0.50` from `0.28`), keeping `--changed` text. The dark container reads against any row tint (warm or cool); the blue border + text carry the modified-state semantic. Hover state and zone-header variant follow the same pattern; untinted/off rows keep a lighter blue-tinted background since the page backdrop is already dark.
 

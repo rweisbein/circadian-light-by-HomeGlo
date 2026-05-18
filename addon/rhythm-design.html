@@ -1855,6 +1855,58 @@ input[type=range]::-moz-range-thumb {
 }
 .dirty-banner-save:hover { opacity: 0.9; }
 
+/* Header-placement Save/Cancel button group. Sits inside card headers (for
+   card-level saves like Brightness) or sub-section headers (color-rule-stack-
+   label for Color sub-sections). Hidden by default, shown when the
+   containing section is dirty. Compact size so the header stays readable. */
+.rhythm-section-actions {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+/* Card-header placement: actions sit at the right edge (where .rhythm-card-val
+   was). Sub-section header placement: actions sit at the end of the controls
+   flex row (right of toggle + info). */
+.rhythm-card.is-dirty .rhythm-card-header > .rhythm-section-actions {
+  display: inline-flex;
+  margin-left: auto;
+}
+.color-rule-stack.is-dirty .color-rule-stack-label .rhythm-section-actions {
+  display: inline-flex;
+  margin-left: 8px;
+}
+.rhythm-section-actions .section-cancel-btn,
+.rhythm-section-actions .section-save-btn {
+  padding: 3px 10px;
+  font-size: var(--font-body);
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.rhythm-section-actions .section-cancel-btn {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+}
+.rhythm-section-actions .section-cancel-btn:hover {
+  background: rgba(255,255,255,0.05);
+  color: var(--text);
+  border-color: var(--muted);
+}
+.rhythm-section-actions .section-save-btn {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #000;
+  font-weight: 600;
+}
+.rhythm-section-actions .section-save-btn:hover { opacity: 0.9; }
+/* When a card with header Save/Cancel is dirty, hide the right-side summary
+   value to keep the header from getting cluttered. */
+#rhythm-brightness-card.is-dirty .rhythm-card-val,
+#rhythm-color-card.is-dirty .rhythm-card-val { display: none; }
+
 /* Card-level dirty marker — small blue dot before the card title */
 .rhythm-card.is-dirty .rhythm-card-title::before {
   content: '';
@@ -2178,7 +2230,10 @@ input[type=range]::-moz-range-thumb {
     <div class="rhythm-card-header" onclick="toggleRhythmCard('rhythm-brightness-card', 'rhythm_brightness_expanded')">
       <span class="rhythm-card-chevron">&#x203A;</span>
       <span class="rhythm-card-title">Brightness</span>
-      <button type="button" class="rhythm-card-reset" onclick="event.stopPropagation(); cancelBrightnessChanges()">Reset</button>
+      <span class="rhythm-section-actions" onclick="event.stopPropagation()">
+        <button type="button" class="section-cancel-btn" onclick="cancelBrightnessChanges()">Cancel</button>
+        <button type="button" class="section-save-btn" onclick="saveBrightnessChangesSection()">Save</button>
+      </span>
       <span class="rhythm-card-val" id="rhythm-brightness-val">1 – 100%</span>
     </div>
     <div class="rhythm-card-body" id="rhythm-brightness-body">
@@ -2218,7 +2273,10 @@ input[type=range]::-moz-range-thumb {
     <div class="rhythm-card-header" onclick="toggleRhythmCard('rhythm-color-card', 'rhythm_color_expanded')">
       <span class="rhythm-card-chevron">&#x203A;</span>
       <span class="rhythm-card-title">Color temp</span>
-      <button type="button" class="rhythm-card-reset" onclick="event.stopPropagation(); cancelColorChanges()">Reset</button>
+      <span class="rhythm-section-actions" onclick="event.stopPropagation()">
+        <button type="button" class="section-cancel-btn" onclick="cancelColorChanges()">Cancel</button>
+        <button type="button" class="section-save-btn" onclick="saveColorChangesSection()">Save</button>
+      </span>
       <span class="rhythm-card-val" id="rhythm-color-val">500 – 6500 K</span>
     </div>
     <div class="rhythm-card-body" id="rhythm-color-body">
@@ -2231,12 +2289,16 @@ input[type=range]::-moz-range-thumb {
         </div>
         <div class="sub-section-body">
           <div id="rhythm-ct-night-gradient" class="ct-gradient-wrap ct-gradient-wrap--inset"></div>
-          <div class="color-rule-stack" data-color-row="night">
+          <div class="color-rule-stack" data-color-row="night" id="rhythm-night-warming-stack">
           <div class="color-rule-stack-label">
             <label class="color-rule-label">Night warming</label>
             <div class="color-rule-controls">
               <div class="color-rule-toggle"><input type="checkbox" id="warm-night-enabled"></div>
               <span class="info-icon" data-tooltip="warm-night-info">i<span class="info-tooltip" id="warm-night-info">Caps color temperature when the sun is below the horizon (night). If your curve runs cool (high K) at any point between sunset and sunrise, this warms those moments back to a softer range. Especially useful in winter at higher latitudes, where dark hours stretch into your evening routine.</span></span>
+              <span class="rhythm-section-actions">
+                <button type="button" class="section-cancel-btn" onclick="cancelNightWarmingChanges()">Cancel</button>
+                <button type="button" class="section-save-btn" onclick="saveNightWarmingChanges()">Save</button>
+              </span>
             </div>
           </div>
           <input type="hidden" id="warm-night-mode" value="all">
@@ -2291,12 +2353,16 @@ input[type=range]::-moz-range-thumb {
         </div>
         <div class="sub-section-body">
           <div id="rhythm-ct-day-gradient" class="ct-gradient-wrap ct-gradient-wrap--inset"></div>
-          <div class="color-rule-stack" data-color-row="daylight">
+          <div class="color-rule-stack" data-color-row="daylight" id="rhythm-sun-cooling-stack">
           <div class="color-rule-stack-label">
             <label class="color-rule-label">Sun cooling</label>
             <div class="color-rule-controls">
               <div class="color-rule-toggle"><input type="checkbox" id="daylight-enabled" checked></div>
               <span class="info-icon" data-tooltip="daylight-info">i<span class="info-tooltip" id="daylight-info">Pushes light cooler during the day based on sun intensity, mimicking natural light indoors.</span></span>
+              <span class="rhythm-section-actions">
+                <button type="button" class="section-cancel-btn" onclick="cancelSunCoolingChanges()">Cancel</button>
+                <button type="button" class="section-save-btn" onclick="saveSunCoolingChanges()">Save</button>
+              </span>
             </div>
           </div>
           <input type="hidden" id="daylight-cct" value="5500">
@@ -2503,6 +2569,12 @@ let configSnapshot = {};
 const SLEEP_FIELDS = ['wake_time', 'bed_time', 'wake_speed', 'bed_speed', 'wake_brightness', 'bed_brightness', 'ascend_start', 'descend_start', 'activity_preset', 'wake_alt_time', 'wake_alt_days', 'bed_alt_time', 'bed_alt_days', '_wake_alt_time_last', '_bed_alt_time_last'];
 const COLOR_FIELDS = ['min_color_temp', 'max_color_temp', 'warm_night_enabled', 'warm_night_mode', 'warm_night_target', 'warm_night_start', 'warm_night_end', 'warm_night_fade', 'daylight_enabled', 'daylight_cct', 'daylight_start', 'daylight_end', 'daylight_fade', 'color_sensitivity'];
 const BRIGHTNESS_FIELDS = ['min_brightness', 'max_brightness', 'brightness_sensitivity', 'brightness_sensitivity_enabled'];
+// Sub-section field groupings inside Color card. Each color-rule-stack has its
+// own Save/Cancel bar; saving a sub-section commits only its fields and leaves
+// the rest of Color (incl. min/max_color_temp) dirty until separately saved
+// via the global banner or card-level Reset.
+const NIGHT_WARMING_FIELDS = ['warm_night_enabled', 'warm_night_mode', 'warm_night_target', 'warm_night_start', 'warm_night_end', 'warm_night_fade'];
+const SUN_COOLING_FIELDS = ['daylight_enabled', 'daylight_cct', 'daylight_start', 'daylight_end', 'daylight_fade', 'color_sensitivity'];
 
 function takeConfigSnapshot() {
   configSnapshot = JSON.parse(JSON.stringify(config));
@@ -6960,6 +7032,8 @@ function revertFields(fields) {
 function cancelSleepChanges() { revertFields(SLEEP_FIELDS); }
 function cancelColorChanges() { revertFields(COLOR_FIELDS); }
 function cancelBrightnessChanges() { revertFields(BRIGHTNESS_FIELDS); }
+function cancelNightWarmingChanges() { revertFields(NIGHT_WARMING_FIELDS); }
+function cancelSunCoolingChanges() { revertFields(SUN_COOLING_FIELDS); }
 
 // Global "Cancel all" — revert every section's fields to the saved snapshot.
 function cancelAllChanges() {
@@ -6968,6 +7042,93 @@ function cancelAllChanges() {
   cancelBrightnessChanges();
 }
 
+/**
+ * Per-section save — snapshot-merge approach. Sends current values for this
+ * section's fields, snapshot values for every OTHER dirty field, so saving
+ * one section doesn't accidentally commit unsaved changes in other sections.
+ * On success, updates the snapshot for ONLY this section's fields, leaving
+ * other dirty sections' dirty state intact.
+ */
+async function saveSection(sectionFields) {
+  const statusEl = document.getElementById('save-status');
+  const newName = document.getElementById('rhythm-name')?.value.trim();
+  if (!newName) {
+    statusEl.innerHTML = '<div class="error">Name cannot be empty</div>';
+    setTimeout(() => { statusEl.innerHTML = ''; }, 3000);
+    return;
+  }
+  // Stabilize derived fields before snapshotting and serializing — matches
+  // saveZoneSettings' pre-save step (line ~7081).
+  syncConfigFromUI();
+
+  // Build the PUT payload: full zone settings, but with snapshot values
+  // substituted for any field NOT in this section. That way the server's
+  // persisted state is updated only for this section's fields.
+  const sectionSet = new Set(sectionFields);
+  const ALL_FIELDS = [
+    'wake_time','bed_time','wake_speed','bed_speed','ascend_start','descend_start',
+    'min_brightness','max_brightness','min_color_temp','max_color_temp','color_mode',
+    'wake_alt_time','wake_alt_days','bed_alt_time','bed_alt_days',
+    '_wake_alt_time_last','_bed_alt_time_last',
+    'wake_brightness','bed_brightness',
+    'warm_night_enabled','warm_night_mode','warm_night_target','warm_night_start','warm_night_end','warm_night_fade',
+    'daylight_enabled','daylight_cct','daylight_start','daylight_end','daylight_fade',
+    'color_sensitivity','brightness_sensitivity','brightness_sensitivity_enabled',
+    'activity_preset',
+  ];
+  const zoneSettings = {};
+  ALL_FIELDS.forEach(f => {
+    // For fields in this section, send current. For all others, send the
+    // snapshot value so other sections' dirty state isn't committed. Falls
+    // back to config (current) if snapshot is missing (first-load edge).
+    if (sectionSet.has(f)) {
+      zoneSettings[f] = config[f];
+    } else if (f in configSnapshot) {
+      zoneSettings[f] = configSnapshot[f];
+    } else {
+      zoneSettings[f] = config[f];
+    }
+  });
+
+  if (newName !== selectedZoneName) zoneSettings.name = newName;
+
+  try {
+    const response = await fetch(`./api/glozones/${encodeURIComponent(selectedZoneName)}/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(zoneSettings),
+    });
+    if (response.ok) {
+      if (newName !== selectedZoneName) {
+        selectedZoneName = newName;
+        const basePath = window.location.pathname.replace(/\/(?:zone-design|zone)\/[^/]+\/?$/, '');
+        const prefix = window.location.pathname.includes('/zone-design/') ? '/zone-design/' : '/zone/';
+        window.history.replaceState(null, '', basePath + prefix + encodeURIComponent(newName) + window.location.search);
+      }
+      // Update snapshot for ONLY this section's fields — other dirty sections
+      // stay dirty until they're separately saved.
+      sectionFields.forEach(f => {
+        configSnapshot[f] = JSON.parse(JSON.stringify(config[f]));
+      });
+      updateSectionDirtyState();
+      statusEl.innerHTML = '<div style="color: var(--success); font-size: var(--font-value);">Saved</div>';
+      setTimeout(() => { statusEl.innerHTML = ''; }, 1500);
+    } else {
+      const data = await response.json();
+      statusEl.innerHTML = '<div class="error">' + (data.error || 'Failed to save') + '</div>';
+      setTimeout(() => { statusEl.innerHTML = ''; }, 3000);
+    }
+  } catch (err) {
+    statusEl.innerHTML = '<div class="error">Error: ' + err.message + '</div>';
+    setTimeout(() => { statusEl.innerHTML = ''; }, 3000);
+  }
+}
+
+function saveNightWarmingChanges() { return saveSection(NIGHT_WARMING_FIELDS); }
+function saveSunCoolingChanges() { return saveSection(SUN_COOLING_FIELDS); }
+function saveBrightnessChangesSection() { return saveSection(BRIGHTNESS_FIELDS); }
+function saveColorChangesSection() { return saveSection(COLOR_FIELDS); }
+
 // Section metadata — each card's dirty-tracking field set + the rhythm-card
 // element that gets the `is-dirty` class (drives the dot + the header Reset
 // button visibility, both via CSS).
@@ -6975,6 +7136,15 @@ const RHYTHM_SECTIONS = [
   { name: 'Sleep',             fields: () => SLEEP_FIELDS,       cardId: 'rhythm-sleep-card' },
   { name: 'Color temperature', fields: () => COLOR_FIELDS,       cardId: 'rhythm-color-card' },
   { name: 'Brightness',        fields: () => BRIGHTNESS_FIELDS,  cardId: 'rhythm-brightness-card' },
+];
+
+// Sub-section save controls live in section headers (color-rule-stack-label
+// for Color sub-sections; rhythm-card-header for the Brightness card itself).
+// Visibility is driven by .is-dirty on the parent stack/card element; CSS
+// handles show/hide via .rhythm-section-actions.
+const RHYTHM_SUB_SECTIONS = [
+  { fields: () => NIGHT_WARMING_FIELDS, stackId: 'rhythm-night-warming-stack' },
+  { fields: () => SUN_COOLING_FIELDS,   stackId: 'rhythm-sun-cooling-stack' },
 ];
 
 function updateSectionDirtyState() {
@@ -6987,6 +7157,13 @@ function updateSectionDirtyState() {
     const cardEl = document.getElementById(sec.cardId);
     if (cardEl) cardEl.classList.toggle('is-dirty', dirty);
     if (dirty) anyDirty = true;
+  }
+
+  // Sub-section dirty state: drives Save/Cancel visibility in the
+  // color-rule-stack-label header (via CSS rule on .color-rule-stack.is-dirty).
+  for (const sub of RHYTHM_SUB_SECTIONS) {
+    const stack = document.getElementById(sub.stackId);
+    if (stack) stack.classList.toggle('is-dirty', isSectionDirty(sub.fields()));
   }
 
   // Banner: visible only when at least one section is dirty. The per-card
