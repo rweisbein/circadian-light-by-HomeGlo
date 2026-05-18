@@ -52,9 +52,9 @@
     /* Area header — 3-row CCT-tinted layout (Ship 2 redesign per
        addon/area-detail-mock.html). updateHeaderTint() sets background +
        readable text color per-frame so the header reads the room's CCT.
-       Row 1: ← · name · "in {zone} →" · sun pill
-       Row 2: bri% · CT · state chips ·  (reset, when dirty)
-       Row 3: Power · Freeze · Boost · Circadian (each with a sub-line) */
+       Row 1: ← · name · bri% · CT ·  (spacer) · Circadian toggle
+       Row 2: "in {zone} →" · transient chips · (spacer) · sun pill
+       Row 3: Power · Freeze · Boost · Reset(when dirty) — each w/ sub-line */
     .area-header {
       position: sticky;
       top: 0;
@@ -65,14 +65,15 @@
       transition: background 0.12s, color 0.12s;
     }
 
-    /* ─── Row 1: identity ─── */
+    /* ─── Row 1: identity + live state ─── */
     .ah-row1 {
       display: flex;
-      align-items: center;
+      align-items: baseline;
       gap: 8px;
       min-height: 28px;
     }
-    .ah-row1 .back-btn { flex-shrink: 0; }
+    .ah-row1 .back-btn { flex-shrink: 0; align-self: center; }
+    .ah-row1 #toggle-circadian { align-self: center; }
     .ah-name {
       font-size: 1.35rem;
       font-weight: 700;
@@ -85,7 +86,7 @@
       margin: 0;
     }
     .ah-breadcrumb {
-      font-size: 0.82rem;
+      font-size: 0.78rem;
       font-weight: 500;
       opacity: 0.65;
       text-decoration: none;
@@ -130,20 +131,10 @@
         0 0 2px rgba(0,0,0,0.55);
     }
 
-    /* ─── Row 2: state ─── bri% · CT · chips
-       Left padding matches Row 1's back-btn (28px) + gap (8px) so the
-       brightness readout aligns with the area name's left edge. */
-    .ah-row2 {
-      display: flex;
-      align-items: baseline;
-      gap: 0;
-      margin-top: 4px;
-      flex-wrap: wrap;
-      padding-left: 36px;
-    }
+    /* ─── Row 1 state readout (bri% · CT) — inline with the area name ─── */
     .ah-state-bri,
     .ah-state-ct {
-      font-size: 1.3rem;
+      font-size: 1.15rem;
       font-weight: 600;
       letter-spacing: -0.01em;
       font-variant-numeric: tabular-nums;
@@ -152,70 +143,58 @@
     }
     .ah-state-sep {
       opacity: 0.35;
-      font-size: 1rem;
-      margin: 0 8px;
+      font-size: 0.85rem;
+      margin: 0 6px;
       line-height: 1.1;
     }
     .ah-state-off {
-      font-size: 1.3rem;
+      font-size: 1.15rem;
       font-weight: 600;
       opacity: 0.55;
       line-height: 1.1;
     }
-    /* Row 2 chips flow right after CT with small gap (per mock + last
-       in-session fixup: chips cluster on the left, not pushed to the far
-       right). The dirty-reset ↺ pushes itself to the far right via
-       margin-left: auto. */
+
+    /* ─── Row 2: thin sub-row — "in {zone} →" · fade chip · sun pill ─── */
+    .ah-row2 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 2px;
+      padding-left: 36px;   /* align under the area name */
+      min-height: 22px;
+    }
+    .ah-row2-spacer { flex: 1 1 auto; min-width: 8px; }
+    /* Fade chip + future transient indicators flow on the left, next to
+       the breadcrumb. */
     .ah-state-chips {
       display: inline-flex;
       gap: 6px;
       align-items: center;
-      margin-left: 10px;
     }
-    .ah-state-chips:empty { margin-left: 0; }
 
-    /* Master reset button — inline right after the CT readout (not
-       right-aligned), visible only when something diverges from the zone.
-       Single tap → glo_down, no confirm. Same ↺ glyph the per-slider
-       resets use, sized up slightly so it reads as "bulk". */
-    .ah-row2-reset {
-      margin-left: 10px;
-      align-self: center;
-      display: none;
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      border: 1.5px solid rgba(0,0,0,0.22);
-      background: transparent;
-      color: inherit;
-      cursor: pointer;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.05rem;
-      line-height: 1;
-      padding: 0;
-      font-family: inherit;
-      opacity: 0.75;
-      transition: opacity 0.15s, background 0.15s;
-    }
-    .ah-row2-reset.is-dirty { display: inline-flex; }
-    .ah-row2-reset:hover { opacity: 1; background: rgba(0,0,0,0.10); }
-    .area-header.is-neutral .ah-row2-reset { border-color: rgba(255,255,255,0.22); }
-    .area-header.is-neutral .ah-row2-reset:hover { background: rgba(255,255,255,0.08); }
-
-    /* ─── Row 3: actions ─── Power · Freeze · Boost + Sun (right)
-       Left padding matches Row 2 so the first action button (Power) lines
-       up with the area name on Row 1 and the brightness readout on Row 2.
-       Sun chip is pushed to the right via margin-left: auto. */
+    /* ─── Row 3: actions ─── Power · Freeze · Boost · (Reset when dirty)
+       Left padding matches Row 2 so the first action button lines up
+       with the area name on Row 1. */
     .ah-row3 {
       display: flex;
       justify-content: flex-start;
       align-items: flex-start;
       gap: 18px;
-      margin-top: 4px;
+      margin-top: 6px;
       padding-left: 36px;
     }
-    .ah-row3 .ah-sun { margin-left: auto; align-self: center; }
+    /* Conditional 4th action: the master Reset button. Single tap →
+       glo_down, no confirm. Hidden by default; shown when isAreaDirtyVsZone
+       toggles `.is-dirty` on this wrapper. */
+    .ah-action-reset {
+      display: none;
+      margin-left: auto;
+    }
+    .ah-action-reset.is-dirty { display: flex; }
+    .ah-action-reset #ah-reset-btn {
+      font-size: 1.1rem;
+      line-height: 1;
+    }
     .ah-action {
       display: flex;
       flex-direction: column;
@@ -731,15 +710,18 @@
     #chart-context-wrap { position: relative; }
     #chart-shell {
       position: sticky;
-      top: 80px;  /* below the 2-row page-header */
+      top: 80px;  /* below the 3-row page-header */
       z-index: 5;
       background: var(--bg);
-      padding: 6px 0 32px;
-      margin: 0 0 8px;
+      /* Tight padding: 0 above (chart-internal margin handles axis labels),
+         28px below to make room for the two sunrise/sunset + wake/bed
+         label rows. Was 6/32 before the 1.2.362 compression pass. */
+      padding: 0 0 28px;
+      margin: 0 0 6px;
       -webkit-user-select: none;
       user-select: none;
     }
-    #chart-shell #mini-chart { height: 120px; margin-top: 6px; }
+    #chart-shell #mini-chart { height: 100px; margin-top: 0; }
     /* (Legacy .chart-sun-info* rules removed — the sun chip moved from
        chart-shell to header Row 1 as .ah-sun in Ship 2.) */
     /* Below-axis labels — sunrise/sunset (yellow) + wake/bed (blue), ported
@@ -763,9 +745,11 @@
     }
     /* sunrise/sunset (yellow) sit just below the x-axis with a short
        connector tick. wake/bed (blue) sit one row LOWER per spec — same
-       visual treatment as rhythm-design's sleep pills, but as a label. */
-    .area-solar-label { bottom: 22px; }
-    .area-phase-label { bottom: 4px; }
+       visual treatment as rhythm-design's sleep pills, but as a label.
+       Tightened in 1.2.362 to claw back vertical space below the chart
+       while keeping the two y-planes distinct. */
+    .area-solar-label { bottom: 16px; }
+    .area-phase-label { bottom: 2px; }
     .area-solar-label.visible,
     .area-phase-label.visible { display: inline-block; }
     .area-solar-label { color: rgba(255,225,140,0.92); }
@@ -864,6 +848,22 @@
     /* Adjust card: mirror merged header for live brightness/kelvin */
     .adjust-outer-next { margin-left: auto; display: flex; align-items: baseline; gap: 6px; font-size: var(--font-card-title); color: var(--text); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .adjust-outer-next .adjust-outer-sep { color: var(--muted2); font-weight: 400; }
+    /* Divergence chips in the collapsed Adjust card header (1.2.362). Same
+       blue-tinted treatment as .hslider-delta.is-dirty so the user
+       recognizes them as "value differs from rhythm". Hidden via :empty
+       when there's no divergence. */
+    .adjust-outer-next .adjust-summary-chip {
+      font-size: var(--font-body);
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: rgba(120, 170, 230, 0.14);
+      border: 1px solid rgba(120, 170, 230, 0.28);
+      color: var(--changed);
+      white-space: nowrap;
+      line-height: 1.2;
+    }
+    .adjust-outer-next:empty { display: none; }
     .auto-sched-card--headline.is-open .adjust-outer-next { display: none; }
     /* Indent field rows inside On/Off sub-sections so labels sit under (not
        at the same x as) the sub-title "On"/"Off" — visual hierarchy cue. */
@@ -1516,8 +1516,9 @@
        with the area name on row 1. updateHeaderTint() tints bg + readable
        text per-frame from CCT. -->
   <header class="area-header" id="page-header">
-    <!-- Row 1: identity + Circadian button (semantically distinct from the
-         power/freeze/boost cluster, so it sits up top with the name). -->
+    <!-- Row 1: identity + live state + Circadian toggle. Merged from the
+         previous Row 1 + Row 2 — the area name + bri/CT now sit on the
+         same row so the chart can move up. -->
     <div class="ah-row1">
       <button class="back-btn" onclick="goBack()" title="Back">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1525,7 +1526,9 @@
         </svg>
       </button>
       <h1 class="ah-name" id="page-title">Loading...</h1>
-      <a class="ah-breadcrumb" id="header-meta-rhythm" href="#"></a>
+      <span class="ah-state-bri" id="ah-state-bri">--%</span>
+      <span class="ah-state-sep">&middot;</span>
+      <span class="ah-state-ct" id="ah-state-ct">----K</span>
       <span class="ah-row1-spacer"></span>
       <button type="button" class="ah-btn ah-btn--top" id="toggle-circadian"
               onclick="toggleCircadian()" title="Circadian Light">
@@ -1533,20 +1536,22 @@
       </button>
     </div>
 
-    <!-- Row 2: state. Indented to align with the area name. Master reset
-         (↺) is inline right after the CT readout (only visible when ANY
-         override is set relative to the zone — glo_down would change
-         something). Chips flow after the reset. -->
+    <!-- Row 2 (thin sub-row): zone breadcrumb + transient chips (fade)
+         + sun-intensity chip. Smaller font, less vertical weight. -->
     <div class="ah-row2">
-      <span class="ah-state-bri" id="ah-state-bri">--%</span>
-      <span class="ah-state-sep">&middot;</span>
-      <span class="ah-state-ct" id="ah-state-ct">----K</span>
-      <button type="button" class="ah-row2-reset" id="ah-row2-reset"
-              onclick="onResetArea()" title="Reset">&#x21BA;</button>
+      <a class="ah-breadcrumb" id="header-meta-rhythm" href="#"></a>
       <span class="ah-state-chips page-header-chips" id="page-header-chips"></span>
+      <span class="ah-row2-spacer"></span>
+      <button type="button" class="ah-sun" id="chart-sun-info"
+              aria-expanded="false" title="Sun intensity">
+        <span class="ah-sun-icon" id="chart-sun-info-icon" data-sun-icon>&#x2600;</span>
+        <span id="chart-sun-info-pct" data-sun-pct>&mdash;</span>
+      </button>
     </div>
 
-    <!-- Row 3: action buttons (left, aligned with name) + sun pill (right). -->
+    <!-- Row 3: action buttons. Master reset (↺) is a conditional 4th
+         button, visible only when ANY override differs from the zone
+         (was inline in old Row 2 as #ah-row2-reset). -->
     <div class="ah-row3">
       <div class="ah-action">
         <button type="button" class="ah-btn" id="toggle-power"
@@ -1585,11 +1590,11 @@
         </button>
         <span class="ah-subline is-blank" id="boost-subline" onclick="onBoostSublineClick(event)">&nbsp;</span>
       </div>
-      <button type="button" class="ah-sun" id="chart-sun-info"
-              aria-expanded="false" title="Sun intensity">
-        <span class="ah-sun-icon" id="chart-sun-info-icon" data-sun-icon>&#x2600;</span>
-        <span id="chart-sun-info-pct" data-sun-pct>&mdash;</span>
-      </button>
+      <div class="ah-action ah-action-reset" id="ah-action-reset">
+        <button type="button" class="ah-btn" id="ah-reset-btn"
+                onclick="onResetArea()" title="Reset overrides">&#x21BA;</button>
+        <span class="ah-subline is-blank">&nbsp;</span>
+      </div>
     </div>
   </header>
 
@@ -3263,12 +3268,12 @@
       const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        // Margins tightened in Ship 2: top down from 50 (which held the old
-        // sun + moon icons above the chart) to 22 (just enough for the
-        // sun-intensity chip). Bottom from 86 to 28 (was sized for the old
-        // chart-hero overlay; below-axis labels live OUTSIDE the plot area
-        // in chart-shell padding now, so the plot doesn't need that space).
-        margin: { t: 22, r: 12, l: 36, b: 28 },
+        // Margins tightened in Ship 2 (50→22 top, 86→28 bottom). 1.2.362
+        // shaves another ~12px off top (sun chip lives in header now, no
+        // need for chart-internal reservation) and 6px off bottom — the
+        // outside labels (sunrise/sunset, wake/bed) sit at bottom: 16/2
+        // after the same pass, so the chart-shell padding tightened too.
+        margin: { t: 10, r: 12, l: 36, b: 22 },
         hovermode: 'closest',
         xaxis: (() => {
           const tickvals = [];
@@ -3633,13 +3638,29 @@
         heroPhase.classList.toggle('is-dirty', phaseDirty);
       }
 
-      // Collapsed Adjust card header mirror — live brightness + kelvin
       const adjHeader = document.getElementById('adjust-outer-next');
       if (adjHeader) {
-        const kColor = cctToRGB(kDisp);
-        adjHeader.innerHTML = briDisp + '%'
-          + '<span class="adjust-outer-sep">\u00B7</span>'
-          + '<span style="color:' + kColor + '">' + kDisp + 'K</span>';
+        // 1.2.362: show divergence chips (bri / ct / phase) instead of the
+        // live brightness/CT (which were redundant with the header readout).
+        // Empty when everything's aligned with the zone's rhythm.
+        const parts = [];
+        const bo = areaState.brightness_override;
+        if (bo != null && Math.abs(bo) >= 1) {
+          const sign = bo > 0 ? '+' : '';
+          parts.push('<span class="adjust-summary-chip">' + sign + Math.round(bo) + '%</span>');
+        }
+        const co = areaState.color_override;
+        if (co != null && Math.abs(co) >= 10) {
+          const sign = co > 0 ? '+' : '';
+          parts.push('<span class="adjust-summary-chip">' + sign + Math.round(co) + 'K</span>');
+        }
+        const _phaseDirty = areaState.brightness_mid != null || areaState.color_mid != null;
+        if (_phaseDirty && phaseCtx) {
+          const lbl = phaseCtx.cursorInAscend ? 'Wake' : 'Bed';
+          const t = formatPhaseTime(phaseCtx.currentTargetTime);
+          parts.push('<span class="adjust-summary-chip">' + lbl + ' ' + t + '</span>');
+        }
+        adjHeader.innerHTML = parts.join('');
       }
 
       // Toggle reset buttons visibility based on override/mid state.
@@ -4949,13 +4970,13 @@
         }
       }
 
-      // Row 2 master reset button — visible only when something differs
-      // from the zone's defaults (i.e., glo_down would change state).
-      const resetBtn = document.getElementById('ah-row2-reset');
-      if (resetBtn) {
-        resetBtn.classList.toggle('is-dirty', isAreaDirtyVsZone());
-        resetBtn.title = `Reset ${selectedArea.name || 'area'}`;
-      }
+      // Master reset — surfaces as a conditional 4th action button (next
+      // to power/freeze/boost) when something differs from the zone's
+      // defaults. CSS reveals via `.is-dirty` on the wrapper.
+      const resetWrap = document.getElementById('ah-action-reset');
+      const resetBtn = document.getElementById('ah-reset-btn');
+      if (resetWrap) resetWrap.classList.toggle('is-dirty', isAreaDirtyVsZone());
+      if (resetBtn) resetBtn.title = `Reset ${selectedArea.name || 'area'}`;
 
       // Activity card subtitle: "Xm ago" from the latest backend
       // history_last_ts. Hidden when card is open (CSS opacity:0).

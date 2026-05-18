@@ -1,5 +1,13 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.362
+- **Area-details header restructured (mobile-first).** Three rows now:
+  - **Row 1:** `← Kitchen 57% · 5500K [........] [Circadian toggle]`. The bri/CT readout moved up from the old Row 2 so the chart can come up too. Readout font dropped 1.3 → 1.15rem so it fits inline with the area name.
+  - **Row 2** (new, thin sub-row): `in Main →` breadcrumb + transient fade chip + sun-intensity chip on the right. Indent (36px) aligns the breadcrumb under the area name on Row 1. ~22px tall.
+  - **Row 3:** unchanged action cluster — `Power | Freeze | Boost` — but the master Reset button is now a conditional 4th action button at the far right (visible only when `isAreaDirtyVsZone()` returns true). The old inline `↺` in Row 2 is gone.
+- **Chart compression.** `#chart-shell` padding `6px / 0 / 32px` → `0 / 0 / 28px` (kills dead space above, trims below). `#mini-chart` height `120 → 100px` (~15% less). Plotly internal top margin `22 → 10`, bottom `28 → 22`. Sunrise/sunset label `bottom: 22 → 16px`; wake/bed label `bottom: 4 → 2px` (kept on separate y-planes per spec).
+- **Adjust card collapsed-header summary rebuilt.** Previously showed live `57% · 5500K` (redundant with the header readout). Now shows divergence chips — `±N%` for brightness override, `±NK` for color override, `Wake/Bed HH:MMa` when phase has been shifted. Empty when everything's aligned with the zone's rhythm. Chips use the same `--changed` blue treatment as the per-slider `.hslider-delta.is-dirty` so the cue is consistent.
+
 ## 1.2.361
 - **Fix: dirty dot in Schedule appeared on "On" AND "Off" sub-section titles** when only one was dirty. The 1.2.359 selector `.auto-sched-card--auto.is-dirty .auto-sched-title::before` matched every `.auto-sched-title` descendant — but the outer "Schedule" title and the "On"/"Off" sub-section titles all share that class. Scoped the rule to a direct child (`> .auto-sched-header > .auto-sched-title`) so the dot only lands on the outer header's own title. Sub-section dirty state is communicated by the per-section Save/Cancel buttons in the sub-headers (rhythm-design pattern).
 
