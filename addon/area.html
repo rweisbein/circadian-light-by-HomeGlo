@@ -7466,6 +7466,13 @@
         + (buckets.doesntReach.length > 0 ? 1 : 0);
       const showHeaders = populatedBuckets >= 2;
       let html = '';
+      // 1.2.375: reordered Presence → Reach 1 → Reach 2+ → Alerts to
+      // match the controls main page. Same rationale: sensors fire more
+      // often than manual taps, lead with "what's automatically reacting."
+      if (buckets.presence.length) {
+        if (showHeaders) html += buildGroupDivider('Presence', buckets.presence.length);
+        for (const c of buckets.presence) html += renderControlRow(c, currentAreaId, {});
+      }
       if (buckets.switchDirect.length) {
         if (showHeaders) html += buildGroupDivider('Reach 1', buckets.switchDirect.length);
         for (const c of buckets.switchDirect) html += renderControlRow(c, currentAreaId, {});
@@ -7473,10 +7480,6 @@
       if (buckets.switchIndirect.length) {
         if (showHeaders) html += buildGroupDivider('Reach 2+', buckets.switchIndirect.length);
         for (const c of buckets.switchIndirect) html += renderControlRow(c, currentAreaId, {});
-      }
-      if (buckets.presence.length) {
-        if (showHeaders) html += buildGroupDivider('Presence', buckets.presence.length);
-        for (const c of buckets.presence) html += renderControlRow(c, currentAreaId, {});
       }
       if (buckets.alerts.length) {
         if (showHeaders) html += buildGroupDivider('Alert', buckets.alerts.length);

@@ -1716,6 +1716,15 @@
         const targetAreaId = (allAreas.find(a => a.name === areaFilter) || {}).area_id;
         const buckets = bucketControlsForArea(sorted, targetAreaId, areaFilter);
         let inner = '';
+        // 1.2.375: reordered Presence → Reach 1 → Reach 2+ → Alerts.
+        // Presence (motion/contact/camera) leads because in modern homes
+        // sensors fire far more events than physical switch presses;
+        // ordering tells the user "what is automatically reacting" first,
+        // then "what to tap when I want to override."
+        if (buckets.presence.length) {
+          inner += buildGroupDivider('Presence', buckets.presence.length);
+          inner += buckets.presence.map(c => renderControlCard(c, cardView)).join('');
+        }
         if (buckets.switchDirect.length) {
           inner += buildGroupDivider('Reach 1', buckets.switchDirect.length);
           inner += buckets.switchDirect.map(c => renderControlCard(c, cardView)).join('');
@@ -1723,10 +1732,6 @@
         if (buckets.switchIndirect.length) {
           inner += buildGroupDivider('Reach 2+', buckets.switchIndirect.length);
           inner += buckets.switchIndirect.map(c => renderControlCard(c, cardView)).join('');
-        }
-        if (buckets.presence.length) {
-          inner += buildGroupDivider('Presence', buckets.presence.length);
-          inner += buckets.presence.map(c => renderControlCard(c, cardView)).join('');
         }
         if (buckets.alerts.length) {
           inner += buildGroupDivider('Alert', buckets.alerts.length);
