@@ -2517,6 +2517,13 @@
         const status = areaStatus[areaId] || {};
         const pillEl = el.querySelector('.row-schedule-pill, .row-schedule-right');
         if (pillEl) {
+          // 1.2.373: suppress upcoming-schedule chips for CL-off areas.
+          // Auto-schedule no-ops on CL-off areas server-side, so showing
+          // an "upcoming" indicator would be misleading.
+          if (status.is_circadian === false) {
+            if (pillEl.innerHTML !== '') pillEl.innerHTML = '';
+            return;
+          }
           const scheduleParts = [];
           const nxtOn = status.next_auto_on;
           const nxtOff = status.next_auto_off;

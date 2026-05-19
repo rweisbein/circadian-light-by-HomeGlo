@@ -495,22 +495,37 @@ def reset_area(area_id: str) -> None:
 def reset_all_areas() -> None:
     """Reset runtime state for all areas (midpoints only).
 
-    Called at phase transitions (ascend/descend). Preserves is_circadian, is_on, and frozen status.
+    Called at phase transitions (ascend/descend). Preserves is_circadian,
+    is_on, and frozen status for circadian-ON areas.
+
+    CL-OFF areas: frozen_at is also reset. Rationale: when CL is off,
+    the area is "paused" — the addon isn't honoring freeze timing.
+    If the user re-enables CL after a phase boundary has passed, they
+    should land on a clean state rather than restoring a stale freeze
+    from before the CL-off period.
+
+    Other override fields (brightness_mid, color_mid, *_override,
+    *_override_set_at) are scrubbed for everyone uniformly via the
+    _get_default_area_state replacement.
+
     Use reset_area() for explicit user resets that should clear frozen.
     """
     for area_id in list(_state.keys()):
         current = _state[area_id]
+        is_circ = current.get("is_circadian", False)
         preserved = {
-            "is_circadian": current.get("is_circadian", False),
+            "is_circadian": is_circ,
             "is_on": current.get("is_on", False),
-            "frozen_at": current.get("frozen_at"),  # Preserve frozen state
+            # frozen_at preserved only for CL-on areas; CL-off areas
+            # fully reset so re-enable starts clean.
+            "frozen_at": current.get("frozen_at") if is_circ else None,
             "last_sent_kelvin": current.get("last_sent_kelvin"),  # Physical bulb fact
             "last_sent_kelvin_at": current.get("last_sent_kelvin_at"),
         }
         _state[area_id] = _get_default_area_state()
         _state[area_id].update(preserved)
     _save()
-    logger.info(f"Reset midpoints for all {len(_state)} area(s) (frozen state preserved)")
+    logger.info(f"Reset midpoints for all {len(_state)} area(s) (frozen preserved for CL-on only)")
 
 
 def remove_area(area_id: str) -> None:

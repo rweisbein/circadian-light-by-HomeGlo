@@ -1735,10 +1735,26 @@ class CircadianLightPrimitives:
         If is_circadian was False, resets all runtime state before enabling.
         Sets is_on=False and turns off lights. Clears any active boost or motion timer.
 
+        1.2.373: when CL is already off, just send the off command —
+        don't re-enable CL just to turn off lights. "Off means off."
+        The addon stays paused for that area.
+
         Args:
             area_id: The area ID to control
             source: Source of the action
         """
+        # CL-off fast path: send off command without touching CL state.
+        if not state.is_circadian(area_id):
+            logger.info(f"[{source}] lights_off (CL off): area {area_id} — quiet off")
+            await self.client.turn_off_lights(area_id)
+            await self.client.turn_off_switch_entities(area_id)
+            history.record(
+                area_id, "turn_off", source,
+                brightness=state.get_last_sent_brightness(area_id),
+                kelvin=state.get_last_sent_kelvin(area_id),
+            )
+            return
+
         if source not in (
             "auto_on",
             "auto_off",
@@ -1909,10 +1925,20 @@ class CircadianLightPrimitives:
         If lights on: turn off (is_on=False)
         If lights off: turn on with Circadian values (is_on=True)
 
+        1.2.373: when CL is off, the cached is_on is stale (another app
+        may have changed bulb state). Toggle redefines as "turn on with
+        circadian" — re-enable CL + apply parked state + turn on. The
+        user's intent of "flip state" while CL is off overwhelmingly
+        means "I want the addon back."
+
         Args:
             area_id: The area ID to control
             source: Source of the action
         """
+        # CL-off path: treat toggle as lights_on (cache is unreliable).
+        if not state.is_circadian(area_id):
+            await self.lights_on(area_id, source=source)
+            return
         await self.lights_toggle_multiple([area_id], source)
 
     async def lights_toggle_multiple(
@@ -2139,6 +2165,15 @@ class CircadianLightPrimitives:
             from_motion: If True, couple boost timer to motion timer (boost ends
                 when motion timer ends, not independently).
         """
+        # 1.2.373: boost is meaningless when CL is off (it boosts atop the
+        # circadian curve). NO-OP for CL-off areas; the addon doesn't
+        # re-enable CL via boost.
+        if not state.is_circadian(area_id):
+            logger.debug(
+                f"[{source}] bright_boost: area {area_id} has CL disabled — no-op"
+            )
+            return
+
         is_forever = duration_seconds == 0
         if not from_motion:
             state.mark_user_action(area_id)
@@ -2461,6 +2496,16 @@ class CircadianLightPrimitives:
             boost_brightness: Optional boost percentage to add (0-100)
             boost_duration: Optional boost duration in seconds (0 = forever)
         """
+        # 1.2.373: motion sensors no-op when CL is off. The addon is
+        # hands-off for areas where the user disabled circadian; sensor
+        # triggers should not silently re-enable it. Only explicit user
+        # signals (lights_on / lights_toggle / circadian_on) re-enable CL.
+        if not state.is_circadian(area_id):
+            logger.debug(
+                f"[{source}] motion_on_only: area {area_id} has CL disabled — no-op"
+            )
+            return
+
         has_boost = boost_brightness is not None and boost_duration is not None
 
         # Check if area is already on under circadian control
@@ -2538,6 +2583,13 @@ class CircadianLightPrimitives:
             boost_brightness: Optional boost percentage to add (0-100)
             boost_duration: Optional boost duration in seconds (0 = forever)
         """
+        # 1.2.373: motion sensors no-op when CL is off (see motion_on_only).
+        if not state.is_circadian(area_id):
+            logger.debug(
+                f"[{source}] motion_on_off: area {area_id} has CL disabled — no-op"
+            )
+            return
+
         is_forever = duration_seconds == 0
         has_boost = boost_brightness is not None and boost_duration is not None
 
@@ -2858,6 +2910,12 @@ class CircadianLightPrimitives:
         today_str = date.today().isoformat()
 
         for area_id, settings in area_settings.items():
+            # 1.2.373: skip CL-off areas entirely. Auto-schedule firing
+            # would silently re-enable circadian, contradicting the
+            # user's "addon, leave this area alone" signal. Other paths
+            # (motion, contact, boost) likewise no-op when CL is off.
+            if not state.is_circadian(area_id):
+                continue
             # Check auto_on
             if settings.get("auto_on_enabled"):
                 trigger_time = self._resolve_auto_time(
@@ -3414,10 +3472,19 @@ class CircadianLightPrimitives:
         Used when a contact sensor closes (door/window) with on_off function.
         Clears any motion timer, turns off lights, and disables Circadian.
 
+        1.2.373: NO-OP when CL is already off — sensor triggers should not
+        manage areas the user has explicitly paused.
+
         Args:
             area_id: The area ID
             source: Source of the action
         """
+        if not state.is_circadian(area_id):
+            logger.debug(
+                f"[{source}] contact_off: area {area_id} has CL disabled — no-op"
+            )
+            return
+
         # Clear any motion timer
         state.clear_auto_off_at(area_id)
 
@@ -3488,6 +3555,16 @@ class CircadianLightPrimitives:
             brightness: Optional target actual brightness (0-100). Only used
                 with preset="circadian". Ignored for other presets.
         """
+        # 1.2.373: configure-only `set` (is_on=None) no-ops when CL is off.
+        # The addon shouldn't be silently shaping curve state for a paused
+        # area. When is_on is True/False, set IS allowlisted to re-enable
+        # CL — it's an explicit turn-on/off signal (same as lights_on).
+        if is_on is None and not state.is_circadian(area_id):
+            logger.debug(
+                f"[{source}] set: configure-only no-op for area {area_id} (CL off)"
+            )
+            return
+
         config = self._get_config(area_id)
         current_hour = get_current_hour()
 

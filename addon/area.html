@@ -936,6 +936,14 @@
       border-top: none;
     }
     #schedule-card .auto-sched-body > .auto-sched-card--sub:first-child > .auto-sched-header { padding-top: 4px; }
+    /* 1.2.373: when CL is off for this area, auto-schedule won't fire.
+       Fade the Schedule card so the user has a visual cue that the
+       scheduled events are inert. Stays editable — planning ahead is
+       a valid use case. */
+    #schedule-card.is-cl-disabled {
+      opacity: 0.55;
+      transition: opacity 0.15s;
+    }
     /* Sub-card bodies are always visible (outer Auto controls collapse) */
     .auto-sched-card--sub > .auto-sched-body { max-height: none; opacity: 1; overflow: visible; transition: opacity 0.2s; }
     /* Disabled sub-card: body fades to signal the toggle is off without
@@ -5147,6 +5155,14 @@
         circToggle.title = selectedArea.is_circadian === false
           ? 'Turn on Circadian Light'
           : 'Turn off Circadian Light; frees lights for other apps';
+      }
+
+      // 1.2.373: grey the Schedule card when CL is off — auto-on / auto-off
+      // events don't fire while the addon is hands-off for this area.
+      // Stays editable so users can plan ahead.
+      const scheduleCard = document.getElementById('schedule-card');
+      if (scheduleCard) {
+        scheduleCard.classList.toggle('is-cl-disabled', selectedArea.is_circadian === false);
       }
 
       updateTimerStatus();

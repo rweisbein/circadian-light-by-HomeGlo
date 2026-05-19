@@ -1,5 +1,31 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.373
+Circadian-off behavior overhaul. The addon is now genuinely "hands-off" for areas where the user has disabled circadian — only explicit user signals (`lights_on`, `lights_toggle`, app/switch on-buttons) re-enable it. State stays bookmarked across CL-off periods so the user can resume right where they left off (party scenario: turn off CL, lights driven by another app, turn CL back on, lights pick up the previous mood).
+
+**Primitives — NO-OP when `is_circadian == False`:**
+- `motion_on_only` / `motion_on_off` — motion-triggered turn-ons no longer silently re-enable CL.
+- `contact_off` (door/window close) — same.
+- `bright_boost` — boost only makes sense atop active circadian; no-op when off.
+- `check_auto_schedules` — scheduled auto-on / auto-off events skip CL-off areas.
+- `set` primitive when called with `is_on=None` (configure-only) — would otherwise silently shape curve state for a paused area.
+
+**Primitives — behavior tweaks:**
+- `lights_off` when CL is off → quiet off (sends `turn_off`, no CL-state change). "Off means off" — don't re-enable just to turn off.
+- `lights_toggle` when CL is off → delegates to `lights_on`. The cached `is_on` is unreliable after a CL-off period, so toggle redefines as "wake the addon and turn on" — overwhelmingly what users want when they tap toggle.
+
+**State preservation + phase boundary:**
+- `state.reset_all_areas()` (phase transitions ascend/descend): now resets `frozen_at` for CL-off areas (only preserves it for CL-on). Rationale: re-enabling CL after a phase boundary should land on a clean state, not a stale freeze. Other override fields (`brightness_mid`, `color_mid`, `*_override`) are scrubbed for everyone uniformly — that was already the case.
+
+**UI — match the new semantics:**
+- **`area.html` Schedule card** fades to `opacity: 0.55` when `is_circadian === false`. Stays editable so users can plan ahead.
+- **`areas.html` home page** suppresses the upcoming-schedule chip (`Bed 11:31p` / `Wake 6:09a`) for CL-off area rows. With auto-schedule no-op'ing server-side, the chip would otherwise be misleading.
+
+**Verified no change needed:**
+- Boost decays naturally by `expires_at` — no special CL-off handling.
+- `glo_up` / `full_send` / `glozone_down` already update state vars on CL-off areas without firing light commands (the party-scenario absorption works for free).
+- `set_is_circadian(False)` already preserves override state vars (only clears `last_sent_kelvin` for the 2-step gate).
+
 ## 1.2.372
 Cross-app color convention overhaul + control-detail polish + bug fixes.
 
