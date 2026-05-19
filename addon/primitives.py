@@ -313,8 +313,15 @@ class CircadianLightPrimitives:
                     area_ids.append(area)
         return area_ids
 
-    async def _apply_moment(self, moment_id: str, source: str = "moment"):
+    async def apply_moment(self, moment_id: str, source: str = "moment"):
         """Apply a moment configuration to all areas.
+
+        Public entry point for moment dispatch (renamed from _apply_moment
+        in 1.2.374). Callers: switch-button mappings, webserver service
+        event for `set_<moment_id>`. Previously routed through
+        `primitives.set(None, ..., preset=moment_id)` — that overload was
+        a tripwire (e.g. the 1.2.373 CL-off guard short-circuited moment
+        dispatch because is_circadian(None) returned False by default).
 
         Args:
             moment_id: The moment ID to apply
@@ -3559,7 +3566,11 @@ class CircadianLightPrimitives:
         # The addon shouldn't be silently shaping curve state for a paused
         # area. When is_on is True/False, set IS allowlisted to re-enable
         # CL — it's an explicit turn-on/off signal (same as lights_on).
-        if is_on is None and not state.is_circadian(area_id):
+        # 1.2.374: guard ALSO requires area_id — moments call set(None, …,
+        # preset=moment_id) to fan out; `is_circadian(None)` returns False
+        # by default, which was making the guard short-circuit moment
+        # dispatch entirely (moments stopped firing).
+        if is_on is None and area_id and not state.is_circadian(area_id):
             logger.debug(
                 f"[{source}] set: configure-only no-op for area {area_id} (CL off)"
             )
@@ -3636,11 +3647,10 @@ class CircadianLightPrimitives:
 
         # Priority 3: preset
         if preset:
-            # Check if preset is a moment (multi-area preset)
-            moments = self._get_moments()
-            if preset.lower() in moments:
-                await self._apply_moment(preset.lower(), source)
-                return
+            # 1.2.374: moment dispatch removed from `set` — moments now route
+            # via the public `apply_moment(moment_id)` method. `set` is
+            # exclusively single-area configuration now. Callers that need
+            # to fire a moment should call `apply_moment` directly.
 
             # Single-area built-in presets
             # Reset state first (clears midpoints, bounds, frozen_at; preserves enabled)

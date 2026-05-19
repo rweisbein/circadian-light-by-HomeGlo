@@ -1,5 +1,10 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.374
+- **Fix: moments stopped firing after 1.2.373.** The 1.2.373 CL-off guard in `primitives.set` checked `is_circadian(area_id)`, but the moment-dispatch path calls `set(None, source, preset=moment_id)` with `area_id=None`. `is_circadian(None)` returns `False` (default), so the guard short-circuited every moment to a silent no-op while still logging "Applied moment 'moment_id'" from the webserver layer (which only knew the HTTP call returned 200).
+- **Refactored moment dispatch out of `primitives.set`.** Renamed `_apply_moment` → public `apply_moment(moment_id, source)`. The two callers that previously routed through `set` — switch-button mappings (`main.py:2515`) and the webserver service event (`main.py:6069`) — now call `apply_moment` directly. The moment-dispatch branch is removed from `set`; the primitive is now strictly single-area config. Same function doing double duty (single-area config + multi-area moment fan-out) was a tripwire: any future guard at the top of `set` would silently break moments because the function shape varies between the two call paths. Now they're separate methods with one purpose each.
+- **Kept defensive `area_id and` in `set`'s CL-off guard** as a safety net even though moments no longer route through it.
+
 ## 1.2.373
 Circadian-off behavior overhaul. The addon is now genuinely "hands-off" for areas where the user has disabled circadian — only explicit user signals (`lights_on`, `lights_toggle`, app/switch on-buttons) re-enable it. State stays bookmarked across CL-off periods so the user can resume right where they left off (party scenario: turn off CL, lights driven by another app, turn CL back on, lights pick up the previous mood).
 

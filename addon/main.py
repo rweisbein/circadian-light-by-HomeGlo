@@ -2511,8 +2511,9 @@ class HomeAssistantWebSocketClient:
             moments = self._get_moments()
             if moment_id in moments:
                 logger.info(f"[switch] Applying moment '{moment_id}'")
-                # Moments apply to all areas per their config, not switch areas
-                await self.primitives.set(None, f"switch:{switch_id}", preset=moment_id)
+                # 1.2.374: moments now route via the public apply_moment method
+                # (was overloaded through primitives.set, which was a tripwire).
+                await self.primitives.apply_moment(moment_id, f"switch:{switch_id}")
             else:
                 logger.warning(f"Unknown set action: {main_action}")
 
@@ -6066,7 +6067,9 @@ class HomeAssistantWebSocketClient:
             moments = self._get_moments()
             if moment_id in moments:
                 logger.info(f"[webserver] Applying moment '{moment_id}'")
-                await self.primitives.set(None, "webserver", preset=moment_id)
+                # 1.2.374: route moments via apply_moment (was overloaded
+                # through primitives.set, a tripwire). See primitives.py.
+                await self.primitives.apply_moment(moment_id, "webserver")
             else:
                 logger.warning(f"Unknown set action from webserver: {service}")
         elif service == "purge_area":
