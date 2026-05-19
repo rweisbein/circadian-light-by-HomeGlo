@@ -1,5 +1,20 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.372
+Cross-app color convention overhaul + control-detail polish + bug fixes.
+
+**Divergence-chip color overhaul (Option B — solid blue):**
+- `areas.html` `.delta-chip` + `.zone-delta-chip`: previously a dark translucent backdrop with `--changed` blue text and blue border. On warm-CCT-tinted area rows (Sugar shack, etc.), the blue text + warm-tan bg was hue-contrast only, not luminance contrast — chips visibly washed out. Switched to solid `var(--changed)` fill with dark text `#0c1626` + bold weight. High contrast at any tint, and visually consistent with the new bolder area-page reset button. Dropped the per-row-untinted variant (now uniform across all rows).
+
+**Wake/bed phase color shift (blue → purple):**
+- The solid-blue divergence chips made the existing wake/bed phase markers (also blue, `rgba(140,195,255,0.95)` family) read as "another instance of dirty/changed" when they're really phase boundaries.
+- **`area.html`** (chart shows ONE phase at a time): single light purple `rgba(196,158,240,0.95)` (#C49EF0) for `.area-phase-label` + connector tick + Plotly wake/bed vertical lines on drag/hover.
+- **`rhythm-design.html`** (chart shows BOTH wake and bed simultaneously): two distinct purples — wake = lighter `#C49EF0` (morning), bed = deeper violet `#9F86E0` (evening). Same family, distinguishable by lightness. Full sweep: CSS vars `--wake` / `--bed` / `--wake-ink` / `--bed-ink` / `--ascend` / `--ascend-border`; hardcoded refs in `.phase-handle.*::before`, `.phase-ghost.for-*` border colors, `ASCEND_COLORS` / `DESCEND_COLORS` (Plotly chart tinting), and the wake/bed vertical-line `rgba` colors in the chart `shapes` array. Descend region tint stays yellow (already a different family, no clash).
+
+**Control detail polish:**
+- **Pause card auto-opens when control is paused** (after the freshness window has elapsed). `_resetCtrlCardsIfStale` now consults the control's `editingInactive` state and surfaces Pause as a default-open card alongside the existing Switch/Sensor defaults. If the user is within the freshness window, their last-toggled state still wins.
+- **Bug fix: "Person" trigger greyed out on new reach.** `.trigger-chip.greyed { pointer-events: none }` made the chip un-clickable. The greying condition fired any time Any Motion was "selected" — and an empty `trigger_entities` list was treated as implicit Any Motion. So on every fresh reach, Person/Pet/Vehicle/etc. were all unclickable. Differentiated implicit (empty list) from explicit (entities matching any_motion's own keywords) any-motion: grey only when explicit. The toggle handler already does the right thing in both cases (empty → switch to specific category).
+
 ## 1.2.371
 Batched header polish + bug fixes from local iteration.
 

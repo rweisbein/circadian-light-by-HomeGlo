@@ -24,14 +24,17 @@
      See area.html for rationale. Blue per productivity-software convention. */
   --changed: #78AAE6;
   --changed-hover: #9DC2EE;
-  --ascend: rgba(120, 190, 255, 0.32);
-  --ascend-border: rgba(120, 185, 245, 0.5);
+  /* 1.2.372: wake/bed shifted blue → purple to avoid color clash with
+     the solid `--changed` blue divergence-chip convention. Two purples:
+     wake = lighter (morning), bed = darker violet (evening). */
+  --ascend: rgba(196, 158, 240, 0.32);
+  --ascend-border: rgba(196, 158, 240, 0.5);
   --descend: rgba(255, 220, 100, 0.12);
   --descend-border: rgba(255, 230, 128, 0.45);
-  --wake: #5cb3ff;
-  --wake-ink: #082544;
-  --bed: #6fa9ff;
-  --bed-ink: #08234a;
+  --wake: #C49EF0;
+  --wake-ink: #2D1A4D;
+  --bed: #9F86E0;
+  --bed-ink: #1F1340;
   --live: #ff8a3a;
   --font-hero: 1.4rem;
   --font-display: 1.1rem;
@@ -962,8 +965,8 @@ input[type=range]::-moz-range-thumb {
   opacity: 0.45;
   transition: opacity 0.15s;
 }
-.phase-handle.phase-wake::before { background: #5cb3ff; }
-.phase-handle.phase-bed::before { background: #6fa9ff; }
+.phase-handle.phase-wake::before { background: var(--wake); }
+.phase-handle.phase-bed::before { background: var(--bed); }
 .phase-handle:hover::before,
 .phase-handle.dragging::before { opacity: 0.75; }
 .phase-pill {
@@ -1024,8 +1027,8 @@ input[type=range]::-moz-range-thumb {
   background: transparent;
   box-sizing: border-box;
 }
-.phase-ghost.for-wake .phase-ghost-pill { border-color: rgba(92,179,255,0.55); }
-.phase-ghost.for-bed .phase-ghost-pill { border-color: rgba(111,169,255,0.55); }
+.phase-ghost.for-wake .phase-ghost-pill { border-color: rgba(196, 158, 240, 0.55); }
+.phase-ghost.for-bed .phase-ghost-pill { border-color: rgba(159, 134, 224, 0.55); }
 
 /* Save popover */
 .save-popover {
@@ -2603,22 +2606,23 @@ function formatSpeedReadoutActive(speedIdx) {
   return `${speedIdx} · ${SPEED_LABELS[speedIdx]} · ${speedTransitionLabel(speedIdx)}`;
 }
 
-// Phase tinting on chart. Sleep cluster (wake = ascend, bed = descend) reads
-// as one cool family; deeper blue on the descend side to differentiate from
-// ascend's sky blue while keeping both in the cool/sleep palette.
+// Phase tinting on chart. 1.2.372: shifted from blue family to purple
+// family (wake = lighter purple, bed = deeper violet) to avoid clash with
+// the solid `--changed` blue divergence-chip convention. Wake + bed still
+// read as one cool/sleep palette but distinct from each other.
 const ASCEND_COLORS = {
-  shade: 'rgba(120,190,255,0.35)',
-  text: '#5cb3ff',
-  boundary: 'rgba(120,185,245,0.55)',
-  axis: '#5cb3ff',
-  hoverBg: '#7fc7ff'
+  shade: 'rgba(196, 158, 240, 0.35)',
+  text: '#C49EF0',
+  boundary: 'rgba(196, 158, 240, 0.55)',
+  axis: '#C49EF0',
+  hoverBg: '#D4B2FA'
 };
 const DESCEND_COLORS = {
-  shade: 'rgba(111,169,255,0.18)',
-  text: '#6fa9ff',
-  boundary: 'rgba(111,169,255,0.85)',
-  axis: 'rgba(111,169,255,0.75)',
-  hoverBg: '#6fa9ff'
+  shade: 'rgba(159, 134, 224, 0.18)',
+  text: '#9F86E0',
+  boundary: 'rgba(159, 134, 224, 0.85)',
+  axis: 'rgba(159, 134, 224, 0.75)',
+  hoverBg: '#9F86E0'
 };
 
 // Activity Presets
@@ -4125,7 +4129,7 @@ function renderChart() {
     shapes.push({ type: 'line', xref: 'x', yref: 'paper', layer: 'below',
       x0: tFor(wt), x1: tFor(wt), y0: 0, y1: 1,
       line: {
-        color: wakeActive ? 'rgba(92,179,255,0.55)' : 'rgba(92,179,255,0.30)',
+        color: wakeActive ? 'rgba(196, 158, 240, 0.55)' : 'rgba(196, 158, 240, 0.30)',
         width: wakeActive ? 1.5 : 1,
       } });
   }
@@ -4134,7 +4138,7 @@ function renderChart() {
     shapes.push({ type: 'line', xref: 'x', yref: 'paper', layer: 'below',
       x0: tFor(bt), x1: tFor(bt), y0: 0, y1: 1,
       line: {
-        color: bedActive ? 'rgba(111,169,255,0.55)' : 'rgba(111,169,255,0.30)',
+        color: bedActive ? 'rgba(159, 134, 224, 0.55)' : 'rgba(159, 134, 224, 0.30)',
         width: bedActive ? 1.5 : 1,
       } });
   }

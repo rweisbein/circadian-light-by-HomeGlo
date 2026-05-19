@@ -842,9 +842,14 @@
     .area-solar-label.visible,
     .area-phase-label.visible { display: inline-block; }
     .area-solar-label { color: rgba(255,225,140,0.92); }
-    .area-phase-label { color: rgba(140, 195, 255, 0.95); }
+    /* 1.2.372: wake/bed phase labels shifted from blue → purple to avoid
+       collision with `--changed` (#78AAE6) blue, which is now the solid
+       divergence-chip color on the home and area-details pages. Purple
+       reads as "night/twilight" alongside the yellow solar labels and
+       keeps semantic separation from "value changed" cues. */
+    .area-phase-label { color: rgba(196, 158, 240, 0.95); }
     .area-solar-label:hover { color: rgba(255,235,170,1); }
-    .area-phase-label:hover { color: rgba(170, 215, 255, 1); }
+    .area-phase-label:hover { color: rgba(212, 178, 250, 1); }
     /* Connector tick from the label up to the chart x-axis line. Height set
        per-frame by positionChartLabels(). */
     .area-solar-label::before,
@@ -860,7 +865,7 @@
       pointer-events: none;
     }
     .area-solar-label::before { background: rgba(255,225,140,0.55); }
-    .area-phase-label::before { background: rgba(140, 195, 255, 0.55); }
+    .area-phase-label::before { background: rgba(196, 158, 240, 0.55); }
     /* Circadian-off overlay */
     .circadian-off-overlay::after {
       content: '';
@@ -3104,8 +3109,11 @@
       // Once the trigger ends (release / pointerleave), the line collapses
       // back to just the connector tick.
       const vLineTop = 0.91;  // ≈ y=100 in data coords (range 0-110)
-      const wakeColor = 'rgba(92, 179, 255, 0.55)';
-      const bedColor = 'rgba(111, 169, 255, 0.55)';
+      // 1.2.372: shifted from blue → purple (see .area-phase-label CSS
+      // for rationale — avoids collision with the solid `--changed` blue
+      // now used for divergence chips).
+      const wakeColor = 'rgba(176, 140, 226, 0.55)';
+      const bedColor = 'rgba(176, 140, 226, 0.55)';
       const solarColor = 'rgba(255, 225, 140, 0.55)';
       const phaseTrack = document.querySelector('.slider-track[data-mode="phase"]');
       const phaseDragging = !!(phaseTrack && phaseTrack.classList.contains('dragging'));

@@ -1137,13 +1137,16 @@
     };
     const _CTRL_MOTION_SCOPES_KEY = 'ctrl_motion_scopes_open';
 
-    function _resetCtrlCardsIfStale(category, motionScopeCount) {
+    function _resetCtrlCardsIfStale(category, motionScopeCount, isPaused) {
       const tsRaw = localStorage.getItem(_CTRL_CARDS_TS_KEY);
       const ts = tsRaw ? parseInt(tsRaw, 10) : 0;
       const now = Date.now();
       if (ts && (now - ts) <= _CTRL_CARDS_TTL_MS) return;
       const isSwitch = category === 'switch';
-      localStorage.setItem(_CTRL_CARD_OPEN_KEYS['pause-section'], 'false');
+      // 1.2.372: if the control is currently paused, open Pause card by
+      // default so the user lands on the relevant context. Otherwise the
+      // baseline default (Pause closed) applies.
+      localStorage.setItem(_CTRL_CARD_OPEN_KEYS['pause-section'], isPaused ? 'true' : 'false');
       if (isSwitch) {
         localStorage.setItem(_CTRL_CARD_OPEN_KEYS['switch-config-section'], 'true');
         localStorage.setItem(_CTRL_CARD_OPEN_KEYS['magic-section'], 'false');
@@ -2247,9 +2250,13 @@
       if (Object.keys(categories).length === 0 && uncategorized.length === 0) return '';
 
       const selected = scope.trigger_entities || [];
-      // Empty trigger_entities = "any motion" (no filter). Treat as Any Motion selected.
+      // Empty trigger_entities = "any motion" (no filter). Treat as Any Motion selected
+      // for display, BUT distinguish from an explicit any-motion selection — new reaches
+      // (empty list) still need to allow clicking into Person / Pet / Vehicle etc.
+      // without first toggling off an implicit Any Motion.
       const isEmptyMeansAny = selected.length === 0;
-      const anyMotionSelected = isEmptyMeansAny || (categories.any_motion && _isCategorySelected(selected, categories.any_motion.own));
+      const anyMotionExplicit = !!(categories.any_motion && _isCategorySelected(selected, categories.any_motion.own));
+      const anyMotionSelected = isEmptyMeansAny || anyMotionExplicit;
 
       let html = '<div style="margin-top:8px;">';
 
@@ -2260,7 +2267,10 @@
         html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">';
         for (const cat of presenceCats) {
           const isSelected = cat.isAll ? anyMotionSelected : _isCategorySelected(selected, categories[cat.id].own);
-          const greyed = !cat.isAll && anyMotionSelected && !isSelected ? ' greyed' : '';
+          // Grey only when any_motion is EXPLICITLY selected (entities in the
+          // list) — empty-list implicit any_motion (new reaches) leaves
+          // specific categories clickable so the user can pick Person etc.
+          const greyed = !cat.isAll && anyMotionExplicit && !isSelected ? ' greyed' : '';
           const sel = isSelected ? ' selected' : '';
           html += `<span class="trigger-chip${sel}${greyed}" onclick="toggleTriggerCategory(${idx}, '${cat.id}')">${cat.label}</span>`;
         }
@@ -2919,7 +2929,7 @@
       // saved open/closed state to each visible card. Default-after-stale:
       //   Switch: Reach open, Settings + Buttons closed.
       //   Sensor: all motion-scope reach cards open, Settings closed.
-      _resetCtrlCardsIfStale(ctrl.category, editingMotionScopes.length);
+      _resetCtrlCardsIfStale(ctrl.category, editingMotionScopes.length, editingInactive);
       _applyCtrlCardOpenState('pause-section');
 
       if (isSensorType) {
