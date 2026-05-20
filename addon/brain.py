@@ -1276,20 +1276,19 @@ class CircadianLight:
         night_effect = max(0, base_kelvin - warm_target) if night_strength > 0 else 0
         night_shift = night_effect * night_strength
 
-        # Daylight color blend
+        # Daylight color blend. Always compute the time-of-day window fade
+        # weight (independent of sun intensity), then short-circuit the blend
+        # math when there's no sun. Prior to this, daylight_fade_weight was
+        # initialized to 1.0 and only overwritten inside the `outdoor_norm > 0`
+        # branch — exposing a stale 1.0 in the breakdown response whenever
+        # sun was zero (e.g. post-sunset). Operationally harmless (blend
+        # stayed 0), but the area-detail Math card surfaced the bad value
+        # as "100% window."
         blend = 0.0
-        daylight_fade_weight = 1.0
         day_shift = 0
         daylight_target = config.daylight_cct
-        if (
-            config.daylight_enabled
-            and config.daylight_cct > 0
-            and sun_times.outdoor_normalized > 0
-        ):
-            outdoor_norm = sun_times.outdoor_normalized
-            blend = min(1.0, outdoor_norm * config.color_sensitivity)
-            # Apply daylight window + fade
-            daylight_fade_weight = compute_daylight_fade_weight(
+        daylight_fade_weight = (
+            compute_daylight_fade_weight(
                 hour,
                 sunrise,
                 sunset,
@@ -1297,11 +1296,33 @@ class CircadianLight:
                 config.daylight_start,
                 config.daylight_end,
             )
+            if config.daylight_enabled and config.daylight_cct > 0
+            else 0.0
+        )
+        if (
+            config.daylight_enabled
+            and config.daylight_cct > 0
+            and sun_times.outdoor_normalized > 0
+        ):
+            outdoor_norm = sun_times.outdoor_normalized
+            blend = min(1.0, outdoor_norm * config.color_sensitivity)
             blend *= daylight_fade_weight
             if state.color_override and state.color_override < 0 and not slider_color:
                 daylight_target += state.color_override
             if daylight_target > base_kelvin:
                 day_shift = (daylight_target - base_kelvin) * blend
+
+        # sun_cooling_strength: runtime correction that pulls back the
+        # daylight cooling when the user has stepped current-hour brightness
+        # below the natural curve (via brightness_mid). 1.0 = no pullback.
+        # daylight_shift above is the FULL potential — the actual applied
+        # delta is day_shift × sun_cooling_strength. The area-detail Math
+        # card shows both as separate rows ("Sun cooling" + "Sun cooling
+        # pullback") so the chain sums to the real kelvin sent to bulbs.
+        try:
+            sun_cooling_strength = compute_sun_cooling_strength(state, config, hour)
+        except Exception:
+            sun_cooling_strength = 1.0
 
         return {
             "night_strength": night_strength,
@@ -1313,6 +1334,7 @@ class CircadianLight:
             "daylight_shift": round(day_shift),
             "daylight_cct": daylight_target,
             "outdoor_normalized": sun_times.outdoor_normalized,
+            "sun_cooling_strength": round(sun_cooling_strength, 3),
         }
 
     @staticmethod

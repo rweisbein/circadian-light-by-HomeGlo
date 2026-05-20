@@ -263,6 +263,193 @@ input, textarea, select, [contenteditable], .info-tooltip, .is-selectable {
 }
 
 /* =============================================================================
+   Control list item — used by /switches (renderControls) and area-details
+   (renderAreaControlsBody). Single grouped container with thin internal
+   dividers between rows (avoids the nested-box look). The two-row grid
+   keeps pulse / icon / name / right-side on row 1, and the multi-line
+   summary spans body+area columns on row 2 so reach/mode lines have full
+   width on mobile. See renderControlListItem in shared.js.
+   ============================================================================= */
+.ctrl-card-list {
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.ctrl-card-empty {
+  padding: 40px 16px;
+  text-align: center;
+  color: var(--muted2);
+  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+/* Column 1 widened to ~36px to fit a compact date stamp ("12:59p") under
+   the pulse dot. */
+.ctrl-card-row {
+  display: grid;
+  grid-template-columns: 36px 22px 1fr auto;
+  grid-template-areas:
+    "pulse icon title area"
+    "pulse .    summary summary";
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 2px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.ctrl-card-row + .ctrl-card-row { border-top: 1px solid var(--line); }
+.ctrl-card-row:hover { background: rgba(255, 255, 255, 0.05); }
+.ctrl-card-row:active { background: rgba(255,255,255,0.04); }
+.ctrl-card-row.is-stale { opacity: 0.55; }
+.ctrl-card-pulse {
+  grid-area: pulse;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  align-self: stretch;
+}
+.ctrl-card-icon { grid-area: icon; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 1rem; }
+.ctrl-card-title { grid-area: title; display: flex; align-items: center; gap: 6px; font-size: 0.95rem; font-weight: 600; color: var(--text); flex-wrap: wrap; min-width: 0; }
+.ctrl-card-title-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ctrl-card-sub { font-size: 0.78rem; color: var(--muted); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ctrl-card-sub .glozone { opacity: 0.7; }
+.ctrl-card-sub .area { color: var(--muted); }
+.ctrl-card-sub .meta-bullet { color: var(--muted2); }
+/* Right-side prominent field (per-view emphasis). */
+.ctrl-card-pri,
+.ctrl-card-pri-muted,
+.ctrl-card-pri-stack { grid-area: area; align-self: center; }
+.ctrl-card-pri { font-size: 0.95rem; font-weight: 600; color: var(--text); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ctrl-card-pri-muted { font-size: 0.85rem; color: var(--muted); font-weight: 500; }
+.ctrl-card-pri-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  text-align: right;
+  white-space: nowrap;
+}
+.ctrl-card-pri-warn { color: var(--warning); }
+.ctrl-card-pri-caution { color: #fbbf24; }
+.ctrl-card-pri-danger { color: var(--danger); }
+.ctrl-card-pri-success { color: var(--success); }
+
+/* PAUSE view: per-card right-side iOS-style slide toggle + duration label,
+   in row-reverse so dur appears LEFT of the switch. Toggle ON
+   (aria-pressed="true") = paused (warning amber); OFF = running. */
+.ctrl-pause-action {
+  grid-area: area;
+  align-self: center;
+  display: inline-flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  gap: 8px;
+}
+.ctrl-pause-switch {
+  -webkit-appearance: none;
+  appearance: none;
+  display: inline-block;
+  width: 32px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.18);
+  position: relative;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+.ctrl-pause-switch::before {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+}
+.ctrl-pause-switch[aria-pressed="true"] {
+  background: var(--warning, #e6a817);
+  border-color: rgba(0,0,0,0.25);
+}
+.ctrl-pause-switch[aria-pressed="true"]::before { transform: translateX(14px); }
+.ctrl-pause-dur {
+  font-size: 0.7rem;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 1px 4px;
+  border-radius: 4px;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+.ctrl-pause-dur:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+
+/* Flipped — card stayed in the snapshot list after the user took the
+   opposite action. Subtle dim + a left-edge marker so the row reads as
+   "still present, just changed" rather than "gone". */
+.ctrl-card-row.is-flipped {
+  opacity: 0.7;
+  box-shadow: inset 3px 0 0 0 rgba(255, 255, 255, 0.18);
+}
+
+/* Compact last-activity stamp — column 1, under the pulse dot. */
+.ctrl-card-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.ctrl-card-date-line {
+  font-size: 0.65rem;
+  color: var(--muted2);
+  font-weight: 500;
+  white-space: nowrap;
+  line-height: 1;
+}
+.ctrl-card-date-line.ctrl-card-date-sub {
+  font-size: 0.58rem;
+  opacity: 0.75;
+}
+
+/* Inline badges on the title row */
+.ctrl-badge {
+  font-size: 0.65rem;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 4px;
+  vertical-align: middle;
+}
+/* Paused + setup badges: outlined-pill treatment (no fill, just a thin
+   border + muted text). Stale stays red since it's an error state. */
+.ctrl-badge-paused {
+  color: var(--text);
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.28);
+}
+.ctrl-badge-setup {
+  color: var(--text);
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.28);
+}
+.ctrl-badge-stale { color: var(--danger); background: rgba(239,68,68,0.10); }
+.ctrl-card-magic { color: var(--accent); font-size: 0.85rem; }
+.ctrl-card-lowbatt { color: var(--danger); font-size: 0.7rem; }
+
+/* =============================================================================
    View segmented control — single mode-picker for a page (e.g., home page
    AREAS / 'ON' FIRST / REORDER, or future controls page ALL / SETUP / etc.).
    Collapsed-by-default: only the active pill shows. Clicking the pill drops

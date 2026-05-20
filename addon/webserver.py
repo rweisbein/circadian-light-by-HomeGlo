@@ -2,6 +2,7 @@
 """Web server for Home Assistant ingress - Light Designer interface."""
 
 import asyncio
+import dataclasses
 import json
 import logging
 import math
@@ -3118,8 +3119,14 @@ class LightDesignerServer:
                     if sun_bright_factor < 1.0:
                         brightness = max(1, int(round(brightness * sun_bright_factor)))
 
-                    # Base kelvin (before solar rules) and solar rule breakdown
+                    # Base kelvin (before solar rules) and solar rule breakdown.
+                    # When the area has a color_mid / brightness_mid override,
+                    # also compute baselines with the mid forced to None — the
+                    # area-detail Math card uses (with - without) to show the
+                    # "Temp adjust bed/wake" row in each chain.
                     base_kelvin = 4000
+                    base_kelvin_no_mid = None
+                    base_bright_no_mid = None
                     solar_breakdown = None
                     try:
                         base_kelvin = CircadianLight.calculate_color_at_hour(
@@ -3129,6 +3136,20 @@ class LightDesignerServer:
                             apply_solar_rules=False,
                             sun_times=sun_times,
                         )
+                        if area_state.color_mid is not None:
+                            base_kelvin_no_mid = CircadianLight.calculate_color_at_hour(
+                                calc_hour,
+                                area_config,
+                                dataclasses.replace(area_state, color_mid=None),
+                                apply_solar_rules=False,
+                                sun_times=sun_times,
+                            )
+                        if area_state.brightness_mid is not None:
+                            base_bright_no_mid = CircadianLight.calculate_brightness_at_hour(
+                                calc_hour,
+                                area_config,
+                                dataclasses.replace(area_state, brightness_mid=None),
+                            )
                         solar_breakdown = CircadianLight.get_solar_rule_breakdown(
                             base_kelvin, calc_hour, area_config, area_state, sun_times
                         )
@@ -3372,6 +3393,8 @@ class LightDesignerServer:
                             round(lux_floor, 1) if lux_floor is not None else None
                         ),
                         "base_kelvin": base_kelvin,
+                        "base_kelvin_no_mid": base_kelvin_no_mid,
+                        "base_bright_no_mid": base_bright_no_mid,
                         "solar_breakdown": solar_breakdown,
                         "weather_condition": lux_tracker._weather_condition,
                         "next_auto_on": self._compute_next_auto_time(

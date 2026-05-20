@@ -1323,6 +1323,179 @@ function controlSummaryDoesntReach(c, allAreas, areaOrder) {
 }
 
 // =============================================================================
+// Control list item — unified renderer used by /switches (renderControls)
+// and area-details (renderAreaControlsBody). Both pages used to ship their
+// own renderer and they drifted (compact date stamp, setup/stale/low-batt/
+// magic badges, paused time-remaining were missing from area-details).
+// One implementation now, with per-page wiring via opts.
+// =============================================================================
+
+// Category labels — short human form for the icon's title attribute.
+function formatCategory(category) {
+  const labels = {
+    'switch': 'Switch',
+    'motion_sensor': 'Motion',
+    'camera': 'Camera',
+    'contact_sensor': 'Contact',
+    'unknown': 'Unknown'
+  };
+  return labels[category] || category || '—';
+}
+
+// Category icons — single 18px set used by both control-list pages.
+// (Was previously duplicated at 18px in switches.html and 16px in area.html;
+// merged to 18px since both contexts can accommodate it and visual
+// consistency outweighs the 2px savings on the area-details card.)
+function categoryIcon(category) {
+  const size = 18;
+  const icons = {
+    'switch': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="8" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="13" r="1.5" fill="currentColor" stroke="none"/><line x1="10" y1="18" x2="14" y2="18"/></svg>`,
+    'motion_sensor': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 18 A8 8 0 0 1 8 6"/><path d="M5 20 A12 12 0 0 1 5 4"/><circle cx="14" cy="12" r="3" fill="currentColor" stroke="none" opacity="0.6"/><path d="M17 9 A5 5 0 0 1 17 15"/><path d="M20 7 A8 8 0 0 1 20 17"/></svg>`,
+    'contact_sensor': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="8" height="12" rx="2"/><rect x="14" y="6" width="8" height="12" rx="2"/><line x1="10" y1="11" x2="14" y2="11" stroke-dasharray="2 2"/><line x1="10" y1="13" x2="14" y2="13" stroke-dasharray="2 2"/></svg>`,
+    'camera': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`,
+  };
+  return icons[category] || '—';
+}
+
+// Render one control as a list-item row. Same DOM/CSS contract on both
+// pages — the only per-page variation is via `opts`.
+//
+// opts:
+//   view              'all' | 'paused' | 'batteries' | 'setup'   (default 'all')
+//   doesntReach       bool — switches the summary to the "doesn't reach" form
+//   allAreas          area registry array (for summary)
+//   filterAreaId      area_id to highlight in the summary, or null
+//   areaOrder         { area_id -> index } map for canonical sort
+//   pulseWindowHours  pulse-dot fade window (default 6)
+//   isPauseFlipped    fn(c) -> bool — paused-view "flipped from snapshot" marker
+//   pendingPauseDurations  per-control next-pause duration overrides ({ id: value })
+//   makeClickAttr     fn(c) -> string — onclick attribute (e.g. "onCardRowClick(event, 'id')"
+//                     or "window.location.href='/control/id?from=area&id=x'")
+function renderControlListItem(c, opts) {
+  opts = opts || {};
+  const view = opts.view || 'all';
+  const doesntReach = !!opts.doesntReach;
+  const allAreas = opts.allAreas || [];
+  const filterAreaId = opts.filterAreaId || null;
+  const areaOrder = opts.areaOrder || {};
+  const pulseWindowHours = opts.pulseWindowHours || 6;
+  const isPauseFlipped = typeof opts.isPauseFlipped === 'function' ? opts.isPauseFlipped : () => false;
+  const pendingPauseDurations = opts.pendingPauseDurations || {};
+  const makeClickAttr = typeof opts.makeClickAttr === 'function' ? opts.makeClickAttr : () => '';
+
+  const lastTouchedSec = (c.last_action && c.last_action.timestamp)
+    ? new Date(c.last_action.timestamp).getTime() / 1000
+    : null;
+  const pulseHtml = buildPulseDot(lastTouchedSec, pulseWindowHours);
+  const icon = categoryIcon(c.category);
+
+  // Title-row badges: paused (+ time left), setup, stale, low-battery, magic icon.
+  const badges = [];
+  if (c.inactive) {
+    let pausedLbl = 'paused';
+    const iu = c.inactive_until;
+    if (iu && iu !== 'forever') {
+      const remMs = new Date(iu) - Date.now();
+      if (remMs > 0) pausedLbl = 'paused ' + formatDurationRemaining(remMs / 60000, '');
+    }
+    badges.push('<span class="ctrl-badge ctrl-badge-paused">' + pausedLbl + '</span>');
+  }
+  else if (c.status === 'not_configured') badges.push('<span class="ctrl-badge ctrl-badge-setup">setup</span>');
+  else if (c.stale) badges.push('<span class="ctrl-badge ctrl-badge-stale">stale</span>');
+  if (c.battery && c.battery.value != null && c.battery.value < 10) {
+    badges.push('<span class="ctrl-card-lowbatt" title="Low battery">&#9679;</span>');
+  }
+  if (c.magic_buttons && Object.keys(c.magic_buttons).length > 0) {
+    badges.push('<span class="ctrl-card-magic" title="Has magic button assignments">&#10038;</span>');
+  }
+
+  // View-specific right-side primary field.
+  let primaryHtml = '';
+  if (view === 'batteries') {
+    const batt = c.battery && c.battery.value;
+    if (batt != null) {
+      const cls = batt < 10 ? 'ctrl-card-pri ctrl-card-pri-danger'
+        : batt < 25 ? 'ctrl-card-pri ctrl-card-pri-warn'
+        : batt < 50 ? 'ctrl-card-pri ctrl-card-pri-caution'
+        : 'ctrl-card-pri';
+      primaryHtml = '<span class="' + cls + '">' + batt + '%</span>';
+    } else {
+      primaryHtml = '<span class="ctrl-card-pri-muted">&mdash;</span>';
+    }
+  } else if (view === 'paused') {
+    // Slide toggle + clickable duration label. Routed via the page-local
+    // handlePauseToggleClick / handlePauseDurClick handlers (only wired
+    // up on /switches today; area-details doesn't enter paused view).
+    const isPaused = !!c.inactive;
+    const toggleTitle = isPaused ? 'Resume' : 'Pause';
+    const safeId = c.id.replace(/'/g, "\\'");
+    let durLabel;
+    if (isPaused) {
+      if (!c.inactive_until || c.inactive_until === 'forever') {
+        durLabel = 'forever';
+      } else {
+        const remMs = new Date(c.inactive_until) - Date.now();
+        durLabel = remMs > 0 ? formatDurationRemaining(remMs / 60000, '') : 'expired';
+      }
+    } else {
+      const perCard = pendingPauseDurations[c.id];
+      const val = perCard || getDefaultPauseDurationValue();
+      const opt = getDurationOptions().find(o => o.value === val);
+      durLabel = opt ? opt.label.replace(' ', '') : '4hr';
+    }
+    primaryHtml = '<div class="ctrl-pause-action" data-pause-card="' + safeId + '">'
+      + '<button class="ctrl-pause-switch" data-pause-action="toggle" role="switch" aria-pressed="'
+      + (isPaused ? 'true' : 'false') + '" title="' + toggleTitle + '"></button>'
+      + '<span class="ctrl-pause-dur" data-pause-action="dur" role="button" tabindex="0">' + durLabel + '</span>'
+      + '</div>';
+  } else {
+    // ALL & SETUP: just the area name (or muted "Unassigned" if none).
+    const areaNameStr = c.area_name || 'Unassigned';
+    const areaCls = c.area_name ? 'ctrl-card-pri' : 'ctrl-card-pri-muted';
+    primaryHtml = '<span class="' + areaCls + '">' + areaNameStr + '</span>';
+  }
+
+  let rowClass = c.stale ? 'ctrl-card-row is-stale' : 'ctrl-card-row';
+  if (view === 'paused' && isPauseFlipped(c)) rowClass += ' is-flipped';
+
+  // "What this controls" summary.
+  const summaryHtml = doesntReach
+    ? controlSummaryDoesntReach(c, allAreas, areaOrder)
+    : controlSummary(c, {
+        allAreas: allAreas,
+        filterAreaId: filterAreaId,
+        deviceAreaId: c.area_id,
+        areaOrder: areaOrder,
+      });
+  const summaryLine = summaryHtml
+    ? '<div class="ctrl-card-summary">' + summaryHtml + '</div>'
+    : '';
+
+  // Compact "when last used" stamp — sits BELOW the pulse dot in column 1.
+  const dateInnerHtml = c.last_action && c.last_action.timestamp
+    ? formatCompactDateHtml(c.last_action.timestamp)
+    : '';
+  const dateHtml = dateInnerHtml
+    ? '<span class="ctrl-card-date" title="Last activity">' + dateInnerHtml + '</span>'
+    : '';
+
+  const clickAttr = makeClickAttr(c);
+  const onclickPart = clickAttr ? ' onclick="' + clickAttr + '"' : '';
+
+  return ''
+    + '<div class="' + rowClass + '"' + onclickPart + '>'
+    +   '<div class="ctrl-card-pulse">' + pulseHtml + dateHtml + '</div>'
+    +   '<div class="ctrl-card-icon" title="' + formatCategory(c.category) + '">' + icon + '</div>'
+    +   '<div class="ctrl-card-title">'
+    +     '<span class="ctrl-card-title-text">' + c.name + '</span>'
+    +     badges.join(' ')
+    +   '</div>'
+    +   primaryHtml
+    +   summaryLine
+    + '</div>';
+}
+
+// =============================================================================
 // View segments bar — shared mode-picker component used on the home page,
 // controls list, and cheatsheet. Each consuming page mounts it via this
 // function with its own views array + onSelect callback. The component

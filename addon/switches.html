@@ -635,221 +635,10 @@
     .ctrl-toolbar select.ctrl-tb-select.is-active { border-color: var(--accent); }
     .ctrl-toolbar .ctrl-result-count { color: var(--muted2); font-size: 0.78rem; margin-left: auto; }
 
-    /* Card list — single grouped container with thin internal dividers
-       between rows. Avoids the nested-box look that came from per-card
-       rounded borders + gap. */
-    .ctrl-card-list {
-      display: flex;
-      flex-direction: column;
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      overflow: hidden;
-      margin-bottom: 12px;
-    }
-    .ctrl-card-empty {
-      padding: 40px 16px;
-      text-align: center;
-      color: var(--muted2);
-      font-size: 0.9rem;
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      margin-bottom: 12px;
-    }
-
-    /* Single row inside the grouped card */
-    /* Two-row grid: top row holds pulse / icon / name / area-name aligned
-       horizontally; bottom row's summary lines span the body+area columns
-       so reach/mode lines have full row width on mobile (instead of being
-       squeezed by the right-side area name column). */
-    .ctrl-card-row {
-      display: grid;
-      /* Column 1 widened to ~36px to fit a compact date stamp ("12:59p")
-         under the pulse dot. Other columns unchanged. */
-      grid-template-columns: 36px 22px 1fr auto;
-      grid-template-areas:
-        "pulse icon title area"
-        "pulse .    summary summary";
-      align-items: center;
-      column-gap: 10px;
-      row-gap: 2px;
-      padding: 12px 14px;
-      cursor: pointer;
-      transition: background 0.12s;
-    }
-    .ctrl-card-row + .ctrl-card-row {
-      border-top: 1px solid var(--line);
-    }
-    .ctrl-card-row:hover { background: rgba(255, 255, 255, 0.05); }
-    .ctrl-card-row.is-stale { opacity: 0.55; }
-    .ctrl-card-pulse {
-      grid-area: pulse;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 3px;
-      /* Spans both grid rows so dot + date stack vertically and the
-         title row stays at single-line height. */
-      align-self: stretch;
-    }
-    .ctrl-card-icon { grid-area: icon; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 1rem; }
-    .ctrl-card-title { grid-area: title; display: flex; align-items: center; gap: 6px; font-size: 0.95rem; font-weight: 600; color: var(--text); flex-wrap: wrap; min-width: 0; }
-    .ctrl-card-title-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .ctrl-card-sub { font-size: 0.78rem; color: var(--muted); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-    .ctrl-card-sub .glozone { opacity: 0.7; }
-    .ctrl-card-sub .area { color: var(--muted); }
-    .ctrl-card-sub .meta-bullet { color: var(--muted2); }
-    /* Right-side prominent field (per-view emphasis). Top-aligned with
-       the title row so multi-line summaries underneath can span the
-       full body+area width (mobile: more horizontal room for the area
-       lists in the summary). For ALL view, the primary is a 2-line
-       stack: bold relative-time on top, muted action verb beneath. */
-    .ctrl-card-pri,
-    .ctrl-card-pri-muted,
-    .ctrl-card-pri-stack { grid-area: area; align-self: center; }
-    .ctrl-card-pri { font-size: 0.95rem; font-weight: 600; color: var(--text); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .ctrl-card-pri-muted { font-size: 0.85rem; color: var(--muted); font-weight: 500; }
-    .ctrl-card-pri-stack {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 1px;
-      text-align: right;
-      white-space: nowrap;
-    }
-    .ctrl-card-pri-warn { color: var(--warning); }
-    .ctrl-card-pri-caution { color: #fbbf24; } /* yellow — between warn (orange) and neutral, used for the 25-50% battery band */
-    .ctrl-card-pri-danger { color: var(--danger); }
-    .ctrl-card-pri-success { color: var(--success); }
-
-    /* PAUSE mode per-card right side: slide-style toggle + duration label
-       HORIZONTAL so the cluster fits in one line at the same height as
-       the title — no taller-than-needed grid row. Order in DOM: switch
-       first, dur second; row-reverse so dur appears LEFT of the switch
-       (switch sits at the right edge, matching the convention used by
-       other right-anchored row actions). */
-    .ctrl-pause-action {
-      grid-area: area;
-      align-self: center;
-      display: inline-flex;
-      flex-direction: row-reverse;
-      align-items: center;
-      gap: 8px;
-    }
-    /* iOS-style slide switch. ON (aria-pressed="true") = paused; the knob
-       slides right and the track lights up (warning amber, matches the
-       "paused" badge). OFF = control is running. */
-    .ctrl-pause-switch {
-      -webkit-appearance: none;
-      appearance: none;
-      display: inline-block;
-      width: 32px;
-      height: 18px;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.10);
-      border: 1px solid rgba(255,255,255,0.18);
-      position: relative;
-      cursor: pointer;
-      padding: 0;
-      transition: background 0.15s, border-color 0.15s;
-      flex-shrink: 0;
-    }
-    .ctrl-pause-switch::before {
-      content: '';
-      position: absolute;
-      top: 1px;
-      left: 1px;
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      background: #fff;
-      transition: transform 0.15s;
-    }
-    .ctrl-pause-switch[aria-pressed="true"] {
-      background: var(--warning, #e6a817);
-      border-color: rgba(0,0,0,0.25);
-    }
-    .ctrl-pause-switch[aria-pressed="true"]::before {
-      transform: translateX(14px);
-    }
-    .ctrl-pause-dur {
-      font-size: 0.7rem;
-      color: var(--muted);
-      cursor: pointer;
-      padding: 1px 4px;
-      border-radius: 4px;
-      white-space: nowrap;
-      line-height: 1.2;
-    }
-    .ctrl-pause-dur:hover { background: rgba(255,255,255,0.06); color: var(--text); }
-
-    /* Flipped — card stayed in the snapshot list after the user took the
-       opposite action. Subtle dim (not so aggressive that it looks
-       removed) + a "stayed here, you flipped it" left-edge marker so the
-       row reads as "still present, just changed" rather than "gone". */
-    .ctrl-card-row.is-flipped { opacity: 0.7; }
-    .ctrl-card-row.is-flipped {
-      box-shadow: inset 3px 0 0 0 rgba(255, 255, 255, 0.18);
-    }
-
-    /* Compact last-activity stamp — lives in column 1 under the pulse
-       dot. Multi-line supported (1-9d range gets "3d" + time). Tabular
-       nums + small font fit the narrow column. Muted so the pulse dot
-       remains the primary signal. */
-    .ctrl-card-date {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 1px;
-      font-variant-numeric: tabular-nums;
-      line-height: 1;
-    }
-    .ctrl-card-date-line {
-      font-size: 0.65rem;
-      color: var(--muted2);
-      font-weight: 500;
-      white-space: nowrap;
-      line-height: 1;
-    }
-    /* Time line in the 1-9d two-line variant — slightly smaller / dimmer
-       so the day-count reads as primary, time as secondary. */
-    .ctrl-card-date-line.ctrl-card-date-sub {
-      font-size: 0.58rem;
-      opacity: 0.75;
-    }
-
-    /* Inline badges on the title row */
-    .ctrl-badge {
-      font-size: 0.65rem;
-      font-weight: 500;
-      padding: 1px 6px;
-      border-radius: 4px;
-      vertical-align: middle;
-    }
-    /* Paused + setup badges: outlined-pill treatment (no fill, just a
-       thin border + muted text). Color-coded variants retired here —
-       orange/yellow felt too aggressive and could be confused with each
-       other or the battery warn-band. The pillbox shape carries the
-       "this is a status tag" semantic without needing color. Stale stays
-       red since it's an actual error state. */
-    .ctrl-badge-paused {
-      color: var(--text);
-      background: transparent;
-      border: 1px solid rgba(255,255,255,0.28);
-    }
-    .ctrl-badge-setup {
-      color: var(--text);
-      background: transparent;
-      border: 1px solid rgba(255,255,255,0.28);
-    }
-    .ctrl-badge-stale { color: var(--danger); background: rgba(239,68,68,0.10); }
-    .ctrl-card-magic { color: var(--accent); font-size: 0.85rem; }
-    .ctrl-card-lowbatt { color: var(--danger); font-size: 0.7rem; }
-
-    /* .ctrl-card-summary now lives in shared.css (used by the
-       area-details Controls card too). */
+    /* Control-list-item styles (`.ctrl-card-list`, `.ctrl-card-row`,
+       `.ctrl-card-pri*`, `.ctrl-pause-*`, `.ctrl-badge-*`, `.ctrl-card-date`,
+       `.ctrl-card-summary`, etc.) live in shared.css — used by both
+       /switches and the area-details Controls card. */
   </style>
 </head>
 <body>
@@ -1843,138 +1632,22 @@
     // per view (battery % in BATTERIES, pause-until in PAUSED, etc.); the
     // body (name / area / glozone) is consistent across views. Click target
     // is the whole card.
+    // Thin local wrapper around the shared renderControlListItem (shared.js).
+    // Wires up page-local context (allAreas, pulse window, area filter,
+    // pause-snapshot flipped state, in-page row click handler).
     function renderControlCard(c, view, opts) {
       opts = opts || {};
-      const lastTouchedSec = (c.last_action && c.last_action.timestamp)
-        ? new Date(c.last_action.timestamp).getTime() / 1000
-        : null;
-      const pulseHtml = buildPulseDot(lastTouchedSec, pulseWindowHours);
-      const icon = categoryIcon(c.category);
-      // (Area + glozone sub-line was removed; the summary's `→ ...` line
-      // covers "what this controls". Location lives on control detail.)
-
-      // Title-row badges: paused (+ time left), setup, stale, low-battery,
-      // magic icon. Pause badge inlines the time remaining ("paused 3h")
-      // so users don't need to tap into detail to see when it'll resume.
-      const badges = [];
-      if (c.inactive) {
-        let pausedLbl = 'paused';
-        const iu = c.inactive_until;
-        if (iu && iu !== 'forever') {
-          const remMs = new Date(iu) - Date.now();
-          if (remMs > 0) pausedLbl = 'paused ' + formatDurationRemaining(remMs / 60000, '');
-        }
-        badges.push('<span class="ctrl-badge ctrl-badge-paused">' + pausedLbl + '</span>');
-      }
-      else if (c.status === 'not_configured') badges.push('<span class="ctrl-badge ctrl-badge-setup">setup</span>');
-      else if (c.stale) badges.push('<span class="ctrl-badge ctrl-badge-stale">stale</span>');
-      if (c.battery && c.battery.value != null && c.battery.value < 10) {
-        badges.push('<span class="ctrl-card-lowbatt" title="Low battery">&#9679;</span>');
-      }
-      if (c.magic_buttons && Object.keys(c.magic_buttons).length > 0) {
-        badges.push('<span class="ctrl-card-magic" title="Has magic button assignments">&#10038;</span>');
-      }
-
-      // View-specific primary (right-side) field. Cards in different views
-      // surface different info: BATTERIES leads with %, PAUSED with time
-      // remaining, etc. ALL falls back to last-action timestamp.
-      let primaryHtml = '';
-      if (view === 'batteries') {
-        const batt = c.battery && c.battery.value;
-        if (batt != null) {
-          // 4-band: red <10, orange 10-25, yellow 25-50, neutral 50+.
-          // Color is supplementary signal — the actual % carries the
-          // real information, so yellow being close to orange is OK here.
-          const cls = batt < 10 ? 'ctrl-card-pri ctrl-card-pri-danger'
-            : batt < 25 ? 'ctrl-card-pri ctrl-card-pri-warn'
-            : batt < 50 ? 'ctrl-card-pri ctrl-card-pri-caution'
-            : 'ctrl-card-pri';
-          primaryHtml = '<span class="' + cls + '">' + batt + '%</span>';
-        } else {
-          primaryHtml = '<span class="ctrl-card-pri-muted">&mdash;</span>';
-        }
-      } else if (view === 'paused') {
-        // PAUSE mode card right-side: slide-style toggle + duration label.
-        //  - Toggle (iOS-style switch) flips pause state for THIS control
-        //    via the lightweight /api/controls/{id}/pause endpoint. ON
-        //    (knob right, lit) = paused; OFF = running.
-        //  - Duration label is clickable: when paused, opens picker to
-        //    extend/shorten; when active, opens picker to set the
-        //    next-pause duration (per-card override of the Lab default).
-        const isPaused = !!c.inactive;
-        const toggleTitle = isPaused ? 'Resume' : 'Pause';
-        const safeId = c.id.replace(/'/g, "\\'");
-        let durLabel;
-        if (isPaused) {
-          if (!c.inactive_until || c.inactive_until === 'forever') {
-            durLabel = 'forever';
-          } else {
-            const remMs = new Date(c.inactive_until) - Date.now();
-            durLabel = remMs > 0 ? formatDurationRemaining(remMs / 60000, '') : 'expired';
-          }
-        } else {
-          const perCard = window._pendingPauseDurations && window._pendingPauseDurations[c.id];
-          const val = perCard || getDefaultPauseDurationValue();
-          const opt = getDurationOptions().find(o => o.value === val);
-          durLabel = opt ? opt.label.replace(' ', '') : '4hr';
-        }
-        primaryHtml = '<div class="ctrl-pause-action" data-pause-card="' + safeId + '">'
-          + '<button class="ctrl-pause-switch" data-pause-action="toggle" role="switch" aria-pressed="'
-          + (isPaused ? 'true' : 'false') + '" title="' + toggleTitle + '"></button>'
-          + '<span class="ctrl-pause-dur" data-pause-action="dur" role="button" tabindex="0">' + durLabel + '</span>'
-          + '</div>';
-      } else {
-        // ALL & SETUP: just the area name on the right. Glozone removed —
-        // most homes have one or a few zones; repeating it on every card
-        // is busy without adding info. Battery / Paused views keep
-        // their task-specific primary field.
-        const areaNameStr = c.area_name || 'Unassigned';
-        const areaCls = c.area_name ? 'ctrl-card-pri' : 'ctrl-card-pri-muted';
-        primaryHtml = '<span class="' + areaCls + '">' + areaNameStr + '</span>';
-      }
-
-      let rowClass = c.stale ? 'ctrl-card-row is-stale' : 'ctrl-card-row';
-      // PAUSE-mode flipped state: card was in the snapshot's filter when
-      // the user entered the view, but they've since taken the opposite
-      // action. Stays in the list (sticky) but reads as "done" via dim
-      // + strikethrough.
-      if (view === 'paused' && _pauseFlipped(c)) rowClass += ' is-flipped';
-      const safeId = c.id.replace(/'/g, "\\'");
-      // "What this controls" summary — the most useful sub-line per the
-      // user's framing. Replaces the old area+zone location line. The
-      // Multi-line summary: each scope/mode group renders as its own
-      // line ("reach 1: ...", "on/off: ..."). The summary helpers in
-      // shared.js produce the inner divs; we just provide the wrapper.
-      const summaryHtml = opts.doesntReach
-        ? controlSummaryDoesntReach(c, allAreas, customAreaOrder)
-        : pageControlSummary(c);
-      const summaryLine = summaryHtml
-        ? '<div class="ctrl-card-summary">' + summaryHtml + '</div>'
-        : '';
-      // Grid layout — title (name+badges) and primary (right-side area)
-      // sit on row 1; summary lines span the lower row at full body+area
-      // width. Summary is appended as a top-level grid child so it can
-      // address grid-area "summary" directly.
-      // Compact "when last used" stamp — sits BELOW the pulse dot in
-      // column 1. Today: H:MMa/p. 1-9 days ago: "Xd" + H:MMa/p on a
-      // second line. 10-99d: "Xd". 100+d: M/D.
-      const dateInnerHtml = c.last_action && c.last_action.timestamp
-        ? formatCompactDateHtml(c.last_action.timestamp)
-        : '';
-      const dateHtml = dateInnerHtml
-        ? '<span class="ctrl-card-date" title="Last activity">' + dateInnerHtml + '</span>'
-        : '';
-      return ''
-        + '<div class="' + rowClass + '" onclick="onCardRowClick(event, \'' + safeId + '\')">'
-        +   '<div class="ctrl-card-pulse">' + pulseHtml + dateHtml + '</div>'
-        +   '<div class="ctrl-card-icon" title="' + formatCategory(c.category) + '">' + icon + '</div>'
-        +   '<div class="ctrl-card-title">'
-        +     '<span class="ctrl-card-title-text">' + c.name + '</span>'
-        +     badges.join(' ')
-        +   '</div>'
-        +   primaryHtml
-        +   summaryLine
-        + '</div>';
+      return renderControlListItem(c, {
+        view: view,
+        doesntReach: !!opts.doesntReach,
+        allAreas: allAreas,
+        filterAreaId: getFilterAreaId(),
+        areaOrder: customAreaOrder,
+        pulseWindowHours: pulseWindowHours,
+        isPauseFlipped: _pauseFlipped,
+        pendingPauseDurations: window._pendingPauseDurations || {},
+        makeClickAttr: (ctrl) => 'onCardRowClick(event, \'' + ctrl.id.replace(/'/g, "\\'") + '\')',
+      });
     }
 
     // PAUSE mode helpers — per-card toggle, duration label clicks,
@@ -2123,21 +1796,14 @@
     }
 
     // controlSummary + summary helpers + bucketControlsForArea live in
-    // shared.js (used by both /switches and the area-details Controls
-    // card). Page-local wrapper to thread allAreas + the active filter.
+    // shared.js. The card renderer (renderControlListItem) wires up
+    // controlSummary itself; this page just resolves the active filter
+    // into an area_id to pass through the wrapper.
     function getFilterAreaId() {
       if (areaFilter === 'all' || areaFilter === 'unassigned') return null;
       if (areaFilter.startsWith('zone:')) return null;  // zone filter has no single highlight target
       const a = (allAreas || []).find(x => x.name === areaFilter);
       return a ? a.area_id : null;
-    }
-    function pageControlSummary(c) {
-      return controlSummary(c, {
-        allAreas: allAreas,
-        filterAreaId: getFilterAreaId(),
-        deviceAreaId: c.area_id,
-        areaOrder: customAreaOrder,
-      });
     }
 
     function getStatusSubtitle(ctrl) {
@@ -2161,27 +1827,8 @@
       return null;
     }
 
-    function formatCategory(category) {
-      const labels = {
-        'switch': 'Switch',
-        'motion_sensor': 'Motion',
-        'camera': 'Camera',
-        'contact_sensor': 'Contact',
-        'unknown': 'Unknown'
-      };
-      return labels[category] || category || '—';
-    }
-
-    function categoryIcon(category) {
-      const size = 18;
-      const icons = {
-        'switch': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="8" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="13" r="1.5" fill="currentColor" stroke="none"/><line x1="10" y1="18" x2="14" y2="18"/></svg>`,
-        'motion_sensor': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 18 A8 8 0 0 1 8 6"/><path d="M5 20 A12 12 0 0 1 5 4"/><circle cx="14" cy="12" r="3" fill="currentColor" stroke="none" opacity="0.6"/><path d="M17 9 A5 5 0 0 1 17 15"/><path d="M20 7 A8 8 0 0 1 20 17"/></svg>`,
-        'contact_sensor': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="8" height="12" rx="2"/><rect x="14" y="6" width="8" height="12" rx="2"/><line x1="10" y1="11" x2="14" y2="11" stroke-dasharray="2 2"/><line x1="10" y1="13" x2="14" y2="13" stroke-dasharray="2 2"/></svg>`,
-        'camera': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`,
-      };
-      return icons[category] || '—';
-    }
+    // (formatCategory + categoryIcon moved to shared.js — used by both
+    // /switches and the area-details controls list.)
 
     function formatController(integration) {
       const labels = {

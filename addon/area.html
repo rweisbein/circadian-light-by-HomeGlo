@@ -1285,41 +1285,10 @@
        controls; 6000px matches the auto-sched-card--auto pattern. */
     .tune-controls-card.is-open .tune-brightness-body { max-height: 6000px; opacity: 1; padding-bottom: 8px; }
 
-    /* Controls list inside Controls card */
-    /* Two-row grid: top row holds pulse / icon / name / area aligned;
-       bottom row's summary spans body+area columns so reach/mode lines
-       have full width on mobile. */
-    .ctrl-list-row {
-      display: grid;
-      grid-template-columns: 12px auto 1fr auto;
-      grid-template-areas:
-        "pulse icon name area"
-        ".     .    summary summary";
-      align-items: center;
-      column-gap: 10px;
-      row-gap: 2px;
-      padding: 9px 14px;
-      border-bottom: 1px solid var(--line);
-      cursor: pointer;
-      transition: background 0.1s;
-    }
-    .ctrl-list-row:last-child { border-bottom: none; }
-    .ctrl-list-row:active { background: rgba(255,255,255,0.04); }
-    .ctrl-fresh-dot-slot { grid-area: pulse; }
-    .ctrl-list-icon { grid-area: icon; flex-shrink: 0; color: var(--muted); display: flex; align-items: center; }
-    .ctrl-list-info { grid-area: name; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-    .ctrl-list-name { font-size: var(--font-value); font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .ctrl-list-name .ctrl-paused-badge { font-size: var(--font-caps); font-weight: 400; color: #f90; background: rgba(255,153,0,0.12); padding: 1px 5px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
-    .ctrl-list-area { grid-area: area; flex-shrink: 0; font-size: var(--font-body); color: var(--muted); text-align: right; white-space: nowrap; align-self: center; }
-    .ctrl-list-divider { border-top: 1px solid var(--line); margin: 0; }
-    /* Recently active pinned strip */
-    /* In/Reaches headers now use the shared `.group-divider` from
-       shared.css (heavier rule + count parenthetical). */
-    /* Recency dot — fixed-width slot on the LEFT of every row so all names
-       align regardless of whether a row's dot is currently active.
-       Bright green when just-triggered, fades down to dim green over 1h,
-       disappears after that. */
-    .ctrl-fresh-dot-slot { display: inline-flex; align-items: center; justify-content: center; width: 12px; height: 12px; flex-shrink: 0; }
+    /* Controls list inside Controls card — row layout (`.ctrl-card-row`),
+       icon column, badges, summary, paused/setup/stale pills, etc., all
+       live in shared.css. Renderer is `renderControlListItem` in shared.js
+       (same one /switches uses). */
     .tune-brightness-val { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; font-size: var(--font-card-title); font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; transition: opacity 0.25s; }
     .tune-brightness-card.is-open .tune-brightness-val { opacity: 0; }
     .tune-brightness-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; padding-bottom: 0; }
@@ -1478,7 +1447,19 @@
     .tune-wf-total .tune-wf-op,
     .tune-wf-total .tune-wf-label { color: var(--text); font-weight: 600; }
     .tune-wf-total .tune-wf-val { font-size: var(--font-display); font-weight: 700; }
-    .tune-wf-divider { border-top: 1px solid var(--line); margin: 6px 14px 4px; }
+    /* Muted math-hint suffix on Math card row labels (e.g. "× 0.99",
+       "1% toward 5500K"). Sits inline after the label name, dimmer +
+       smaller so the row's primary name still leads visually. */
+    .tune-wf-math { color: var(--muted2); font-size: 0.85em; margin-left: 6px; font-variant-numeric: tabular-nums; }
+    /* Subtotal divider lives inside the total row's value cell — a thin
+       line ONLY under the number column, not spanning the row. Keeps the
+       "this is summing up" signal local to where it matters and stops it
+       from competing visually with the brightness↔color section break. */
+    .tune-wf-total .tune-wf-val { border-top: 1px solid var(--line); padding-top: 4px; }
+    /* Single deliberate horizontal break between the Brightness and Color
+       sub-sections inside the Math card. Section headers themselves use
+       the shared `.tune-section-header` style (defined above). */
+    .tune-wf + .tune-wf { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 2px; }
     /* Slider sits under its row, indented to align with the label column */
     .tune-wf-slider { padding: 2px 22px 6px 52px; max-width: 70%; }
     .tune-wf-slider input[type=range] { width: 100%; }
@@ -4845,6 +4826,8 @@
                 tuneState.conditionMultiplier = ls.condition_multiplier ?? null;
                 tuneState.angleFactor = ls.angle_factor ?? null;
                 tuneState.solarBreakdown = ls.solar_breakdown ?? null;
+                tuneState.baseKelvinNoMid = ls.base_kelvin_no_mid ?? null;
+                tuneState.baseBrightNoMid = ls.base_bright_no_mid ?? null;
                 tuneState.boosted = _as.boosted || false;
                 tuneState.boostBrightness = _as.boost_brightness || 0;
                 tuneState.briOverride = _as.effective_bri_override || 0;
@@ -6563,30 +6546,27 @@
       ts._lastAreaBri = areaBri;
       ts._lastCtFactor = ctFactor;
 
-      // Raw (pre-clamp) brightness — same additive math but without the
-      // [0, 100] clamps that running applies along the way. Surfaces the
-      // headroom area_factor > 1.0 can produce; the Math card uses this to
-      // show the "Raw → ↓ Bulb max → Area Brightness" step when clamping
-      // actually changes the output.
-      const rawBri = Math.round(
-        baseBriPct * sunBrightFactor * ts.areaFactor + briOverride + boostAmount
-      );
-      const elDetRawRow = document.getElementById('tune-det-raw-row');
-      const elDetRawVal = document.getElementById('tune-det-raw-val');
+      // Cap row — single additive-style row showing the clamp delta when
+      // the pipeline value falls outside [1%, 100%]. Uses areaBri (the
+      // running pipeline total INCLUDING dim + fade) so the chain stays
+      // self-consistent: Curve + PhaseShift + all factors + Cap = the
+      // final clamped Area Brightness displayed below.
       const elDetCapRow = document.getElementById('tune-det-cap-row');
       const elDetCapLabel = document.getElementById('tune-det-cap-label');
       const elDetCapVal = document.getElementById('tune-det-cap-val');
-      const capping = (rawBri > 100) || (rawBri < 1);
-      if (elDetRawRow) elDetRawRow.style.display = capping ? '' : 'none';
-      if (elDetCapRow) elDetCapRow.style.display = capping ? '' : 'none';
-      if (elDetRawVal) elDetRawVal.textContent = rawBri + '%';
-      if (capping && elDetCapLabel && elDetCapVal) {
-        if (rawBri > 100) {
-          elDetCapLabel.textContent = 'Bulb max';
-          elDetCapVal.textContent = '100%';
+      const clampedAreaBri = Math.max(1, Math.min(100, areaBri));
+      const capDelta = clampedAreaBri - areaBri;
+      if (elDetCapRow && elDetCapLabel && elDetCapVal) {
+        if (areaBri > 100) {
+          elDetCapRow.style.display = '';
+          elDetCapLabel.textContent = 'Max cap at 100%';
+          elDetCapVal.textContent = formatImpact(capDelta) + '%';
+        } else if (areaBri < 1) {
+          elDetCapRow.style.display = '';
+          elDetCapLabel.textContent = 'Min cap at 1%';
+          elDetCapVal.textContent = formatImpact(capDelta) + '%';
         } else {
-          elDetCapLabel.textContent = 'Bulb min';
-          elDetCapVal.textContent = '1%';
+          elDetCapRow.style.display = 'none';
         }
       }
 
@@ -6714,8 +6694,72 @@
       }
 
       // -- Brightness card: cascade values --
+      // Brightness Curve row + Phase-shift row.
+      //   - Curve shows the UNSHIFTED baseline (base_bright_no_mid when set,
+      //     otherwise the curve value itself — they're equal when no mid).
+      //   - Phase shift row carries the delta from the user's bed/wake drag
+      //     (state.brightness_mid). Curve + PhaseShift = baseBriPct, so the
+      //     additive chain still sums to the right value.
+      // Labels: "Daily rhythm @ HH:MMa/p with HH:MM bed/wake" on Curve,
+      //         "Temp adjust bed|wake to HH:MM" on Phase-shift.
+      const _liveStatusBri = areaStatus[ts.areaId] || {};
+      const _phaseBri = _liveStatusBri.phase || 'wake';   // 'wake' = in ascend, 'bed' = in descend
+      const _rhythmTime = _phaseBri === 'wake'
+        ? (_liveStatusBri.eff_wake_time ?? null)
+        : (_liveStatusBri.eff_bed_time ?? null);
+      const _adjustedTime = _phaseBri === 'wake'
+        ? _liveStatusBri.adjusted_wake_time
+        : _liveStatusBri.adjusted_bed_time;
+      const _phaseWord = _phaseBri === 'wake' ? 'wake' : 'bed';
+      const baseBriNoMid = (ts.baseBrightNoMid != null) ? ts.baseBrightNoMid : baseBriPct;
+      const briPhaseShift = (ts.baseBrightNoMid != null) ? (baseBriPct - ts.baseBrightNoMid) : 0;
+
+      // Curve label: "Daily curve w/10p bed time" — formatPhaseTime gives the
+      // compact "10p" form (vs formatHourToTime's "10pm"). Drop current-time
+      // mention; the row's value carries the "where I am right now" signal.
+      const elBaseLabel = document.getElementById('tune-det-base-label');
+      if (elBaseLabel) {
+        const rt = _rhythmTime != null ? formatPhaseTime(_rhythmTime) : '';
+        elBaseLabel.textContent = rt
+          ? 'Daily curve w/' + rt + ' ' + _phaseWord + ' time'
+          : 'Daily curve';
+      }
       const elBaseBri = document.getElementById('tune-det-base-total');
-      if (elBaseBri) elBaseBri.textContent = baseBriPct + '%';
+      if (elBaseBri) elBaseBri.textContent = Math.round(baseBriNoMid) + '%';
+
+      const elBriMidRow = document.getElementById('tune-det-bri-mid-row');
+      const elBriMidLabel = document.getElementById('tune-det-bri-mid-label');
+      const elBriMidVal = document.getElementById('tune-det-bri-mid-val');
+      if (elBriMidRow) elBriMidRow.style.display = briPhaseShift !== 0 ? '' : 'none';
+      if (elBriMidLabel && _adjustedTime != null) {
+        elBriMidLabel.textContent = 'Temp ' + _phaseWord + ' → ' + formatPhaseTime(_adjustedTime);
+      } else if (elBriMidLabel) {
+        elBriMidLabel.textContent = 'Temp ' + _phaseWord;
+      }
+      if (elBriMidVal) elBriMidVal.textContent = formatImpact(Math.round(briPhaseShift)) + '%';
+
+      // Sun dimming math hint: "X% sun × <step label> Y" where X is raw
+      // outdoor sun intensity (no sensitivity baked in — chip stays as raw
+      // sun) and Y/<label> are the area's exposure step (SOLAR_STEPS).
+      // brightness_sensitivity (zone-level) intentionally not surfaced —
+      // most users leave it at default and it inflates the hint without
+      // changing per-area or per-time.
+      const elSolarLabel = document.getElementById('tune-det-solar-label');
+      if (elSolarLabel) {
+        const sunPct = Math.round((ts.outdoorNormalized || 0) * 100);
+        const step = SOLAR_STEPS[ts.solarStep] || { label: '—', exposure: 0 };
+        const expLbl = (step.label || '').toLowerCase();
+        elSolarLabel.innerHTML = 'Sun dimming <span class="tune-wf-math">'
+          + sunPct + '% sun × ' + expLbl + ' ' + step.exposure.toFixed(2) + '</span>';
+      }
+      // Room balance: include the LUMEN_STEPS label next to the factor.
+      const elLumenLabel = document.getElementById('tune-det-lumen-label');
+      if (elLumenLabel) {
+        const step = LUMEN_STEPS[ts.lumenStep] || { label: '—', factor: 1.0 };
+        const balLbl = (step.label || '').toLowerCase();
+        elLumenLabel.innerHTML = 'Room balance <span class="tune-wf-math">× '
+          + balLbl + ' ' + step.factor.toFixed(2) + 'x</span>';
+      }
 
       const elBoostVal = document.getElementById('tune-det-boost-val');
       if (elBoostVal) {
@@ -6769,15 +6813,129 @@
       }
 
       const elFinalVal = document.getElementById('tune-det-final-val');
-      if (elFinalVal) elFinalVal.textContent = areaBri + '%';
+      // Area Brightness shows the clamped value sent to bulbs (1-100), so
+      // the additive chain reads consistently with what actually fires.
+      // Per-light calcs downstream still use the unclamped areaBri so
+      // individual lights can be clamped/uncapped after the filter step.
+      if (elFinalVal) elFinalVal.textContent = clampedAreaBri + '%';
 
       // Net adjustment row — arrow notation, but show "0%" (not "—") so the chevron stays anchored
-      const netAdj = areaBri - baseBriPct;
+      const netAdj = clampedAreaBri - baseBriPct;
       const elAdjNet = document.getElementById('tune-det-adj-net');
       if (elAdjNet) {
         if (netAdj === 0) elAdjNet.textContent = '0%';
         else elAdjNet.textContent = (netAdj > 0 ? '\u2191' : '\u2193') + Math.abs(netAdj) + '%';
       }
+
+      // -- Color cascade (Math card sub-section) -------------------------
+      // Mirrors the backend pipeline (brain._apply_solar_rules):
+      //   final = base_kelvin_no_mid + phase_shift - night_shift
+      //                              + daylight_shift
+      //                              + (color_override if slider-originated)
+      // Curve row shows the UNSHIFTED baseline (base_kelvin_no_mid when set,
+      // else base_kelvin — they're equal when no color_mid). Phase shift row
+      // carries the bed/wake-drag delta. Curve + PhaseShift = base_kelvin, so
+      // the chain still sums to the right final value via the existing math.
+      // Sun cooling = +daylight_shift; Night warming = -night_shift.
+      const _liveStatus = areaStatus[ts.areaId] || {};
+      const sb = ts.solarBreakdown || {};
+      const baseK = Math.round(ts.baseKelvin || 0);
+      const baseKNoMid = (ts.baseKelvinNoMid != null) ? Math.round(ts.baseKelvinNoMid) : baseK;
+      const finalK = Math.round(_liveStatus.kelvin ?? ts.baseKelvin ?? 0);
+      const phaseShift = (ts.baseKelvinNoMid != null)
+        ? Math.round(baseK - ts.baseKelvinNoMid)
+        : 0;
+      const sunCooling = Math.round(sb.daylight_shift || 0);
+      const nightWarming = -Math.round(sb.night_shift || 0);
+      const colorOv = _liveStatus.color_override || 0;
+      // Color override only shows as its own additive row in slider mode
+      // (color_override_set_at present). Step-originated overrides modify
+      // the warm/daylight targets - that's already baked into night/sun.
+      const colorOvIsSlider = _liveStatus.color_override_set_at != null;
+      const colorOvRounded = Math.round(colorOvIsSlider ? colorOv : 0);
+
+      const elColorBaseLabel = document.getElementById('tune-det-color-base-label');
+      if (elColorBaseLabel) {
+        const rt = _rhythmTime != null ? formatPhaseTime(_rhythmTime) : '';
+        elColorBaseLabel.textContent = rt
+          ? 'Daily curve w/' + rt + ' ' + _phaseWord + ' time'
+          : 'Daily curve';
+      }
+      const elColorBase = document.getElementById('tune-det-color-base');
+      if (elColorBase) elColorBase.textContent = baseKNoMid + 'K';
+
+      const elColorMidRow = document.getElementById('tune-det-color-mid-row');
+      const elColorMidLabel = document.getElementById('tune-det-color-mid-label');
+      const elColorMidVal = document.getElementById('tune-det-color-mid-val');
+      if (elColorMidRow) elColorMidRow.style.display = phaseShift !== 0 ? '' : 'none';
+      if (elColorMidLabel && _adjustedTime != null) {
+        elColorMidLabel.textContent = 'Temp ' + _phaseWord + ' → ' + formatPhaseTime(_adjustedTime);
+      } else if (elColorMidLabel) {
+        elColorMidLabel.textContent = 'Temp ' + _phaseWord;
+      }
+      if (elColorMidVal) elColorMidVal.textContent = formatImpact(phaseShift) + 'K';
+
+      // Sun cooling + Night warming: always visible (don't hide on zero).
+      // Math hint shows the rolled-up blend % + the inputs that produce it,
+      // so users can see where the number comes from.
+      //   Sun cooling: blend = outdoor_norm × color_sensitivity × window_fade
+      //                (× sun_cooling_strength — usually 1.0). Surface
+      //                outdoor% and window% as the two main inputs.
+      //   Night warming: night_strength IS the fade weight at the current
+      //                hour within the warm-night window. Just one input.
+      const elSunCoolingRow = document.getElementById('tune-det-sun-cooling-row');
+      const elSunCoolingLabel = document.getElementById('tune-det-sun-cooling-label');
+      const elSunCoolingVal = document.getElementById('tune-det-sun-cooling-val');
+      if (elSunCoolingRow) elSunCoolingRow.style.display = '';
+      if (elSunCoolingLabel) {
+        const sunPct = Math.round((sb.outdoor_normalized || ts.outdoorNormalized || 0) * 100);
+        const fadePct = Math.round((sb.daylight_fade_weight || 0) * 100);
+        const dayCct = sb.daylight_cct != null ? sb.daylight_cct : 0;
+        elSunCoolingLabel.innerHTML = 'Sun cooling <span class="tune-wf-math">'
+          + sunPct + '% sun × ' + fadePct + '% fade toward ' + dayCct + 'K</span>';
+      }
+      if (elSunCoolingVal) elSunCoolingVal.textContent = formatImpact(sunCooling) + 'K';
+
+      // Sun cooling pullback row — always visible. Pullback delta = full
+      // Sun cooling × (1 − sun_cooling_strength), rendered as a negative
+      // (pulls toward warm, away from daylight target). At strength 1.0
+      // (no step-down below natural), pullback = 0K but row still shows.
+      const elCoolPullbackRow = document.getElementById('tune-det-cool-pullback-row');
+      const elCoolPullbackLabel = document.getElementById('tune-det-cool-pullback-label');
+      const elCoolPullbackVal = document.getElementById('tune-det-cool-pullback-val');
+      if (elCoolPullbackRow) elCoolPullbackRow.style.display = '';
+      const coolStrength = (sb.sun_cooling_strength != null) ? sb.sun_cooling_strength : 1.0;
+      const pullbackFrac = 1 - coolStrength;
+      const coolPullbackK = -Math.round((sb.daylight_shift || 0) * pullbackFrac);
+      if (elCoolPullbackLabel) {
+        const pullbackPct = Math.round(pullbackFrac * 100);
+        const fullCoolK = Math.round(sb.daylight_shift || 0);
+        elCoolPullbackLabel.innerHTML = 'Sun cooling pullback <span class="tune-wf-math">'
+          + pullbackPct + '% pullback × +' + fullCoolK + 'K full</span>';
+      }
+      if (elCoolPullbackVal) elCoolPullbackVal.textContent = formatImpact(coolPullbackK) + 'K';
+
+      const elNightWarmingRow = document.getElementById('tune-det-night-warming-row');
+      const elNightWarmingLabel = document.getElementById('tune-det-night-warming-label');
+      const elNightWarmingVal = document.getElementById('tune-det-night-warming-val');
+      if (elNightWarmingRow) elNightWarmingRow.style.display = '';
+      if (elNightWarmingLabel) {
+        const nightPct = Math.round((sb.night_strength || 0) * 100);
+        const warmTarget = sb.warm_night_target != null ? sb.warm_night_target : 0;
+        elNightWarmingLabel.innerHTML = 'Night warming <span class="tune-wf-math">'
+          + nightPct + '% fade to ' + warmTarget + 'K</span>';
+      }
+      if (elNightWarmingVal) elNightWarmingVal.textContent = formatImpact(nightWarming) + 'K';
+
+      const elColorOvRow = document.getElementById('tune-det-color-override-row');
+      const elColorOvLabel = document.getElementById('tune-det-color-override-label');
+      const elColorOvVal = document.getElementById('tune-det-color-override-val');
+      if (elColorOvRow) elColorOvRow.style.display = colorOvRounded !== 0 ? '' : 'none';
+      if (elColorOvLabel) elColorOvLabel.textContent = colorOvRounded < 0 ? 'User warmed' : 'User cooled';
+      if (elColorOvVal) elColorOvVal.textContent = formatImpact(colorOvRounded) + 'K';
+
+      const elColorFinal = document.getElementById('tune-det-color-final-val');
+      if (elColorFinal) elColorFinal.textContent = finalK + 'K';
 
       sortLightsList();
     }
@@ -6914,6 +7072,8 @@
         backendSunBrightFactor: liveStatus.sun_bright_factor ?? null,
         brightnessFadeWeight: liveStatus.brightness_fade_weight ?? null,
         solarBreakdown: liveStatus.solar_breakdown ?? null,
+        baseKelvinNoMid: liveStatus.base_kelvin_no_mid ?? null,
+        baseBrightNoMid: liveStatus.base_bright_no_mid ?? null,
         dimFactor: status.dim_factor ?? 1.0,
         areaFactor: LUMEN_STEPS[lumenStep].factor,
         lumenStep: lumenStep,
@@ -7010,21 +7170,28 @@
       const mathCard = document.getElementById('tune-math-card');
       const mathExpanded = _persistCards && localStorage.getItem('math_collapsed') === 'false';
       let mhtml = '<div class="tune-wf">';
+      mhtml += '<div class="tune-section-header">Brightness</div>';
       mhtml += '<div class="tune-wf-row">'
         + '<span class="tune-wf-op"></span>'
-        + '<span class="tune-wf-label">Curve</span>'
+        + '<span class="tune-wf-label" id="tune-det-base-label">Daily rhythm</span>'
         + '<span class="tune-wf-reset"></span>'
         + '<span class="tune-wf-val" id="tune-det-base-total">' + baseBri + '%</span>'
         + '</div>';
+      mhtml += '<div class="tune-wf-row" id="tune-det-bri-mid-row" style="display:none;">'
+        + '<span class="tune-wf-op">+</span>'
+        + '<span class="tune-wf-label" id="tune-det-bri-mid-label">Temp adjust bed</span>'
+        + '<span class="tune-wf-reset"></span>'
+        + '<span class="tune-wf-val" id="tune-det-bri-mid-val">0%</span>'
+        + '</div>';
       mhtml += '<div class="tune-wf-row">'
         + '<span class="tune-wf-op">+</span>'
-        + '<span class="tune-wf-label">Sun dimming</span>'
+        + '<span class="tune-wf-label" id="tune-det-solar-label">Sun dimming</span>'
         + '<span class="tune-wf-reset"></span>'
         + '<span class="tune-wf-val" id="tune-det-solar-val">0%</span>'
         + '</div>';
       mhtml += '<div class="tune-wf-row">'
         + '<span class="tune-wf-op">+</span>'
-        + '<span class="tune-wf-label">Room balance</span>'
+        + '<span class="tune-wf-label" id="tune-det-lumen-label">Room balance</span>'
         + '<span class="tune-wf-reset"></span>'
         + '<span class="tune-wf-val" id="tune-det-lumen-val">0%</span>'
         + '</div>';
@@ -7052,24 +7219,16 @@
         + '<span class="tune-wf-reset"></span>'
         + '<span class="tune-wf-val" id="tune-det-fade-val">0%</span>'
         + '</div>';
-      mhtml += '<div class="tune-wf-divider"></div>';
-      // Raw + bulb-max rows show only when the pipeline's pre-clamp value
-      // differs from the clamped result. For rooms with area_factor=1.0 and
-      // no override pushing past 100%, these stay hidden (no extra noise).
-      // When area_factor > 1.0 ("Brite/Max"), raw can exceed 100% and the
-      // bulb-max row makes the clamping visible — explains why a small
-      // brightness drag has no visible effect until it exceeds the headroom.
-      mhtml += '<div class="tune-wf-row tune-wf-raw" id="tune-det-raw-row" style="display:none;">'
-        + '<span class="tune-wf-op">=</span>'
-        + '<span class="tune-wf-label">Raw</span>'
-        + '<span class="tune-wf-reset"></span>'
-        + '<span class="tune-wf-val" id="tune-det-raw-val">--</span>'
-        + '</div>';
+      // Cap row — a single additive-style row showing the clamp delta when
+      // the pre-clamp pipeline value falls outside [1%, 100%]. Hidden when
+      // no clamping. Replaces the prior "Raw + Bulb max" two-row treatment;
+      // user feedback was that the special-case rows competed with the
+      // section separator and broke the additive rhythm.
       mhtml += '<div class="tune-wf-row" id="tune-det-cap-row" style="display:none;">'
-        + '<span class="tune-wf-op">↓</span>'
-        + '<span class="tune-wf-label" id="tune-det-cap-label">Bulb max</span>'
+        + '<span class="tune-wf-op">+</span>'
+        + '<span class="tune-wf-label" id="tune-det-cap-label">Max cap at 100%</span>'
         + '<span class="tune-wf-reset"></span>'
-        + '<span class="tune-wf-val" id="tune-det-cap-val">100%</span>'
+        + '<span class="tune-wf-val" id="tune-det-cap-val">0%</span>'
         + '</div>';
       mhtml += '<div class="tune-wf-row tune-wf-total">'
         + '<span class="tune-wf-op">=</span>'
@@ -7078,6 +7237,60 @@
         + '<span class="tune-wf-val" id="tune-det-final-val">--</span>'
         + '</div>';
       mhtml += '</div>'; // end .tune-wf
+
+      // ── Color sub-section — same row pattern as brightness, K units.
+      // Stages: Curve (kelvin baseline) → Phase shift (if color_mid) →
+      // Sun cooling → Night warming → Color override → Area Color (final).
+      // Zero-delta intermediate rows are hidden by recalcTune. ──
+      mhtml += '<div class="tune-wf">';
+      mhtml += '<div class="tune-section-header">Color</div>';
+      mhtml += '<div class="tune-wf-row">'
+        + '<span class="tune-wf-op"></span>'
+        + '<span class="tune-wf-label" id="tune-det-color-base-label">Daily rhythm</span>'
+        + '<span class="tune-wf-reset"></span>'
+        + '<span class="tune-wf-val" id="tune-det-color-base">--</span>'
+        + '</div>';
+      mhtml += '<div class="tune-wf-row" id="tune-det-color-mid-row" style="display:none;">'
+        + '<span class="tune-wf-op">+</span>'
+        + '<span class="tune-wf-label" id="tune-det-color-mid-label">Temp adjust bed</span>'
+        + '<span class="tune-wf-reset"></span>'
+        + '<span class="tune-wf-val" id="tune-det-color-mid-val">0K</span>'
+        + '</div>';
+      mhtml += '<div class="tune-wf-row" id="tune-det-sun-cooling-row">'
+        + '<span class="tune-wf-op">+</span>'
+        + '<span class="tune-wf-label" id="tune-det-sun-cooling-label">Sun cooling</span>'
+        + '<span class="tune-wf-reset"></span>'
+        + '<span class="tune-wf-val" id="tune-det-sun-cooling-val">0K</span>'
+        + '</div>';
+      // Sun cooling pullback — the runtime correction from sun_cooling_strength.
+      // Always rendered (per the user's stated reason for breaking it out —
+      // hiding it would let users forget the factor exists). Shows -ΔK and
+      // a math hint of the form "30% pullback × +30K full".
+      mhtml += '<div class="tune-wf-row" id="tune-det-cool-pullback-row">'
+        + '<span class="tune-wf-op">+</span>'
+        + '<span class="tune-wf-label" id="tune-det-cool-pullback-label">Sun cooling pullback</span>'
+        + '<span class="tune-wf-reset"></span>'
+        + '<span class="tune-wf-val" id="tune-det-cool-pullback-val">0K</span>'
+        + '</div>';
+      mhtml += '<div class="tune-wf-row" id="tune-det-night-warming-row">'
+        + '<span class="tune-wf-op">+</span>'
+        + '<span class="tune-wf-label" id="tune-det-night-warming-label">Night warming</span>'
+        + '<span class="tune-wf-reset"></span>'
+        + '<span class="tune-wf-val" id="tune-det-night-warming-val">0K</span>'
+        + '</div>';
+      mhtml += '<div class="tune-wf-row" id="tune-det-color-override-row" style="display:none;">'
+        + '<span class="tune-wf-op">+</span>'
+        + '<span class="tune-wf-label" id="tune-det-color-override-label">User cooled</span>'
+        + '<span class="tune-wf-reset"></span>'
+        + '<span class="tune-wf-val" id="tune-det-color-override-val">0K</span>'
+        + '</div>';
+      mhtml += '<div class="tune-wf-row tune-wf-total">'
+        + '<span class="tune-wf-op">=</span>'
+        + '<span class="tune-wf-label">Area Color</span>'
+        + '<span class="tune-wf-reset"></span>'
+        + '<span class="tune-wf-val" id="tune-det-color-final-val">--</span>'
+        + '</div>';
+      mhtml += '</div>'; // end .tune-wf (color section)
       if (mathCard) {
         mathCard.querySelector('#tune-math-body').innerHTML = mhtml;
         mathCard.style.display = '';
@@ -7335,16 +7548,9 @@
       return a ? a.name : areaId;
     }
 
-    function controlCategoryIcon(category) {
-      const size = 16;
-      const icons = {
-        'switch': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="8" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="13" r="1.5" fill="currentColor" stroke="none"/><line x1="10" y1="18" x2="14" y2="18"/></svg>`,
-        'motion_sensor': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 18 A8 8 0 0 1 8 6"/><path d="M5 20 A12 12 0 0 1 5 4"/><circle cx="14" cy="12" r="3" fill="currentColor" stroke="none" opacity="0.6"/><path d="M17 9 A5 5 0 0 1 17 15"/><path d="M20 7 A8 8 0 0 1 20 17"/></svg>`,
-        'camera': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`,
-        'contact_sensor': `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="8" height="12" rx="2"/><rect x="14" y="6" width="8" height="12" rx="2"/><line x1="10" y1="11" x2="14" y2="11" stroke-dasharray="2 2"/><line x1="10" y1="13" x2="14" y2="13" stroke-dasharray="2 2"/></svg>`,
-      };
-      return icons[category] || '';
-    }
+    // (controlCategoryIcon was the area-details copy of the icon set.
+    // Now lives in shared.js as `categoryIcon` — single 18px source of
+    // truth for both /switches and area-details.)
 
     // Build the home-area-order map from glozones: { area_id: index }
     // in zone-order × area-within-zone order. Used as primary sort key
@@ -7377,61 +7583,31 @@
       });
     }
 
-    // Recent-activity dot — replaced by the shared `pulse-dot` component
-    // (see buildPulseDot in shared.js). White, fades linearly to invisible
-    // over a Lab-configured window (default 6h). Same component used on the
-    // main Controls list page for consistency.
-    function controlLastActionSec(ctrl) {
-      const ts = ctrl && ctrl.last_action && ctrl.last_action.timestamp;
-      if (!ts) return null;
-      const t = Date.parse(ts);
-      return isNaN(t) ? null : t / 1000;
-    }
+    // Pulse-window setting (Lab-configurable, default 6h). Threaded into
+    // renderControlListItem so the row's pulse-dot fade matches the
+    // user's preference. Same value /switches reads from /api/config.
     function controlsPulseWindowHours() {
-      // Lab-set window in hours — defaults to 6.
       const v = cachedConfig && cachedConfig.controls_pulse_window_hours;
       const n = parseFloat(v);
       return Number.isFinite(n) && n > 0 ? n : 6;
     }
 
-    // Row format mirrors /switches: pulse | icon | (name+summary) | rightArea.
-    // opts.doesntReach: control is in the "Doesn't reach <area>" bucket —
-    // use the dedicated summary form (no area-filter perspective). Right
-    // side still shows home area for visual consistency across buckets.
+    // Thin local wrapper around the shared renderControlListItem (shared.js).
+    // Wires up page-local context (areas registry, pulse window from
+    // cachedConfig, area-order map, click → direct navigation to control
+    // detail). Same DOM/CSS contract as /switches.
     function renderControlRow(ctrl, currentAreaId, opts) {
       opts = opts || {};
-      const icon = controlCategoryIcon(ctrl.category);
-      const pausedBadge = ctrl.inactive ? '<span class="ctrl-paused-badge">paused</span>' : '';
-      const encodedId = encodeURIComponent(ctrl.id);
       const areaIdParam = selectedArea ? encodeURIComponent(selectedArea.area_id) : '';
-      const dotHtml = buildPulseDot(controlLastActionSec(ctrl), controlsPulseWindowHours());
-      const areaOrder = _getAreaOrderMap();
-      const summary = opts.doesntReach
-        ? controlSummaryDoesntReach(ctrl, areas, areaOrder)
-        : controlSummary(ctrl, {
-            allAreas: areas,
-            filterAreaId: currentAreaId,
-            deviceAreaId: ctrl.area_id,
-            areaOrder: areaOrder,
-          });
-      const summaryLine = summary
-        ? `<div class="ctrl-card-summary">${summary}</div>`
-        : '';
-      const homeAreaName = ctrl.area_id ? areaName(ctrl.area_id) : '';
-      const rightArea = homeAreaName
-        ? `<span class="ctrl-list-area">${homeAreaName}</span>`
-        : '';
-      // Grid layout — summary lives as a top-level grid child so it can
-      // span the body+area columns on row 2 (full row width on mobile).
-      return `<div class="ctrl-list-row" onclick="window.location.href='${basePath}/control/${encodedId}?from=area&id=${areaIdParam}'">`
-        + `<span class="ctrl-fresh-dot-slot">${dotHtml}</span>`
-        + `<span class="ctrl-list-icon">${icon}</span>`
-        + `<span class="ctrl-list-info">`
-        +   `<span class="ctrl-list-name">${ctrl.name}${pausedBadge}</span>`
-        + `</span>`
-        + rightArea
-        + summaryLine
-        + `</div>`;
+      return renderControlListItem(ctrl, {
+        view: 'all',
+        doesntReach: !!opts.doesntReach,
+        allAreas: areas,
+        filterAreaId: currentAreaId,
+        areaOrder: _getAreaOrderMap(),
+        pulseWindowHours: controlsPulseWindowHours(),
+        makeClickAttr: (c) => `window.location.href='${basePath}/control/${encodeURIComponent(c.id)}?from=area&id=${areaIdParam}'`,
+      });
     }
 
     // Re-render the controls list every 60s so the freshness dots fade out
