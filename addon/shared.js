@@ -1172,9 +1172,9 @@ function controlSummaryFormatAreasList(areaIds, allAreas, opts) {
 }
 
 function controlSummaryFormatSensorModeName(mode) {
-  if (mode === 'on_off') return 'on/off';
-  if (mode === 'on_only' || mode === 'on') return 'on';
-  if (mode === 'alert') return 'alert';
+  if (mode === 'on_off') return 'Turn on with timer';
+  if (mode === 'on_only' || mode === 'on') return 'Turn on';
+  if (mode === 'alert') return 'Alert';
   return mode;
 }
 

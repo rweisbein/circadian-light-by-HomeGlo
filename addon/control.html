@@ -474,6 +474,31 @@
     .scope-editor > :not(.scope-editor-header) {
       padding-left: 16px;
     }
+    /* Empty-reach warning: a soft amber treatment when a Reach has zero
+       areas selected. The reach is saved but has no effect — flag it so
+       the user notices the unfinished state. Same idea for motion scopes
+       below (.scope-card.is-empty). */
+    .scope-editor.is-empty {
+      border-left: 2px solid var(--warning, #e6a817);
+      background: rgba(230, 168, 23, 0.06);
+      border-radius: 4px;
+      padding: 4px 0 6px;
+    }
+    .scope-editor.is-empty .add-areas-chip,
+    .scope-card.is-empty .add-areas-chip {
+      border-color: var(--warning, #e6a817);
+      color: var(--warning, #e6a817);
+    }
+    .scope-card.is-empty {
+      border-color: var(--warning, #e6a817);
+      background: rgba(230, 168, 23, 0.06);
+    }
+    .scope-empty-hint {
+      font-size: 0.78rem;
+      color: var(--warning, #e6a817);
+      margin-top: 4px;
+      padding-left: 16px;
+    }
 
     .scope-editor:last-of-type {
       margin-bottom: 0;
@@ -581,7 +606,11 @@
     .scope-card-action {
       font-size: 0.85rem;
       font-weight: 600;
-      color: var(--accent);
+      /* Was --accent (orange) when subtlety was the problem; orange now
+         carries caution/warning semantics across the app, so use --text
+         (whitish) — the weight + size already give the action prominence
+         against the muted area list on the left. */
+      color: var(--text);
       flex-shrink: 0;
     }
 
@@ -2084,8 +2113,9 @@
         const showArrows = editingScopes.length > 1;
         const upDisabled = idx === 0 ? 'disabled' : '';
         const downDisabled = idx === editingScopes.length - 1 ? 'disabled' : '';
+        const isEmpty = scope.areas.length === 0;
         return `
-          <div class="scope-editor" data-scope-idx="${idx}">
+          <div class="scope-editor${isEmpty ? ' is-empty' : ''}" data-scope-idx="${idx}">
             <div class="scope-editor-header">
               <span class="scope-editor-title">Reach ${idx + 1}</span>
               ${showArrows ? `
@@ -2403,7 +2433,7 @@
     }
 
     function _motionScopeAction(scope) {
-      const modeLabels = { 'on_only': 'On only', 'on_off': 'On/Off', 'alert': 'Alert', 'disabled': 'Disabled' };
+      const modeLabels = { 'on_only': 'Turn on', 'on_off': 'Turn on with timer', 'alert': 'Alert', 'disabled': 'Disabled' };
       return modeLabels[scope.mode || 'on_off'] || scope.mode;
     }
 
@@ -2421,8 +2451,8 @@
       const container = document.getElementById('motion-scopes-editor');
 
       const modeLabels = {
-        'on_only': 'On only',
-        'on_off': 'On/Off',
+        'on_only': 'Turn on',
+        'on_off': 'Turn on with timer',
         'alert': 'Alert',
         'disabled': 'Disabled'
       };
@@ -2457,10 +2487,11 @@
         const motionUpDisabled = idx === 0 ? 'disabled' : '';
         const motionDownDisabled = idx === editingMotionScopes.length - 1 ? 'disabled' : '';
 
+        const isEmptyMotion = !(scope.areas && scope.areas.length > 0);
         if (!isExpanded) {
           // Collapsed card: areas left, action right (prominent)
           return `
-            <div class="scope-card" data-motion-idx="${idx}">
+            <div class="scope-card${isEmptyMotion ? ' is-empty' : ''}" data-motion-idx="${idx}">
               <div class="scope-card-header" onclick="toggleMotionScope(${idx})">
                 <span class="scope-card-chevron">&#x203A;</span>
                 <span class="scope-card-areas">${_motionScopeAreas(scope)}</span>
@@ -2483,7 +2514,7 @@
         }).join('');
 
         return `
-          <div class="scope-card is-open" data-motion-idx="${idx}">
+          <div class="scope-card is-open${isEmptyMotion ? ' is-empty' : ''}" data-motion-idx="${idx}">
             <div class="scope-card-header" onclick="toggleMotionScope(${idx})">
               <span class="scope-card-chevron">&#x203A;</span>
               <span class="scope-card-areas">${_motionScopeAreas(scope)}</span>

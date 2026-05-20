@@ -1,5 +1,67 @@
 <!-- https://developers.home-assistant.io/docs/add-ons/presentation#keeping-a-changelog -->
 
+## 1.2.378
+Pure frontend pass. Area-details polish, controls/activity pages unified, sensor mode rename, plus a real bug fix in the home page boost indicator. No Python touched.
+
+**Area-details — card spacing standardized (top + bottom).** Cards had inconsistent gaps on both ends. Tune was the worst on top (3-4 layers of padding stacking between "Tune" and "SUN DIMMING"); various per-card bottom paddings (12px wrap + 2px section + 8px body on Adjust = 22px below last content) compounded inconsistently. Standardized at **4px** on both edges:
+- Card header padding `4px 14px` (was `12px 14px`) — symmetric so collapsed cards have a clean 4px above and below the card name.
+- `.hslider-header` switched from `align-items: center` to `flex-start` so small-caps labels (BRIGHT, SUN DIMMING) hug the row's top edge instead of centering down against the taller button/value cluster.
+- `.tune-brightness-val` (the 2-line "Sun dimming: X / Balance: Y" right-side summary on Tune) goes `display: none` when expanded; was `opacity: 0`, which still occupied ~40px of ghost space and pushed the title up into a tall header with a gap below it.
+- All wrappers (`.curve-controls-wrap`, `.adjust-section`, `.auto-sched-body-inner`, `.tune-wf`, `.tune-srow:last-child`) lose their stacked top/bottom paddings. Universal `body > *:first-child { padding-top: 0; margin-top: 0 }` prevents new wrappers from drifting back.
+- Math sub-section headers (`.tune-section-header`) drop their 10px top when first child of a `.tune-wf`.
+- Adjust and Tune slider row internal: `.hslider-row` gap `9px → 14px` (more breathing room between buttons/value and slider track), `.tune-srow` gap `6px → 10px` (lifts the value text away from the slider thumb).
+- Adjust card grew dividers between Bright/Color/Wake rows (matches Tune's inter-row divider pattern). Horizontal padding moved from `.curve-controls-wrap` + `.adjust-section` onto `.hslider-row` so the divider spans full card body width like Tune.
+- Adjust card bottom padding bumped to `12px` (it has a slider thumb that extends ~5px below the track; 4px was clipping it).
+- `.tune-lights-header` was on its own class that I'd missed — now also `4px 14px`.
+- Collapsed-card title fonts reduced from `var(--font-card-title)` (0.95rem) to `var(--font-value)` (0.85rem) across `.auto-sched-title`, `.tune-brightness-title`, `.tune-lights-title`, and the right-side summary spans (`.auto-outer-next`, `.adjust-outer-next`, `.tune-brightness-val`). Headers feel less dominant.
+
+**Area-details — Math card iterations (building on 1.2.377's color breakdown).**
+- Renamed "Room balance" → "Balance" in the Tune card slider label and the Math card hint label.
+- Base row reads `Base 6:45a wake @ 10:15a (now)` — phase boundary first, current time last, "(now)" suffix; the time info muted (`.tune-wf-math` style).
+- Sun dimming and Sun cooling rows become **two-line** breakdowns. Main row carries label + final math; a sub-math line below shows the derivation:
+  - `Sun dimming   Moderate 0.40x × base 100% × 48%` (main) / `48%: 95% sun × 0.5 sensitivity` (sub).
+  - `Sun cooling   (5500K − 2995K) × 62%` (main) / `62%: 82% sun × 1.00 sensitivity × 100% fade` (sub).
+- Order convention: the area's user-set knob first (exposure step, or the kelvin headroom), the live factor last. Sub-math leads with the rolled-up value (e.g. `48%:`) so it reads as "this is where that 48% comes from."
+- "Phase shift" row labels renamed `Wake adjust → 6:45a` / `Bed adjust → 9:13p` (was `Temp wake →`).
+- "Sun cooling pullback" renamed to "Cooling pullback for wake adjust" / "Cooling pullback for bed adjust" so it's clear what triggered it. Math moved from inline to the sub-math line: `30% wake adjust × 30K full` (no `+` prefix on the full-cooling number — it's not a delta, it's the headroom).
+- Math sub-math line indented past the row label (`padding-left: 56px`) so it visually hangs under the row it explains.
+- `BRIGHTNESS` / `COLOR` section underline (above the `Area Brightness` / `Area Color` total) now uses `var(--text)` color (was `var(--line)`) to read as part of the summation group.
+- Math card header right-side text: closed shows live `<bri>% · <kelvin>K` (mirrors the area-header readout); open shows `nerds only`. Inverse of every other card — Math's body is for verification, so it's useful to repeat the live values up top while the chain is visible.
+- Total row tightened: `padding-top` `4px → 2px` inside the value cell, total row's own `padding-top` `5px → 2px`. The total sits higher relative to the underline.
+
+**Area-details — header reposition.**
+- Circadian toggle moved from Row 3 (full-size action button at right) to Row 1 top-right, smaller (new `.ah-btn--small` 30px variant). Status indicator, not an action.
+- Sun-intensity chip moved out of Row 1, into Row 3's right-bottom (aligned to the subline baseline). Sits just above the chart it describes. `.ah-sun--in-row3` variant: `margin-left: auto; align-self: flex-end`.
+
+**Area-details — circadian-off muting.**
+- "Enable Circadian Light" overlay button moved from inside the Adjust card to overlay the chart in the area-header (the chart persists across page interactions). Text was "Enable", now "Enable Circadian Light" — explicit.
+- All main-content cards (Adjust, Tune, Schedule, Controls, Lights, Math, Activity) fade to `opacity: 0.55` when `is_circadian` is false. Implemented via `.main.is-cl-disabled .auto-sched-card, .main.is-cl-disabled .tune-card`. Schedule's existing dedicated fade stays in place (no conflict).
+- Schedule "If" → "Off" sub-section gap: shared `.sub-section`'s `margin-top: 16px + padding-top: 14px + border` was stacking to ~30px between content end and the next section's header. Scoped `#schedule-card`-only override drops to `margin-top: 4px` and `padding-top: 0`.
+
+**Controls page (`switches.html`) — header rework.**
+- Top-left was a small muted count phrase like "5 controls in Kitchen". Now a prominent **"Controls"** title (`.ctrl-page-title`, font 1.25rem weight 700) on the left, with the count following as a muted suffix: `5 in Kitchen`. The generic "controls" noun is dropped from the count phrase since the title says it; category-specific nouns (`motion sensors`, `switches`) are kept since they add info.
+- `.page-header` now sticky + same padding (`12px 14px 8px`) and negative-margin bleed as the Activity page's `.activity-sticky-top`. Title position, mode pill position, and sticky behavior now match the Activity page — the two pages feel like the same page.
+- Page-show event listener added: when returning from a control-detail page via browser back, the list reloads instead of showing stale BFCache data.
+
+**Activity page (`activity.html`).**
+- Top-left was the home name ("Smith House") — now just the literal **"Activity"** (matching the parallel pattern with Controls).
+- Top nav `Controls` link now gets `.active` class on the Activity page (Activity is a sub-section of Controls, so the parent nav slot should highlight).
+
+**Sensor mode rename.** Motion / camera / contact action modes get clearer labels:
+- `on_only` → "Turn on" (was "On only")
+- `on_off` → "Turn on with timer" (was "On/Off")
+- `alert` → "Alert" (capitalized everywhere; previously the summary list used lowercase "alert")
+- `disabled` → "Disabled" (unchanged)
+The rename touches `shared.js` (`controlSummaryFormatSensorModeName`) plus two `modeLabels` maps in `control.html` so both the summary lines and the detail page settings use the same wording. "with timer" wording aligns with the timer concept on the Activity page.
+
+**Control detail — empty-reach warning.** When a switch's Reach or a motion scope has zero areas selected, the reach gets visible warning treatment: amber left-border (or full border for motion cards), soft amber-tinted background, amber-colored `+` button. Soft enough not to alarm; visible enough not to miss. No save-blocking — saves still work, just clearly flagged.
+
+**Control detail — action label color.** `.scope-card-action` (the right-side mode label on collapsed motion scopes) switched from `--accent` (orange) to `--text` (whitish). Orange was over-emphasis when the label was the only visual signal; now that orange carries caution/warning semantics across the app (e.g. the empty-reach amber), the action label gets the calmer white treatment. Size + weight already give it prominence against the muted area list on the left.
+
+**Bug fix — home page boost pill flickering.** The boost indicator on the home page area card alternated between `⚡ 4m` (clearly visible) and a "horizontal thickish muted bar" (the SVG bolt stripped, leaving just the pulsing empty pill background). Root cause: `updateHomeTimers`' text-only diff path (line 2503) used a regex `/>([^<]*)</` that captures between the first `>` and first `<`. For elements containing an SVG (the boost pill starts with `<span><svg>...</svg> 4m</span>`), that regex captured the EMPTY string between the opening span's `>` and the SVG's `<`. The subsequent `textContent = ""` wiped all children including the SVG. Next tick: same signature → text-only path → no change (already empty). Fix: replaced the regex-based diff with a proper innerHTML parse-and-compare using a temp DOM container. The outer element (with its running animation) is preserved; only the inner content is re-set when it actually differs.
+
+**Bug fix — control detail page JS error.** Inline string literal had `\\'` (double-backslash apostrophe) which JS parsed as "literal backslash + end-of-string", breaking the script and leaving the page stuck on "Loading". Fixed to `\'` (single-backslash escape).
+
 ## 1.2.377
 - **Area-details Math card: brightness + color (CCT) breakdown chains.** Both sub-sections share the same row pattern (op · label · delta · running total handled implicitly by reading top-down) with section headers (`Brightness`, `Color`) using the shared `.tune-section-header` style. One deliberate horizontal break between sub-sections.
 - **Row labels carry the rhythm context.** The `Curve` row in both sections reads `Daily curve w/10p bed time` (or `wake` in ascend phase) — phase word + boundary time pulled from the area's effective wake/bed, rendered via the existing `formatPhaseTime` compact form ("10p" not "10pm"). The `Temp bed → 9:13p` (or `wake →`) row appears only when the user has dragged the bed/wake midpoint (i.e. `brightness_mid` / `color_mid` is set), with the adjusted time pulled from the API's `adjusted_bed_time` / `adjusted_wake_time`.

@@ -117,7 +117,16 @@
     }
 
     .page-header {
-      margin-bottom: 8px;
+      /* Match activity.html's .activity-sticky-top: sticky position + same
+         padding so the title + mode pill sit at identical offsets across
+         both pages. Negative horizontal margin offsets main's 12px padding
+         so the sticky background bleeds the full window width. */
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: var(--bg);
+      padding: 12px 14px 8px;
+      margin: 0 -12px 8px;
     }
 
     .page-title {
@@ -634,6 +643,10 @@
     .ctrl-toolbar .ctrl-area-clear:hover { color: var(--text); }
     .ctrl-toolbar select.ctrl-tb-select.is-active { border-color: var(--accent); }
     .ctrl-toolbar .ctrl-result-count { color: var(--muted2); font-size: 0.78rem; margin-left: auto; }
+    /* Prominent page-title at top-left of the Controls page — matches
+       the .home-name-heading pattern (font + padding) used on the
+       Activity page, so the two pages feel like the same section. */
+    .ctrl-page-title { font-size: 1.25rem; font-weight: 700; color: var(--text); letter-spacing: 0.01em; padding: 4px 8px; }
 
     /* Control-list-item styles (`.ctrl-card-list`, `.ctrl-card-row`,
        `.ctrl-card-pri*`, `.ctrl-pause-*`, `.ctrl-badge-*`, `.ctrl-card-date`,
@@ -664,7 +677,8 @@
            pill (mode) on the right. Mode = which page of the Controls
            section: Controls / Activity / Cheatsheet. Right-anchored so the
            dropdown expands inward, not off the left edge. -->
-      <div style="display: flex; align-items: center; gap: 8px;">
+      <div style="display: flex; align-items: baseline; gap: 10px;">
+        <span class="ctrl-page-title">Controls</span>
         <span class="ctrl-result-count" id="ctrl-count"></span>
         <span style="flex: 1;"></span>
         <div class="action-pill" id="section-mode-pill" title="Switch section">
@@ -863,6 +877,15 @@
       }
       loadData();
       setupEventListeners();
+    });
+
+    // When user navigates back here from a control detail page (or any
+    // browser back), the page is typically restored from the back-forward
+    // cache and DOMContentLoaded does NOT re-fire. Without this, the list
+    // shows stale data (e.g. the just-edited control's old summary line).
+    // pageshow with event.persisted === true detects BFCache restoration.
+    window.addEventListener('pageshow', (event) => {
+      if (event.persisted) loadData();
     });
 
     async function loadPreferences() {
@@ -1775,14 +1798,20 @@
     // search box; adding "matching X" would jitter on every keystroke.
     function buildCountPhrase(n) {
       const isOne = n === 1;
+      // Generic "controls" noun dropped — the page title at the left
+      // already says "Controls", so repeating it in the count is noise.
+      // Category-specific nouns (switches, motion sensors, etc.) are
+      // kept since they add info beyond the title.
       const typeNouns = {
         switch: ['switch', 'switches'],
         motion_sensor: ['motion sensor', 'motion sensors'],
         contact_sensor: ['contact sensor', 'contact sensors'],
         camera: ['camera', 'cameras'],
       };
-      const nouns = typeNouns[categoryFilter] || ['control', 'controls'];
-      const noun = isOne ? nouns[0] : nouns[1];
+      const categoryNouns = typeNouns[categoryFilter];
+      const nounPart = categoryNouns
+        ? ' ' + (isOne ? categoryNouns[0] : categoryNouns[1])
+        : '';
       const areaPart = (areaFilter === 'all') ? ''
         : (areaFilter === 'unassigned') ? ' without an area'
         : (areaFilter.startsWith('zone:'))
@@ -1792,7 +1821,7 @@
       if (currentView === 'setup') verb = isOne ? ' needs setup' : ' need setup';
       else if (currentView === 'batteries') verb = isOne ? ' has battery' : ' have battery';
       else if (currentView === 'paused') verb = isOne ? ' is paused' : ' are paused';
-      return n + ' ' + noun + areaPart + verb;
+      return n + nounPart + areaPart + verb;
     }
 
     // controlSummary + summary helpers + bucketControlsForArea live in

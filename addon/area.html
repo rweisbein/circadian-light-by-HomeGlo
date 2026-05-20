@@ -133,6 +133,15 @@
     .ah-sun:hover { background: rgba(0,0,0,0.32); }
     .area-header.is-neutral .ah-sun { background: rgba(255,255,255,0.08); }
     .area-header.is-neutral .ah-sun:hover { background: rgba(255,255,255,0.14); }
+    /* Sun chip lives in Row 3, right-aligned, vertically aligned with the
+       sublines (timer text) under each action button — visually it sits
+       just above the chart, describing the graph below. margin-left auto
+       pushes it to the right; align-self flex-end pulls it to the bottom
+       of the row so it lands at the subline baseline. */
+    .ah-sun--in-row3 {
+      margin-left: auto;
+      align-self: flex-end;
+    }
     /* Yellow sun glyph with a thin dark "stroke" via text-shadow so it
        stays legible on warm-amber headers (where same-yellow-on-yellow
        was blending). The % does the value encoding; the icon is just
@@ -290,6 +299,16 @@
       border-color: rgba(0,0,0,0.25);
       opacity: 1;
     }
+    /* Smaller variant for the Row 1 circadian indicator. The same icon
+       button that sits at full size in the action row gets shrunk when
+       living in Row 1 (a status indicator, not a primary action). */
+    .ah-btn--small {
+      width: 30px;
+      height: 30px;
+      border-radius: 15px;
+    }
+    .ah-btn--small svg, .ah-btn--small img { width: 16px; height: 16px; }
+    .ah-btn--small .ah-btn-logo { width: 18px; height: 18px; }
     .ah-btn.is-on:hover { background: rgba(255,255,255,0.92); }
     /* Neutral (dark) header — invert the OFF fill from dark-on-light to
        light-on-dark so the buttons still read as a subtle "well" against
@@ -468,12 +487,15 @@
     .row-slider-thumb { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 30px; height: 16px; border-radius: 8px 8px 5px 5px; background: rgba(255,255,255,0.9); box-shadow: 0 1px 4px rgba(0,0,0,0.4); pointer-events: none; transition: left 0.15s; }
     .row-slider-track.dragging .row-slider-thumb { transition: none; }
 
-    /* Sliders muted when circadian is off — stay interactive (so the user
-       can still pre-set overrides that take effect when circadian comes
-       back on), dim opacity signals "not active right now". */
-    .curve-controls-wrap.circadian-off-overlay .hslider-row {
-      opacity: 0.5;
-    }
+    /* When the area's circadian mode is OFF, mute the cards in the main
+       content (Adjust, Tune, Schedule already had its own rule, Math,
+       Lights, plus Activity/Controls if we want them muted too). The
+       sliders stay interactive — user can pre-set overrides that take
+       effect when circadian comes back on — but the dim opacity signals
+       "not active right now". The chart-shell gets a heavier overlay
+       (via .circadian-off-overlay::after) plus the Enable button. */
+    .main.is-cl-disabled .auto-sched-card,
+    .main.is-cl-disabled .tune-card { opacity: 0.55; transition: opacity 0.25s; }
     /* Stronger mute on color + phase sliders specifically when the room is
        OFF (power off, but circadian still on). Bright slider stays at full
        prominence — dragging it is the natural turn-on gesture. Color/phase
@@ -504,22 +526,43 @@
     .adjust-section {
       display: flex;
       flex-direction: column;
-      gap: 16px;  /* breathing room between Bright/Color/Wake groups */
-      padding: 4px 4px 2px;
+      gap: 0;  /* dividers between rows provide the visual separation now */
+      padding: 0;
       -webkit-user-select: none;
       user-select: none;
+    }
+    /* Divider between Bright/Color/Wake rows, matching the Tune card's
+       inter-row treatment. Split the original 16px gap into 8px padding-bottom
+       on the previous row + 8px padding-top on this row, with a 1px border
+       between them. */
+    .adjust-section .hslider-row + .hslider-row {
+      padding-top: 8px;
+      margin-top: 8px;
+      border-top: 1px solid var(--line);
     }
     .hslider-row {
       display: flex;
       flex-direction: column;
-      /* 1.2.370: gap 4 → 9px so labels + values + buttons sit further
-         above the slider track (felt like they were bumping into it). */
-      gap: 9px;
+      /* Gap between header (label + value + ± buttons) and slider track.
+         14px gives the buttons breathing room above the track without
+         feeling disconnected. */
+      gap: 14px;
+      /* Horizontal padding lives here (was on curve-controls-wrap +
+         adjust-section). Moving it inside the row keeps the dividers
+         on .hslider-row+.hslider-row spanning the full card body width
+         — matches the Tune card's full-width inter-row dividers. */
+      padding: 0 14px;
     }
     .hslider-header {
       display: flex;
-      align-items: center;  /* value + 28px step buttons need vertical-center
-                               alignment; baseline put text above buttons */
+      align-items: flex-start;  /* small-caps label hugs row top so the gap
+                                    from card header above is just the header's
+                                    own padding-bottom (no align-center offset
+                                    pulling the label down against the taller
+                                    right-side button/value cluster). Cluster
+                                    keeps its own align-items: center so value
+                                    and buttons stay vertically aligned with
+                                    each other. */
       gap: 8px;
     }
     /* 1.2.370: nudge the right cluster (+/- buttons + value) 3px DOWN
@@ -549,6 +592,10 @@
       text-transform: uppercase;
       letter-spacing: 0.06em;
       min-width: 42px;
+      line-height: 1;  /* kill default line-box whitespace above/below the
+                          small-caps text so the label hugs the row's top
+                          edge tightly (matches Math card's section header
+                          tightness when the row uses flex-start). */
     }
     .hslider-value {
       font-size: var(--font-card-title);
@@ -936,6 +983,16 @@
       border-top: none;
     }
     #schedule-card .auto-sched-body > .auto-sched-card--sub:first-child > .auto-sched-header { padding-top: 4px; }
+    /* Tighten the gap between the "If" (auto-on) and "Off" sub-sections.
+       Shared `.sub-section` defaults (margin-top 16 + padding-top 14 + border)
+       compounded to ~30px+ between content end and the next section's
+       header. Trimmed for Schedule's specific layout — the sub-cards sit
+       adjacent inside the same Schedule card, so they don't need the
+       breathing room of a top-level section break. */
+    #schedule-card .auto-sched-card--sub.sub-section {
+      margin-top: 4px;
+      padding-top: 0;
+    }
     /* 1.2.373: when CL is off for this area, auto-schedule won't fire.
        Fade the Schedule card so the user has a visual cue that the
        scheduled events are inert. Stays editable — planning ahead is
@@ -956,14 +1013,20 @@
     .auto-sched-card--auto.is-open .auto-sched-body { max-height: 6000px; }
     /* Merged next-trigger header display (only visible when outer is collapsed —
        sub-header resolved times render it redundant when expanded) */
-    .auto-outer-next { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; font-size: var(--font-card-title); color: var(--text); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .auto-outer-next { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; font-size: var(--font-value); color: var(--text); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .auto-outer-next a { color: inherit; text-decoration: none; padding: 2px 4px; border-radius: 4px; transition: background 0.15s; }
     .auto-outer-next a:hover { background: rgba(255,255,255,0.04); }
     .auto-outer-next .auto-outer-sep { color: var(--muted2); font-weight: 400; }
     .auto-outer-next .auto-outer-off-label { color: var(--muted); }
     .auto-sched-card--auto.is-open .auto-outer-next { display: none; }
     /* Adjust card: mirror merged header for live brightness/kelvin */
-    .adjust-outer-next { margin-left: auto; display: flex; align-items: baseline; gap: 6px; font-size: var(--font-card-title); color: var(--text); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .adjust-outer-next { margin-left: auto; display: flex; align-items: baseline; gap: 6px; font-size: var(--font-value); color: var(--text); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    /* "Resets at HH:MMx" muted text on the right side of the Adjust card
+       header — visible only when the card is open. Sits where the
+       divergence chips would otherwise show; the chips' display: none
+       when open clears the slot. */
+    .adjust-outer-resets { margin-left: auto; display: none; font-size: var(--font-value); color: var(--muted2); white-space: nowrap; }
+    .auto-sched-card--headline.is-open .adjust-outer-resets { display: inline; }
     .adjust-outer-next .adjust-outer-sep { color: var(--muted2); font-weight: 400; }
     /* Divergence chips in the collapsed Adjust card header (1.2.362). Same
        blue-tinted treatment as .hslider-delta.is-dirty so the user
@@ -990,8 +1053,8 @@
     /* Inline × remove link for a 2nd custom schedule */
     .auto-sched-remove-link { font-size: var(--font-card-title); color: var(--muted2); text-decoration: none; cursor: pointer; line-height: 1; padding: 0 4px; flex-shrink: 0; }
     .auto-sched-remove-link:hover { color: var(--text); }
-    .auto-sched-header { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 14px; user-select: none; }
-    .auto-sched-title { font-size: var(--font-card-title); font-weight: 600; color: var(--text); }
+    .auto-sched-header { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px 14px; user-select: none; }
+    .auto-sched-title { font-size: var(--font-value); font-weight: 600; color: var(--text); }
     .auto-sched-toggle { position: relative; width: 32px; height: 16px; }
     .auto-sched-toggle input { opacity: 0; width: 0; height: 0; }
     .auto-sched-toggle .slider { position: absolute; inset: 0; background: var(--line); border-radius: 8px; cursor: pointer; transition: background 0.2s; }
@@ -1000,7 +1063,19 @@
     .auto-sched-toggle input:checked + .slider::before { transform: translateX(16px); background: #000; }
     .auto-sched-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; }
     .auto-sched-card.is-open .auto-sched-body { max-height: 600px; opacity: 1; }
-    .auto-sched-body-inner { padding: 4px 0 14px 0; }
+    /* Top-level auto-sched bodies get a 4px bottom padding when open
+       (matches the universal card pattern). Sub-card bodies inside
+       Schedule keep their own (no padding) — they sit inside a parent
+       that already provides the gap. */
+    /* Adjust card (auto-sched-card--headline) needs more bottom room — the
+       last slider's thumb is 18px circle centered on an 8px track, so it
+       extends ~5px below the track's bottom edge. 8px body padding-bottom
+       keeps the thumb visible (overflow: hidden would clip otherwise).
+       Schedule (auto-sched-card--auto) uses the tighter 4px since it has
+       no slider thumb at the bottom. */
+    .auto-sched-card--headline.is-open > .auto-sched-body { padding-bottom: 12px; }
+    .auto-sched-card--auto.is-open > .auto-sched-body { padding-bottom: 4px; }
+    .auto-sched-body-inner { padding: 0; }
     .auto-sched-row { display: flex; align-items: center; margin-bottom: 4px; }
     .auto-sched-days { display: flex; gap: 6px; margin-bottom: 4px; }
     .auto-sched-days-time { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: nowrap; }
@@ -1034,7 +1109,7 @@
     /* Headline variant: always-open card, no chevron, static header */
     .auto-sched-card--headline.is-open .auto-sched-body { max-height: 1600px; }
     .auto-sched-header--static { cursor: default; }
-    .curve-controls-wrap { position: relative; padding: 4px 14px 12px 14px; -webkit-user-select: none; user-select: none; }
+    .curve-controls-wrap { position: relative; padding: 0; -webkit-user-select: none; user-select: none; }
     .curve-controls-wrap .adjust-section { margin-bottom: 0; }
 
     /* Unified field row — label left, content right */
@@ -1100,6 +1175,21 @@
 
         /* Tune section — shared */
     .tune-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; overflow: hidden; font-size: 13px; }
+    /* Card body has no top padding — the 4px header padding-bottom is the
+       only gap between card title and first content. First children inside
+       card bodies (and the wrappers around sliders) also carry padding-top
+       0, so the chain stays tight. */
+    /* Universal: any direct first child of a card body contributes no
+       top padding/margin — the body owns the gap. Covers history rows,
+       controls list, math waterfall, activity entries, etc. */
+    .tune-brightness-body > *:first-child,
+    .tune-lights-body > *:first-child,
+    .auto-sched-body > *:first-child,
+    .auto-sched-body-inner > *:first-child { margin-top: 0; padding-top: 0; }
+    /* Math card sub-section header (Brightness / Color) — drop padding-top
+       when it's the first child of a .tune-wf (which is itself first in
+       the card body). Avoids stacking 4px body + 10px section-header. */
+    .tune-wf > .tune-section-header:first-child { padding-top: 0; }
     /* Inside the flex auto-sched-section, gap:8px already handles spacing —
        the tune-card margin-bottom would otherwise stack on top of the gap
        (16px visible) and break the 8px rhythm established by the other cards. */
@@ -1235,7 +1325,7 @@
       background: #fff; border: 1px solid rgba(0,0,0,0.15);
     }
 
-    /* Room Balance / Solar sliders */
+    /* Balance / Solar sliders */
     .tune-control-row { display: grid; grid-template-columns: 1fr auto; align-items: baseline; padding: 8px 14px 2px 30px; gap: 0 12px; }
     .tune-control-left { display: flex; align-items: center; gap: 6px; }
     .tune-control-label { font-size: var(--font-value); color: var(--muted); }
@@ -1248,14 +1338,14 @@
     .tune-inline-slider--sun { }
 
     /* Lights card — collapsible like brightness/alarm */
-    .tune-lights-header { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 14px; user-select: none; }
-    .tune-lights-title { font-size: var(--font-card-title); font-weight: 600; color: var(--text); }
+    .tune-lights-header { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px 14px; user-select: none; }
+    .tune-lights-title { font-size: var(--font-value); font-weight: 600; color: var(--text); }
     .tune-lights-chevron { display: inline-block; font-size: var(--font-display); line-height: 1; transform: rotate(0deg); transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
     .tune-lights-card.is-open .tune-lights-chevron { transform: rotate(90deg); }
     .tune-lights-count { margin-left: auto; font-size: var(--font-value); font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; transition: opacity 0.25s; }
     .tune-lights-card.is-open .tune-lights-count { opacity: 0; }
     .tune-lights-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; padding-bottom: 0; }
-    .tune-lights-card.is-open .tune-lights-body { max-height: 1000px; opacity: 1; padding-bottom: 8px; }
+    .tune-lights-card.is-open .tune-lights-body { max-height: 1000px; opacity: 1; padding-bottom: 4px; }
     .tune-light-item { padding: 0 14px; border-bottom: 1px solid var(--line); }
     .tune-light-item:last-child { border-bottom: none; }
     .tune-light-summary { display: grid; grid-template-columns: 1fr 1fr 56px 56px; align-items: baseline; padding: 8px 0; gap: 0 4px; }
@@ -1273,44 +1363,55 @@
        with align-items: center the title was getting pushed ~8px down
        to vertically center inside the taller flex line, putting it
        lower than Adjust's title. Now both line up. */
-    .tune-brightness-header { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; padding: 12px 14px; user-select: none; }
-    .tune-brightness-title { font-size: var(--font-card-title); font-weight: 600; color: var(--text); }
+    .tune-brightness-header { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; padding: 4px 14px; user-select: none; }
+    .tune-brightness-title { font-size: var(--font-value); font-weight: 600; color: var(--text); }
     .tune-brightness-chevron { display: inline-block; font-size: var(--font-display); line-height: 1; transform: rotate(0deg); transition: transform 0.25s; color: var(--muted2); flex-shrink: 0; }
     .tune-brightness-card.is-open .tune-brightness-chevron { transform: rotate(90deg); }
     .tune-controls-card.is-open .tune-brightness-chevron { transform: rotate(90deg); }
-    .tune-controls-card.is-open .tune-brightness-val { opacity: 0; }
+    .tune-controls-card.is-open .tune-brightness-val { display: none; }
     /* max-height is required for the open-transition (can't animate to
        `auto`); set well above any real-world controls list height so it
        acts as "effectively unlimited". 800px clipped Kitchens with many
        controls; 6000px matches the auto-sched-card--auto pattern. */
-    .tune-controls-card.is-open .tune-brightness-body { max-height: 6000px; opacity: 1; padding-bottom: 8px; }
+    .tune-controls-card.is-open .tune-brightness-body { max-height: 6000px; opacity: 1; padding-bottom: 4px; }
 
     /* Controls list inside Controls card — row layout (`.ctrl-card-row`),
        icon column, badges, summary, paused/setup/stale pills, etc., all
        live in shared.css. Renderer is `renderControlListItem` in shared.js
        (same one /switches uses). */
-    .tune-brightness-val { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; font-size: var(--font-card-title); font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; transition: opacity 0.25s; }
-    .tune-brightness-card.is-open .tune-brightness-val { opacity: 0; }
+    .tune-brightness-val { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; font-size: var(--font-value); font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; transition: opacity 0.25s; }
+    .tune-brightness-card.is-open .tune-brightness-val { display: none; }
     .tune-brightness-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; padding-bottom: 0; }
     .tune-brightness-card.is-open .tune-brightness-body { max-height: 2000px; opacity: 1; padding-bottom: 8px; }
     /* Math card uses the same chevron + body machinery as the Tune /
        Controls cards; just needs its own is-open rule since the existing
        rules are scoped per-card-class. */
     .tune-math-card.is-open .tune-brightness-chevron { transform: rotate(90deg); }
-    .tune-math-card.is-open .tune-brightness-val { opacity: 0; }
-    .tune-math-card.is-open .tune-brightness-body { max-height: 2000px; opacity: 1; padding-bottom: 8px; }
+    .tune-math-card.is-open .tune-brightness-val { display: none; }
+    .tune-math-card.is-open .tune-brightness-body { max-height: 2000px; opacity: 1; padding-bottom: 4px; }
+    /* Math header's right-side text: swap between live brightness/color
+       (closed) and the "nerds only" tag (open). Inverse of every other
+       card — Math's body is for verification, so it's useful to repeat
+       the area's live values up top while the chain is visible. */
+    .tune-math-val-closed, .tune-math-val-open { margin-left: auto; font-size: var(--font-value); font-weight: 500; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .tune-math-card .tune-math-val-open { display: none; }
+    .tune-math-card.is-open .tune-math-val-closed { display: none; }
+    .tune-math-card.is-open .tune-math-val-open { display: inline; }
     /* History card mirrors Math card open/close mechanics. The body is a
        table (Date/Time | Action | Source | Details), small font, narrow
        padding so dozens of rows fit without scrolling forever. */
     .tune-history-card.is-open .tune-brightness-chevron { transform: rotate(90deg); }
-    .tune-history-card.is-open .tune-brightness-val { opacity: 0; }
+    .tune-history-card.is-open .tune-brightness-val { display: none; }
     .tune-history-card.is-open .tune-brightness-body {
-      max-height: 4000px; opacity: 1; padding-bottom: 8px; overflow-x: auto;
+      max-height: 4000px; opacity: 1; padding-bottom: 4px; overflow-x: auto;
     }
     /* Activity card body: tighter padding + smaller font than the shared
        defaults so the in-card list reads compactly. Shared .hist-list CSS
        (shared.css) owns the row layout / icon column / typography baselines. */
     #tune-history-body .hist-row { padding: 6px 12px; font-size: 0.78rem; }
+    /* First Activity row hugs the card body's top (the 6px top padding is
+       for inter-row spacing; not needed before the first one). */
+    #tune-history-body .hist-list > .hist-row:first-child { padding-top: 0; }
     /* In-card variant: the wrapping tune-history-card already provides the
        rounded panel + border, so suppress the .hist-list panel styling
        inside it (otherwise we get a double border). */
@@ -1428,7 +1529,7 @@
     .tune-hero-breadcrumb:hover { background: rgba(255,255,255,0.05); color: var(--text); }
     .tune-hero-breadcrumb .tune-hero-dot { margin: 0 5px; color: var(--muted2); }
     /* ── Tune waterfall (math-equation layout) ── */
-    .tune-wf { padding: 4px 0 6px; }
+    .tune-wf { padding: 0; }
     .tune-wf-row {
       display: grid;
       grid-template-columns: 1.5em 1fr auto auto;
@@ -1451,11 +1552,21 @@
        "1% toward 5500K"). Sits inline after the label name, dimmer +
        smaller so the row's primary name still leads visually. */
     .tune-wf-math { color: var(--muted2); font-size: 0.85em; margin-left: 6px; font-variant-numeric: tabular-nums; }
+    /* Sub-math line beneath a chain row — shows the derivation of the
+       factor used in the main row. Indented PAST the row's label column
+       (which starts at row-padding-left 14 + op-column 1.5em ≈ 24 +
+       grid column-gap 10 = ~48px) so the sub-math sits visually to the
+       right of the row label it explains. Muted + tabular so it reads
+       as a footnote, not a peer row. */
+    .tune-wf-submath { padding: 0 14px 2px 56px; font-size: 0.78rem; color: var(--muted2); font-variant-numeric: tabular-nums; }
     /* Subtotal divider lives inside the total row's value cell — a thin
        line ONLY under the number column, not spanning the row. Keeps the
        "this is summing up" signal local to where it matters and stops it
-       from competing visually with the brightness↔color section break. */
-    .tune-wf-total .tune-wf-val { border-top: 1px solid var(--line); padding-top: 4px; }
+       from competing visually with the brightness↔color section break.
+       Color matches the total label (var(--text)) so the divider reads
+       as part of the summation group rather than a generic separator. */
+    .tune-wf-total .tune-wf-val { border-top: 1px solid var(--text); padding-top: 2px; }
+    .tune-wf-row.tune-wf-total { padding-top: 2px; }
     /* Single deliberate horizontal break between the Brightness and Color
        sub-sections inside the Math card. Section headers themselves use
        the shared `.tune-section-header` style (defined above). */
@@ -1482,15 +1593,21 @@
        the thumb + drag pipeline. Indented from the label's left so the
        row reads as a visual group ("this slider belongs to that label"). */
     .tune-srow {
-      padding: 4px 14px 10px;
+      padding: 0 14px 10px;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      /* Gap between row header (label + value) and slider track. 10px
+         lifts the value off the slider thumb (an 18px circle that
+         extends ~5px above the 8px track). */
+      gap: 10px;
     }
     .tune-srow + .tune-srow {
       padding-top: 10px;
       border-top: 1px solid var(--line);  /* divider between Sun + Balance groups */
     }
+    /* Last slider row drops its bottom padding (10px is for inter-row
+       breathing room; not needed after the final row). */
+    .tune-srow:last-child { padding-bottom: 0; }
     .tune-srow .hslider-header { padding: 0; }
     /* Inherits .hslider-value's base size (var(--font-card-title) / weight
        500) so Tune readouts match Adjust readouts in scale. The "x"
@@ -1634,10 +1751,12 @@
       <span class="ah-state-sep">&middot;</span>
       <span class="ah-state-ct" id="ah-state-ct">----K</span>
       <span class="ah-row1-spacer"></span>
-      <button type="button" class="ah-sun" id="chart-sun-info"
-              aria-expanded="false" title="Sun intensity">
-        <span class="ah-sun-icon" id="chart-sun-info-icon" data-sun-icon>&#x2600;</span>
-        <span id="chart-sun-info-pct" data-sun-pct>&mdash;</span>
+      <!-- Circadian toggle moved here (top-right) in this pass — small,
+           role-as-indicator. Sun-intensity chip moved to the chart-shell
+           top-right (just above the graph). -->
+      <button type="button" class="ah-btn ah-btn--top ah-btn--small" id="toggle-circadian"
+              onclick="toggleCircadian()" title="Circadian Light">
+        <img class="ah-btn-logo" src="./icon-indicator.png" alt="Circadian">
       </button>
     </div>
 
@@ -1694,12 +1813,12 @@
                 onclick="onResetArea()" title="Reset overrides">&#x21BA;</button>
         <span class="ah-subline is-blank">&nbsp;</span>
       </div>
-      <!-- Circadian toggle — full-size action button at the right of the
-           cluster (1.2.371). Anchors the row visually opposite the
-           power/freeze/boost trio on the left. -->
-      <button type="button" class="ah-btn ah-btn--top" id="toggle-circadian"
-              onclick="toggleCircadian()" title="Circadian Light">
-        <img class="ah-btn-logo" src="./icon-indicator.png" alt="Circadian">
+      <!-- Sun intensity chip — right-aligned, sits at the bottom of Row 3
+           (subline level) so it describes the chart immediately below. -->
+      <button type="button" class="ah-sun ah-sun--in-row3" id="chart-sun-info"
+              aria-expanded="false" title="Sun intensity">
+        <span class="ah-sun-icon" id="chart-sun-info-icon" data-sun-icon>&#x2600;</span>
+        <span id="chart-sun-info-pct" data-sun-pct>&mdash;</span>
       </button>
     </div>
 
@@ -1711,6 +1830,26 @@
       <div class="area-solar-label" id="area-sunrise-label" data-time="">sunrise</div>
       <div class="area-solar-label" id="area-sunset-label" data-time="">sunset</div>
       <div class="area-phase-label" id="area-phase-label" data-time="">wake</div>
+      <!-- "Enable Circadian Light" overlay button — visible only when
+           is_circadian is false. Sits over the muted chart so it's the
+           obvious CTA to re-enable the rhythm. Was inside the Adjust
+           card pre-1.2.378; moved here since the chart persists when
+           the Adjust card is collapsed. -->
+      <button class="enable-circadian-btn" id="enable-circadian-btn"
+              style="display:none;" onclick="executeAction('circadian_on')">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="5"/>
+          <line x1="12" y1="1" x2="12" y2="3"/>
+          <line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/>
+          <line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+        Enable Circadian Light
+      </button>
     </div>
   </header>
 
@@ -1728,6 +1867,7 @@
         <span class="auto-sched-chevron">&#x203A;</span>
         <span class="auto-sched-title">Adjust</span>
         <span class="adjust-outer-next" id="adjust-outer-next"></span>
+        <span class="adjust-outer-resets" id="adjust-outer-resets"></span>
       </div>
       <div class="auto-sched-body" id="chart-body">
         <div id="circadian-content-wrap" class="curve-controls-wrap">
@@ -1792,21 +1932,6 @@
               </div>
             </div>
           </div>
-          <button class="enable-circadian-btn" id="enable-circadian-btn"
-                  style="display:none;" onclick="executeAction('circadian_on')">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="5"/>
-              <line x1="12" y1="1" x2="12" y2="3"/>
-              <line x1="12" y1="21" x2="12" y2="23"/>
-              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-              <line x1="1" y1="12" x2="3" y2="12"/>
-              <line x1="21" y1="12" x2="23" y2="12"/>
-              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-            </svg>
-            Enable
-          </button>
         </div>
       </div>
     </div>
@@ -2030,7 +2155,12 @@
         <div class="tune-brightness-header" onclick="toggleMathBody()">
           <span class="tune-brightness-chevron" id="tune-math-chevron">&#x203A;</span>
           <span class="tune-brightness-title">Math</span>
-          <span class="tune-brightness-val" id="tune-math-header-val" style="font-size:var(--font-value);font-weight:500;color:var(--muted);">nerds only</span>
+          <!-- Two variants of the right-side text: closed shows live
+               brightness/color (mirrors the area-header readout); open
+               shows the "nerds only" tag. CSS swaps visibility based on
+               .tune-math-card.is-open. -->
+          <span class="tune-math-val-closed" id="tune-math-val-closed"></span>
+          <span class="tune-math-val-open">nerds only</span>
         </div>
         <div class="tune-brightness-body" id="tune-math-body"></div>
       </div>
@@ -5119,19 +5249,25 @@
         boostBtn.title = selectedArea.boosted ? 'Boost (tap to end)' : 'Boost';
       }
 
-      // Circadian-off overlay (greys chart + sliders, surfaces "Enable"
-      // button on the chart card) + header circadian icon prominence.
-      const wrap = document.getElementById('circadian-content-wrap');
+      // Circadian-off muting: the chart gets a heavier overlay plus the
+      // "Enable Circadian Light" button (chart persists across page
+      // interactions, so it's the right anchor for the CTA). Other cards
+      // in <main> get a softer opacity fade via .is-cl-disabled.
+      const chartShell = document.getElementById('chart-shell');
       const enableBtn = document.getElementById('enable-circadian-btn');
+      const mainEl = document.querySelector('main.main');
       const circToggle = document.getElementById('toggle-circadian');
-      if (wrap && enableBtn) {
+      if (chartShell && enableBtn) {
         if (selectedArea.is_circadian === false) {
-          wrap.classList.add('circadian-off-overlay');
+          chartShell.classList.add('circadian-off-overlay');
           enableBtn.style.display = 'flex';
         } else {
-          wrap.classList.remove('circadian-off-overlay');
+          chartShell.classList.remove('circadian-off-overlay');
           enableBtn.style.display = 'none';
         }
+      }
+      if (mainEl) {
+        mainEl.classList.toggle('is-cl-disabled', selectedArea.is_circadian === false);
       }
       if (circToggle) {
         circToggle.classList.toggle('is-off', selectedArea.is_circadian === false);
@@ -6700,8 +6836,7 @@
       //   - Phase shift row carries the delta from the user's bed/wake drag
       //     (state.brightness_mid). Curve + PhaseShift = baseBriPct, so the
       //     additive chain still sums to the right value.
-      // Labels: "Daily rhythm @ HH:MMa/p with HH:MM bed/wake" on Curve,
-      //         "Temp adjust bed|wake to HH:MM" on Phase-shift.
+      // Label format: "Base: 6:45a wake @ 8:57a" — rhythm boundary + now.
       const _liveStatusBri = areaStatus[ts.areaId] || {};
       const _phaseBri = _liveStatusBri.phase || 'wake';   // 'wake' = in ascend, 'bed' = in descend
       const _rhythmTime = _phaseBri === 'wake'
@@ -6711,18 +6846,18 @@
         ? _liveStatusBri.adjusted_wake_time
         : _liveStatusBri.adjusted_bed_time;
       const _phaseWord = _phaseBri === 'wake' ? 'wake' : 'bed';
+      const _nowDate = new Date();
+      const _curHrLocal = _nowDate.getHours() + _nowDate.getMinutes() / 60;
+      const _curTimeStr = formatPhaseTime(_curHrLocal);
       const baseBriNoMid = (ts.baseBrightNoMid != null) ? ts.baseBrightNoMid : baseBriPct;
       const briPhaseShift = (ts.baseBrightNoMid != null) ? (baseBriPct - ts.baseBrightNoMid) : 0;
 
-      // Curve label: "Daily curve w/10p bed time" — formatPhaseTime gives the
-      // compact "10p" form (vs formatHourToTime's "10pm"). Drop current-time
-      // mention; the row's value carries the "where I am right now" signal.
       const elBaseLabel = document.getElementById('tune-det-base-label');
       if (elBaseLabel) {
         const rt = _rhythmTime != null ? formatPhaseTime(_rhythmTime) : '';
-        elBaseLabel.textContent = rt
-          ? 'Daily curve w/' + rt + ' ' + _phaseWord + ' time'
-          : 'Daily curve';
+        elBaseLabel.innerHTML = rt
+          ? 'Base <span class="tune-wf-math">' + rt + ' ' + _phaseWord + ' @ ' + _curTimeStr + ' (now)</span>'
+          : 'Base';
       }
       const elBaseBri = document.getElementById('tune-det-base-total');
       if (elBaseBri) elBaseBri.textContent = Math.round(baseBriNoMid) + '%';
@@ -6731,33 +6866,48 @@
       const elBriMidLabel = document.getElementById('tune-det-bri-mid-label');
       const elBriMidVal = document.getElementById('tune-det-bri-mid-val');
       if (elBriMidRow) elBriMidRow.style.display = briPhaseShift !== 0 ? '' : 'none';
+      const _phaseTitle = _phaseWord.charAt(0).toUpperCase() + _phaseWord.slice(1);
       if (elBriMidLabel && _adjustedTime != null) {
-        elBriMidLabel.textContent = 'Temp ' + _phaseWord + ' → ' + formatPhaseTime(_adjustedTime);
+        elBriMidLabel.textContent = _phaseTitle + ' adjust → ' + formatPhaseTime(_adjustedTime);
       } else if (elBriMidLabel) {
-        elBriMidLabel.textContent = 'Temp ' + _phaseWord;
+        elBriMidLabel.textContent = _phaseTitle + ' adjust';
       }
       if (elBriMidVal) elBriMidVal.textContent = formatImpact(Math.round(briPhaseShift)) + '%';
 
-      // Sun dimming math hint: "X% sun × <step label> Y" where X is raw
-      // outdoor sun intensity (no sensitivity baked in — chip stays as raw
-      // sun) and Y/<label> are the area's exposure step (SOLAR_STEPS).
-      // brightness_sensitivity (zone-level) intentionally not surfaced —
-      // most users leave it at default and it inflates the hint without
-      // changing per-area or per-time.
+      // Sun dimming: two-line breakdown.
+      //   Main row math hint: "<sun-factor>% × <Step> <exposure> × base <bri>%"
+      //   Sub-math line: "<sun>% sun × <sensitivity> sensitivity = <sun-factor>%"
+      // sun_factor = outdoor_normalized × brightness_sensitivity (the value the
+      // top-of-page chip will display once renamed; see project_sun_factor_rename.md).
       const elSolarLabel = document.getElementById('tune-det-solar-label');
+      const elSolarSubmath = document.getElementById('tune-det-solar-submath');
+      const _solarStep = SOLAR_STEPS[ts.solarStep] || { label: '—', exposure: 0 };
+      const _sunPct = Math.round((ts.outdoorNormalized || 0) * 100);
+      const _briSens = ts.brightnessSensitivity != null ? ts.brightnessSensitivity : 0;
+      const _sunFactorPct = Math.round((ts.outdoorNormalized || 0) * _briSens * 100);
       if (elSolarLabel) {
-        const sunPct = Math.round((ts.outdoorNormalized || 0) * 100);
-        const step = SOLAR_STEPS[ts.solarStep] || { label: '—', exposure: 0 };
-        const expLbl = (step.label || '').toLowerCase();
+        // Order: area's exposure step first (the user's setting), then base
+        // brightness it's modifying, then the sun factor that scales it.
         elSolarLabel.innerHTML = 'Sun dimming <span class="tune-wf-math">'
-          + sunPct + '% sun × ' + expLbl + ' ' + step.exposure.toFixed(2) + '</span>';
+          + _solarStep.label + ' ' + _solarStep.exposure.toFixed(2) + 'x'
+          + ' × base ' + Math.round(baseBriPct) + '%'
+          + ' × ' + _sunFactorPct + '%</span>';
       }
-      // Room balance: include the LUMEN_STEPS label next to the factor.
+      if (elSolarSubmath) {
+        // Order: result first, colon, then derivation. Lets the eye see
+        // the value used in the main row immediately.
+        const _sensStr = _briSens < 1 ? _briSens.toFixed(1) : _briSens.toFixed(2);
+        elSolarSubmath.textContent = _sunFactorPct + '%: '
+          + _sunPct + '% sun × ' + _sensStr + ' sensitivity';
+      }
+      // Balance: include the LUMEN_STEPS label + factor in the math hint.
+      // Label kept at original capitalization (Bright, Max, etc.); no
+      // leading "×" since "Balance Bright 1.15x" reads naturally without it.
       const elLumenLabel = document.getElementById('tune-det-lumen-label');
       if (elLumenLabel) {
         const step = LUMEN_STEPS[ts.lumenStep] || { label: '—', factor: 1.0 };
-        const balLbl = (step.label || '').toLowerCase();
-        elLumenLabel.innerHTML = 'Room balance <span class="tune-wf-math">× '
+        const balLbl = step.label || '';
+        elLumenLabel.innerHTML = 'Balance <span class="tune-wf-math">'
           + balLbl + ' ' + step.factor.toFixed(2) + 'x</span>';
       }
 
@@ -6857,9 +7007,9 @@
       const elColorBaseLabel = document.getElementById('tune-det-color-base-label');
       if (elColorBaseLabel) {
         const rt = _rhythmTime != null ? formatPhaseTime(_rhythmTime) : '';
-        elColorBaseLabel.textContent = rt
-          ? 'Daily curve w/' + rt + ' ' + _phaseWord + ' time'
-          : 'Daily curve';
+        elColorBaseLabel.innerHTML = rt
+          ? 'Base <span class="tune-wf-math">' + rt + ' ' + _phaseWord + ' @ ' + _curTimeStr + ' (now)</span>'
+          : 'Base';
       }
       const elColorBase = document.getElementById('tune-det-color-base');
       if (elColorBase) elColorBase.textContent = baseKNoMid + 'K';
@@ -6869,9 +7019,9 @@
       const elColorMidVal = document.getElementById('tune-det-color-mid-val');
       if (elColorMidRow) elColorMidRow.style.display = phaseShift !== 0 ? '' : 'none';
       if (elColorMidLabel && _adjustedTime != null) {
-        elColorMidLabel.textContent = 'Temp ' + _phaseWord + ' → ' + formatPhaseTime(_adjustedTime);
+        elColorMidLabel.textContent = _phaseTitle + ' adjust → ' + formatPhaseTime(_adjustedTime);
       } else if (elColorMidLabel) {
-        elColorMidLabel.textContent = 'Temp ' + _phaseWord;
+        elColorMidLabel.textContent = _phaseTitle + ' adjust';
       }
       if (elColorMidVal) elColorMidVal.textContent = formatImpact(phaseShift) + 'K';
 
@@ -6888,13 +7038,30 @@
       const elSunCoolingVal = document.getElementById('tune-det-sun-cooling-val');
       if (elSunCoolingRow) elSunCoolingRow.style.display = '';
       if (elSunCoolingLabel) {
-        const sunPct = Math.round((sb.outdoor_normalized || ts.outdoorNormalized || 0) * 100);
-        const fadePct = Math.round((sb.daylight_fade_weight || 0) * 100);
+        const blendPct = Math.round((sb.daylight_blend || 0) * 100);
         const dayCct = sb.daylight_cct != null ? sb.daylight_cct : 0;
+        // Order: headroom first (target minus current curve baseline),
+        // then the blend % that scales it. Parallels the Sun dimming
+        // reorder where the scaling factor comes last.
         elSunCoolingLabel.innerHTML = 'Sun cooling <span class="tune-wf-math">'
-          + sunPct + '% sun × ' + fadePct + '% fade toward ' + dayCct + 'K</span>';
+          + '(' + dayCct + 'K − ' + baseK + 'K) × ' + blendPct + '%</span>';
       }
       if (elSunCoolingVal) elSunCoolingVal.textContent = formatImpact(sunCooling) + 'K';
+      // Sub-math: "<sun>% sun × <sens> sensitivity × <fade>% fade = <blend>%"
+      // Terminator mirrors the brightness sub-math so the user can verify
+      // the rolled-up blend % shown in the main row.
+      const elSunCoolingSubmath = document.getElementById('tune-det-sun-cooling-submath');
+      if (elSunCoolingSubmath) {
+        const _sunCpct = Math.round((sb.outdoor_normalized || ts.outdoorNormalized || 0) * 100);
+        const _colorSens = (cachedConfig && cachedConfig.color_sensitivity != null)
+          ? cachedConfig.color_sensitivity : 1.0;
+        const _colorSensStr = _colorSens < 1 ? _colorSens.toFixed(2).replace(/0$/, '') : _colorSens.toFixed(2);
+        const _fadePctC = Math.round((sb.daylight_fade_weight || 0) * 100);
+        const _blendPctC = Math.round((sb.daylight_blend || 0) * 100);
+        // Result first, then derivation (mirrors Sun dimming sub-math).
+        elSunCoolingSubmath.textContent = _blendPctC + '%: '
+          + _sunCpct + '% sun × ' + _colorSensStr + ' sensitivity × ' + _fadePctC + '% fade';
+      }
 
       // Sun cooling pullback row — always visible. Pullback delta = full
       // Sun cooling × (1 − sun_cooling_strength), rendered as a negative
@@ -6908,10 +7075,14 @@
       const pullbackFrac = 1 - coolStrength;
       const coolPullbackK = -Math.round((sb.daylight_shift || 0) * pullbackFrac);
       if (elCoolPullbackLabel) {
+        elCoolPullbackLabel.textContent = 'Cooling pullback for ' + _phaseWord + ' adjust';
+      }
+      const elCoolPullbackSubmath = document.getElementById('tune-det-cool-pullback-submath');
+      if (elCoolPullbackSubmath) {
         const pullbackPct = Math.round(pullbackFrac * 100);
         const fullCoolK = Math.round(sb.daylight_shift || 0);
-        elCoolPullbackLabel.innerHTML = 'Sun cooling pullback <span class="tune-wf-math">'
-          + pullbackPct + '% pullback × +' + fullCoolK + 'K full</span>';
+        elCoolPullbackSubmath.textContent = pullbackPct + '% ' + _phaseWord
+          + ' adjust × ' + fullCoolK + 'K full';
       }
       if (elCoolPullbackVal) elCoolPullbackVal.textContent = formatImpact(coolPullbackK) + 'K';
 
@@ -6936,6 +7107,27 @@
 
       const elColorFinal = document.getElementById('tune-det-color-final-val');
       if (elColorFinal) elColorFinal.textContent = finalK + 'K';
+
+      // Math card collapsed-state val: "<finalBri>% · <finalK>K" — mirrors
+      // the area-header readout so the user sees the area's current values
+      // without expanding the Math card. When expanded, CSS swaps to "nerds only".
+      const elMathValClosed = document.getElementById('tune-math-val-closed');
+      if (elMathValClosed) {
+        elMathValClosed.textContent = clampedAreaBri + '% · ' + finalK + 'K';
+      }
+
+      // Temp adjust card expanded-state "Resets at HH:MMx" — the next
+      // phase boundary (when ephemeral overrides clear).
+      const elAdjResets = document.getElementById('adjust-outer-resets');
+      if (elAdjResets && cachedConfig) {
+        const _isAscend = _phaseBri === 'wake';
+        const _nextBoundary = _isAscend ? cachedConfig.descend_start : cachedConfig.ascend_start;
+        if (Number.isFinite(_nextBoundary)) {
+          elAdjResets.textContent = 'Resets at ' + formatPhaseTime(_nextBoundary);
+        } else {
+          elAdjResets.textContent = '';
+        }
+      }
 
       sortLightsList();
     }
@@ -7146,7 +7338,7 @@
         + '</div>';
       bhtml += '<div class="tune-srow">'
         + '<div class="hslider-header">'
-        +   '<span class="hslider-label">Room balance</span>'
+        +   '<span class="hslider-label">Balance</span>'
         +   '<span class="hslider-right">'
         +     '<span class="hslider-value" id="tune-lumen-word" onclick="onValueReset(\'balance\')" title="Tap to revert">' + LUMEN_STEPS[lumenStep].label + lumenWordSuffix + '</span>'
         +     '<button class="hslider-reset hidden" id="tune-reset-lumen" title="Reset room balance">&#x21BA;</button>'
@@ -7189,9 +7381,10 @@
         + '<span class="tune-wf-reset"></span>'
         + '<span class="tune-wf-val" id="tune-det-solar-val">0%</span>'
         + '</div>';
+      mhtml += '<div class="tune-wf-submath" id="tune-det-solar-submath"></div>';
       mhtml += '<div class="tune-wf-row">'
         + '<span class="tune-wf-op">+</span>'
-        + '<span class="tune-wf-label" id="tune-det-lumen-label">Room balance</span>'
+        + '<span class="tune-wf-label" id="tune-det-lumen-label">Balance</span>'
         + '<span class="tune-wf-reset"></span>'
         + '<span class="tune-wf-val" id="tune-det-lumen-val">0%</span>'
         + '</div>';
@@ -7262,16 +7455,18 @@
         + '<span class="tune-wf-reset"></span>'
         + '<span class="tune-wf-val" id="tune-det-sun-cooling-val">0K</span>'
         + '</div>';
+      mhtml += '<div class="tune-wf-submath" id="tune-det-sun-cooling-submath"></div>';
       // Sun cooling pullback — the runtime correction from sun_cooling_strength.
       // Always rendered (per the user's stated reason for breaking it out —
       // hiding it would let users forget the factor exists). Shows -ΔK and
       // a math hint of the form "30% pullback × +30K full".
       mhtml += '<div class="tune-wf-row" id="tune-det-cool-pullback-row">'
         + '<span class="tune-wf-op">+</span>'
-        + '<span class="tune-wf-label" id="tune-det-cool-pullback-label">Sun cooling pullback</span>'
+        + '<span class="tune-wf-label" id="tune-det-cool-pullback-label">Cooling pullback</span>'
         + '<span class="tune-wf-reset"></span>'
         + '<span class="tune-wf-val" id="tune-det-cool-pullback-val">0K</span>'
         + '</div>';
+      mhtml += '<div class="tune-wf-submath" id="tune-det-cool-pullback-submath"></div>';
       mhtml += '<div class="tune-wf-row" id="tune-det-night-warming-row">'
         + '<span class="tune-wf-op">+</span>'
         + '<span class="tune-wf-label" id="tune-det-night-warming-label">Night warming</span>'
@@ -7340,7 +7535,7 @@
       const mostPopular = Object.keys(purposeCounts).sort((a, b) => purposeCounts[b] - purposeCounts[a])[0] || 'Standard';
       const purposes = [...new Set(lightsArr.map(l => l.filterName))].sort();
 
-      let fbhtml = '<div style="display:flex;align-items:center;gap:6px;padding:6px 14px;font-size:var(--font-body);color:var(--muted);">';
+      let fbhtml = '<div style="display:flex;align-items:center;gap:6px;padding:0 14px 6px;font-size:var(--font-body);color:var(--muted);">';
       fbhtml += '<span>Feedback light:</span>';
       fbhtml += '<select id="tune-feedback-target" onchange="saveFeedbackTarget()" style="background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:2px 4px;font-size:var(--font-body);">';
       fbhtml += '<option value=""' + (!currentFeedback ? ' selected' : '') + '>Auto (' + mostPopular + ')</option>';

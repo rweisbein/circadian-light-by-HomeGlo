@@ -2498,12 +2498,23 @@
           el.setAttribute('data-sig', sig);
           syncPulsesToWallClock(el);
         } else {
-          // Same structure — update text only (preserves animations)
+          // Same structure — diff inner HTML of each child so we preserve
+          // the outer element (and its running animation) while updating
+          // any text/icon changes. Prior implementation used a regex that
+          // only captured between the first > and first <, which returned
+          // empty for elements containing leading SVG (e.g. the boost pill
+          // with its lightning bolt). That stripped the SVG on every tick
+          // and left a pulsing empty pill — a "horizontal thickish but
+          // muted bar" matching the user's symptom report.
           const children = el.children;
+          const tmp = document.createElement('div');
           for (let i = 0; i < children.length && i < parts.length; i++) {
-            const m = parts[i].match(/>([^<]*)</);
-            if (m && children[i].textContent !== m[1]) {
-              children[i].textContent = m[1];
+            tmp.innerHTML = parts[i];
+            const sourceEl = tmp.firstElementChild;
+            if (!sourceEl) continue;
+            const newInner = sourceEl.innerHTML;
+            if (children[i].innerHTML !== newInner) {
+              children[i].innerHTML = newInner;
             }
           }
         }
